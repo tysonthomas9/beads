@@ -1,9 +1,7 @@
 # Go binary
 /beads-web-ui
+/webui
 *.exe
-
-# Frontend build output (embedded in Go binary)
-/frontend/dist/
 
 # Node dependencies
 /frontend/node_modules/
