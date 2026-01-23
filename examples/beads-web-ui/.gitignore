@@ -1,0 +1,25 @@
+# Go binary
+/beads-web-ui
+*.exe
+
+# Frontend build output (embedded in Go binary)
+/frontend/dist/
+
+# Node dependencies
+/frontend/node_modules/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log

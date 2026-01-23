@@ -1,6 +1,7 @@
 # Binaries
 /beads
 /bd
+examples/beads-web-ui/beads-web-ui
 *.exe
 *.dll
 *.so
