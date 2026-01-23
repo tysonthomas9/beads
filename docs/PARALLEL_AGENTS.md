@@ -19,6 +19,8 @@ We use two separate scripts to separate planning from implementation:
 |--------|---------|--------------|
 | `claude-plan.sh` | Creates detailed plans, marks tasks `[Need Review]` | Required before implementation |
 | `claude-task.sh` | Implements tasks (skips `[Need Review]` tasks) | After completion |
+| `claude-merge.sh` | Merges branches with AI conflict resolution | After merge |
+| `claude-sync.sh` | Syncs worktrees with integration branch | None |
 
 ### The Review Gate Pattern
 
@@ -206,6 +208,29 @@ main (production)
 3. Repeat for other worktrees as they complete work
 4. Eventually merge `feature/web-ui` to `main`
 
+### Sync Script: `claude-sync.sh`
+
+Use this to update worktrees with the latest changes from the integration branch:
+
+```bash
+./claude-sync.sh falcon               # Sync falcon with feature/web-ui
+./claude-sync.sh falcon main          # Sync falcon with main
+./claude-sync.sh all                  # Sync all worktrees with feature/web-ui
+./claude-sync.sh all main             # Sync all worktrees with main
+```
+
+**What it does:**
+1. Changes to the worktree directory
+2. Fetches latest from origin
+3. Merges the source branch into the worktree's branch
+4. If conflicts: launches Claude to resolve them
+5. Pushes the updated branch
+
+**When to use:**
+- After merging work into `feature/web-ui`, sync other worktrees to get those changes
+- Before starting new work, ensure worktree has latest code
+- After PR is merged to `main`, sync all worktrees with `main`
+
 ### Reviewing Tasks Awaiting Approval
 
 ```bash
@@ -315,6 +340,13 @@ bd list --status=closed      # Completed tasks
 ./claude-merge.sh webui/falcon              # Merge falcon to feature/web-ui
 ./claude-merge.sh webui/cobalt              # Merge cobalt to feature/web-ui
 ./claude-merge.sh feature/web-ui main       # Merge integration branch to main
+```
+
+### Syncing Worktrees
+```bash
+./claude-sync.sh falcon                     # Sync falcon with feature/web-ui
+./claude-sync.sh all                        # Sync all worktrees
+./claude-sync.sh all main                   # Sync all worktrees with main
 ```
 
 ## Key Learnings
