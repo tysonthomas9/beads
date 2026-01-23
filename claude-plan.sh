@@ -24,7 +24,11 @@ if [ -n "$1" ]; then
     cd "$TARGET_DIR" || { echo "Error: Cannot cd to $TARGET_DIR"; exit 1; }
 fi
 
+# Extract worktree name for use as assignee
+WORKTREE_NAME=$(basename "$(pwd)")
+
 echo "Running Claude PLANNING agent in: $(pwd)"
+echo "Agent name: $WORKTREE_NAME"
 echo "---"
 
 claude --dangerously-skip-permissions "
@@ -33,13 +37,15 @@ claude --dangerously-skip-permissions "
 You are a disciplined software architect. Your job is to CREATE PLANS, not implement them.
 Follow this workflow EXACTLY for ONE task.
 
+**Your agent name is: $WORKTREE_NAME** - Use this as assignee when claiming tasks.
+
 ### Step 1: Select ONE Task for Planning
 - Run 'bd ready --limit 10' to see available tasks
 - SKIP any task with '[Need Review]' in the title (awaiting human approval)
 - SKIP any task already 'in_progress' by checking 'bd list --status=in_progress'
 - Pick the HIGHEST PRIORITY task (P0 > P1 > P2 > P3 > P4)
 - Run 'bd show <id>' to understand the task requirements
-- Run 'bd update <id> --status in_progress' to claim it
+- Run 'bd update <id> --status in_progress --assignee $WORKTREE_NAME' to claim it
 - REMEMBER this task ID and ORIGINAL TITLE
 
 ### Step 2: Research the Codebase
