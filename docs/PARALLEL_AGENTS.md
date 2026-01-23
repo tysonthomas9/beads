@@ -21,6 +21,7 @@ We use two separate scripts to separate planning from implementation:
 | `claude-task.sh` | Implements tasks (skips `[Need Review]` tasks) | After completion |
 | `claude-merge.sh` | Merges branches with AI conflict resolution | After merge |
 | `claude-sync.sh` | Syncs worktrees with integration branch | None |
+| `claude-reset.sh` | Resets worktrees to a specific branch | Confirmation required |
 
 ### The Review Gate Pattern
 
@@ -233,6 +234,29 @@ Use this to update worktrees with the latest changes from the integration branch
 - Before starting new work, ensure worktree has latest code
 - After PR is merged to `main`, sync all worktrees with `main`
 
+### Reset Script: `claude-reset.sh`
+
+Use this to hard reset worktrees to a specific branch, discarding all local changes:
+
+```bash
+./claude-reset.sh falcon                    # Reset falcon to feature/web-ui
+./claude-reset.sh falcon main               # Reset falcon to main
+./claude-reset.sh all                       # Reset all worktrees to feature/web-ui
+./claude-reset.sh all main                  # Reset all worktrees to main
+```
+
+**What it does:**
+1. Discards all local changes (`git reset --hard`, `git clean -fd`)
+2. Resets to the target branch (`origin/feature/web-ui` or `origin/main`)
+3. Force pushes the worktree branch to match
+
+**When to use:**
+- Discard failed/abandoned work and start fresh
+- After a PR is merged, reset all worktrees to `main`
+- Clean slate for a new feature cycle
+
+**WARNING:** This is destructive! Requires confirmation prompt.
+
 ### Reviewing Tasks Awaiting Approval
 
 ```bash
@@ -351,6 +375,13 @@ bd list --status=closed      # Completed tasks
 ./claude-sync.sh falcon                     # Sync falcon with feature/web-ui
 ./claude-sync.sh all                        # Sync all worktrees
 ./claude-sync.sh all main                   # Sync all worktrees with main
+```
+
+### Resetting Worktrees
+```bash
+./claude-reset.sh falcon                    # Reset falcon to feature/web-ui
+./claude-reset.sh all                       # Reset all worktrees to feature/web-ui
+./claude-reset.sh all main                  # Reset all worktrees to main
 ```
 
 ## Key Learnings
