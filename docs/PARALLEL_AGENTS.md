@@ -9,6 +9,35 @@ When running multiple Claude Code agents in parallel:
 2. **Beads** provides shared task database with dependency management
 3. **Blocking dependencies** ensure tasks are worked in correct order
 4. **Priority-based selection** lets agents pick the most important ready work
+5. **Human-in-the-loop review** via `[Need Review]` prefix pattern
+
+## Two-Script Workflow
+
+We use two separate scripts to separate planning from implementation:
+
+| Script | Purpose | Human Review |
+|--------|---------|--------------|
+| `claude-plan.sh` | Creates detailed plans, marks tasks `[Need Review]` | Required before implementation |
+| `claude-task.sh` | Implements tasks (skips `[Need Review]` tasks) | After completion |
+
+### The Review Gate Pattern
+
+```
+Task: "Add authentication"
+        ↓ claude-plan.sh
+[Need Review] Add authentication    ← Agent saves plan to --design field
+        ↓ Human reviews & approves (removes [Need Review] prefix)
+Add authentication                  ← Ready for implementation
+        ↓ claude-task.sh
+Closed: Add authentication
+```
+
+### Why Two Scripts?
+
+1. **Quality control** - Humans review plans before code is written
+2. **No wasted work** - Catch design issues before implementation
+3. **Clear handoff** - `[Need Review]` in title = human action required
+4. **Race condition prevention** - Implementation agents skip review tasks
 
 ## Setup
 
@@ -89,105 +118,95 @@ bd label add <task-id> phase-2
 # ... etc
 ```
 
-## Agent Workflow Script
+## Agent Workflow Scripts
 
-Create `claude-task.sh` in your repo root:
+Two scripts in the repo root handle planning and implementation separately.
+
+### Planning Script: `claude-plan.sh`
+
+Use this to have agents create detailed plans that you review before implementation:
 
 ```bash
-#!/bin/bash
-# claude-task.sh - Run a disciplined single-task Claude agent
+./claude-plan.sh falcon    # Run planning agent in falcon worktree
+```
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+**What it does:**
+1. Picks up a task (skips `[Need Review]` tasks)
+2. Researches codebase and creates detailed plan
+3. Saves plan to task's `--design` field
+4. Renames task to `[Need Review] <original title>`
+5. Sets status back to `open` and exits
 
-if [ -n "$1" ]; then
-    if [[ "$1" != /* ]]; then
-        TARGET_DIR="$SCRIPT_DIR/$1"
-    else
-        TARGET_DIR="$1"
-    fi
-    cd "$TARGET_DIR" || { echo "Error: Cannot cd to $TARGET_DIR"; exit 1; }
-fi
+**After planning agent completes:**
+```bash
+# Review the plan
+bd show <task-id>
 
-echo "Running Claude agent in: $(pwd)"
-echo "---"
+# If approved - remove [Need Review] prefix
+bd update <task-id> --title="<original title>"
 
-claude --dangerously-skip-permissions "
-## WORKFLOW: Single Task Execution
+# If changes needed - add a comment
+bd comment <task-id> "Please reconsider the approach for X"
+bd update <task-id> --title="<original title>"  # Remove [Need Review] to let agent retry
+```
 
-You are a disciplined software engineer. Follow this workflow EXACTLY for ONE task.
+### Implementation Script: `claude-task.sh`
 
-### Step 1: Select ONE Task
-- Run 'bd ready --limit 10' to see available tasks (sorted by priority, only unblocked tasks shown)
-- Run 'bd list --status=in_progress --json' to check for stale tasks (updated_at >10 hours ago = abandoned, reclaim with 'bd update <id> --status in_progress')
-- Pick the HIGHEST PRIORITY task (P0 > P1 > P2 > P3 > P4) that is not already in_progress
-- Run 'bd show <id>' to understand the task requirements
-- Run 'bd update <id> --status in_progress' to claim it
-- REMEMBER this task ID - you will work ONLY on this task
+Use this for tasks that are ready for implementation (no `[Need Review]` prefix):
 
-### Step 2: Plan (DO NOT CODE YET)
-Before writing any code:
-- Read relevant existing code to understand patterns and conventions
-- Identify what files need to be created or modified
-- Write a brief plan as a comment explaining your approach
-- Consider edge cases and potential issues
-- Identify any dependencies or blockers
-- ONLY proceed to Step 3 after planning is complete
+```bash
+./claude-task.sh falcon    # Run implementation agent in falcon worktree
+```
 
-### Step 3: Implement
-- Follow the plan from Step 2
-- Keep changes minimal and focused ONLY on this task
-- Follow existing code patterns in the codebase
-- Do not refactor unrelated code
-- Do not add features beyond the task scope
+**What it does:**
+1. Picks up a task (SKIPS any with `[Need Review]` in title)
+2. Checks for `--design` field and follows that plan if present
+3. Implements, tests, reviews code
+4. Commits and pushes
+5. Closes task and exits
 
-### Step 4: Manual Testing
-- Run/build the code to verify it compiles
-- Test the functionality manually to verify it works
-- Test edge cases you identified in planning
-- If it fails: debug, fix, and re-test before proceeding
-- Do NOT proceed until manual testing passes
+### Reviewing Tasks Awaiting Approval
 
-### Step 5: Write Tests (spawn agent)
-- Use the Task tool to spawn an agent to write tests
-- Prompt: 'Write unit tests for the changes made in [files]. Follow existing test patterns in the codebase.'
-- Verify tests pass by running the test command (e.g., 'go test ./...' or 'npm test')
-- If tests fail, fix the code or tests until they pass
+```bash
+# List all tasks waiting for your review
+bd list --status=open --title-contains="Need Review"
 
-### Step 6: Code Review (spawn agent)
-- Use the Task tool with subagent_type='feature-dev:code-reviewer'
-- Prompt: 'Review the changes for this task. Check for bugs, security issues, code quality, and adherence to project conventions.'
-- Document all issues found
+# Review a specific task's plan
+bd show <task-id>
 
-### Step 7: Fix Review Issues
-- Address ALL issues identified in code review
-- Re-run tests after making fixes
-- If changes were significant, spawn another code review agent
-- Repeat until review passes with no major issues
+# Approve (remove prefix, ready for implementation)
+bd update <task-id> --title="Implement user authentication"
 
-### Step 8: Complete
-- Run the full test suite one final time
-- Ensure all tests pass
-- Run 'bd close <id> --reason \"Completed with tests and code review\"'
-- Run 'bd sync'
-- Stage and commit: git add -A && git commit -m \"<brief description> (<task-id>)
-
-Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\"
-- Push: git push origin HEAD
-
-### CRITICAL: STOP
-After completing Step 8, you are DONE.
-- Do NOT run 'bd ready' again
-- Do NOT pick up another task
-- Do NOT continue working
-- Simply EXIT
-
-You have completed ONE task through the full workflow. The human will run you again for the next task.
-"
+# Request changes (add comment, remove prefix to trigger re-planning)
+bd comment <task-id> "Need to handle edge case X"
+bd update <task-id> --title="Plan user authentication"
 ```
 
 ## Running Parallel Agents
 
-Open 5 terminal windows and run:
+### Planning Phase (Human Review Required)
+
+Run planning agents to create plans for review:
+
+```bash
+# Terminal 1 - Planning agent
+cd /path/to/repo && ./claude-plan.sh falcon
+
+# Terminal 2 - Planning agent
+cd /path/to/repo && ./claude-plan.sh cobalt
+```
+
+After agents complete, review their plans:
+
+```bash
+bd list --status=open --title-contains="Need Review"
+bd show <task-id>  # Review the --design field
+bd update <task-id> --title="<approved title without [Need Review]>"
+```
+
+### Implementation Phase (After Approval)
+
+Once plans are approved, run implementation agents:
 
 ```bash
 # Terminal 1
@@ -206,6 +225,12 @@ cd /path/to/repo && ./claude-task.sh ember
 cd /path/to/repo && ./claude-task.sh zephyr
 ```
 
+### Mixed Workflow
+
+You can run both types simultaneously - they won't interfere:
+- Planning agents only touch tasks without `[Need Review]` prefix
+- Implementation agents skip tasks with `[Need Review]` prefix
+
 ## Key Commands
 
 ### Task Selection
@@ -214,6 +239,14 @@ bd ready                     # Show unblocked tasks sorted by priority
 bd ready --limit 10          # Limit results
 bd list --status=in_progress # See claimed tasks
 bd blocked                   # See what's waiting on dependencies
+```
+
+### Review Workflow
+```bash
+bd list --title-contains="Need Review"       # Tasks awaiting human review
+bd show <id>                                  # View plan in --design field
+bd update <id> --title="Approved title"      # Approve (remove [Need Review])
+bd comment <id> "Feedback..."                # Request changes
 ```
 
 ### Task Management
@@ -331,3 +364,13 @@ Phase 8 - blocked by Phase 7
 - Each worktree should be on its own branch
 - Merge to main after task completion
 - Use `bd sync` before and after merging
+
+### Agent implements without waiting for review
+- Check that agent is using `claude-plan.sh` (not `claude-task.sh`)
+- `claude-plan.sh` creates plans and marks `[Need Review]`
+- `claude-task.sh` skips `[Need Review]` tasks
+
+### Plans not appearing in review queue
+- Verify planning agent set title to `[Need Review] <title>`
+- Check status is `open` (not `in_progress` or `deferred`)
+- Use `bd list --title-contains="Need Review"` to find them

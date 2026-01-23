@@ -127,3 +127,17 @@ state.json
 .agents/
 output
 bd_test
+agent-2/
+agent-3/
+agent-4/
+agent-5/
+# bd worktree
+falcon/
+# bd worktree
+cobalt/
+# bd worktree
+nova/
+# bd worktree
+ember/
+# bd worktree
+zephyr/

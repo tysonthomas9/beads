@@ -1,15 +1,23 @@
 #!/bin/bash
-# claude-task.sh - Run a disciplined single-task Claude agent
+# claude-task.sh - Run a Claude agent for implementation tasks
+#
+# Workflow:
+#   1. Agent picks up a task (skips [Need Review] tasks - those need human approval)
+#   2. Agent implements the task following existing patterns
+#   3. Agent tests, reviews, and commits
+#   4. Agent stops after ONE task
 #
 # Usage:
 #   ./claude-task.sh                    # Run in current directory
 #   ./claude-task.sh falcon             # Run in worktree 'falcon'
 #   ./claude-task.sh /path/to/worktree  # Run in specific path
+#
+# See also:
+#   ./claude-plan.sh - For planning tasks (creates plans, marks for review)
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 if [ -n "$1" ]; then
-    # If argument is just a name (not a path), assume it's a worktree in SCRIPT_DIR
     if [[ "$1" != /* ]]; then
         TARGET_DIR="$SCRIPT_DIR/$1"
     else
@@ -18,25 +26,28 @@ if [ -n "$1" ]; then
     cd "$TARGET_DIR" || { echo "Error: Cannot cd to $TARGET_DIR"; exit 1; }
 fi
 
-echo "Running Claude agent in: $(pwd)"
+echo "Running Claude IMPLEMENTATION agent in: $(pwd)"
 echo "---"
 
 claude --dangerously-skip-permissions "
-## WORKFLOW: Single Task Execution
+## WORKFLOW: Implementation Task (Code, Test, Commit)
 
 You are a disciplined software engineer. Follow this workflow EXACTLY for ONE task.
 
 ### Step 1: Select ONE Task
 - Run 'bd ready --limit 10' to see available tasks (sorted by priority, only unblocked tasks shown)
+- SKIP any task with '[Need Review]' in the title (awaiting human approval)
 - Run 'bd list --status=in_progress --json' to check for stale tasks (updated_at >10 hours ago = abandoned, reclaim with 'bd update <id> --status in_progress')
 - Pick the HIGHEST PRIORITY task (P0 > P1 > P2 > P3 > P4) that is not already in_progress
 - Run 'bd show <id>' to understand the task requirements
+- Check if task has a --design field with a pre-approved plan - if so, follow that plan
 - Run 'bd update <id> --status in_progress' to claim it
 - REMEMBER this task ID - you will work ONLY on this task
 
 ### Step 2: Plan (DO NOT CODE YET)
 Before writing any code:
-- Read relevant existing code to understand patterns and conventions
+- If task has a --design field, review and follow that plan
+- Otherwise: Read relevant existing code to understand patterns and conventions
 - Identify what files need to be created or modified
 - Write a brief plan as a comment explaining your approach
 - Consider edge cases and potential issues
@@ -44,7 +55,7 @@ Before writing any code:
 - ONLY proceed to Step 3 after planning is complete
 
 ### Step 3: Implement
-- Follow the plan from Step 2
+- Follow the plan from Step 2 (or the --design field if present)
 - Keep changes minimal and focused ONLY on this task
 - Follow existing code patterns in the codebase
 - Do not refactor unrelated code
