@@ -165,6 +165,47 @@ Use this for tasks that are ready for implementation (no `[Need Review]` prefix)
 4. Commits and pushes
 5. Closes task and exits
 
+### Merge Script: `claude-merge.sh`
+
+Use this to merge worktree branches into the integration branch with AI-assisted conflict resolution:
+
+```bash
+./claude-merge.sh webui/falcon                  # Merge to feature/web-ui (default target)
+./claude-merge.sh webui/falcon feature/web-ui   # Explicit target branch
+./claude-merge.sh webui/cobalt main             # Merge directly to main
+```
+
+**What it does:**
+1. Fetches latest from origin
+2. Checks out the target branch and pulls
+3. Attempts merge from source branch
+4. If no conflicts: commits and pushes automatically
+5. If conflicts: launches Claude to resolve them
+
+**Conflict resolution workflow:**
+1. Claude reads each conflicted file to understand the conflict markers
+2. Determines correct resolution (keep one side, combine both, or write new code)
+3. Edits files to remove ALL conflict markers
+4. Verifies code compiles and no markers remain
+5. Commits and pushes the resolution
+
+**Example branch hierarchy:**
+```
+main (production)
+  └── feature/web-ui (integration branch - main folder)
+        ├── webui/falcon  (worktree branch)
+        ├── webui/cobalt  (worktree branch)
+        ├── webui/nova    (worktree branch)
+        ├── webui/ember   (worktree branch)
+        └── webui/zephyr  (worktree branch)
+```
+
+**Workflow:**
+1. Agent completes work on `webui/falcon` branch
+2. Run `./claude-merge.sh webui/falcon` to merge to `feature/web-ui`
+3. Repeat for other worktrees as they complete work
+4. Eventually merge `feature/web-ui` to `main`
+
 ### Reviewing Tasks Awaiting Approval
 
 ```bash
@@ -269,6 +310,13 @@ bd list -l phase-1           # Tasks in a specific phase
 bd list --status=closed      # Completed tasks
 ```
 
+### Merging Completed Work
+```bash
+./claude-merge.sh webui/falcon              # Merge falcon to feature/web-ui
+./claude-merge.sh webui/cobalt              # Merge cobalt to feature/web-ui
+./claude-merge.sh feature/web-ui main       # Merge integration branch to main
+```
+
 ## Key Learnings
 
 ### 1. Dependencies Control Flow, Not Phase Labels
@@ -362,7 +410,9 @@ Phase 8 - blocked by Phase 7
 
 ### Merge conflicts
 - Each worktree should be on its own branch
-- Merge to main after task completion
+- Use `./claude-merge.sh <source> [target]` for AI-assisted conflict resolution
+- Merge to integration branch (`feature/web-ui`) after task completion
+- Eventually merge integration branch to `main`
 - Use `bd sync` before and after merging
 
 ### Agent implements without waiting for review
@@ -374,3 +424,10 @@ Phase 8 - blocked by Phase 7
 - Verify planning agent set title to `[Need Review] <title>`
 - Check status is `open` (not `in_progress` or `deferred`)
 - Use `bd list --title-contains="Need Review"` to find them
+
+### Merge script fails
+- Ensure source branch exists: `git branch -a | grep <source>`
+- Ensure target branch exists and is pushed: `git checkout <target> && git pull`
+- Check Claude has permission to resolve files: Use `--dangerously-skip-permissions`
+- If Claude can't resolve complex conflicts, resolve manually then run `git add -A && git commit`
+- For persistent issues, consider rebasing instead: `git rebase <target>` on the source branch
