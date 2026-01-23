@@ -175,6 +175,8 @@ Use this to merge worktree branches into the integration branch with AI-assisted
 ./claude-merge.sh webui/falcon                  # Merge to feature/web-ui (default target)
 ./claude-merge.sh webui/falcon feature/web-ui   # Explicit target branch
 ./claude-merge.sh webui/cobalt main             # Merge directly to main
+./claude-merge.sh all                           # Merge ALL worktrees to feature/web-ui
+./claude-merge.sh all main                      # Merge ALL worktrees to main
 ```
 
 **What it does:**
@@ -339,6 +341,8 @@ bd list --status=closed      # Completed tasks
 ```bash
 ./claude-merge.sh webui/falcon              # Merge falcon to feature/web-ui
 ./claude-merge.sh webui/cobalt              # Merge cobalt to feature/web-ui
+./claude-merge.sh all                       # Merge all worktrees to feature/web-ui
+./claude-merge.sh all main                  # Merge all worktrees to main
 ./claude-merge.sh feature/web-ui main       # Merge integration branch to main
 ```
 
