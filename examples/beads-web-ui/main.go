@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -29,6 +30,8 @@ func main() {
 	port := flag.Int("port", defaultPort, "HTTP server port")
 	socket := flag.String("socket", "", "Path to beads daemon socket (default: auto-detect)")
 	poolSize := flag.Int("pool-size", defaultPoolSize, "Connection pool size")
+	corsEnabled := flag.Bool("cors", false, "Enable CORS for development")
+	corsOrigin := flag.String("cors-origin", "", "CORS allowed origins (comma-separated, default: http://localhost:3000)")
 	flag.Parse()
 
 	// Check environment variables for port override
@@ -41,6 +44,33 @@ func main() {
 		}
 	}
 
+	// Check environment variables for CORS
+	if os.Getenv("BEADS_WEBUI_CORS_ENABLED") == "true" {
+		*corsEnabled = true
+	}
+	if envCorsOrigin := os.Getenv("BEADS_WEBUI_CORS_ORIGIN"); envCorsOrigin != "" {
+		*corsOrigin = envCorsOrigin
+	}
+
+	// Build CORS configuration
+	corsConfig := CORSConfig{
+		Enabled: *corsEnabled,
+	}
+	if *corsEnabled {
+		if *corsOrigin != "" {
+			// Parse comma-separated origins
+			for _, origin := range strings.Split(*corsOrigin, ",") {
+				origin = strings.TrimSpace(origin)
+				if origin != "" {
+					corsConfig.AllowedOrigins = append(corsConfig.AllowedOrigins, origin)
+				}
+			}
+		} else {
+			// Default to Vite dev server
+			corsConfig.AllowedOrigins = []string{"http://localhost:3000"}
+		}
+	}
+
 	// Log configuration
 	log.Printf("Starting beads-web-ui server")
 	log.Printf("Port: %d", *port)
@@ -49,6 +79,9 @@ func main() {
 		log.Printf("Daemon socket: %s", *socket)
 	} else {
 		log.Printf("Daemon socket: auto-detect")
+	}
+	if corsConfig.Enabled {
+		log.Printf("CORS enabled for origins: %v", corsConfig.AllowedOrigins)
 	}
 
 	// Initialize daemon connection pool
@@ -92,9 +125,13 @@ func main() {
 	mux := http.NewServeMux()
 	setupRoutes(mux, pool)
 
+	// Wrap with CORS middleware if enabled
+	corsMiddleware := NewCORSMiddleware(corsConfig)
+	handler := corsMiddleware(mux)
+
 	server := &http.Server{
 		Addr:         fmt.Sprintf(":%d", *port),
-		Handler:      mux,
+		Handler:      handler,
 		ReadTimeout:  15 * time.Second,
 		WriteTimeout: 15 * time.Second,
 		IdleTimeout:  60 * time.Second,
