@@ -3,6 +3,8 @@
  */
 
 export { IssueTable, type IssueTableProps } from './IssueTable';
+export { IssueRow, type IssueRowProps } from './IssueRow';
+export { renderCellContent } from './cellRenderers';
 export {
   type ColumnDef,
   DEFAULT_ISSUE_COLUMNS,
