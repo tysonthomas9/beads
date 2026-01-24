@@ -8,3 +8,14 @@ export type {
   MutationPayload,
   WebSocketClientOptions,
 } from './websocket'
+
+// Issue API functions
+export {
+  getIssue,
+  getReadyIssues,
+  getStats,
+  createIssue,
+  updateIssue,
+  closeIssue,
+} from './issues'
+export type { CreateIssueRequest, UpdateIssueRequest } from './issues'
