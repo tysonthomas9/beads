@@ -7,15 +7,17 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"strings"
 	"testing"
 
 	"github.com/steveyegge/beads/examples/beads-web-ui/daemon"
 	"github.com/steveyegge/beads/internal/rpc"
 )
 
-// mockClient implements issueGetter for testing
+// mockClient implements issueGetter and issueUpdater for testing
 type mockClient struct {
-	showFunc func(args *rpc.ShowArgs) (*rpc.Response, error)
+	showFunc   func(args *rpc.ShowArgs) (*rpc.Response, error)
+	updateFunc func(args *rpc.UpdateArgs) (*rpc.Response, error)
 }
 
 func (m *mockClient) Show(args *rpc.ShowArgs) (*rpc.Response, error) {
@@ -23,6 +25,13 @@ func (m *mockClient) Show(args *rpc.ShowArgs) (*rpc.Response, error) {
 		return m.showFunc(args)
 	}
 	return nil, errors.New("showFunc not implemented")
+}
+
+func (m *mockClient) Update(args *rpc.UpdateArgs) (*rpc.Response, error) {
+	if m.updateFunc != nil {
+		return m.updateFunc(args)
+	}
+	return nil, errors.New("updateFunc not implemented")
 }
 
 // mockPool implements connectionGetter for testing
@@ -1766,3 +1775,909 @@ var _ = func() bool {
 	_ = args
 	return true
 }()
+
+// ===========================================================================
+// handlePatchIssue tests
+// ===========================================================================
+
+// mockPatchPool implements patchConnectionGetter for testing
+type mockPatchPool struct {
+	getFunc func(ctx context.Context) (issueUpdater, error)
+	putFunc func(client issueUpdater)
+}
+
+func (m *mockPatchPool) Get(ctx context.Context) (issueUpdater, error) {
+	if m.getFunc != nil {
+		return m.getFunc(ctx)
+	}
+	return nil, errors.New("getFunc not implemented")
+}
+
+func (m *mockPatchPool) Put(client issueUpdater) {
+	if m.putFunc != nil {
+		m.putFunc(client)
+	}
+}
+
+// TestHandlePatchIssue_EmptyID tests that an empty issue ID returns 400 Bad Request
+func TestHandlePatchIssue_EmptyID(t *testing.T) {
+	pool, err := daemon.NewConnectionPool("/tmp/test.sock", 1)
+	if err != nil {
+		t.Fatalf("NewConnectionPool() error = %v", err)
+	}
+	defer pool.Close()
+
+	handler := handlePatchIssue(pool)
+
+	req := httptest.NewRequest(http.MethodPatch, "/api/issues/", strings.NewReader(`{}`))
+	req.SetPathValue("id", "")
+	w := httptest.NewRecorder()
+
+	handler.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("status = %d, want %d", w.Code, http.StatusBadRequest)
+	}
+
+	contentType := w.Header().Get("Content-Type")
+	if contentType != "application/json" {
+		t.Errorf("Content-Type = %q, want %q", contentType, "application/json")
+	}
+
+	var resp PatchIssueResponse
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	if resp.Success {
+		t.Error("expected success=false")
+	}
+	if resp.Error != "missing issue ID in path" {
+		t.Errorf("error = %q, want %q", resp.Error, "missing issue ID in path")
+	}
+}
+
+// TestHandlePatchIssue_NilPool tests that nil pool returns 503 Service Unavailable
+func TestHandlePatchIssue_NilPool(t *testing.T) {
+	handler := handlePatchIssue(nil)
+
+	req := httptest.NewRequest(http.MethodPatch, "/api/issues/test-123", strings.NewReader(`{}`))
+	req.SetPathValue("id", "test-123")
+	w := httptest.NewRecorder()
+
+	handler.ServeHTTP(w, req)
+
+	if w.Code != http.StatusServiceUnavailable {
+		t.Errorf("status = %d, want %d", w.Code, http.StatusServiceUnavailable)
+	}
+
+	contentType := w.Header().Get("Content-Type")
+	if contentType != "application/json" {
+		t.Errorf("Content-Type = %q, want %q", contentType, "application/json")
+	}
+
+	var resp PatchIssueResponse
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	if resp.Success {
+		t.Error("expected success=false")
+	}
+	if resp.Error != "connection pool not initialized" {
+		t.Errorf("error = %q, want %q", resp.Error, "connection pool not initialized")
+	}
+}
+
+// TestHandlePatchIssue_InvalidJSON tests that invalid JSON body returns 400 Bad Request
+func TestHandlePatchIssue_InvalidJSON(t *testing.T) {
+	pool := &mockPatchPool{
+		getFunc: func(ctx context.Context) (issueUpdater, error) {
+			return &mockClient{}, nil
+		},
+		putFunc: func(c issueUpdater) {},
+	}
+
+	handler := handlePatchIssueWithPool(pool)
+
+	// Send invalid JSON
+	req := httptest.NewRequest(http.MethodPatch, "/api/issues/test-123", strings.NewReader(`{invalid json`))
+	req.SetPathValue("id", "test-123")
+	w := httptest.NewRecorder()
+
+	handler.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("status = %d, want %d", w.Code, http.StatusBadRequest)
+	}
+
+	var resp PatchIssueResponse
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	if resp.Success {
+		t.Error("expected success=false")
+	}
+	if !strings.Contains(resp.Error, "invalid request body") {
+		t.Errorf("error = %q, expected to contain %q", resp.Error, "invalid request body")
+	}
+}
+
+// TestHandlePatchIssue_PoolGetTimeout tests that pool.Get timeout returns 504 Gateway Timeout
+func TestHandlePatchIssue_PoolGetTimeout(t *testing.T) {
+	pool := &mockPatchPool{
+		getFunc: func(ctx context.Context) (issueUpdater, error) {
+			return nil, context.DeadlineExceeded
+		},
+	}
+
+	handler := handlePatchIssueWithPool(pool)
+
+	req := httptest.NewRequest(http.MethodPatch, "/api/issues/test-123", strings.NewReader(`{}`))
+	req.SetPathValue("id", "test-123")
+	w := httptest.NewRecorder()
+
+	handler.ServeHTTP(w, req)
+
+	if w.Code != http.StatusGatewayTimeout {
+		t.Errorf("status = %d, want %d", w.Code, http.StatusGatewayTimeout)
+	}
+
+	var resp PatchIssueResponse
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	if resp.Success {
+		t.Error("expected success=false")
+	}
+}
+
+// TestHandlePatchIssue_NotFound tests that "not found" error from Update returns 404
+func TestHandlePatchIssue_NotFound(t *testing.T) {
+	client := &mockClient{
+		updateFunc: func(args *rpc.UpdateArgs) (*rpc.Response, error) {
+			return nil, errors.New("issue not found: nonexistent-id")
+		},
+	}
+
+	pool := &mockPatchPool{
+		getFunc: func(ctx context.Context) (issueUpdater, error) {
+			return client, nil
+		},
+		putFunc: func(c issueUpdater) {},
+	}
+
+	handler := handlePatchIssueWithPool(pool)
+
+	req := httptest.NewRequest(http.MethodPatch, "/api/issues/nonexistent-id", strings.NewReader(`{"title":"New Title"}`))
+	req.SetPathValue("id", "nonexistent-id")
+	w := httptest.NewRecorder()
+
+	handler.ServeHTTP(w, req)
+
+	if w.Code != http.StatusNotFound {
+		t.Errorf("status = %d, want %d", w.Code, http.StatusNotFound)
+	}
+
+	var resp PatchIssueResponse
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	if resp.Success {
+		t.Error("expected success=false")
+	}
+	if !strings.Contains(resp.Error, "not found") {
+		t.Errorf("error = %q, expected to contain %q", resp.Error, "not found")
+	}
+}
+
+// TestHandlePatchIssue_CannotUpdateTemplate tests that "cannot update template" error returns 409 Conflict
+func TestHandlePatchIssue_CannotUpdateTemplate(t *testing.T) {
+	client := &mockClient{
+		updateFunc: func(args *rpc.UpdateArgs) (*rpc.Response, error) {
+			return &rpc.Response{
+				Success: false,
+				Error:   "cannot update template issue",
+			}, nil
+		},
+	}
+
+	pool := &mockPatchPool{
+		getFunc: func(ctx context.Context) (issueUpdater, error) {
+			return client, nil
+		},
+		putFunc: func(c issueUpdater) {},
+	}
+
+	handler := handlePatchIssueWithPool(pool)
+
+	req := httptest.NewRequest(http.MethodPatch, "/api/issues/template-1", strings.NewReader(`{"title":"New Title"}`))
+	req.SetPathValue("id", "template-1")
+	w := httptest.NewRecorder()
+
+	handler.ServeHTTP(w, req)
+
+	if w.Code != http.StatusConflict {
+		t.Errorf("status = %d, want %d", w.Code, http.StatusConflict)
+	}
+
+	var resp PatchIssueResponse
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	if resp.Success {
+		t.Error("expected success=false")
+	}
+	if !strings.Contains(resp.Error, "cannot update template") {
+		t.Errorf("error = %q, expected to contain %q", resp.Error, "cannot update template")
+	}
+}
+
+// TestHandlePatchIssue_InternalError tests that other Update errors return 500
+func TestHandlePatchIssue_InternalError(t *testing.T) {
+	client := &mockClient{
+		updateFunc: func(args *rpc.UpdateArgs) (*rpc.Response, error) {
+			return nil, errors.New("database connection failed")
+		},
+	}
+
+	pool := &mockPatchPool{
+		getFunc: func(ctx context.Context) (issueUpdater, error) {
+			return client, nil
+		},
+		putFunc: func(c issueUpdater) {},
+	}
+
+	handler := handlePatchIssueWithPool(pool)
+
+	req := httptest.NewRequest(http.MethodPatch, "/api/issues/test-123", strings.NewReader(`{"title":"New Title"}`))
+	req.SetPathValue("id", "test-123")
+	w := httptest.NewRecorder()
+
+	handler.ServeHTTP(w, req)
+
+	if w.Code != http.StatusInternalServerError {
+		t.Errorf("status = %d, want %d", w.Code, http.StatusInternalServerError)
+	}
+
+	var resp PatchIssueResponse
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	if resp.Success {
+		t.Error("expected success=false")
+	}
+	if !strings.Contains(resp.Error, "database connection failed") {
+		t.Errorf("error = %q, expected to contain %q", resp.Error, "database connection failed")
+	}
+}
+
+// TestHandlePatchIssue_Success tests that a successful update returns 200 with success response
+func TestHandlePatchIssue_Success(t *testing.T) {
+	var capturedArgs *rpc.UpdateArgs
+
+	client := &mockClient{
+		updateFunc: func(args *rpc.UpdateArgs) (*rpc.Response, error) {
+			capturedArgs = args
+			return &rpc.Response{
+				Success: true,
+				Data:    []byte(`{"id":"test-123"}`),
+			}, nil
+		},
+	}
+
+	pool := &mockPatchPool{
+		getFunc: func(ctx context.Context) (issueUpdater, error) {
+			return client, nil
+		},
+		putFunc: func(c issueUpdater) {},
+	}
+
+	handler := handlePatchIssueWithPool(pool)
+
+	newTitle := "Updated Title"
+	newDesc := "Updated Description"
+	reqBody := PatchIssueRequest{
+		Title:       &newTitle,
+		Description: &newDesc,
+	}
+	bodyBytes, _ := json.Marshal(reqBody)
+
+	req := httptest.NewRequest(http.MethodPatch, "/api/issues/test-123", strings.NewReader(string(bodyBytes)))
+	req.SetPathValue("id", "test-123")
+	w := httptest.NewRecorder()
+
+	handler.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("status = %d, want %d", w.Code, http.StatusOK)
+	}
+
+	contentType := w.Header().Get("Content-Type")
+	if contentType != "application/json" {
+		t.Errorf("Content-Type = %q, want %q", contentType, "application/json")
+	}
+
+	var resp PatchIssueResponse
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	if !resp.Success {
+		t.Error("expected success=true")
+	}
+
+	// Verify the args were passed correctly
+	if capturedArgs == nil {
+		t.Fatal("Update was not called")
+	}
+	if capturedArgs.ID != "test-123" {
+		t.Errorf("ID = %q, want %q", capturedArgs.ID, "test-123")
+	}
+	if capturedArgs.Title == nil || *capturedArgs.Title != newTitle {
+		t.Errorf("Title = %v, want %q", capturedArgs.Title, newTitle)
+	}
+	if capturedArgs.Description == nil || *capturedArgs.Description != newDesc {
+		t.Errorf("Description = %v, want %q", capturedArgs.Description, newDesc)
+	}
+}
+
+// TestHandlePatchIssue_EmptyBody tests that empty body {} is valid (no-op update)
+func TestHandlePatchIssue_EmptyBody(t *testing.T) {
+	var capturedArgs *rpc.UpdateArgs
+
+	client := &mockClient{
+		updateFunc: func(args *rpc.UpdateArgs) (*rpc.Response, error) {
+			capturedArgs = args
+			return &rpc.Response{
+				Success: true,
+				Data:    []byte(`{"id":"test-123"}`),
+			}, nil
+		},
+	}
+
+	pool := &mockPatchPool{
+		getFunc: func(ctx context.Context) (issueUpdater, error) {
+			return client, nil
+		},
+		putFunc: func(c issueUpdater) {},
+	}
+
+	handler := handlePatchIssueWithPool(pool)
+
+	req := httptest.NewRequest(http.MethodPatch, "/api/issues/test-123", strings.NewReader(`{}`))
+	req.SetPathValue("id", "test-123")
+	w := httptest.NewRecorder()
+
+	handler.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("status = %d, want %d", w.Code, http.StatusOK)
+	}
+
+	var resp PatchIssueResponse
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	if !resp.Success {
+		t.Error("expected success=true")
+	}
+
+	// Verify all optional fields are nil
+	if capturedArgs == nil {
+		t.Fatal("Update was not called")
+	}
+	if capturedArgs.ID != "test-123" {
+		t.Errorf("ID = %q, want %q", capturedArgs.ID, "test-123")
+	}
+	if capturedArgs.Title != nil {
+		t.Errorf("Title = %v, want nil", capturedArgs.Title)
+	}
+	if capturedArgs.Description != nil {
+		t.Errorf("Description = %v, want nil", capturedArgs.Description)
+	}
+	if capturedArgs.Status != nil {
+		t.Errorf("Status = %v, want nil", capturedArgs.Status)
+	}
+}
+
+// TestHandlePatchIssue_PartialUpdateTitle tests partial update with only title
+func TestHandlePatchIssue_PartialUpdateTitle(t *testing.T) {
+	var capturedArgs *rpc.UpdateArgs
+
+	client := &mockClient{
+		updateFunc: func(args *rpc.UpdateArgs) (*rpc.Response, error) {
+			capturedArgs = args
+			return &rpc.Response{
+				Success: true,
+				Data:    []byte(`{"id":"test-123"}`),
+			}, nil
+		},
+	}
+
+	pool := &mockPatchPool{
+		getFunc: func(ctx context.Context) (issueUpdater, error) {
+			return client, nil
+		},
+		putFunc: func(c issueUpdater) {},
+	}
+
+	handler := handlePatchIssueWithPool(pool)
+
+	req := httptest.NewRequest(http.MethodPatch, "/api/issues/test-123", strings.NewReader(`{"title":"Only Title Changed"}`))
+	req.SetPathValue("id", "test-123")
+	w := httptest.NewRecorder()
+
+	handler.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("status = %d, want %d", w.Code, http.StatusOK)
+	}
+
+	if capturedArgs == nil {
+		t.Fatal("Update was not called")
+	}
+	if capturedArgs.Title == nil || *capturedArgs.Title != "Only Title Changed" {
+		t.Errorf("Title = %v, want %q", capturedArgs.Title, "Only Title Changed")
+	}
+	// Other fields should be nil
+	if capturedArgs.Description != nil {
+		t.Errorf("Description = %v, want nil", capturedArgs.Description)
+	}
+	if capturedArgs.Status != nil {
+		t.Errorf("Status = %v, want nil", capturedArgs.Status)
+	}
+	if capturedArgs.Priority != nil {
+		t.Errorf("Priority = %v, want nil", capturedArgs.Priority)
+	}
+}
+
+// TestHandlePatchIssue_LabelsAddLabels tests add_labels operation
+func TestHandlePatchIssue_LabelsAddLabels(t *testing.T) {
+	var capturedArgs *rpc.UpdateArgs
+
+	client := &mockClient{
+		updateFunc: func(args *rpc.UpdateArgs) (*rpc.Response, error) {
+			capturedArgs = args
+			return &rpc.Response{
+				Success: true,
+				Data:    []byte(`{"id":"test-123"}`),
+			}, nil
+		},
+	}
+
+	pool := &mockPatchPool{
+		getFunc: func(ctx context.Context) (issueUpdater, error) {
+			return client, nil
+		},
+		putFunc: func(c issueUpdater) {},
+	}
+
+	handler := handlePatchIssueWithPool(pool)
+
+	req := httptest.NewRequest(http.MethodPatch, "/api/issues/test-123", strings.NewReader(`{"add_labels":["bug","urgent"]}`))
+	req.SetPathValue("id", "test-123")
+	w := httptest.NewRecorder()
+
+	handler.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("status = %d, want %d", w.Code, http.StatusOK)
+	}
+
+	if capturedArgs == nil {
+		t.Fatal("Update was not called")
+	}
+	if len(capturedArgs.AddLabels) != 2 {
+		t.Errorf("AddLabels len = %d, want 2", len(capturedArgs.AddLabels))
+	}
+	if capturedArgs.AddLabels[0] != "bug" || capturedArgs.AddLabels[1] != "urgent" {
+		t.Errorf("AddLabels = %v, want [bug, urgent]", capturedArgs.AddLabels)
+	}
+}
+
+// TestHandlePatchIssue_LabelsRemoveLabels tests remove_labels operation
+func TestHandlePatchIssue_LabelsRemoveLabels(t *testing.T) {
+	var capturedArgs *rpc.UpdateArgs
+
+	client := &mockClient{
+		updateFunc: func(args *rpc.UpdateArgs) (*rpc.Response, error) {
+			capturedArgs = args
+			return &rpc.Response{
+				Success: true,
+				Data:    []byte(`{"id":"test-123"}`),
+			}, nil
+		},
+	}
+
+	pool := &mockPatchPool{
+		getFunc: func(ctx context.Context) (issueUpdater, error) {
+			return client, nil
+		},
+		putFunc: func(c issueUpdater) {},
+	}
+
+	handler := handlePatchIssueWithPool(pool)
+
+	req := httptest.NewRequest(http.MethodPatch, "/api/issues/test-123", strings.NewReader(`{"remove_labels":["wontfix","duplicate"]}`))
+	req.SetPathValue("id", "test-123")
+	w := httptest.NewRecorder()
+
+	handler.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("status = %d, want %d", w.Code, http.StatusOK)
+	}
+
+	if capturedArgs == nil {
+		t.Fatal("Update was not called")
+	}
+	if len(capturedArgs.RemoveLabels) != 2 {
+		t.Errorf("RemoveLabels len = %d, want 2", len(capturedArgs.RemoveLabels))
+	}
+	if capturedArgs.RemoveLabels[0] != "wontfix" || capturedArgs.RemoveLabels[1] != "duplicate" {
+		t.Errorf("RemoveLabels = %v, want [wontfix, duplicate]", capturedArgs.RemoveLabels)
+	}
+}
+
+// TestHandlePatchIssue_LabelsSetLabels tests set_labels operation (replaces all labels)
+func TestHandlePatchIssue_LabelsSetLabels(t *testing.T) {
+	var capturedArgs *rpc.UpdateArgs
+
+	client := &mockClient{
+		updateFunc: func(args *rpc.UpdateArgs) (*rpc.Response, error) {
+			capturedArgs = args
+			return &rpc.Response{
+				Success: true,
+				Data:    []byte(`{"id":"test-123"}`),
+			}, nil
+		},
+	}
+
+	pool := &mockPatchPool{
+		getFunc: func(ctx context.Context) (issueUpdater, error) {
+			return client, nil
+		},
+		putFunc: func(c issueUpdater) {},
+	}
+
+	handler := handlePatchIssueWithPool(pool)
+
+	req := httptest.NewRequest(http.MethodPatch, "/api/issues/test-123", strings.NewReader(`{"set_labels":["feature","enhancement","phase-2"]}`))
+	req.SetPathValue("id", "test-123")
+	w := httptest.NewRecorder()
+
+	handler.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("status = %d, want %d", w.Code, http.StatusOK)
+	}
+
+	if capturedArgs == nil {
+		t.Fatal("Update was not called")
+	}
+	if len(capturedArgs.SetLabels) != 3 {
+		t.Errorf("SetLabels len = %d, want 3", len(capturedArgs.SetLabels))
+	}
+	expected := []string{"feature", "enhancement", "phase-2"}
+	for i, label := range expected {
+		if capturedArgs.SetLabels[i] != label {
+			t.Errorf("SetLabels[%d] = %q, want %q", i, capturedArgs.SetLabels[i], label)
+		}
+	}
+}
+
+// TestHandlePatchIssue_ClientReturnedToPool verifies that the client is always returned to the pool
+func TestHandlePatchIssue_ClientReturnedToPool(t *testing.T) {
+	putCalled := false
+
+	client := &mockClient{
+		updateFunc: func(args *rpc.UpdateArgs) (*rpc.Response, error) {
+			return &rpc.Response{
+				Success: true,
+				Data:    []byte(`{"id":"test-123"}`),
+			}, nil
+		},
+	}
+
+	pool := &mockPatchPool{
+		getFunc: func(ctx context.Context) (issueUpdater, error) {
+			return client, nil
+		},
+		putFunc: func(c issueUpdater) {
+			putCalled = true
+		},
+	}
+
+	handler := handlePatchIssueWithPool(pool)
+
+	req := httptest.NewRequest(http.MethodPatch, "/api/issues/test-123", strings.NewReader(`{}`))
+	req.SetPathValue("id", "test-123")
+	w := httptest.NewRecorder()
+
+	handler.ServeHTTP(w, req)
+
+	if !putCalled {
+		t.Error("Put() was not called - client not returned to pool")
+	}
+}
+
+// TestHandlePatchIssue_ClientReturnedToPoolOnError verifies client is returned even on RPC error
+func TestHandlePatchIssue_ClientReturnedToPoolOnError(t *testing.T) {
+	putCalled := false
+
+	client := &mockClient{
+		updateFunc: func(args *rpc.UpdateArgs) (*rpc.Response, error) {
+			return nil, errors.New("some error")
+		},
+	}
+
+	pool := &mockPatchPool{
+		getFunc: func(ctx context.Context) (issueUpdater, error) {
+			return client, nil
+		},
+		putFunc: func(c issueUpdater) {
+			putCalled = true
+		},
+	}
+
+	handler := handlePatchIssueWithPool(pool)
+
+	req := httptest.NewRequest(http.MethodPatch, "/api/issues/test-123", strings.NewReader(`{}`))
+	req.SetPathValue("id", "test-123")
+	w := httptest.NewRecorder()
+
+	handler.ServeHTTP(w, req)
+
+	if !putCalled {
+		t.Error("Put() was not called on error - client not returned to pool")
+	}
+}
+
+// TestHandlePatchIssue_ResponseNotFoundFromResponse tests "not found" in Response.Error returns 404
+func TestHandlePatchIssue_ResponseNotFoundFromResponse(t *testing.T) {
+	client := &mockClient{
+		updateFunc: func(args *rpc.UpdateArgs) (*rpc.Response, error) {
+			return &rpc.Response{
+				Success: false,
+				Error:   "issue not found: test-123",
+			}, nil
+		},
+	}
+
+	pool := &mockPatchPool{
+		getFunc: func(ctx context.Context) (issueUpdater, error) {
+			return client, nil
+		},
+		putFunc: func(c issueUpdater) {},
+	}
+
+	handler := handlePatchIssueWithPool(pool)
+
+	req := httptest.NewRequest(http.MethodPatch, "/api/issues/test-123", strings.NewReader(`{"title":"New"}`))
+	req.SetPathValue("id", "test-123")
+	w := httptest.NewRecorder()
+
+	handler.ServeHTTP(w, req)
+
+	if w.Code != http.StatusNotFound {
+		t.Errorf("status = %d, want %d", w.Code, http.StatusNotFound)
+	}
+}
+
+// TestHandlePatchIssue_AllFields tests updating all supported fields
+func TestHandlePatchIssue_AllFields(t *testing.T) {
+	var capturedArgs *rpc.UpdateArgs
+
+	client := &mockClient{
+		updateFunc: func(args *rpc.UpdateArgs) (*rpc.Response, error) {
+			capturedArgs = args
+			return &rpc.Response{
+				Success: true,
+				Data:    []byte(`{"id":"test-123"}`),
+			}, nil
+		},
+	}
+
+	pool := &mockPatchPool{
+		getFunc: func(ctx context.Context) (issueUpdater, error) {
+			return client, nil
+		},
+		putFunc: func(c issueUpdater) {},
+	}
+
+	handler := handlePatchIssueWithPool(pool)
+
+	title := "Full Update"
+	desc := "Full Description"
+	status := "in_progress"
+	priority := 2
+	assignee := "alice"
+	design := "Design doc"
+	ac := "Acceptance criteria"
+	notes := "Some notes"
+	extRef := "GH-123"
+	minutes := 60
+	issueType := "task"
+	pinned := true
+	parent := "epic-1"
+	dueAt := "2025-12-31"
+	deferUntil := "2025-06-01"
+
+	reqBody := PatchIssueRequest{
+		Title:              &title,
+		Description:        &desc,
+		Status:             &status,
+		Priority:           &priority,
+		Assignee:           &assignee,
+		Design:             &design,
+		AcceptanceCriteria: &ac,
+		Notes:              &notes,
+		ExternalRef:        &extRef,
+		EstimatedMinutes:   &minutes,
+		IssueType:          &issueType,
+		AddLabels:          []string{"label1"},
+		RemoveLabels:       []string{"label2"},
+		SetLabels:          []string{"label3"},
+		Pinned:             &pinned,
+		Parent:             &parent,
+		DueAt:              &dueAt,
+		DeferUntil:         &deferUntil,
+	}
+	bodyBytes, _ := json.Marshal(reqBody)
+
+	req := httptest.NewRequest(http.MethodPatch, "/api/issues/test-123", strings.NewReader(string(bodyBytes)))
+	req.SetPathValue("id", "test-123")
+	w := httptest.NewRecorder()
+
+	handler.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("status = %d, want %d", w.Code, http.StatusOK)
+	}
+
+	if capturedArgs == nil {
+		t.Fatal("Update was not called")
+	}
+
+	// Verify all fields were passed
+	if capturedArgs.ID != "test-123" {
+		t.Errorf("ID = %q, want %q", capturedArgs.ID, "test-123")
+	}
+	if capturedArgs.Title == nil || *capturedArgs.Title != title {
+		t.Errorf("Title = %v, want %q", capturedArgs.Title, title)
+	}
+	if capturedArgs.Description == nil || *capturedArgs.Description != desc {
+		t.Errorf("Description = %v, want %q", capturedArgs.Description, desc)
+	}
+	if capturedArgs.Status == nil || *capturedArgs.Status != status {
+		t.Errorf("Status = %v, want %q", capturedArgs.Status, status)
+	}
+	if capturedArgs.Priority == nil || *capturedArgs.Priority != priority {
+		t.Errorf("Priority = %v, want %d", capturedArgs.Priority, priority)
+	}
+	if capturedArgs.Assignee == nil || *capturedArgs.Assignee != assignee {
+		t.Errorf("Assignee = %v, want %q", capturedArgs.Assignee, assignee)
+	}
+	if capturedArgs.Design == nil || *capturedArgs.Design != design {
+		t.Errorf("Design = %v, want %q", capturedArgs.Design, design)
+	}
+	if capturedArgs.AcceptanceCriteria == nil || *capturedArgs.AcceptanceCriteria != ac {
+		t.Errorf("AcceptanceCriteria = %v, want %q", capturedArgs.AcceptanceCriteria, ac)
+	}
+	if capturedArgs.Notes == nil || *capturedArgs.Notes != notes {
+		t.Errorf("Notes = %v, want %q", capturedArgs.Notes, notes)
+	}
+	if capturedArgs.ExternalRef == nil || *capturedArgs.ExternalRef != extRef {
+		t.Errorf("ExternalRef = %v, want %q", capturedArgs.ExternalRef, extRef)
+	}
+	if capturedArgs.EstimatedMinutes == nil || *capturedArgs.EstimatedMinutes != minutes {
+		t.Errorf("EstimatedMinutes = %v, want %d", capturedArgs.EstimatedMinutes, minutes)
+	}
+	if capturedArgs.IssueType == nil || *capturedArgs.IssueType != issueType {
+		t.Errorf("IssueType = %v, want %q", capturedArgs.IssueType, issueType)
+	}
+	if capturedArgs.Pinned == nil || *capturedArgs.Pinned != pinned {
+		t.Errorf("Pinned = %v, want %v", capturedArgs.Pinned, pinned)
+	}
+	if capturedArgs.Parent == nil || *capturedArgs.Parent != parent {
+		t.Errorf("Parent = %v, want %q", capturedArgs.Parent, parent)
+	}
+	if capturedArgs.DueAt == nil || *capturedArgs.DueAt != dueAt {
+		t.Errorf("DueAt = %v, want %q", capturedArgs.DueAt, dueAt)
+	}
+	if capturedArgs.DeferUntil == nil || *capturedArgs.DeferUntil != deferUntil {
+		t.Errorf("DeferUntil = %v, want %q", capturedArgs.DeferUntil, deferUntil)
+	}
+	if len(capturedArgs.AddLabels) != 1 || capturedArgs.AddLabels[0] != "label1" {
+		t.Errorf("AddLabels = %v, want [label1]", capturedArgs.AddLabels)
+	}
+	if len(capturedArgs.RemoveLabels) != 1 || capturedArgs.RemoveLabels[0] != "label2" {
+		t.Errorf("RemoveLabels = %v, want [label2]", capturedArgs.RemoveLabels)
+	}
+	if len(capturedArgs.SetLabels) != 1 || capturedArgs.SetLabels[0] != "label3" {
+		t.Errorf("SetLabels = %v, want [label3]", capturedArgs.SetLabels)
+	}
+}
+
+// TestHandlePatchIssue_PoolGetServiceUnavailable tests that non-timeout pool.Get error returns 503
+func TestHandlePatchIssue_PoolGetServiceUnavailable(t *testing.T) {
+	pool := &mockPatchPool{
+		getFunc: func(ctx context.Context) (issueUpdater, error) {
+			return nil, errors.New("pool exhausted")
+		},
+	}
+
+	handler := handlePatchIssueWithPool(pool)
+
+	req := httptest.NewRequest(http.MethodPatch, "/api/issues/test-123", strings.NewReader(`{}`))
+	req.SetPathValue("id", "test-123")
+	w := httptest.NewRecorder()
+
+	handler.ServeHTTP(w, req)
+
+	if w.Code != http.StatusServiceUnavailable {
+		t.Errorf("status = %d, want %d", w.Code, http.StatusServiceUnavailable)
+	}
+
+	var resp PatchIssueResponse
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	if resp.Success {
+		t.Error("expected success=false")
+	}
+	if resp.Error != "pool exhausted" {
+		t.Errorf("error = %q, want %q", resp.Error, "pool exhausted")
+	}
+}
+
+// TestHandlePatchIssue_ResponseWithInternalError tests generic internal error from Response
+func TestHandlePatchIssue_ResponseWithInternalError(t *testing.T) {
+	client := &mockClient{
+		updateFunc: func(args *rpc.UpdateArgs) (*rpc.Response, error) {
+			return &rpc.Response{
+				Success: false,
+				Error:   "internal database error",
+			}, nil
+		},
+	}
+
+	pool := &mockPatchPool{
+		getFunc: func(ctx context.Context) (issueUpdater, error) {
+			return client, nil
+		},
+		putFunc: func(c issueUpdater) {},
+	}
+
+	handler := handlePatchIssueWithPool(pool)
+
+	req := httptest.NewRequest(http.MethodPatch, "/api/issues/test-123", strings.NewReader(`{"title":"New"}`))
+	req.SetPathValue("id", "test-123")
+	w := httptest.NewRecorder()
+
+	handler.ServeHTTP(w, req)
+
+	if w.Code != http.StatusInternalServerError {
+		t.Errorf("status = %d, want %d", w.Code, http.StatusInternalServerError)
+	}
+
+	var resp PatchIssueResponse
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	if resp.Success {
+		t.Error("expected success=false")
+	}
+	if resp.Error != "internal database error" {
+		t.Errorf("error = %q, want %q", resp.Error, "internal database error")
+	}
+}
