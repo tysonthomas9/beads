@@ -65,6 +65,11 @@ func ReleaseLock(worktreePath string) error {
 		return nil
 	}
 
+	if info == nil {
+		// No lock exists, nothing to release
+		return nil
+	}
+
 	if info.PID != os.Getpid() {
 		// Lock belongs to another process, don't remove it
 		return nil
