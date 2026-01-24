@@ -3836,3 +3836,506 @@ func TestHandlePatchIssue_ResponseWithInternalError(t *testing.T) {
 		t.Errorf("error = %q, want %q", resp.Error, "internal database error")
 	}
 }
+
+// ============================================================================
+// handleCloseIssue tests
+// ============================================================================
+
+// mockCloseClient implements issueCloser for testing
+type mockCloseClient struct {
+	closeFunc func(args *rpc.CloseArgs) (*rpc.Response, error)
+}
+
+func (m *mockCloseClient) CloseIssue(args *rpc.CloseArgs) (*rpc.Response, error) {
+	if m.closeFunc != nil {
+		return m.closeFunc(args)
+	}
+	return nil, errors.New("closeFunc not implemented")
+}
+
+// mockClosePool implements closeConnectionGetter for testing
+type mockClosePool struct {
+	getFunc func(ctx context.Context) (issueCloser, error)
+	putFunc func(client issueCloser)
+}
+
+func (m *mockClosePool) Get(ctx context.Context) (issueCloser, error) {
+	if m.getFunc != nil {
+		return m.getFunc(ctx)
+	}
+	return nil, errors.New("getFunc not implemented")
+}
+
+func (m *mockClosePool) Put(client issueCloser) {
+	if m.putFunc != nil {
+		m.putFunc(client)
+	}
+}
+
+// TestHandleCloseIssue_NilPool tests that nil pool returns 503 Service Unavailable
+func TestHandleCloseIssue_NilPool(t *testing.T) {
+	handler := handleCloseIssueWithPool(nil)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/issues/test-123/close", nil)
+	req.SetPathValue("id", "test-123")
+	w := httptest.NewRecorder()
+
+	handler.ServeHTTP(w, req)
+
+	if w.Code != http.StatusServiceUnavailable {
+		t.Errorf("status = %d, want %d", w.Code, http.StatusServiceUnavailable)
+	}
+
+	var resp map[string]string
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	if resp["error"] != "connection pool not initialized" {
+		t.Errorf("error = %q, want %q", resp["error"], "connection pool not initialized")
+	}
+}
+
+// TestHandleCloseIssue_EmptyID tests that an empty issue ID returns 400 Bad Request
+func TestHandleCloseIssue_EmptyID(t *testing.T) {
+	pool := &mockClosePool{}
+
+	handler := handleCloseIssueWithPool(pool)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/issues//close", nil)
+	req.SetPathValue("id", "")
+	w := httptest.NewRecorder()
+
+	handler.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("status = %d, want %d", w.Code, http.StatusBadRequest)
+	}
+
+	contentType := w.Header().Get("Content-Type")
+	if contentType != "application/json" {
+		t.Errorf("Content-Type = %q, want %q", contentType, "application/json")
+	}
+
+	var resp map[string]string
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	if resp["error"] != "missing issue ID" {
+		t.Errorf("error = %q, want %q", resp["error"], "missing issue ID")
+	}
+}
+
+// TestHandleCloseIssue_InvalidBody tests that malformed JSON returns 400 Bad Request
+func TestHandleCloseIssue_InvalidBody(t *testing.T) {
+	pool := &mockClosePool{}
+
+	handler := handleCloseIssueWithPool(pool)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/issues/test-123/close", strings.NewReader(`{invalid json}`))
+	req.SetPathValue("id", "test-123")
+	w := httptest.NewRecorder()
+
+	handler.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("status = %d, want %d", w.Code, http.StatusBadRequest)
+	}
+
+	var resp map[string]string
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	if !strings.HasPrefix(resp["error"], "invalid request body:") {
+		t.Errorf("error = %q, want prefix %q", resp["error"], "invalid request body:")
+	}
+}
+
+// TestHandleCloseIssue_DaemonUnavailable tests that pool error returns 503 Service Unavailable
+func TestHandleCloseIssue_DaemonUnavailable(t *testing.T) {
+	pool := &mockClosePool{
+		getFunc: func(ctx context.Context) (issueCloser, error) {
+			return nil, errors.New("pool exhausted")
+		},
+	}
+
+	handler := handleCloseIssueWithPool(pool)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/issues/test-123/close", nil)
+	req.SetPathValue("id", "test-123")
+	w := httptest.NewRecorder()
+
+	handler.ServeHTTP(w, req)
+
+	if w.Code != http.StatusServiceUnavailable {
+		t.Errorf("status = %d, want %d", w.Code, http.StatusServiceUnavailable)
+	}
+
+	var resp map[string]string
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	if resp["error"] != "daemon not available" {
+		t.Errorf("error = %q, want %q", resp["error"], "daemon not available")
+	}
+}
+
+// TestHandleCloseIssue_Timeout tests that connection timeout returns 504 Gateway Timeout
+func TestHandleCloseIssue_Timeout(t *testing.T) {
+	pool := &mockClosePool{
+		getFunc: func(ctx context.Context) (issueCloser, error) {
+			return nil, context.DeadlineExceeded
+		},
+	}
+
+	handler := handleCloseIssueWithPool(pool)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/issues/test-123/close", nil)
+	req.SetPathValue("id", "test-123")
+	w := httptest.NewRecorder()
+
+	handler.ServeHTTP(w, req)
+
+	if w.Code != http.StatusGatewayTimeout {
+		t.Errorf("status = %d, want %d", w.Code, http.StatusGatewayTimeout)
+	}
+}
+
+// TestHandleCloseIssue_NotFound tests that issue not found returns 404 Not Found
+func TestHandleCloseIssue_NotFound(t *testing.T) {
+	client := &mockCloseClient{
+		closeFunc: func(args *rpc.CloseArgs) (*rpc.Response, error) {
+			return nil, errors.New("issue not found: test-123")
+		},
+	}
+
+	pool := &mockClosePool{
+		getFunc: func(ctx context.Context) (issueCloser, error) {
+			return client, nil
+		},
+		putFunc: func(c issueCloser) {},
+	}
+
+	handler := handleCloseIssueWithPool(pool)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/issues/test-123/close", nil)
+	req.SetPathValue("id", "test-123")
+	w := httptest.NewRecorder()
+
+	handler.ServeHTTP(w, req)
+
+	if w.Code != http.StatusNotFound {
+		t.Errorf("status = %d, want %d", w.Code, http.StatusNotFound)
+	}
+
+	var resp map[string]string
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	if !strings.Contains(resp["error"], "not found") {
+		t.Errorf("error = %q, want to contain %q", resp["error"], "not found")
+	}
+}
+
+// TestHandleCloseIssue_HasBlockers tests that issue with open blockers returns 409 Conflict
+func TestHandleCloseIssue_HasBlockers(t *testing.T) {
+	client := &mockCloseClient{
+		closeFunc: func(args *rpc.CloseArgs) (*rpc.Response, error) {
+			return nil, errors.New("issue has open blockers: bd-abc, bd-def")
+		},
+	}
+
+	pool := &mockClosePool{
+		getFunc: func(ctx context.Context) (issueCloser, error) {
+			return client, nil
+		},
+		putFunc: func(c issueCloser) {},
+	}
+
+	handler := handleCloseIssueWithPool(pool)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/issues/test-123/close", nil)
+	req.SetPathValue("id", "test-123")
+	w := httptest.NewRecorder()
+
+	handler.ServeHTTP(w, req)
+
+	if w.Code != http.StatusConflict {
+		t.Errorf("status = %d, want %d", w.Code, http.StatusConflict)
+	}
+
+	var resp map[string]string
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	if !strings.Contains(resp["error"], "blocker") {
+		t.Errorf("error = %q, want to contain %q", resp["error"], "blocker")
+	}
+}
+
+// TestHandleCloseIssue_Success tests successful close returns 200 OK with closed issue
+func TestHandleCloseIssue_Success(t *testing.T) {
+	closedIssueData := `{"id":"test-123","title":"Test Issue","status":"closed"}`
+	client := &mockCloseClient{
+		closeFunc: func(args *rpc.CloseArgs) (*rpc.Response, error) {
+			return &rpc.Response{
+				Success: true,
+				Data:    json.RawMessage(closedIssueData),
+			}, nil
+		},
+	}
+
+	pool := &mockClosePool{
+		getFunc: func(ctx context.Context) (issueCloser, error) {
+			return client, nil
+		},
+		putFunc: func(c issueCloser) {},
+	}
+
+	handler := handleCloseIssueWithPool(pool)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/issues/test-123/close", nil)
+	req.SetPathValue("id", "test-123")
+	w := httptest.NewRecorder()
+
+	handler.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("status = %d, want %d", w.Code, http.StatusOK)
+	}
+
+	var resp CloseResponse
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	if !resp.Success {
+		t.Error("expected success=true")
+	}
+	if string(resp.Data) != closedIssueData {
+		t.Errorf("data = %s, want %s", string(resp.Data), closedIssueData)
+	}
+}
+
+// TestHandleCloseIssue_SuccessWithReason tests close with reason passes args correctly
+func TestHandleCloseIssue_SuccessWithReason(t *testing.T) {
+	var capturedArgs *rpc.CloseArgs
+	client := &mockCloseClient{
+		closeFunc: func(args *rpc.CloseArgs) (*rpc.Response, error) {
+			capturedArgs = args
+			return &rpc.Response{
+				Success: true,
+				Data:    json.RawMessage(`{}`),
+			}, nil
+		},
+	}
+
+	pool := &mockClosePool{
+		getFunc: func(ctx context.Context) (issueCloser, error) {
+			return client, nil
+		},
+		putFunc: func(c issueCloser) {},
+	}
+
+	handler := handleCloseIssueWithPool(pool)
+
+	body := `{"reason":"Test complete","session":"session-123","suggest_next":true,"force":false}`
+	req := httptest.NewRequest(http.MethodPost, "/api/issues/test-123/close", strings.NewReader(body))
+	req.SetPathValue("id", "test-123")
+	w := httptest.NewRecorder()
+
+	handler.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("status = %d, want %d", w.Code, http.StatusOK)
+	}
+
+	if capturedArgs == nil {
+		t.Fatal("expected args to be captured")
+	}
+	if capturedArgs.ID != "test-123" {
+		t.Errorf("ID = %q, want %q", capturedArgs.ID, "test-123")
+	}
+	if capturedArgs.Reason != "Test complete" {
+		t.Errorf("Reason = %q, want %q", capturedArgs.Reason, "Test complete")
+	}
+	if capturedArgs.Session != "session-123" {
+		t.Errorf("Session = %q, want %q", capturedArgs.Session, "session-123")
+	}
+	if !capturedArgs.SuggestNext {
+		t.Error("SuggestNext = false, want true")
+	}
+	if capturedArgs.Force {
+		t.Error("Force = true, want false")
+	}
+}
+
+// TestHandleCloseIssue_SuccessWithForce tests force close passes args correctly
+func TestHandleCloseIssue_SuccessWithForce(t *testing.T) {
+	var capturedArgs *rpc.CloseArgs
+	client := &mockCloseClient{
+		closeFunc: func(args *rpc.CloseArgs) (*rpc.Response, error) {
+			capturedArgs = args
+			return &rpc.Response{
+				Success: true,
+				Data:    json.RawMessage(`{}`),
+			}, nil
+		},
+	}
+
+	pool := &mockClosePool{
+		getFunc: func(ctx context.Context) (issueCloser, error) {
+			return client, nil
+		},
+		putFunc: func(c issueCloser) {},
+	}
+
+	handler := handleCloseIssueWithPool(pool)
+
+	body := `{"force":true}`
+	req := httptest.NewRequest(http.MethodPost, "/api/issues/test-123/close", strings.NewReader(body))
+	req.SetPathValue("id", "test-123")
+	w := httptest.NewRecorder()
+
+	handler.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("status = %d, want %d", w.Code, http.StatusOK)
+	}
+
+	if capturedArgs == nil {
+		t.Fatal("expected args to be captured")
+	}
+	if !capturedArgs.Force {
+		t.Error("Force = false, want true")
+	}
+}
+
+// TestHandleCloseIssue_ClientReturnedToPool tests that client is always returned to pool
+func TestHandleCloseIssue_ClientReturnedToPool(t *testing.T) {
+	client := &mockCloseClient{
+		closeFunc: func(args *rpc.CloseArgs) (*rpc.Response, error) {
+			return nil, errors.New("some error")
+		},
+	}
+
+	putCalled := false
+	pool := &mockClosePool{
+		getFunc: func(ctx context.Context) (issueCloser, error) {
+			return client, nil
+		},
+		putFunc: func(c issueCloser) {
+			putCalled = true
+		},
+	}
+
+	handler := handleCloseIssueWithPool(pool)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/issues/test-123/close", nil)
+	req.SetPathValue("id", "test-123")
+	w := httptest.NewRecorder()
+
+	handler.ServeHTTP(w, req)
+
+	if !putCalled {
+		t.Error("expected Put to be called")
+	}
+}
+
+// TestHandleCloseIssue_EmptyBody tests that empty body works (all fields are optional)
+func TestHandleCloseIssue_EmptyBody(t *testing.T) {
+	var capturedArgs *rpc.CloseArgs
+	client := &mockCloseClient{
+		closeFunc: func(args *rpc.CloseArgs) (*rpc.Response, error) {
+			capturedArgs = args
+			return &rpc.Response{
+				Success: true,
+				Data:    json.RawMessage(`{}`),
+			}, nil
+		},
+	}
+
+	pool := &mockClosePool{
+		getFunc: func(ctx context.Context) (issueCloser, error) {
+			return client, nil
+		},
+		putFunc: func(c issueCloser) {},
+	}
+
+	handler := handleCloseIssueWithPool(pool)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/issues/test-123/close", nil)
+	req.SetPathValue("id", "test-123")
+	w := httptest.NewRecorder()
+
+	handler.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("status = %d, want %d", w.Code, http.StatusOK)
+	}
+
+	if capturedArgs == nil {
+		t.Fatal("expected args to be captured")
+	}
+	if capturedArgs.ID != "test-123" {
+		t.Errorf("ID = %q, want %q", capturedArgs.ID, "test-123")
+	}
+	// All optional fields should be zero values
+	if capturedArgs.Reason != "" {
+		t.Errorf("Reason = %q, want empty", capturedArgs.Reason)
+	}
+	if capturedArgs.Session != "" {
+		t.Errorf("Session = %q, want empty", capturedArgs.Session)
+	}
+	if capturedArgs.SuggestNext {
+		t.Error("SuggestNext = true, want false")
+	}
+	if capturedArgs.Force {
+		t.Error("Force = true, want false")
+	}
+}
+
+// TestHandleCloseIssue_ResponseError tests that Response.Success=false returns error
+func TestHandleCloseIssue_ResponseError(t *testing.T) {
+	client := &mockCloseClient{
+		closeFunc: func(args *rpc.CloseArgs) (*rpc.Response, error) {
+			return &rpc.Response{
+				Success: false,
+				Error:   "internal daemon error",
+			}, nil
+		},
+	}
+
+	pool := &mockClosePool{
+		getFunc: func(ctx context.Context) (issueCloser, error) {
+			return client, nil
+		},
+		putFunc: func(c issueCloser) {},
+	}
+
+	handler := handleCloseIssueWithPool(pool)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/issues/test-123/close", nil)
+	req.SetPathValue("id", "test-123")
+	w := httptest.NewRecorder()
+
+	handler.ServeHTTP(w, req)
+
+	if w.Code != http.StatusInternalServerError {
+		t.Errorf("status = %d, want %d", w.Code, http.StatusInternalServerError)
+	}
+
+	var resp map[string]string
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	if resp["error"] != "internal daemon error" {
+		t.Errorf("error = %q, want %q", resp["error"], "internal daemon error")
+	}
+}
