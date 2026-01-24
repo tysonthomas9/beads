@@ -3,9 +3,11 @@
  * Foundational component for Phase 4 List/Table View.
  */
 
+import { useState } from 'react';
 import type { Issue } from '@/types';
 import { ColumnDef, DEFAULT_ISSUE_COLUMNS } from './columns';
 import { IssueRow } from './IssueRow';
+import { TableHeader, SortState } from './TableHeader';
 import './IssueTable.css';
 
 export interface IssueTableProps {
@@ -32,28 +34,34 @@ export function IssueTable({
   selectedId,
   className,
 }: IssueTableProps) {
+  // Sort state - stub implementation until useSort hook is connected (T045)
+  const [sortState, setSortState] = useState<SortState>({
+    key: null,
+    direction: 'asc',
+  });
+
+  const handleSort = (columnId: string) => {
+    setSortState((prev) => {
+      if (prev.key !== columnId) {
+        return { key: columnId, direction: 'asc' };
+      }
+      if (prev.direction === 'asc') {
+        return { key: columnId, direction: 'desc' };
+      }
+      return { key: null, direction: 'asc' };
+    });
+  };
+
   const tableClassName = ['issue-table', className].filter(Boolean).join(' ');
 
   return (
     <div className="issue-table__wrapper">
       <table className={tableClassName} data-testid="issue-table">
-        <thead className="issue-table__head">
-          <tr>
-            {columns.map((column) => (
-              <th
-                key={column.id}
-                className="issue-table__header-cell"
-                style={{
-                  width: column.width,
-                  textAlign: column.align ?? 'left',
-                }}
-                data-column={column.id}
-              >
-                {column.header}
-              </th>
-            ))}
-          </tr>
-        </thead>
+        <TableHeader
+          columns={columns}
+          sortState={sortState}
+          onSort={handleSort}
+        />
         <tbody className="issue-table__body">
           {issues.length === 0 ? (
             <tr className="issue-table__empty-row">

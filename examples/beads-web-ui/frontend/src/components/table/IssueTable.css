@@ -34,6 +34,56 @@
   white-space: nowrap;
 }
 
+/* Sortable header styles */
+.issue-table__header-cell--sortable {
+  cursor: pointer;
+  user-select: none;
+  transition: color var(--transition-fast), background-color var(--transition-fast);
+}
+
+.issue-table__header-cell--sortable:hover {
+  color: var(--color-text);
+  background-color: var(--color-bg-tertiary);
+}
+
+.issue-table__header-cell--sortable:focus {
+  outline: none;
+}
+
+.issue-table__header-cell--sortable:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: -2px;
+}
+
+.issue-table__header-cell--sorted {
+  color: var(--color-text);
+}
+
+/* Header content wrapper for alignment */
+.issue-table__header-content {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/* Sort indicator */
+.issue-table__sort-indicator {
+  font-size: 0.65em;
+  opacity: 0;
+  transition: opacity var(--transition-fast);
+  color: var(--color-text-muted);
+}
+
+.issue-table__header-cell--sortable:hover .issue-table__sort-indicator {
+  opacity: 0.5;
+}
+
+.issue-table__sort-indicator--asc,
+.issue-table__sort-indicator--desc {
+  opacity: 1;
+  color: var(--color-primary);
+}
+
 /* Table body */
 .issue-table__body {
   /* Body-level styles if needed */
