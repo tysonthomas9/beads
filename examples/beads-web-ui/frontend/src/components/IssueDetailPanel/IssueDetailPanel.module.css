@@ -1,0 +1,58 @@
+/**
+ * IssueDetailPanel component styles.
+ * Slide-out panel from the right edge.
+ */
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-overlay);
+  background-color: rgba(0, 0, 0, 0);
+  visibility: hidden;
+  transition:
+    background-color var(--transition-slow),
+    visibility 0s var(--transition-slow);
+}
+
+.overlay.open {
+  background-color: rgba(0, 0, 0, 0.4);
+  visibility: visible;
+  transition:
+    background-color var(--transition-slow),
+    visibility 0s;
+}
+
+.panel {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 400px;
+  max-width: 100%;
+  background-color: var(--color-bg);
+  box-shadow: var(--shadow-lg);
+  transform: translateX(100%);
+  transition: transform var(--transition-slow);
+  display: flex;
+  flex-direction: column;
+}
+
+.open .panel {
+  transform: translateX(0);
+}
+
+.content {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+/* Focus styles for the panel */
+.panel:focus {
+  outline: none;
+}
+
+.panel:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: -2px;
+}

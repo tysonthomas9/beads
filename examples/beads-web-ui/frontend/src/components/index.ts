@@ -4,6 +4,7 @@
  */
 
 export * from './IssueCard';
+export * from './IssueDetailPanel';
 export * from './LoadingSkeleton';
 export * from './table';
 export * from './StatusColumn';
