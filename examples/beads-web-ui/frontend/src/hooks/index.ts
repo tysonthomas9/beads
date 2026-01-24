@@ -9,3 +9,6 @@ export { useDebounce } from './useDebounce'
 
 export { useSort } from './useSort'
 export type { UseSortOptions, UseSortReturn, SortState, SortDirection } from './useSort'
+
+export { useIssueFilter } from './useIssueFilter'
+export type { UseIssueFilterOptions, UseIssueFilterReturn } from './useIssueFilter'
