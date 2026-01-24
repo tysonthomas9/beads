@@ -482,20 +482,33 @@ func renderBoxSeparator(width int) string {
 	return "╠" + strings.Repeat("═", width-2) + "╣\n"
 }
 
+// displayWidth returns the terminal display width of a string
+// accounting for Unicode characters that display as single width
+func displayWidth(s string) int {
+	width := 0
+	for range s {
+		// All runes count as 1 display width in a typical terminal
+		// This correctly handles Unicode arrows, symbols, etc.
+		width++
+	}
+	return width
+}
+
 func renderBoxLine(width int, content string) string {
-	// Pad content to width
-	padding := width - 4 - len(content)
+	// Use display width instead of byte length for padding calculation
+	contentWidth := displayWidth(content)
+	padding := width - 4 - contentWidth
 	if padding < 0 {
-		content = content[:width-4]
 		padding = 0
 	}
 	return "║ " + content + strings.Repeat(" ", padding) + " ║\n"
 }
 
 func centerText(text string, width int) string {
-	if len(text) >= width {
-		return text[:width]
+	textWidth := displayWidth(text)
+	if textWidth >= width {
+		return text
 	}
-	padding := (width - len(text)) / 2
-	return strings.Repeat(" ", padding) + text + strings.Repeat(" ", width-len(text)-padding)
+	padding := (width - textWidth) / 2
+	return strings.Repeat(" ", padding) + text + strings.Repeat(" ", width-textWidth-padding)
 }
