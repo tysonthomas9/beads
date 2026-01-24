@@ -277,6 +277,81 @@ describe('StatusColumn', () => {
       expect(document.querySelector('[data-droppable-id="closed"]')).toBeInTheDocument();
     });
   });
+
+  describe('scrolling', () => {
+    it('scrollable content renders with many children', () => {
+      const manyChildren = Array.from({ length: 20 }, (_, i) => (
+        <div key={i} data-testid={`card-${i}`}>
+          Card {i}
+        </div>
+      ));
+
+      renderWithDndContext(
+        <StatusColumn status="open" count={20}>
+          {manyChildren}
+        </StatusColumn>
+      );
+
+      // Verify content area exists and has proper structure
+      const content = screen.getByRole('list');
+      expect(content).toBeInTheDocument();
+      expect(content).toHaveAttribute('data-droppable-id', 'open');
+
+      // Verify all children are rendered within the scrollable content
+      for (let i = 0; i < 20; i++) {
+        expect(screen.getByTestId(`card-${i}`)).toBeInTheDocument();
+      }
+    });
+
+    it('empty column with count=0 renders correctly', () => {
+      render(<StatusColumn status="open" count={0} />);
+
+      // Verify header renders with count
+      expect(screen.getByRole('heading', { name: 'Open' })).toBeInTheDocument();
+      expect(screen.getByText('0')).toBeInTheDocument();
+
+      // Verify content area exists and is empty
+      const content = screen.getByRole('list');
+      expect(content).toBeInTheDocument();
+      expect(content).toBeEmptyDOMElement();
+
+      // Verify accessibility label uses plural for 0
+      expect(screen.getByLabelText('0 issues')).toBeInTheDocument();
+    });
+
+    it('large content count with 50+ children renders without breaking layout', () => {
+      const manyChildren = Array.from({ length: 55 }, (_, i) => (
+        <div key={i} data-testid={`item-${i}`}>
+          Item {i}
+        </div>
+      ));
+
+      renderWithDndContext(
+        <StatusColumn status="in_progress" count={55}>
+          {manyChildren}
+        </StatusColumn>
+      );
+
+      // Verify component structure is intact
+      expect(
+        screen.getByRole('heading', { name: 'In Progress' })
+      ).toBeInTheDocument();
+      expect(screen.getByText('55')).toBeInTheDocument();
+
+      // Verify all 55 children are rendered
+      const content = screen.getByRole('list');
+      expect(content).toBeInTheDocument();
+
+      for (let i = 0; i < 55; i++) {
+        expect(screen.getByTestId(`item-${i}`)).toBeInTheDocument();
+      }
+
+      // Verify section structure remains valid
+      const section = screen.getByRole('region', { name: 'In Progress issues' });
+      expect(section).toBeInTheDocument();
+      expect(section).toContainElement(content);
+    });
+  });
 });
 
 describe('formatStatusLabel', () => {
