@@ -1,0 +1,77 @@
+/**
+ * StatusColumn component styles.
+ * Uses CSS Modules for component-scoped styling.
+ */
+
+.statusColumn {
+  display: flex;
+  flex-direction: column;
+  width: 280px;
+  min-width: 280px;
+  max-width: 280px;
+  min-height: 200px;
+  background-color: var(--color-bg-secondary);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 2px solid var(--color-border);
+}
+
+/* Status-specific header accent colors */
+.statusColumn[data-status='open'] .header {
+  border-bottom-color: var(--color-status-open);
+}
+
+.statusColumn[data-status='in_progress'] .header {
+  border-bottom-color: var(--color-status-in-progress);
+}
+
+.statusColumn[data-status='closed'] .header {
+  border-bottom-color: var(--color-status-closed);
+}
+
+.statusColumn[data-status='blocked'] .header {
+  border-bottom-color: var(--color-blocked);
+}
+
+/* Deferred uses secondary color to indicate inactive/low-priority */
+.statusColumn[data-status='deferred'] .header {
+  border-bottom-color: var(--color-text-muted);
+}
+
+.title {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text);
+  line-height: var(--line-height-tight);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.count {
+  flex-shrink: 0;
+  min-width: 1.5rem;
+  padding: var(--space-1) var(--space-2);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-secondary);
+  background-color: var(--color-bg-tertiary);
+  border-radius: var(--radius-full);
+  text-align: center;
+}
+
+.content {
+  flex: 1;
+  padding: var(--space-2);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
