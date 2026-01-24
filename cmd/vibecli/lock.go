@@ -4,7 +4,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"time"
 )
@@ -153,8 +155,40 @@ func GetLockStatus(worktreePath string) string {
 	}
 
 	duration := time.Since(info.StartedAt).Round(time.Second)
+
 	if info.TaskID != "" {
-		return fmt.Sprintf("running %s: %s (%s)", info.Command, info.TaskID, duration)
+		// Check actual task status
+		taskStatus := getTaskStatus(info.TaskID)
+		switch taskStatus {
+		case "needs_review":
+			return fmt.Sprintf("done → review (%s)", duration)
+		case "closed":
+			return fmt.Sprintf("done (%s)", duration)
+		case "in_progress":
+			return fmt.Sprintf("working: %s (%s)", info.TaskID, duration)
+		default:
+			return fmt.Sprintf("running %s: %s (%s)", info.Command, info.TaskID, duration)
+		}
 	}
 	return fmt.Sprintf("running (%s, %s)", info.Command, duration)
+}
+
+// getTaskStatus returns the status of a beads task
+// Returns "needs_review", "closed", "in_progress", "open", or ""
+func getTaskStatus(taskID string) string {
+	output, err := exec.Command("bd", "show", taskID, "--json").Output()
+	if err != nil {
+		return ""
+	}
+	var issues []struct {
+		Title  string `json:"title"`
+		Status string `json:"status"`
+	}
+	if json.Unmarshal(output, &issues) != nil || len(issues) == 0 {
+		return ""
+	}
+	if strings.Contains(issues[0].Title, "[Need Review]") {
+		return "needs_review"
+	}
+	return issues[0].Status
 }

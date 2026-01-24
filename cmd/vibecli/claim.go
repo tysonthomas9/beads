@@ -68,10 +68,14 @@ func getTaskTitle(taskID string) string {
 		return ""
 	}
 
-	var result bdShowOutput
-	if err := json.Unmarshal(output, &result); err != nil {
+	// bd show --json returns an array
+	var results []bdShowOutput
+	if err := json.Unmarshal(output, &results); err != nil {
+		return ""
+	}
+	if len(results) == 0 {
 		return ""
 	}
 
-	return result.Title
+	return results[0].Title
 }
