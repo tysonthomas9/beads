@@ -481,3 +481,209 @@ func writeIssuesError(w http.ResponseWriter, status int, message, code string) {
 		log.Printf("Failed to encode error response: %v", err)
 	}
 }
+
+// IssueCreateRequest represents the JSON request body for creating an issue.
+type IssueCreateRequest struct {
+	// Required fields
+	Title     string `json:"title"`
+	IssueType string `json:"issue_type"`
+	Priority  int    `json:"priority"`
+
+	// Optional fields - match rpc.CreateArgs
+	ID                 string   `json:"id,omitempty"`
+	Parent             string   `json:"parent,omitempty"`
+	Description        string   `json:"description,omitempty"`
+	Design             string   `json:"design,omitempty"`
+	AcceptanceCriteria string   `json:"acceptance_criteria,omitempty"`
+	Notes              string   `json:"notes,omitempty"`
+	Assignee           string   `json:"assignee,omitempty"`
+	Owner              string   `json:"owner,omitempty"`
+	CreatedBy          string   `json:"created_by,omitempty"`
+	ExternalRef        string   `json:"external_ref,omitempty"`
+	EstimatedMinutes   *int     `json:"estimated_minutes,omitempty"`
+	Labels             []string `json:"labels,omitempty"`
+	Dependencies       []string `json:"dependencies,omitempty"`
+	DueAt              string   `json:"due_at,omitempty"`
+	DeferUntil         string   `json:"defer_until,omitempty"`
+}
+
+// validIssueTypes defines the valid issue types for validation.
+var validIssueTypes = map[string]bool{
+	"bug":     true,
+	"feature": true,
+	"task":    true,
+	"epic":    true,
+	"chore":   true,
+}
+
+// Limits for create request validation.
+const (
+	maxLabels       = 50
+	maxDependencies = 100
+	maxRequestBody  = 1 << 20 // 1MB
+)
+
+// validateCreateRequest validates the required fields in a create request.
+func validateCreateRequest(req *IssueCreateRequest) error {
+	// Validate title
+	if strings.TrimSpace(req.Title) == "" {
+		return fmt.Errorf("title is required")
+	}
+
+	// Validate issue_type
+	if req.IssueType == "" {
+		return fmt.Errorf("issue_type is required")
+	}
+	if !validIssueTypes[req.IssueType] {
+		return fmt.Errorf("invalid issue_type: %s (must be bug, feature, task, epic, or chore)", req.IssueType)
+	}
+
+	// Validate priority (0-4 are valid, where 0 is P0/critical)
+	if req.Priority < 0 || req.Priority > 4 {
+		return fmt.Errorf("priority must be between 0 and 4 (got %d)", req.Priority)
+	}
+
+	// Validate array lengths to prevent resource exhaustion
+	if len(req.Labels) > maxLabels {
+		return fmt.Errorf("too many labels (max %d, got %d)", maxLabels, len(req.Labels))
+	}
+	if len(req.Dependencies) > maxDependencies {
+		return fmt.Errorf("too many dependencies (max %d, got %d)", maxDependencies, len(req.Dependencies))
+	}
+
+	return nil
+}
+
+// toCreateArgs converts an IssueCreateRequest to rpc.CreateArgs.
+func toCreateArgs(req *IssueCreateRequest) *rpc.CreateArgs {
+	return &rpc.CreateArgs{
+		ID:                 req.ID,
+		Parent:             req.Parent,
+		Title:              req.Title,
+		Description:        req.Description,
+		IssueType:          req.IssueType,
+		Priority:           req.Priority,
+		Design:             req.Design,
+		AcceptanceCriteria: req.AcceptanceCriteria,
+		Notes:              req.Notes,
+		Assignee:           req.Assignee,
+		ExternalRef:        req.ExternalRef,
+		EstimatedMinutes:   req.EstimatedMinutes,
+		Labels:             req.Labels,
+		Dependencies:       req.Dependencies,
+		CreatedBy:          req.CreatedBy,
+		Owner:              req.Owner,
+		DueAt:              req.DueAt,
+		DeferUntil:         req.DeferUntil,
+	}
+}
+
+// issueCreator is an internal interface for testing issue creation.
+// The production code uses *rpc.Client which implements this interface.
+type issueCreator interface {
+	Create(args *rpc.CreateArgs) (*rpc.Response, error)
+}
+
+// createConnectionGetter is an internal interface for testing connection pool operations for create.
+type createConnectionGetter interface {
+	Get(ctx context.Context) (issueCreator, error)
+	Put(client issueCreator)
+}
+
+// createPoolAdapter wraps *daemon.ConnectionPool to implement createConnectionGetter.
+type createPoolAdapter struct {
+	pool *daemon.ConnectionPool
+}
+
+func (p *createPoolAdapter) Get(ctx context.Context) (issueCreator, error) {
+	return p.pool.Get(ctx)
+}
+
+func (p *createPoolAdapter) Put(client issueCreator) {
+	if c, ok := client.(*rpc.Client); ok {
+		p.pool.Put(c)
+	}
+}
+
+// handleCreateIssue returns a handler that creates a new issue.
+func handleCreateIssue(pool *daemon.ConnectionPool) http.HandlerFunc {
+	if pool == nil {
+		return func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			writeIssuesError(w, http.StatusServiceUnavailable, "connection pool not initialized", "POOL_NOT_INITIALIZED")
+		}
+	}
+	return handleCreateIssueWithPool(&createPoolAdapter{pool: pool})
+}
+
+// handleCreateIssueWithPool is the internal implementation that accepts an interface for testing.
+func handleCreateIssueWithPool(pool createConnectionGetter) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+
+		// Limit request body size to prevent DoS attacks
+		r.Body = http.MaxBytesReader(w, r.Body, maxRequestBody)
+
+		// Parse request body
+		var req IssueCreateRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			// Check if it's a request body too large error
+			var maxBytesErr *http.MaxBytesError
+			if errors.As(err, &maxBytesErr) {
+				writeIssuesError(w, http.StatusRequestEntityTooLarge, "request body too large (max 1MB)", "REQUEST_TOO_LARGE")
+				return
+			}
+			writeIssuesError(w, http.StatusBadRequest, "invalid JSON body: "+err.Error(), "INVALID_JSON")
+			return
+		}
+
+		// Validate required fields
+		if err := validateCreateRequest(&req); err != nil {
+			writeIssuesError(w, http.StatusBadRequest, err.Error(), "VALIDATION_ERROR")
+			return
+		}
+
+		// Acquire connection with 30-second timeout for create operations
+		ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
+		defer cancel()
+
+		client, err := pool.Get(ctx)
+		if err != nil {
+			status := http.StatusServiceUnavailable
+			code := "DAEMON_UNAVAILABLE"
+			message := "daemon unavailable"
+			if errors.Is(err, context.DeadlineExceeded) {
+				status = http.StatusGatewayTimeout
+				code = "CONNECTION_TIMEOUT"
+				message = "timeout connecting to daemon"
+			}
+			log.Printf("Connection pool error: %v", err)
+			writeIssuesError(w, status, message, code)
+			return
+		}
+		defer pool.Put(client)
+
+		// Convert request to RPC args and call daemon
+		createArgs := toCreateArgs(&req)
+		resp, err := client.Create(createArgs)
+		if err != nil {
+			log.Printf("RPC error: %v", err)
+			writeIssuesError(w, http.StatusInternalServerError, "failed to create issue: "+err.Error(), "RPC_ERROR")
+			return
+		}
+
+		if !resp.Success {
+			writeIssuesError(w, http.StatusInternalServerError, resp.Error, "DAEMON_ERROR")
+			return
+		}
+
+		// Return success with created issue
+		w.WriteHeader(http.StatusCreated)
+		if err := json.NewEncoder(w).Encode(IssuesResponse{
+			Success: true,
+			Data:    resp.Data,
+		}); err != nil {
+			log.Printf("Failed to encode create response: %v", err)
+		}
+	}
+}
