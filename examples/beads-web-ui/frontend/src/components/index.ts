@@ -16,3 +16,4 @@ export * from './search';
 export * from './TypeIcon';
 export * from './FilterBar';
 export * from './KanbanBoard';
+export * from './BulkActionToolbar';
