@@ -1,0 +1,689 @@
+/**
+ * @vitest-environment jsdom
+ */
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { renderHook, act, waitFor } from '@testing-library/react'
+import { useIssues } from './useIssues'
+import type { Issue } from '../types/issue'
+import * as issuesApi from '../api/issues'
+import * as useWebSocketModule from './useWebSocket'
+import type { ConnectionState } from '../api/websocket'
+
+// Mock the API
+vi.mock('../api/issues', () => ({
+  getReadyIssues: vi.fn(),
+  updateIssue: vi.fn(),
+}))
+
+// Mock useWebSocket
+vi.mock('./useWebSocket', () => ({
+  useWebSocket: vi.fn(),
+}))
+
+/**
+ * Helper to create a test issue with required fields.
+ */
+function createTestIssue(overrides: Partial<Issue> = {}): Issue {
+  return {
+    id: 'test-issue-1',
+    title: 'Test Issue',
+    priority: 2,
+    created_at: '2025-01-23T10:00:00Z',
+    updated_at: '2025-01-23T10:00:00Z',
+    ...overrides,
+  }
+}
+
+/**
+ * Helper to create mock useWebSocket return value.
+ */
+function createMockWebSocket(overrides: Partial<useWebSocketModule.UseWebSocketReturn> = {}): useWebSocketModule.UseWebSocketReturn {
+  return {
+    state: 'disconnected' as ConnectionState,
+    lastError: null,
+    isConnected: false,
+    reconnectAttempts: 0,
+    connect: vi.fn(),
+    disconnect: vi.fn(),
+    subscribe: vi.fn(),
+    unsubscribe: vi.fn(),
+    retryNow: vi.fn(),
+    ...overrides,
+  }
+}
+
+describe('useIssues', () => {
+  let mockWebSocket: useWebSocketModule.UseWebSocketReturn
+  let onMutationCallback: ((mutation: unknown) => void) | undefined
+  let onStateChangeCallback: ((state: ConnectionState) => void) | undefined
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+
+    // Set up default mock for useWebSocket that captures callbacks
+    mockWebSocket = createMockWebSocket()
+    vi.mocked(useWebSocketModule.useWebSocket).mockImplementation((options) => {
+      onMutationCallback = options?.onMutation
+      onStateChangeCallback = options?.onStateChange
+      return mockWebSocket
+    })
+
+    // Default API mock to return empty array
+    vi.mocked(issuesApi.getReadyIssues).mockResolvedValue([])
+  })
+
+  afterEach(() => {
+    onMutationCallback = undefined
+    onStateChangeCallback = undefined
+  })
+
+  describe('Hook initialization', () => {
+    it('returns expected shape with all properties', async () => {
+      const { result } = renderHook(() => useIssues())
+
+      expect(result.current).toHaveProperty('issues')
+      expect(result.current).toHaveProperty('issuesMap')
+      expect(result.current).toHaveProperty('isLoading')
+      expect(result.current).toHaveProperty('error')
+      expect(result.current).toHaveProperty('connectionState')
+      expect(result.current).toHaveProperty('isConnected')
+      expect(result.current).toHaveProperty('reconnectAttempts')
+      expect(result.current).toHaveProperty('refetch')
+      expect(result.current).toHaveProperty('updateIssueStatus')
+      expect(result.current).toHaveProperty('getIssue')
+      expect(result.current).toHaveProperty('mutationCount')
+      expect(result.current).toHaveProperty('retryConnection')
+
+      expect(typeof result.current.refetch).toBe('function')
+      expect(typeof result.current.updateIssueStatus).toBe('function')
+      expect(typeof result.current.getIssue).toBe('function')
+      expect(typeof result.current.retryConnection).toBe('function')
+    })
+
+    it('initial state has empty issues and Map', () => {
+      const { result } = renderHook(() => useIssues({ autoFetch: false }))
+
+      expect(result.current.issues).toEqual([])
+      expect(result.current.issuesMap.size).toBe(0)
+    })
+
+    it('initial state has no loading or error', () => {
+      const { result } = renderHook(() => useIssues({ autoFetch: false }))
+
+      expect(result.current.isLoading).toBe(false)
+      expect(result.current.error).toBeNull()
+    })
+  })
+
+  describe('Auto-fetch behavior', () => {
+    it('fetches issues on mount when autoFetch is true (default)', async () => {
+      const mockIssues = [
+        createTestIssue({ id: 'issue-1', title: 'Issue 1' }),
+        createTestIssue({ id: 'issue-2', title: 'Issue 2' }),
+      ]
+      vi.mocked(issuesApi.getReadyIssues).mockResolvedValue(mockIssues)
+
+      const { result } = renderHook(() => useIssues())
+
+      // Should start loading
+      expect(result.current.isLoading).toBe(true)
+
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false)
+      })
+
+      expect(issuesApi.getReadyIssues).toHaveBeenCalledTimes(1)
+      expect(result.current.issues).toHaveLength(2)
+      expect(result.current.issuesMap.size).toBe(2)
+    })
+
+    it('does not fetch on mount when autoFetch is false', async () => {
+      const { result } = renderHook(() => useIssues({ autoFetch: false }))
+
+      // Give time for potential fetch
+      await vi.waitFor(() => {
+        expect(result.current.isLoading).toBe(false)
+      })
+
+      expect(issuesApi.getReadyIssues).not.toHaveBeenCalled()
+      expect(result.current.issues).toHaveLength(0)
+    })
+
+    it('passes filter to API when provided', async () => {
+      const filter = { priority: 1, assignee: 'user@example.com' }
+      vi.mocked(issuesApi.getReadyIssues).mockResolvedValue([])
+
+      renderHook(() => useIssues({ filter }))
+
+      await waitFor(() => {
+        expect(issuesApi.getReadyIssues).toHaveBeenCalledWith(filter)
+      })
+    })
+  })
+
+  describe('Fetch error handling', () => {
+    it('sets error state on fetch failure', async () => {
+      const errorMessage = 'Network error'
+      vi.mocked(issuesApi.getReadyIssues).mockRejectedValue(new Error(errorMessage))
+
+      const { result } = renderHook(() => useIssues())
+
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false)
+      })
+
+      expect(result.current.error).toBe(errorMessage)
+      expect(result.current.issues).toHaveLength(0)
+    })
+
+    it('clears error on successful refetch', async () => {
+      // First fetch fails
+      vi.mocked(issuesApi.getReadyIssues).mockRejectedValueOnce(new Error('Network error'))
+
+      const { result } = renderHook(() => useIssues())
+
+      await waitFor(() => {
+        expect(result.current.error).toBe('Network error')
+      })
+
+      // Refetch succeeds
+      const mockIssues = [createTestIssue()]
+      vi.mocked(issuesApi.getReadyIssues).mockResolvedValue(mockIssues)
+
+      await act(async () => {
+        await result.current.refetch()
+      })
+
+      expect(result.current.error).toBeNull()
+      expect(result.current.issues).toHaveLength(1)
+    })
+  })
+
+  describe('Refetch functionality', () => {
+    it('refetch replaces existing issues', async () => {
+      const initialIssues = [createTestIssue({ id: 'initial', title: 'Initial' })]
+      vi.mocked(issuesApi.getReadyIssues).mockResolvedValueOnce(initialIssues)
+
+      const { result } = renderHook(() => useIssues())
+
+      await waitFor(() => {
+        expect(result.current.issues).toHaveLength(1)
+      })
+
+      // Refetch with different issues
+      const newIssues = [
+        createTestIssue({ id: 'new-1', title: 'New 1' }),
+        createTestIssue({ id: 'new-2', title: 'New 2' }),
+      ]
+      vi.mocked(issuesApi.getReadyIssues).mockResolvedValue(newIssues)
+
+      await act(async () => {
+        await result.current.refetch()
+      })
+
+      expect(result.current.issues).toHaveLength(2)
+      expect(result.current.issues.map((i) => i.id)).toEqual(['new-1', 'new-2'])
+      expect(result.current.issuesMap.has('initial')).toBe(false)
+    })
+
+    it('refetch sets loading state correctly', async () => {
+      vi.mocked(issuesApi.getReadyIssues).mockResolvedValue([])
+
+      const { result } = renderHook(() => useIssues({ autoFetch: false }))
+
+      expect(result.current.isLoading).toBe(false)
+
+      let refetchPromise: Promise<void>
+      act(() => {
+        refetchPromise = result.current.refetch()
+      })
+
+      expect(result.current.isLoading).toBe(true)
+
+      await act(async () => {
+        await refetchPromise
+      })
+
+      expect(result.current.isLoading).toBe(false)
+    })
+  })
+
+  describe('Map and Array synchronization', () => {
+    it('issues array is derived from issuesMap', async () => {
+      const mockIssues = [
+        createTestIssue({ id: 'issue-1' }),
+        createTestIssue({ id: 'issue-2' }),
+      ]
+      vi.mocked(issuesApi.getReadyIssues).mockResolvedValue(mockIssues)
+
+      const { result } = renderHook(() => useIssues())
+
+      await waitFor(() => {
+        expect(result.current.issues).toHaveLength(2)
+      })
+
+      // Array should contain the same issues as Map
+      expect(result.current.issuesMap.get('issue-1')).toEqual(result.current.issues.find((i) => i.id === 'issue-1'))
+      expect(result.current.issuesMap.get('issue-2')).toEqual(result.current.issues.find((i) => i.id === 'issue-2'))
+    })
+
+    it('getIssue returns correct issue from Map', async () => {
+      const mockIssues = [
+        createTestIssue({ id: 'issue-1', title: 'Issue One' }),
+        createTestIssue({ id: 'issue-2', title: 'Issue Two' }),
+      ]
+      vi.mocked(issuesApi.getReadyIssues).mockResolvedValue(mockIssues)
+
+      const { result } = renderHook(() => useIssues())
+
+      await waitFor(() => {
+        expect(result.current.issues).toHaveLength(2)
+      })
+
+      expect(result.current.getIssue('issue-1')?.title).toBe('Issue One')
+      expect(result.current.getIssue('issue-2')?.title).toBe('Issue Two')
+      expect(result.current.getIssue('nonexistent')).toBeUndefined()
+    })
+  })
+
+  describe('WebSocket integration', () => {
+    it('passes autoConnect option to useWebSocket', () => {
+      renderHook(() => useIssues({ autoConnect: false }))
+
+      expect(useWebSocketModule.useWebSocket).toHaveBeenCalledWith(
+        expect.objectContaining({ autoConnect: false })
+      )
+    })
+
+    it('uses autoConnect=true by default', () => {
+      renderHook(() => useIssues())
+
+      expect(useWebSocketModule.useWebSocket).toHaveBeenCalledWith(
+        expect.objectContaining({ autoConnect: true })
+      )
+    })
+
+    it('exposes WebSocket connection state', () => {
+      mockWebSocket = createMockWebSocket({
+        state: 'connected',
+        isConnected: true,
+        reconnectAttempts: 0,
+      })
+      vi.mocked(useWebSocketModule.useWebSocket).mockReturnValue(mockWebSocket)
+
+      const { result } = renderHook(() => useIssues({ autoFetch: false }))
+
+      expect(result.current.connectionState).toBe('connected')
+      expect(result.current.isConnected).toBe(true)
+      expect(result.current.reconnectAttempts).toBe(0)
+    })
+
+    it('exposes reconnect attempts during reconnection', () => {
+      mockWebSocket = createMockWebSocket({
+        state: 'reconnecting',
+        isConnected: false,
+        reconnectAttempts: 3,
+      })
+      vi.mocked(useWebSocketModule.useWebSocket).mockReturnValue(mockWebSocket)
+
+      const { result } = renderHook(() => useIssues({ autoFetch: false }))
+
+      expect(result.current.connectionState).toBe('reconnecting')
+      expect(result.current.reconnectAttempts).toBe(3)
+    })
+
+    it('retryConnection calls WebSocket retryNow', () => {
+      const retryNow = vi.fn()
+      mockWebSocket = createMockWebSocket({ retryNow })
+      vi.mocked(useWebSocketModule.useWebSocket).mockReturnValue(mockWebSocket)
+
+      const { result } = renderHook(() => useIssues({ autoFetch: false }))
+
+      act(() => {
+        result.current.retryConnection()
+      })
+
+      expect(retryNow).toHaveBeenCalledTimes(1)
+    })
+
+    it('subscribes when connected and subscribeOnConnect is true', async () => {
+      const subscribe = vi.fn()
+
+      // Start disconnected
+      mockWebSocket = createMockWebSocket({
+        state: 'disconnected',
+        isConnected: false,
+        subscribe,
+      })
+      vi.mocked(useWebSocketModule.useWebSocket).mockReturnValue(mockWebSocket)
+
+      const mockIssues = [createTestIssue()]
+      vi.mocked(issuesApi.getReadyIssues).mockResolvedValue(mockIssues)
+
+      const { result, rerender } = renderHook(() =>
+        useIssues({ subscribeOnConnect: true })
+      )
+
+      // Wait for fetch to complete
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false)
+      })
+
+      // Now simulate connection (this will trigger the effect)
+      mockWebSocket = createMockWebSocket({
+        state: 'connected',
+        isConnected: true,
+        subscribe,
+      })
+      vi.mocked(useWebSocketModule.useWebSocket).mockReturnValue(mockWebSocket)
+
+      // Force re-render to pick up new mock values
+      rerender()
+
+      // Should subscribe with timestamp after connection established
+      await waitFor(() => {
+        expect(subscribe).toHaveBeenCalled()
+      })
+
+      // Should be called with a timestamp (number)
+      expect(subscribe).toHaveBeenCalledWith(expect.any(Number))
+    })
+
+    it('does not subscribe when subscribeOnConnect is false', async () => {
+      const subscribe = vi.fn()
+      mockWebSocket = createMockWebSocket({
+        state: 'connected',
+        isConnected: true,
+        subscribe,
+      })
+      vi.mocked(useWebSocketModule.useWebSocket).mockReturnValue(mockWebSocket)
+
+      const mockIssues = [createTestIssue()]
+      vi.mocked(issuesApi.getReadyIssues).mockResolvedValue(mockIssues)
+
+      renderHook(() => useIssues({ subscribeOnConnect: false }))
+
+      // Wait a bit to ensure no subscription happens
+      await new Promise((resolve) => setTimeout(resolve, 50))
+
+      expect(subscribe).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('Mutation handling', () => {
+    it('handles create mutation from WebSocket', async () => {
+      const mockIssues = [createTestIssue({ id: 'existing' })]
+      vi.mocked(issuesApi.getReadyIssues).mockResolvedValue(mockIssues)
+
+      const { result } = renderHook(() => useIssues())
+
+      await waitFor(() => {
+        expect(result.current.issues).toHaveLength(1)
+      })
+
+      // Simulate receiving a create mutation
+      act(() => {
+        onMutationCallback?.({
+          type: 'create',
+          issue_id: 'new-issue',
+          title: 'New Issue from WebSocket',
+          timestamp: new Date().toISOString(),
+        })
+      })
+
+      expect(result.current.issues).toHaveLength(2)
+      expect(result.current.getIssue('new-issue')?.title).toBe('New Issue from WebSocket')
+    })
+
+    it('handles update mutation from WebSocket', async () => {
+      const mockIssues = [createTestIssue({ id: 'issue-1', title: 'Original Title', updated_at: '2025-01-23T10:00:00Z' })]
+      vi.mocked(issuesApi.getReadyIssues).mockResolvedValue(mockIssues)
+
+      const { result } = renderHook(() => useIssues())
+
+      await waitFor(() => {
+        expect(result.current.issues).toHaveLength(1)
+      })
+
+      // Simulate receiving an update mutation
+      act(() => {
+        onMutationCallback?.({
+          type: 'update',
+          issue_id: 'issue-1',
+          title: 'Updated Title',
+          timestamp: '2025-01-23T12:00:00Z',
+        })
+      })
+
+      expect(result.current.getIssue('issue-1')?.title).toBe('Updated Title')
+    })
+
+    it('handles delete mutation from WebSocket', async () => {
+      const mockIssues = [
+        createTestIssue({ id: 'issue-1' }),
+        createTestIssue({ id: 'issue-2' }),
+      ]
+      vi.mocked(issuesApi.getReadyIssues).mockResolvedValue(mockIssues)
+
+      const { result } = renderHook(() => useIssues())
+
+      await waitFor(() => {
+        expect(result.current.issues).toHaveLength(2)
+      })
+
+      // Simulate receiving a delete mutation
+      act(() => {
+        onMutationCallback?.({
+          type: 'delete',
+          issue_id: 'issue-1',
+          timestamp: new Date().toISOString(),
+        })
+      })
+
+      expect(result.current.issues).toHaveLength(1)
+      expect(result.current.getIssue('issue-1')).toBeUndefined()
+      expect(result.current.getIssue('issue-2')).toBeDefined()
+    })
+
+    it('tracks mutation count', async () => {
+      const mockIssues = [createTestIssue({ id: 'issue-1', updated_at: '2025-01-23T10:00:00Z' })]
+      vi.mocked(issuesApi.getReadyIssues).mockResolvedValue(mockIssues)
+
+      const { result } = renderHook(() => useIssues())
+
+      await waitFor(() => {
+        expect(result.current.issues).toHaveLength(1)
+      })
+
+      expect(result.current.mutationCount).toBe(0)
+
+      act(() => {
+        onMutationCallback?.({
+          type: 'update',
+          issue_id: 'issue-1',
+          title: 'Updated',
+          timestamp: '2025-01-23T12:00:00Z',
+        })
+      })
+
+      expect(result.current.mutationCount).toBe(1)
+
+      act(() => {
+        onMutationCallback?.({
+          type: 'create',
+          issue_id: 'issue-2',
+          title: 'New',
+          timestamp: '2025-01-23T13:00:00Z',
+        })
+      })
+
+      expect(result.current.mutationCount).toBe(2)
+    })
+  })
+
+  describe('Optimistic status update', () => {
+    it('updates status optimistically', async () => {
+      const mockIssues = [createTestIssue({ id: 'issue-1', status: 'open' })]
+      vi.mocked(issuesApi.getReadyIssues).mockResolvedValue(mockIssues)
+      vi.mocked(issuesApi.updateIssue).mockResolvedValue(mockIssues[0])
+
+      const { result } = renderHook(() => useIssues())
+
+      await waitFor(() => {
+        expect(result.current.issues).toHaveLength(1)
+      })
+
+      // Start the update (don't await yet)
+      let updatePromise: Promise<void>
+      act(() => {
+        updatePromise = result.current.updateIssueStatus('issue-1', 'in_progress')
+      })
+
+      // Status should be updated optimistically
+      expect(result.current.getIssue('issue-1')?.status).toBe('in_progress')
+
+      await act(async () => {
+        await updatePromise
+      })
+
+      // API should have been called
+      expect(issuesApi.updateIssue).toHaveBeenCalledWith('issue-1', { status: 'in_progress' })
+    })
+
+    it('rolls back on API failure', async () => {
+      const mockIssues = [createTestIssue({ id: 'issue-1', status: 'open' })]
+      vi.mocked(issuesApi.getReadyIssues).mockResolvedValue(mockIssues)
+      vi.mocked(issuesApi.updateIssue).mockRejectedValue(new Error('API error'))
+
+      const { result } = renderHook(() => useIssues())
+
+      await waitFor(() => {
+        expect(result.current.issues).toHaveLength(1)
+      })
+
+      // Attempt update that will fail
+      await expect(
+        act(async () => {
+          await result.current.updateIssueStatus('issue-1', 'in_progress')
+        })
+      ).rejects.toThrow('API error')
+
+      // Status should be rolled back to original
+      expect(result.current.getIssue('issue-1')?.status).toBe('open')
+    })
+
+    it('throws error when issue not found', async () => {
+      vi.mocked(issuesApi.getReadyIssues).mockResolvedValue([])
+
+      const { result } = renderHook(() => useIssues())
+
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false)
+      })
+
+      await expect(
+        act(async () => {
+          await result.current.updateIssueStatus('nonexistent', 'in_progress')
+        })
+      ).rejects.toThrow('Issue nonexistent not found')
+    })
+  })
+
+  describe('Error combination', () => {
+    it('combines WebSocket error with fetch error (fetch takes priority)', async () => {
+      const fetchError = 'Fetch failed'
+      vi.mocked(issuesApi.getReadyIssues).mockRejectedValue(new Error(fetchError))
+
+      mockWebSocket = createMockWebSocket({
+        lastError: 'WebSocket error',
+      })
+      vi.mocked(useWebSocketModule.useWebSocket).mockReturnValue(mockWebSocket)
+
+      const { result } = renderHook(() => useIssues())
+
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false)
+      })
+
+      // Fetch error takes priority
+      expect(result.current.error).toBe(fetchError)
+    })
+
+    it('shows WebSocket error when no fetch error', async () => {
+      vi.mocked(issuesApi.getReadyIssues).mockResolvedValue([])
+
+      mockWebSocket = createMockWebSocket({
+        lastError: 'WebSocket connection failed',
+      })
+      vi.mocked(useWebSocketModule.useWebSocket).mockReturnValue(mockWebSocket)
+
+      const { result } = renderHook(() => useIssues())
+
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false)
+      })
+
+      expect(result.current.error).toBe('WebSocket connection failed')
+    })
+  })
+
+  describe('Hook options', () => {
+    it('respects all default options', () => {
+      renderHook(() => useIssues())
+
+      // Should auto-fetch
+      expect(issuesApi.getReadyIssues).toHaveBeenCalled()
+
+      // Should auto-connect
+      expect(useWebSocketModule.useWebSocket).toHaveBeenCalledWith(
+        expect.objectContaining({ autoConnect: true })
+      )
+    })
+
+    it('can disable auto-fetch and auto-connect', () => {
+      renderHook(() =>
+        useIssues({
+          autoFetch: false,
+          autoConnect: false,
+        })
+      )
+
+      expect(issuesApi.getReadyIssues).not.toHaveBeenCalled()
+      expect(useWebSocketModule.useWebSocket).toHaveBeenCalledWith(
+        expect.objectContaining({ autoConnect: false })
+      )
+    })
+  })
+
+  describe('Method stability', () => {
+    it('refetch is stable across renders', async () => {
+      const { result, rerender } = renderHook(() => useIssues({ autoFetch: false }))
+
+      const initialRefetch = result.current.refetch
+
+      rerender()
+
+      expect(result.current.refetch).toBe(initialRefetch)
+    })
+
+    it('getIssue is stable when issuesMap does not change', async () => {
+      const { result, rerender } = renderHook(() => useIssues({ autoFetch: false }))
+
+      const initialGetIssue = result.current.getIssue
+
+      rerender()
+
+      expect(result.current.getIssue).toBe(initialGetIssue)
+    })
+
+    it('retryConnection is stable across renders', async () => {
+      const { result, rerender } = renderHook(() => useIssues({ autoFetch: false }))
+
+      const initialRetryConnection = result.current.retryConnection
+
+      rerender()
+
+      expect(result.current.retryConnection).toBe(initialRetryConnection)
+    })
+  })
+})

@@ -35,3 +35,6 @@ export type { UseFilteredSelectionOptions, UseFilteredSelectionReturn } from './
 
 export { useBulkClose } from './useBulkClose'
 export type { UseBulkCloseOptions, UseBulkCloseReturn } from './useBulkClose'
+
+export { useIssues } from './useIssues'
+export type { UseIssuesOptions, UseIssuesReturn } from './useIssues'
