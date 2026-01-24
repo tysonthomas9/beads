@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"fmt"
 	"os"
 	"os/exec"
@@ -10,19 +9,11 @@ import (
 
 // RunGitCommand executes a git command in the specified directory
 func RunGitCommand(dir string, args ...string) (string, error) {
-	cmd := exec.Command("git", args...)
-	cmd.Dir = dir
-
-	var stdout, stderr bytes.Buffer
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
-
-	err := cmd.Run()
-	if err != nil {
-		return "", fmt.Errorf("git %s failed: %s", strings.Join(args, " "), stderr.String())
+	result := execCommand(dir, "git", args...)
+	if result.Err != nil {
+		return "", fmt.Errorf("git %s failed: %s", strings.Join(args, " "), result.Stderr)
 	}
-
-	return stdout.String(), nil
+	return result.Stdout, nil
 }
 
 // RunGitCommandWithOutput executes a git command and streams output to stdout/stderr
