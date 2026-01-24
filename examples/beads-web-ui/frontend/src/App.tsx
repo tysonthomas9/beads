@@ -1,10 +1,11 @@
+import { AppLayout } from '@/components';
+
 function App() {
   return (
-    <div>
-      <h1>Beads Web UI</h1>
+    <AppLayout>
       <p>Task management interface for beads.</p>
-    </div>
-  )
+    </AppLayout>
+  );
 }
 
-export default App
+export default App;
