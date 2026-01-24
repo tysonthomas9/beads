@@ -14,10 +14,13 @@ import (
 	"os/signal"
 	"syscall"
 	"time"
+
+	"github.com/steveyegge/beads/examples/beads-web-ui/daemon"
 )
 
 const (
 	defaultPort            = 8080
+	defaultPoolSize        = 5
 	defaultShutdownTimeout = 5 * time.Second
 )
 
@@ -25,6 +28,7 @@ func main() {
 	// Parse command-line flags
 	port := flag.Int("port", defaultPort, "HTTP server port")
 	socket := flag.String("socket", "", "Path to beads daemon socket (default: auto-detect)")
+	poolSize := flag.Int("pool-size", defaultPoolSize, "Connection pool size")
 	flag.Parse()
 
 	// Check environment variables for port override
@@ -40,15 +44,53 @@ func main() {
 	// Log configuration
 	log.Printf("Starting beads-web-ui server")
 	log.Printf("Port: %d", *port)
+	log.Printf("Connection pool size: %d", *poolSize)
 	if *socket != "" {
 		log.Printf("Daemon socket: %s", *socket)
 	} else {
 		log.Printf("Daemon socket: auto-detect")
 	}
 
+	// Initialize daemon connection pool
+	var pool *daemon.ConnectionPool
+	var poolErr error
+
+	if *socket != "" {
+		// Use explicit socket path
+		pool, poolErr = daemon.NewConnectionPool(*socket, *poolSize)
+	} else {
+		// Auto-discover daemon from current directory
+		cwd, err := os.Getwd()
+		if err != nil {
+			log.Printf("Warning: failed to get current directory: %v", err)
+		} else {
+			pool, poolErr = daemon.NewConnectionPoolAutoDiscover(cwd, *poolSize)
+		}
+	}
+
+	if poolErr != nil {
+		log.Printf("Warning: failed to initialize daemon connection pool: %v", poolErr)
+		log.Printf("The web UI will start but API endpoints may not work until a daemon is available")
+	} else {
+		log.Printf("Daemon connection pool initialized")
+		// Test the connection
+		func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+			defer cancel()
+			client, err := pool.Get(ctx)
+			if err != nil {
+				log.Printf("Warning: daemon not available at startup: %v", err)
+				log.Printf("API endpoints will attempt to connect when called")
+			} else {
+				pool.Put(client)
+				log.Printf("Daemon connection verified")
+			}
+		}()
+	}
+
 	// Create HTTP server
 	mux := http.NewServeMux()
-	setupRoutes(mux)
+	setupRoutes(mux, pool)
 
 	server := &http.Server{
 		Addr:         fmt.Sprintf(":%d", *port),
@@ -73,6 +115,15 @@ func main() {
 	signal.Stop(quit)
 
 	log.Println("Shutting down server...")
+
+	// Close daemon connection pool
+	if pool != nil {
+		if err := pool.Close(); err != nil {
+			log.Printf("Warning: error closing connection pool: %v", err)
+		} else {
+			log.Printf("Daemon connection pool closed")
+		}
+	}
 
 	// Create a deadline for shutdown
 	ctx, cancel := context.WithTimeout(context.Background(), defaultShutdownTimeout)
