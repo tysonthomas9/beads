@@ -467,6 +467,64 @@ vibecli monitor --watch                 # Auto-refresh dashboard every 5s
 vibecli mon -w -i 3                     # Refresh every 3 seconds
 ```
 
+### Monitor Dashboard
+
+The `vibecli monitor` command shows a comprehensive dashboard with four sections:
+
+```
+╔════════════════════════════════════════════════════════════════════╗
+║                          VIBECLI MONITOR                           ║
+║                       Last updated: 14:32:15                       ║
+╠════════════════════════════════════════════════════════════════════╣
+║  AGENTS                                                            ║
+╠════════════════════════════════════════════════════════════════════╣
+║   cobalt     webui/cobalt       ✓ clean        ↑2 ↓1               ║
+║   ember      webui/ember        ✓ clean        ↑2 ↓5               ║
+║   falcon     webui/falcon       ● 1 changes    ↑2 ↓5               ║
+╠════════════════════════════════════════════════════════════════════╣
+║  TASKS                                                             ║
+╠════════════════════════════════════════════════════════════════════╣
+║   Ready: 4     In Progress: 0     Need Review: 2     Blocked: 66   ║
+║                                                                    ║
+║   READY (top 5):                                                   ║
+║     [P0] bd-487: Phase 2: API Layer                                ║
+║     [P2] bd-pmt: T015: POST /api/issues/:id/close endpoint         ║
+║                                                                    ║
+║   NEED REVIEW (top 5):                                             ║
+║     [P1] bd-xyz: [Need Review] Auth design                         ║
+║                                                                    ║
+║   IN PROGRESS:                                                     ║
+║     (none)                                                         ║
+╠════════════════════════════════════════════════════════════════════╣
+║  SYNC STATUS                                                       ║
+╠════════════════════════════════════════════════════════════════════╣
+║   Database:  ✓ synced                                              ║
+║   Git:       ⚠ 5 need push, 5 need pull                            ║
+╠════════════════════════════════════════════════════════════════════╣
+║  STATS                                                             ║
+╠════════════════════════════════════════════════════════════════════╣
+║   Open: 82    Closed: 26    Total: 108   Completion: 24%           ║
+╚════════════════════════════════════════════════════════════════════╝
+```
+
+**AGENTS section:**
+- Shows each worktree with its branch name
+- Status: `✓ clean`, `● N changes`, or `● running (command, Xm ago)`
+- Sync indicators: `↑N` commits ahead, `↓N` commits behind the integration branch
+
+**TASKS section:**
+- Summary counts for ready, in_progress, need_review, and blocked tasks
+- Top 5 ready tasks with priority and title
+- Top 5 tasks awaiting review (with `[Need Review]` prefix)
+- All in-progress tasks
+
+**SYNC STATUS section:**
+- Database sync status (beads JSONL export)
+- Git sync summary (how many worktrees need push/pull)
+
+**STATS section:**
+- Overall issue counts and completion percentage
+
 ## Key Learnings
 
 ### 1. Dependencies Control Flow, Not Phase Labels
