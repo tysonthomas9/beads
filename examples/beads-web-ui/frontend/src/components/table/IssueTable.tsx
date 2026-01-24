@@ -3,8 +3,8 @@
  * Foundational component for Phase 4 List/Table View.
  */
 
-import { useState } from 'react';
 import type { Issue } from '@/types';
+import { useSort, SortDirection } from '@/hooks';
 import { ColumnDef, DEFAULT_ISSUE_COLUMNS } from './columns';
 import { IssueRow } from './IssueRow';
 import { TableHeader, SortState } from './TableHeader';
@@ -27,6 +27,13 @@ export interface IssueTableProps {
   selectedIds?: Set<string>;
   /** Callback when checkbox selection changes */
   onSelectionChange?: (issueId: string, selected: boolean) => void;
+  /** Enable sorting functionality (default: false for backwards compatibility) */
+  sortable?: boolean;
+  /** Initial sort configuration (only used when sortable=true) */
+  initialSort?: {
+    key: string;
+    direction: SortDirection;
+  };
 }
 
 /**
@@ -42,24 +49,29 @@ export function IssueTable({
   showCheckbox,
   selectedIds,
   onSelectionChange,
+  sortable = false,
+  initialSort,
 }: IssueTableProps) {
-  // Sort state - stub implementation until useSort hook is connected (T045)
-  const [sortState, setSortState] = useState<SortState>({
-    key: null,
-    direction: 'asc',
+  // Use the useSort hook for sorting
+  const {
+    sortedData,
+    sortState: hookSortState,
+    handleSort: hookHandleSort,
+  } = useSort({
+    data: issues,
+    columns,
+    initialKey: sortable ? (initialSort?.key ?? null) : null,
+    initialDirection: initialSort?.direction ?? 'asc',
   });
 
-  const handleSort = (columnId: string) => {
-    setSortState((prev) => {
-      if (prev.key !== columnId) {
-        return { key: columnId, direction: 'asc' };
-      }
-      if (prev.direction === 'asc') {
-        return { key: columnId, direction: 'desc' };
-      }
-      return { key: null, direction: 'asc' };
-    });
-  };
+  // Use sorted data when sortable, otherwise original issues
+  const displayData = sortable ? sortedData : issues;
+
+  // Use hook state and handlers when sortable, otherwise provide stable defaults
+  // Note: Even when sortable=false, TableHeader still handles UI state internally
+  // but the data won't actually be sorted since we pass the original issues array
+  const sortState: SortState = sortable ? hookSortState : { key: null, direction: 'asc' };
+  const handleSort = sortable ? hookHandleSort : () => {};
 
   const tableClassName = ['issue-table', className].filter(Boolean).join(' ');
 
@@ -73,7 +85,7 @@ export function IssueTable({
           {...(showCheckbox !== undefined && { showCheckbox })}
         />
         <tbody className="issue-table__body">
-          {issues.length === 0 ? (
+          {displayData.length === 0 ? (
             <tr className="issue-table__empty-row">
               <td
                 colSpan={columns.length + (showCheckbox ? 1 : 0)}
@@ -84,7 +96,7 @@ export function IssueTable({
               </td>
             </tr>
           ) : (
-            issues.map((issue) => (
+            displayData.map((issue) => (
               <IssueRow
                 key={issue.id}
                 issue={issue}

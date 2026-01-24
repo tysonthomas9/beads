@@ -26,3 +26,6 @@ export type {
   UseFilterStateOptions,
   UseFilterStateReturn,
 } from './useFilterState'
+
+export { useSelection } from './useSelection'
+export type { UseSelectionOptions, UseSelectionReturn } from './useSelection'

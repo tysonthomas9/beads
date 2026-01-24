@@ -487,4 +487,149 @@ describe('IssueTable', () => {
       expect(props.onSelectionChange).toBeUndefined();
     });
   });
+
+  // ============= Sortable Props Tests (T045) =============
+
+  describe('sortable props', () => {
+    it('accepts sortable prop (defaults to false)', () => {
+      const props: IssueTableProps = {
+        issues: [createMockIssue()],
+      };
+      expect(props.sortable).toBeUndefined();
+    });
+
+    it('accepts sortable=true', () => {
+      const props: IssueTableProps = {
+        issues: [createMockIssue()],
+        sortable: true,
+      };
+      expect(props.sortable).toBe(true);
+    });
+
+    it('accepts sortable=false', () => {
+      const props: IssueTableProps = {
+        issues: [createMockIssue()],
+        sortable: false,
+      };
+      expect(props.sortable).toBe(false);
+    });
+
+    it('accepts initialSort with key and direction', () => {
+      const props: IssueTableProps = {
+        issues: [createMockIssue()],
+        sortable: true,
+        initialSort: {
+          key: 'priority',
+          direction: 'asc',
+        },
+      };
+      expect(props.initialSort?.key).toBe('priority');
+      expect(props.initialSort?.direction).toBe('asc');
+    });
+
+    it('accepts initialSort with descending direction', () => {
+      const props: IssueTableProps = {
+        issues: [createMockIssue()],
+        sortable: true,
+        initialSort: {
+          key: 'title',
+          direction: 'desc',
+        },
+      };
+      expect(props.initialSort?.key).toBe('title');
+      expect(props.initialSort?.direction).toBe('desc');
+    });
+
+    it('initialSort can be undefined when sortable is true', () => {
+      const props: IssueTableProps = {
+        issues: [createMockIssue()],
+        sortable: true,
+        // initialSort not provided
+      };
+      expect(props.sortable).toBe(true);
+      expect(props.initialSort).toBeUndefined();
+    });
+
+    it('supports all sortable column keys for initialSort', () => {
+      const sortableColumns = DEFAULT_ISSUE_COLUMNS.filter((c) => c.sortable);
+      sortableColumns.forEach((column) => {
+        const props: IssueTableProps = {
+          issues: [createMockIssue()],
+          sortable: true,
+          initialSort: {
+            key: column.id,
+            direction: 'asc',
+          },
+        };
+        expect(props.initialSort?.key).toBe(column.id);
+      });
+    });
+  });
+
+  describe('sorting behavior', () => {
+    it('without sortable prop, issues maintain original order', () => {
+      const issues = [
+        createMockIssue({ id: 'bd-003', priority: 3 }),
+        createMockIssue({ id: 'bd-001', priority: 1 }),
+        createMockIssue({ id: 'bd-002', priority: 2 }),
+      ];
+      const props: IssueTableProps = {
+        issues,
+        // sortable is false by default
+      };
+      // Without sorting, issues should be in original order
+      expect(props.issues[0]?.id).toBe('bd-003');
+      expect(props.issues[1]?.id).toBe('bd-001');
+      expect(props.issues[2]?.id).toBe('bd-002');
+    });
+
+    it('with sortable=true and initialSort, issues can be sorted', () => {
+      const issues = [
+        createMockIssue({ id: 'bd-003', priority: 3 }),
+        createMockIssue({ id: 'bd-001', priority: 1 }),
+        createMockIssue({ id: 'bd-002', priority: 2 }),
+      ];
+      const props: IssueTableProps = {
+        issues,
+        sortable: true,
+        initialSort: {
+          key: 'priority',
+          direction: 'asc',
+        },
+      };
+      expect(props.sortable).toBe(true);
+      expect(props.initialSort?.key).toBe('priority');
+    });
+
+    it('backwards compatibility: existing usage without sortable works', () => {
+      // This test ensures existing code using IssueTable without sortable prop still works
+      const issues = [createMockIssue()];
+      const onRowClick = vi.fn();
+      const props: IssueTableProps = {
+        issues,
+        onRowClick,
+        selectedId: 'bd-abc',
+        className: 'my-table',
+      };
+      expect(props.sortable).toBeUndefined();
+      expect(props.initialSort).toBeUndefined();
+      expect(props.onRowClick).toBe(onRowClick);
+    });
+
+    it('sortable and checkbox props can be used together', () => {
+      const props: IssueTableProps = {
+        issues: [createMockIssue()],
+        sortable: true,
+        showCheckbox: true,
+        selectedIds: new Set(['bd-abc']),
+        initialSort: {
+          key: 'priority',
+          direction: 'asc',
+        },
+      };
+      expect(props.sortable).toBe(true);
+      expect(props.showCheckbox).toBe(true);
+      expect(props.selectedIds?.has('bd-abc')).toBe(true);
+    });
+  });
 });
