@@ -1,6 +1,6 @@
 # Makefile for beads-web-ui
 
-.PHONY: all build dev frontend server run clean test help
+.PHONY: all build dev frontend server run clean test test-e2e test-e2e-ui setup-e2e help
 
 # Binary name
 BINARY := webui
@@ -51,14 +51,32 @@ test:
 	@echo "Running tests..."
 	go test -v ./...
 
+# Setup Playwright browsers (run once before E2E tests)
+setup-e2e:
+	@echo "Installing Playwright browsers..."
+	cd $(FRONTEND_DIR) && npx playwright install chromium
+
+# Run E2E tests
+test-e2e: setup-e2e
+	@echo "Running E2E tests..."
+	cd $(FRONTEND_DIR) && npx playwright test
+
+# Open Playwright UI
+test-e2e-ui: setup-e2e
+	@echo "Opening Playwright UI..."
+	cd $(FRONTEND_DIR) && npx playwright test --ui
+
 # Show help
 help:
 	@echo "beads-web-ui Makefile targets:"
-	@echo "  make build    - Build frontend and Go server for production"
-	@echo "  make dev      - Start frontend dev server with hot reload"
-	@echo "  make frontend - Build only the frontend (npm install + build)"
-	@echo "  make server   - Build only the Go server"
-	@echo "  make run      - Build and run the server"
-	@echo "  make clean    - Remove build artifacts"
-	@echo "  make test     - Run Go tests"
-	@echo "  make help     - Show this help message"
+	@echo "  make build      - Build frontend and Go server for production"
+	@echo "  make dev        - Start frontend dev server with hot reload"
+	@echo "  make frontend   - Build only the frontend (npm install + build)"
+	@echo "  make server     - Build only the Go server"
+	@echo "  make run        - Build and run the server"
+	@echo "  make clean      - Remove build artifacts"
+	@echo "  make test       - Run Go tests"
+	@echo "  make setup-e2e  - Install Playwright browsers"
+	@echo "  make test-e2e   - Run E2E tests with Playwright"
+	@echo "  make test-e2e-ui - Open Playwright UI for interactive testing"
+	@echo "  make help       - Show this help message"
