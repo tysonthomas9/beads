@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os/exec"
+	"strconv"
 	"strings"
 	"time"
 
@@ -47,21 +48,30 @@ func init() {
 
 // MonitorData holds all dashboard information
 type MonitorData struct {
-	Timestamp   time.Time
-	Agents      []AgentStatus
-	Tasks       TaskSummary
-	ActiveTasks []ActiveTask
-	SyncStatus  SyncInfo
-	Stats       MonitorStats
+	Timestamp       time.Time
+	Agents          []AgentStatus
+	Tasks           TaskSummary
+	ReadyTasks      []TaskInfo // top 5 ready tasks
+	ReviewTasks     []TaskInfo // top 5 need review tasks
+	InProgressTasks []TaskInfo // all in_progress tasks
+	SyncStatus      SyncInfo
+	Stats           MonitorStats
 }
 
 // AgentStatus represents a single agent/worktree status
 type AgentStatus struct {
-	Name      string
-	Branch    string
-	Status    string // "clean", "3 changes", "running (plan, 5m ago)"
-	NeedsPush bool
-	NeedsPull bool
+	Name   string
+	Branch string
+	Status string // "clean", "3 changes", "running (plan, 5m ago)"
+	Ahead  int    // commits ahead of integration branch
+	Behind int    // commits behind integration branch
+}
+
+// TaskInfo represents a task with basic info
+type TaskInfo struct {
+	ID       string
+	Title    string
+	Priority int
 }
 
 // TaskSummary holds task counts by category
@@ -72,13 +82,6 @@ type TaskSummary struct {
 	Blocked    int
 }
 
-// ActiveTask represents an in-progress or need-review task
-type ActiveTask struct {
-	ID       string
-	Title    string
-	Priority int
-	Status   string // "in_progress", "need_review"
-}
 
 // SyncInfo holds sync status information
 type SyncInfo struct {
@@ -142,7 +145,7 @@ func collectMonitorData() *MonitorData {
 	data.Agents = collectAgentStatus()
 
 	// Collect tasks
-	data.Tasks, data.ActiveTasks = collectTaskStatus()
+	data.Tasks, data.ReadyTasks, data.ReviewTasks, data.InProgressTasks = collectTaskStatus()
 
 	// Collect sync status
 	data.SyncStatus = collectSyncStatus(data.Agents)
@@ -185,8 +188,8 @@ func collectAgentStatus() []AgentStatus {
 			}
 		}
 
-		// Check if needs push/pull
-		agent.NeedsPush, agent.NeedsPull = getWorktreeGitSyncStatus(wt.Path)
+		// Check ahead/behind integration branch
+		agent.Ahead, agent.Behind = getWorktreeGitSyncStatus(wt.Path)
 
 		agents = append(agents, agent)
 	}
@@ -194,60 +197,84 @@ func collectAgentStatus() []AgentStatus {
 	return agents
 }
 
-func getWorktreeGitSyncStatus(path string) (needsPush, needsPull bool) {
-	output, err := RunGitCommand(path, "status", "-sb")
+func getWorktreeGitSyncStatus(path string) (ahead, behind int) {
+	defaultBranch := GetDefaultBranch()
+
+	// Count commits ahead/behind integration branch
+	// Format: "behind\tahead" (from HEAD's perspective)
+	output, err := RunGitCommand(path, "rev-list", "--left-right", "--count",
+		fmt.Sprintf("origin/%s...HEAD", defaultBranch))
 	if err != nil {
-		return false, false
+		return 0, 0
 	}
-	needsPush = strings.Contains(output, "ahead")
-	needsPull = strings.Contains(output, "behind")
-	return
+
+	// Parse "4\t2" format
+	parts := strings.Fields(output)
+	if len(parts) == 2 {
+		behind, _ = strconv.Atoi(parts[0])
+		ahead, _ = strconv.Atoi(parts[1])
+	}
+	return ahead, behind
 }
 
-func collectTaskStatus() (TaskSummary, []ActiveTask) {
+func collectTaskStatus() (TaskSummary, []TaskInfo, []TaskInfo, []TaskInfo) {
 	var summary TaskSummary
-	var active []ActiveTask
+	var readyTasks []TaskInfo
+	var reviewTasks []TaskInfo
+	var inProgressTasks []TaskInfo
 
-	// Get ready tasks count
+	// Get ready tasks (top 5)
 	readyOutput, err := runBdCommand("ready", "--json")
 	if err == nil {
 		var issues []BdIssue
 		if json.Unmarshal([]byte(readyOutput), &issues) == nil {
 			summary.Ready = len(issues)
+			for i, issue := range issues {
+				if i >= 5 {
+					break
+				}
+				readyTasks = append(readyTasks, TaskInfo{
+					ID:       issue.ID,
+					Title:    issue.Title,
+					Priority: issue.Priority,
+				})
+			}
 		}
 	}
 
-	// Get in_progress tasks
+	// Get in_progress tasks (all)
 	inProgressOutput, err := runBdCommand("list", "--status=in_progress", "--json")
 	if err == nil {
 		var issues []BdIssue
 		if json.Unmarshal([]byte(inProgressOutput), &issues) == nil {
 			summary.InProgress = len(issues)
 			for _, issue := range issues {
-				active = append(active, ActiveTask{
+				inProgressTasks = append(inProgressTasks, TaskInfo{
 					ID:       issue.ID,
-					Title:    truncateString(issue.Title, 40),
+					Title:    issue.Title,
 					Priority: issue.Priority,
-					Status:   "in_progress",
 				})
 			}
 		}
 	}
 
-	// Get need review tasks
+	// Get need review tasks (top 5)
 	needReviewOutput, err := runBdCommand("list", "--status=open", "--json")
 	if err == nil {
 		var issues []BdIssue
 		if json.Unmarshal([]byte(needReviewOutput), &issues) == nil {
+			count := 0
 			for _, issue := range issues {
 				if strings.Contains(issue.Title, "[Need Review]") {
 					summary.NeedReview++
-					active = append(active, ActiveTask{
-						ID:       issue.ID,
-						Title:    truncateString(issue.Title, 40),
-						Priority: issue.Priority,
-						Status:   "need_review",
-					})
+					if count < 5 {
+						reviewTasks = append(reviewTasks, TaskInfo{
+							ID:       issue.ID,
+							Title:    issue.Title,
+							Priority: issue.Priority,
+						})
+						count++
+					}
 				}
 			}
 		}
@@ -262,7 +289,7 @@ func collectTaskStatus() (TaskSummary, []ActiveTask) {
 		}
 	}
 
-	return summary, active
+	return summary, readyTasks, reviewTasks, inProgressTasks
 }
 
 func collectSyncStatus(agents []AgentStatus) SyncInfo {
@@ -279,10 +306,10 @@ func collectSyncStatus(agents []AgentStatus) SyncInfo {
 
 	// Count git push/pull needs from agents
 	for _, agent := range agents {
-		if agent.NeedsPush {
+		if agent.Ahead > 0 {
 			info.GitNeedsPush++
 		}
-		if agent.NeedsPull {
+		if agent.Behind > 0 {
 			info.GitNeedsPull++
 		}
 	}
@@ -345,13 +372,20 @@ func renderDashboard(data *MonitorData) string {
 		} else if strings.Contains(agent.Status, "changes") || agent.Status == "dirty" {
 			statusIcon = "●"
 		}
-		line := fmt.Sprintf("  %-10s  %-18s  %s %s", agent.Name, agent.Branch, statusIcon, agent.Status)
-		if agent.NeedsPush {
-			line += " [push]"
+
+		// Build sync indicator (↑ahead ↓behind)
+		syncIndicator := ""
+		if agent.Ahead > 0 {
+			syncIndicator += fmt.Sprintf("↑%d", agent.Ahead)
 		}
-		if agent.NeedsPull {
-			line += " [pull]"
+		if agent.Behind > 0 {
+			if syncIndicator != "" {
+				syncIndicator += " "
+			}
+			syncIndicator += fmt.Sprintf("↓%d", agent.Behind)
 		}
+
+		line := fmt.Sprintf("  %-10s %-18s %s %-12s %s", agent.Name, agent.Branch, statusIcon, agent.Status, syncIndicator)
 		sb.WriteString(renderBoxLine(width, line))
 	}
 	if len(data.Agents) == 0 {
@@ -366,16 +400,36 @@ func renderDashboard(data *MonitorData) string {
 		data.Tasks.Ready, data.Tasks.InProgress, data.Tasks.NeedReview, data.Tasks.Blocked)
 	sb.WriteString(renderBoxLine(width, taskSummary))
 
-	if len(data.ActiveTasks) > 0 {
+	// Ready tasks (top 5)
+	if len(data.ReadyTasks) > 0 {
 		sb.WriteString(renderBoxLine(width, ""))
-		for _, task := range data.ActiveTasks {
-			icon := "▶"
-			if task.Status == "need_review" {
-				icon = "⏸"
-			}
-			line := fmt.Sprintf("  [%s P%d] %s: %s", icon, task.Priority, task.ID, task.Title)
+		sb.WriteString(renderBoxLine(width, "  READY (top 5):"))
+		for _, task := range data.ReadyTasks {
+			line := fmt.Sprintf("    [P%d] %s: %s", task.Priority, task.ID, truncateString(task.Title, 45))
 			sb.WriteString(renderBoxLine(width, line))
 		}
+	}
+
+	// Need review tasks (top 5)
+	if len(data.ReviewTasks) > 0 {
+		sb.WriteString(renderBoxLine(width, ""))
+		sb.WriteString(renderBoxLine(width, "  NEED REVIEW (top 5):"))
+		for _, task := range data.ReviewTasks {
+			line := fmt.Sprintf("    [P%d] %s: %s", task.Priority, task.ID, truncateString(task.Title, 45))
+			sb.WriteString(renderBoxLine(width, line))
+		}
+	}
+
+	// In progress tasks (all)
+	sb.WriteString(renderBoxLine(width, ""))
+	sb.WriteString(renderBoxLine(width, "  IN PROGRESS:"))
+	if len(data.InProgressTasks) > 0 {
+		for _, task := range data.InProgressTasks {
+			line := fmt.Sprintf("    [P%d] %s: %s", task.Priority, task.ID, truncateString(task.Title, 45))
+			sb.WriteString(renderBoxLine(width, line))
+		}
+	} else {
+		sb.WriteString(renderBoxLine(width, "    (none)"))
 	}
 
 	// Sync section
@@ -428,20 +482,33 @@ func renderBoxSeparator(width int) string {
 	return "╠" + strings.Repeat("═", width-2) + "╣\n"
 }
 
+// displayWidth returns the terminal display width of a string
+// accounting for Unicode characters that display as single width
+func displayWidth(s string) int {
+	width := 0
+	for range s {
+		// All runes count as 1 display width in a typical terminal
+		// This correctly handles Unicode arrows, symbols, etc.
+		width++
+	}
+	return width
+}
+
 func renderBoxLine(width int, content string) string {
-	// Pad content to width
-	padding := width - 4 - len(content)
+	// Use display width instead of byte length for padding calculation
+	contentWidth := displayWidth(content)
+	padding := width - 4 - contentWidth
 	if padding < 0 {
-		content = content[:width-4]
 		padding = 0
 	}
 	return "║ " + content + strings.Repeat(" ", padding) + " ║\n"
 }
 
 func centerText(text string, width int) string {
-	if len(text) >= width {
-		return text[:width]
+	textWidth := displayWidth(text)
+	if textWidth >= width {
+		return text
 	}
-	padding := (width - len(text)) / 2
-	return strings.Repeat(" ", padding) + text + strings.Repeat(" ", width-len(text)-padding)
+	padding := (width - textWidth) / 2
+	return strings.Repeat(" ", padding) + text + strings.Repeat(" ", width-textWidth-padding)
 }
