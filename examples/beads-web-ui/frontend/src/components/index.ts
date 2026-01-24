@@ -8,3 +8,4 @@ export * from './DraggableIssueCard';
 export * from './table';
 export * from './StatusColumn';
 export * from './search';
+export * from './TypeIcon';
