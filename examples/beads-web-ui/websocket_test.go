@@ -659,6 +659,10 @@ func TestWebSocketConstants(t *testing.T) {
 	if maxMessageSize <= 0 {
 		t.Errorf("maxMessageSize = %v, want positive value", maxMessageSize)
 	}
+	if defaultMutationPollInterval <= 0 {
+		t.Errorf("defaultMutationPollInterval = %v, want positive duration", defaultMutationPollInterval)
+	}
+	// mutationPollInterval is a var set at init, but should still be positive
 	if mutationPollInterval <= 0 {
 		t.Errorf("mutationPollInterval = %v, want positive duration", mutationPollInterval)
 	}
@@ -699,5 +703,178 @@ func TestUpgrader_CheckOrigin(t *testing.T) {
 				t.Errorf("CheckOrigin(%q) = %v, want %v", tt.origin, got, tt.want)
 			}
 		})
+	}
+}
+
+// TestWsConnection_LastSince tests that the lastSince timestamp is tracked correctly.
+func TestWsConnection_LastSince(t *testing.T) {
+	wsc := &wsConnection{
+		subscribed: true,
+		lastSince:  1000,
+	}
+
+	// Verify initial state
+	wsc.mu.RLock()
+	if wsc.lastSince != 1000 {
+		t.Errorf("initial lastSince = %d, want 1000", wsc.lastSince)
+	}
+	wsc.mu.RUnlock()
+
+	// Test that updating lastSince works
+	wsc.mu.Lock()
+	wsc.lastSince = 2000
+	wsc.mu.Unlock()
+
+	wsc.mu.RLock()
+	if wsc.lastSince != 2000 {
+		t.Errorf("updated lastSince = %d, want 2000", wsc.lastSince)
+	}
+	wsc.mu.RUnlock()
+}
+
+// TestWsConnection_SubscriptionState tests subscribe/unsubscribe state changes.
+func TestWsConnection_SubscriptionState(t *testing.T) {
+	wsc := &wsConnection{}
+
+	// Initial state should be unsubscribed
+	wsc.mu.RLock()
+	if wsc.subscribed {
+		t.Error("initial state should be unsubscribed")
+	}
+	wsc.mu.RUnlock()
+
+	// Subscribe
+	wsc.mu.Lock()
+	wsc.subscribed = true
+	wsc.lastSince = 12345
+	wsc.mu.Unlock()
+
+	wsc.mu.RLock()
+	if !wsc.subscribed {
+		t.Error("after subscribe, should be subscribed")
+	}
+	if wsc.lastSince != 12345 {
+		t.Errorf("lastSince = %d, want 12345", wsc.lastSince)
+	}
+	wsc.mu.RUnlock()
+
+	// Unsubscribe
+	wsc.mu.Lock()
+	wsc.subscribed = false
+	wsc.mu.Unlock()
+
+	wsc.mu.RLock()
+	if wsc.subscribed {
+		t.Error("after unsubscribe, should be unsubscribed")
+	}
+	// lastSince should be preserved even after unsubscribe (for reconnection)
+	if wsc.lastSince != 12345 {
+		t.Errorf("lastSince should be preserved after unsubscribe, got %d", wsc.lastSince)
+	}
+	wsc.mu.RUnlock()
+}
+
+// TestWsConnection_SubscribeWithSince tests subscribing with a since timestamp.
+func TestWsConnection_SubscribeWithSince(t *testing.T) {
+	handler := handleWebSocket(nil)
+	server := httptest.NewServer(handler)
+	defer server.Close()
+
+	wsURL := "ws" + strings.TrimPrefix(server.URL, "http")
+	dialer := websocket.Dialer{}
+	conn, _, err := dialer.Dial(wsURL, nil)
+	if err != nil {
+		t.Fatalf("WebSocket dial failed: %v", err)
+	}
+	defer conn.Close()
+
+	// Subscribe with a specific since timestamp
+	since := time.Date(2026, 1, 20, 0, 0, 0, 0, time.UTC).UnixMilli()
+	subscribeMsg := ClientMessage{
+		Type:  MsgTypeSubscribe,
+		Since: since,
+	}
+	if err := conn.WriteJSON(subscribeMsg); err != nil {
+		t.Fatalf("failed to send subscribe: %v", err)
+	}
+
+	conn.SetReadDeadline(time.Now().Add(5 * time.Second))
+
+	// Should get daemon_unavailable since pool is nil
+	var resp ServerMessage
+	if err := conn.ReadJSON(&resp); err != nil {
+		t.Fatalf("failed to read response: %v", err)
+	}
+
+	if resp.Type != MsgTypeError {
+		t.Errorf("expected type=%q, got %q", MsgTypeError, resp.Type)
+	}
+}
+
+// TestWsConnection_SubscribeWithZeroSince tests subscribing without specifying since.
+func TestWsConnection_SubscribeWithZeroSince(t *testing.T) {
+	handler := handleWebSocket(nil)
+	server := httptest.NewServer(handler)
+	defer server.Close()
+
+	wsURL := "ws" + strings.TrimPrefix(server.URL, "http")
+	dialer := websocket.Dialer{}
+	conn, _, err := dialer.Dial(wsURL, nil)
+	if err != nil {
+		t.Fatalf("WebSocket dial failed: %v", err)
+	}
+	defer conn.Close()
+
+	// Subscribe without since (defaults to 0)
+	subscribeMsg := ClientMessage{
+		Type: MsgTypeSubscribe,
+		// Since is omitted, defaults to 0
+	}
+	if err := conn.WriteJSON(subscribeMsg); err != nil {
+		t.Fatalf("failed to send subscribe: %v", err)
+	}
+
+	// Send ping to verify connection works after subscribe
+	pingMsg := ClientMessage{Type: MsgTypePing}
+	if err := conn.WriteJSON(pingMsg); err != nil {
+		t.Fatalf("failed to send ping: %v", err)
+	}
+
+	conn.SetReadDeadline(time.Now().Add(5 * time.Second))
+
+	// Read pong response
+	var resp ServerMessage
+	if err := conn.ReadJSON(&resp); err != nil {
+		t.Fatalf("failed to read response: %v", err)
+	}
+
+	if resp.Type != MsgTypePong {
+		t.Errorf("expected type=%q, got %q", MsgTypePong, resp.Type)
+	}
+}
+
+// TestMutationPollInterval tests that the mutation poll interval is set correctly.
+func TestMutationPollInterval(t *testing.T) {
+	// The variable should be set from init() and must be positive
+	if mutationPollInterval <= 0 {
+		t.Errorf("mutationPollInterval should be positive, got %v", mutationPollInterval)
+	}
+	// The poll interval should be reasonable (at least 100ms to avoid excessive polling)
+	if mutationPollInterval < 100*time.Millisecond {
+		t.Errorf("mutationPollInterval %v seems too small, expected at least 100ms", mutationPollInterval)
+	}
+}
+
+// TestDefaultMutationPollInterval tests the default value.
+func TestDefaultMutationPollInterval(t *testing.T) {
+	if defaultMutationPollInterval != 2*time.Second {
+		t.Errorf("defaultMutationPollInterval = %v, want 2s", defaultMutationPollInterval)
+	}
+}
+
+// TestDaemonAcquireTimeout tests the daemon acquire timeout value.
+func TestDaemonAcquireTimeout(t *testing.T) {
+	if daemonAcquireTimeout != 2*time.Second {
+		t.Errorf("daemonAcquireTimeout = %v, want 2s", daemonAcquireTimeout)
 	}
 }
