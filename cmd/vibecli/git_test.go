@@ -52,7 +52,7 @@ func TestRunGitCommand(t *testing.T) {
 				Stderr: tc.mockStderr,
 				Err:    tc.mockErr,
 			}})
-			defer mock.Install()()
+			mock.Install()
 
 			output, err := RunGitCommand(tc.dir, tc.args...)
 
@@ -112,7 +112,7 @@ func TestIsCleanWorkingTree(t *testing.T) {
 				Stdout: tc.mockOutput,
 				Err:    tc.mockErr,
 			}})
-			defer mock.Install()()
+			mock.Install()
 
 			clean, err := IsCleanWorkingTree("/repo")
 
@@ -167,7 +167,7 @@ func TestGetConflictedFiles(t *testing.T) {
 				Stdout: tc.mockOutput,
 				Err:    tc.mockErr,
 			}})
-			defer mock.Install()()
+			mock.Install()
 
 			files, err := GetConflictedFiles("/repo")
 
@@ -236,7 +236,7 @@ func TestHasCommitsBetween(t *testing.T) {
 				Stdout: tc.mockOutput,
 				Err:    tc.mockErr,
 			}})
-			defer mock.Install()()
+			mock.Install()
 
 			hasCommits, _ := HasCommitsBetween("/repo", tc.target, tc.source)
 

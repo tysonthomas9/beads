@@ -41,11 +41,35 @@ func (m *CommandMock) Exec(dir, name string, args ...string) CommandResult {
 	stub := m.stubs[m.idx]
 	m.idx++
 
+	// Validate command matches expectations (empty = any)
+	if stub.Name != "" && stub.Name != name {
+		m.t.Errorf("call #%d: expected command %q, got %q", m.idx, stub.Name, name)
+	}
+	if stub.Dir != "" && stub.Dir != dir {
+		m.t.Errorf("call #%d: expected dir %q, got %q", m.idx, stub.Dir, dir)
+	}
+	if stub.Args != nil && !slicesEqual(stub.Args, args) {
+		m.t.Errorf("call #%d: expected args %v, got %v", m.idx, stub.Args, args)
+	}
+
 	return CommandResult{
 		Stdout: stub.Stdout,
 		Stderr: stub.Stderr,
 		Err:    stub.Err,
 	}
+}
+
+// slicesEqual compares two string slices for equality
+func slicesEqual(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
 }
 
 // Verify ensures all expected calls were made
@@ -55,14 +79,14 @@ func (m *CommandMock) Verify() {
 	}
 }
 
-// Install installs the mock and returns a cleanup function
-func (m *CommandMock) Install() func() {
+// Install installs the mock and registers cleanup with t.Cleanup()
+func (m *CommandMock) Install() {
 	orig := execCommand
 	execCommand = m.Exec
-	return func() {
+	m.t.Cleanup(func() {
 		execCommand = orig
 		m.Verify()
-	}
+	})
 }
 
 // Calls returns the actual calls made to the mock
@@ -90,8 +114,8 @@ func SetupTestWorktree(t *testing.T, name string) string {
 	return tmpDir
 }
 
-// SetupTestEnv sets environment variables and returns cleanup
-func SetupTestEnv(t *testing.T, vars map[string]string) func() {
+// SetupTestEnv sets environment variables and registers cleanup with t.Cleanup()
+func SetupTestEnv(t *testing.T, vars map[string]string) {
 	t.Helper()
 	origVals := make(map[string]string)
 	origSet := make(map[string]bool)
@@ -101,7 +125,7 @@ func SetupTestEnv(t *testing.T, vars map[string]string) func() {
 		os.Setenv(k, v)
 	}
 
-	return func() {
+	t.Cleanup(func() {
 		for k := range vars {
 			if origSet[k] {
 				os.Setenv(k, origVals[k])
@@ -109,5 +133,5 @@ func SetupTestEnv(t *testing.T, vars map[string]string) func() {
 				os.Unsetenv(k)
 			}
 		}
-	}
+	})
 }
