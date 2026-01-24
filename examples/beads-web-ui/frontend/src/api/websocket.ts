@@ -73,6 +73,7 @@ export interface WebSocketClientOptions {
   onMutation?: (mutation: MutationPayload) => void
   onError?: (error: string, message: string) => void
   onStateChange?: (state: ConnectionState) => void
+  onReconnect?: (attempt: number) => void
   reconnect?: boolean // Default true
   maxReconnectDelay?: number // Default 30000ms
 }
@@ -112,6 +113,7 @@ export class BeadsWebSocketClient {
   private onMutation: ((mutation: MutationPayload) => void) | undefined
   private onError: ((error: string, message: string) => void) | undefined
   private onStateChange: ((state: ConnectionState) => void) | undefined
+  private onReconnect: ((attempt: number) => void) | undefined
 
   constructor(url: string, options: WebSocketClientOptions = {}) {
     this.url = url
@@ -120,6 +122,7 @@ export class BeadsWebSocketClient {
     this.onMutation = options.onMutation
     this.onError = options.onError
     this.onStateChange = options.onStateChange
+    this.onReconnect = options.onReconnect
   }
 
   /**
@@ -243,14 +246,40 @@ export class BeadsWebSocketClient {
   }
 
   /**
+   * Get the current number of reconnection attempts.
+   * Resets to 0 on successful connection.
+   */
+  getReconnectAttempts(): number {
+    return this.reconnectAttempts
+  }
+
+  /**
+   * Immediately retry connection.
+   * Only works when in 'reconnecting' state.
+   * Resets the backoff counter on manual retry.
+   */
+  retryNow(): void {
+    if (this.state !== 'reconnecting') {
+      return
+    }
+
+    this.clearReconnectTimer()
+    this.reconnectAttempts = 0
+    this.onReconnect?.(0) // Notify that counter has been reset
+    this.connect()
+  }
+
+  /**
    * Disconnect and clean up all resources.
    * After calling destroy(), this instance should not be reused.
    */
   destroy(): void {
-    this.disconnect()
+    // Clear callbacks first to prevent any callbacks during cleanup
     this.onMutation = undefined
     this.onError = undefined
     this.onStateChange = undefined
+    this.onReconnect = undefined
+    this.disconnect()
   }
 
   private setState(state: ConnectionState): void {
@@ -263,6 +292,7 @@ export class BeadsWebSocketClient {
   private handleOpen(): void {
     this.setState('connected')
     this.reconnectAttempts = 0
+    this.onReconnect?.(0) // Notify that counter has been reset on successful connection
 
     // Re-subscribe if we were subscribed before reconnection
     if (this.subscribed && this.ws && this.ws.readyState === WebSocket.OPEN) {
@@ -337,14 +367,16 @@ export class BeadsWebSocketClient {
   }
 
   private scheduleReconnect(): void {
+    this.reconnectAttempts++
+    this.onReconnect?.(this.reconnectAttempts)
+
     const jitter = 0.75 + Math.random() * 0.5 // 0.75 to 1.25
     const delay = Math.min(
-      DEFAULT_BASE_DELAY * Math.pow(2, this.reconnectAttempts) * jitter,
+      DEFAULT_BASE_DELAY * Math.pow(2, this.reconnectAttempts - 1) * jitter,
       this.maxDelay
     )
 
     this.reconnectTimer = setTimeout(() => this.connect(), delay)
-    this.reconnectAttempts++
   }
 
   private clearReconnectTimer(): void {
