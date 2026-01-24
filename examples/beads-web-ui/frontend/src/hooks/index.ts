@@ -29,3 +29,6 @@ export type {
 
 export { useSelection } from './useSelection'
 export type { UseSelectionOptions, UseSelectionReturn } from './useSelection'
+
+export { useFilteredSelection } from './useFilteredSelection'
+export type { UseFilteredSelectionOptions, UseFilteredSelectionReturn } from './useFilteredSelection'
