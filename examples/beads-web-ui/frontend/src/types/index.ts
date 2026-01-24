@@ -147,3 +147,25 @@ export {
   EventLabelRemoved,
   EventCompacted,
 } from './event';
+
+// Mutation types (for real-time sync)
+export type { MutationType, MutationPayload, MutationEvent } from './mutation';
+export {
+  MutationCreate,
+  MutationUpdate,
+  MutationDelete,
+  MutationComment,
+  MutationStatus,
+  MutationBonded,
+  MutationSquashed,
+  MutationBurned,
+  createMutationEvent,
+  isCreateMutation,
+  isUpdateMutation,
+  isDeleteMutation,
+  isCommentMutation,
+  isStatusMutation,
+  isBondedMutation,
+  isSquashedMutation,
+  isBurnedMutation,
+} from './mutation';
