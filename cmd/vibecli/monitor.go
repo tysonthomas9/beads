@@ -48,14 +48,15 @@ func init() {
 
 // MonitorData holds all dashboard information
 type MonitorData struct {
-	Timestamp       time.Time
-	Agents          []AgentStatus
-	Tasks           TaskSummary
-	ReadyTasks      []TaskInfo // top 5 ready tasks
-	ReviewTasks     []TaskInfo // top 5 need review tasks
-	InProgressTasks []TaskInfo // all in_progress tasks
-	SyncStatus      SyncInfo
-	Stats           MonitorStats
+	Timestamp          time.Time
+	Agents             []AgentStatus
+	Tasks              TaskSummary
+	NeedsPlanningTasks []TaskInfo // Ready tasks without design (top 5)
+	ReadyToImplement   []TaskInfo // Ready tasks with design (top 5)
+	ReviewTasks        []TaskInfo // top 5 need review tasks
+	InProgressTasks    []TaskInfo // all in_progress tasks
+	SyncStatus         SyncInfo
+	Stats              MonitorStats
 }
 
 // AgentStatus represents a single agent/worktree status
@@ -76,10 +77,11 @@ type TaskInfo struct {
 
 // TaskSummary holds task counts by category
 type TaskSummary struct {
-	Ready      int
-	InProgress int
-	NeedReview int
-	Blocked    int
+	NeedsPlanning    int // Ready tasks without design
+	ReadyToImplement int // Ready tasks with approved design
+	InProgress       int
+	NeedReview       int
+	Blocked          int
 }
 
 
@@ -102,10 +104,12 @@ type MonitorStats struct {
 
 // BdIssue represents an issue from bd list --json
 type BdIssue struct {
-	ID       string `json:"id"`
-	Title    string `json:"title"`
-	Status   string `json:"status"`
-	Priority int    `json:"priority"`
+	ID        string `json:"id"`
+	Title     string `json:"title"`
+	Status    string `json:"status"`
+	Priority  int    `json:"priority"`
+	IssueType string `json:"issue_type"`
+	Design    string `json:"design"`
 }
 
 // BdStats represents output from bd stats --json
@@ -145,7 +149,7 @@ func collectMonitorData() *MonitorData {
 	data.Agents = collectAgentStatus()
 
 	// Collect tasks
-	data.Tasks, data.ReadyTasks, data.ReviewTasks, data.InProgressTasks = collectTaskStatus()
+	data.Tasks, data.NeedsPlanningTasks, data.ReadyToImplement, data.ReviewTasks, data.InProgressTasks = collectTaskStatus()
 
 	// Collect sync status
 	data.SyncStatus = collectSyncStatus(data.Agents)
@@ -217,18 +221,20 @@ func getWorktreeGitSyncStatus(path string) (ahead, behind int) {
 	return ahead, behind
 }
 
-func collectTaskStatus() (TaskSummary, []TaskInfo, []TaskInfo, []TaskInfo) {
+func collectTaskStatus() (TaskSummary, []TaskInfo, []TaskInfo, []TaskInfo, []TaskInfo) {
 	var summary TaskSummary
-	var readyTasks []TaskInfo
+	var needsPlanningTasks []TaskInfo
+	var readyToImplementTasks []TaskInfo
 	var reviewTasks []TaskInfo
 	var inProgressTasks []TaskInfo
 
-	// Get ready tasks (top 5), excluding [Need Review] tasks which appear in Need Review section
+	// Get ready tasks, split by workflow stage
 	readyOutput, err := runBdCommand("ready", "--json")
 	if err == nil {
 		var issues []BdIssue
 		if json.Unmarshal([]byte(readyOutput), &issues) == nil {
-			count := 0
+			needsPlanningCount := 0
+			readyToImplementCount := 0
 			for _, issue := range issues {
 				// Skip [Need Review] tasks - they appear in Need Review section
 				if strings.Contains(issue.Title, "[Need Review]") {
@@ -238,14 +244,34 @@ func collectTaskStatus() (TaskSummary, []TaskInfo, []TaskInfo, []TaskInfo) {
 				if issue.Status == "in_progress" {
 					continue
 				}
-				summary.Ready++
-				if count < 5 {
-					readyTasks = append(readyTasks, TaskInfo{
-						ID:       issue.ID,
-						Title:    issue.Title,
-						Priority: issue.Priority,
-					})
-					count++
+				// Skip epics - agents shouldn't work on epics directly
+				if issue.IssueType == "epic" {
+					continue
+				}
+
+				// Split by whether task has a design
+				if issue.Design != "" {
+					// Has design - ready to implement
+					summary.ReadyToImplement++
+					if readyToImplementCount < 5 {
+						readyToImplementTasks = append(readyToImplementTasks, TaskInfo{
+							ID:       issue.ID,
+							Title:    issue.Title,
+							Priority: issue.Priority,
+						})
+						readyToImplementCount++
+					}
+				} else {
+					// No design - needs planning
+					summary.NeedsPlanning++
+					if needsPlanningCount < 5 {
+						needsPlanningTasks = append(needsPlanningTasks, TaskInfo{
+							ID:       issue.ID,
+							Title:    issue.Title,
+							Priority: issue.Priority,
+						})
+						needsPlanningCount++
+					}
 				}
 			}
 		}
@@ -298,7 +324,7 @@ func collectTaskStatus() (TaskSummary, []TaskInfo, []TaskInfo, []TaskInfo) {
 		}
 	}
 
-	return summary, readyTasks, reviewTasks, inProgressTasks
+	return summary, needsPlanningTasks, readyToImplementTasks, reviewTasks, inProgressTasks
 }
 
 func collectSyncStatus(agents []AgentStatus) SyncInfo {
@@ -412,37 +438,78 @@ func renderDashboard(data *MonitorData) string {
 		sb.WriteString(renderBoxLine(width, "  No agents found"))
 	}
 
-	// Tasks section
-	sb.WriteString(renderBoxSeparator(width))
-	sb.WriteString(renderBoxLine(width, " TASKS"))
-	sb.WriteString(renderBoxSeparator(width))
-	taskSummary := fmt.Sprintf("  Ready: %-4d  In Progress: %-4d  Need Review: %-4d  Blocked: %-4d",
-		data.Tasks.Ready, data.Tasks.InProgress, data.Tasks.NeedReview, data.Tasks.Blocked)
-	sb.WriteString(renderBoxLine(width, taskSummary))
-
-	// Ready tasks (top 5)
-	if len(data.ReadyTasks) > 0 {
-		sb.WriteString(renderBoxLine(width, ""))
-		sb.WriteString(renderBoxLine(width, "  READY (top 5):"))
-		for _, task := range data.ReadyTasks {
-			line := fmt.Sprintf("    [P%d] %s: %s", task.Priority, task.ID, truncateString(task.Title, 45))
-			sb.WriteString(renderBoxLine(width, line))
+	// Check for agent/work mismatch warnings
+	planningAgents := 0
+	implementAgents := 0
+	for _, agent := range data.Agents {
+		if strings.Contains(agent.Status, "running") {
+			if strings.Contains(agent.Status, "plan") {
+				planningAgents++
+			} else if strings.Contains(agent.Status, "task") {
+				implementAgents++
+			}
 		}
 	}
 
-	// Need review tasks (top 5)
-	if len(data.ReviewTasks) > 0 {
+	// Show warnings if agents don't match available work
+	if planningAgents > 0 && data.Tasks.NeedsPlanning == 0 {
 		sb.WriteString(renderBoxLine(width, ""))
-		sb.WriteString(renderBoxLine(width, "  NEED REVIEW (top 5):"))
-		for _, task := range data.ReviewTasks {
+		sb.WriteString(renderBoxLine(width, "  ⚠️  Planning agents running but no tasks need planning"))
+	}
+	if implementAgents > 0 && data.Tasks.ReadyToImplement == 0 {
+		sb.WriteString(renderBoxLine(width, ""))
+		sb.WriteString(renderBoxLine(width, "  ⚠️  Implementation agents running but no tasks ready"))
+	}
+
+	// Tasks section
+	sb.WriteString(renderBoxSeparator(width))
+	sb.WriteString(renderBoxLine(width, " WORK QUEUE"))
+	sb.WriteString(renderBoxSeparator(width))
+	taskSummary := fmt.Sprintf("  Plan: %-3d  Implement: %-3d  Review: %-3d  In Progress: %-3d  Blocked: %-3d",
+		data.Tasks.NeedsPlanning, data.Tasks.ReadyToImplement, data.Tasks.NeedReview, data.Tasks.InProgress, data.Tasks.Blocked)
+	sb.WriteString(renderBoxLine(width, taskSummary))
+
+	// Needs Planning tasks (top 5)
+	sb.WriteString(renderBoxLine(width, ""))
+	sb.WriteString(renderBoxLine(width, fmt.Sprintf("  NEEDS PLANNING (%d):", data.Tasks.NeedsPlanning)))
+	if len(data.NeedsPlanningTasks) > 0 {
+		for _, task := range data.NeedsPlanningTasks {
 			line := fmt.Sprintf("    [P%d] %s: %s", task.Priority, task.ID, truncateString(task.Title, 45))
 			sb.WriteString(renderBoxLine(width, line))
 		}
+	} else {
+		sb.WriteString(renderBoxLine(width, "    (none)"))
+	}
+
+	// Need review tasks (top 5)
+	sb.WriteString(renderBoxLine(width, ""))
+	sb.WriteString(renderBoxLine(width, fmt.Sprintf("  NEEDS REVIEW (%d):", data.Tasks.NeedReview)))
+	if len(data.ReviewTasks) > 0 {
+		for _, task := range data.ReviewTasks {
+			// Strip [Need Review] prefix from title for cleaner display
+			title := strings.TrimPrefix(task.Title, "[Need Review] ")
+			line := fmt.Sprintf("    [P%d] %s: %s", task.Priority, task.ID, truncateString(title, 45))
+			sb.WriteString(renderBoxLine(width, line))
+		}
+	} else {
+		sb.WriteString(renderBoxLine(width, "    (none)"))
+	}
+
+	// Ready to Implement tasks (top 5)
+	sb.WriteString(renderBoxLine(width, ""))
+	sb.WriteString(renderBoxLine(width, fmt.Sprintf("  READY TO IMPLEMENT (%d):", data.Tasks.ReadyToImplement)))
+	if len(data.ReadyToImplement) > 0 {
+		for _, task := range data.ReadyToImplement {
+			line := fmt.Sprintf("    [P%d] %s: %s", task.Priority, task.ID, truncateString(task.Title, 45))
+			sb.WriteString(renderBoxLine(width, line))
+		}
+	} else {
+		sb.WriteString(renderBoxLine(width, "    (none)"))
 	}
 
 	// In progress tasks (all)
 	sb.WriteString(renderBoxLine(width, ""))
-	sb.WriteString(renderBoxLine(width, "  IN PROGRESS:"))
+	sb.WriteString(renderBoxLine(width, fmt.Sprintf("  IN PROGRESS (%d):", data.Tasks.InProgress)))
 	if len(data.InProgressTasks) > 0 {
 		for _, task := range data.InProgressTasks {
 			line := fmt.Sprintf("    [P%d] %s: %s", task.Priority, task.ID, truncateString(task.Title, 45))
