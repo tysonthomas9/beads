@@ -3,11 +3,14 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"log"
 	"net/http"
 	"time"
 
 	"github.com/steveyegge/beads/examples/beads-web-ui/daemon"
+	"github.com/steveyegge/beads/internal/types"
 )
 
 // setupRoutes configures all HTTP routes for the server.
@@ -17,6 +20,9 @@ func setupRoutes(mux *http.ServeMux, pool *daemon.ConnectionPool) {
 
 	// API health endpoint that reports daemon connection status
 	mux.HandleFunc("GET /api/health", handleAPIHealth(pool))
+
+	// Stats endpoint for project statistics
+	mux.HandleFunc("GET /api/stats", handleStats(pool))
 
 	// Phase 2 API routes
 	mux.HandleFunc("GET /api/issues", handleListIssues(pool))
@@ -114,6 +120,97 @@ func handleAPIHealth(pool *daemon.ConnectionPool) http.HandlerFunc {
 
 		if err := json.NewEncoder(w).Encode(status); err != nil {
 			log.Printf("Failed to encode API health response: %v", err)
+		}
+	}
+}
+
+// StatsResponse wraps the statistics data for JSON response.
+type StatsResponse struct {
+	Success bool              `json:"success"`
+	Data    *types.Statistics `json:"data,omitempty"`
+	Error   string            `json:"error,omitempty"`
+}
+
+// handleStats returns project statistics from the daemon.
+func handleStats(pool *daemon.ConnectionPool) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+
+		if pool == nil {
+			w.WriteHeader(http.StatusServiceUnavailable)
+			if err := json.NewEncoder(w).Encode(StatsResponse{
+				Success: false,
+				Error:   "connection pool not initialized",
+			}); err != nil {
+				log.Printf("Failed to encode stats response: %v", err)
+			}
+			return
+		}
+
+		// Acquire connection with timeout
+		ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
+		defer cancel()
+
+		client, err := pool.Get(ctx)
+		if err != nil {
+			status := http.StatusServiceUnavailable
+			if errors.Is(err, context.DeadlineExceeded) {
+				status = http.StatusGatewayTimeout
+			}
+			w.WriteHeader(status)
+			if err := json.NewEncoder(w).Encode(StatsResponse{
+				Success: false,
+				Error:   err.Error(),
+			}); err != nil {
+				log.Printf("Failed to encode stats response: %v", err)
+			}
+			return
+		}
+		defer pool.Put(client)
+
+		// Execute Stats RPC call
+		resp, err := client.Stats()
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			if err := json.NewEncoder(w).Encode(StatsResponse{
+				Success: false,
+				Error:   fmt.Sprintf("rpc error: %v", err),
+			}); err != nil {
+				log.Printf("Failed to encode stats response: %v", err)
+			}
+			return
+		}
+
+		if !resp.Success {
+			w.WriteHeader(http.StatusInternalServerError)
+			if err := json.NewEncoder(w).Encode(StatsResponse{
+				Success: false,
+				Error:   resp.Error,
+			}); err != nil {
+				log.Printf("Failed to encode stats response: %v", err)
+			}
+			return
+		}
+
+		// Parse the statistics from RPC response
+		var stats types.Statistics
+		if err := json.Unmarshal(resp.Data, &stats); err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			if err := json.NewEncoder(w).Encode(StatsResponse{
+				Success: false,
+				Error:   fmt.Sprintf("failed to parse stats: %v", err),
+			}); err != nil {
+				log.Printf("Failed to encode stats response: %v", err)
+			}
+			return
+		}
+
+		w.WriteHeader(http.StatusOK)
+		if err := json.NewEncoder(w).Encode(StatsResponse{
+			Success: true,
+			Data:    &stats,
+		}); err != nil {
+			log.Printf("Failed to encode stats response: %v", err)
 		}
 	}
 }
