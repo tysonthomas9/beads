@@ -9,9 +9,17 @@
 import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom';
+import { DndContext } from '@dnd-kit/core';
 
 import { StatusColumn } from '../StatusColumn';
 import { formatStatusLabel, getStatusColor } from '../utils';
+
+/**
+ * Helper to render StatusColumn within a DndContext for droppable tests.
+ */
+function renderWithDndContext(ui: React.ReactNode) {
+  return render(<DndContext>{ui}</DndContext>);
+}
 
 describe('StatusColumn', () => {
   describe('rendering', () => {
@@ -181,6 +189,92 @@ describe('StatusColumn', () => {
       // Empty string formatted is empty, but component should still render
       const section = document.querySelector('[data-status=""]');
       expect(section).toBeInTheDocument();
+    });
+  });
+
+  describe('droppable functionality', () => {
+    it('renders with data-droppable-id attribute matching status', () => {
+      renderWithDndContext(<StatusColumn status="in_progress" count={0} />);
+
+      const content = document.querySelector('[data-droppable-id="in_progress"]');
+      expect(content).toBeInTheDocument();
+    });
+
+    it('content area has data-droppable-id for each status', () => {
+      const statuses = ['open', 'in_progress', 'closed', 'blocked', 'deferred'];
+
+      statuses.forEach((status) => {
+        const { unmount } = renderWithDndContext(
+          <StatusColumn status={status} count={0} />
+        );
+
+        const content = document.querySelector(`[data-droppable-id="${status}"]`);
+        expect(content).toBeInTheDocument();
+        expect(content).toHaveAttribute('role', 'list');
+
+        unmount();
+      });
+    });
+
+    it('renders without DndContext (graceful degradation)', () => {
+      // Component should work even without DndContext
+      render(<StatusColumn status="open" count={0} />);
+
+      const content = document.querySelector('[data-droppable-id="open"]');
+      expect(content).toBeInTheDocument();
+      expect(content).not.toHaveAttribute('data-is-over');
+    });
+
+    it('does not show data-is-over when not being dragged over', () => {
+      renderWithDndContext(<StatusColumn status="open" count={0} />);
+
+      const content = document.querySelector('[data-droppable-id="open"]');
+      expect(content).not.toHaveAttribute('data-is-over');
+    });
+
+    it('renders children inside droppable content area', () => {
+      renderWithDndContext(
+        <StatusColumn status="open" count={1}>
+          <div data-testid="test-card">Test Card</div>
+        </StatusColumn>
+      );
+
+      const droppableContent = document.querySelector('[data-droppable-id="open"]');
+      const card = screen.getByTestId('test-card');
+
+      expect(droppableContent).toContainElement(card);
+    });
+
+    it('droppableDisabled prop can disable dropping', () => {
+      renderWithDndContext(
+        <StatusColumn status="closed" count={0} droppableDisabled={true} />
+      );
+
+      // Component should still render with droppable ID
+      const content = document.querySelector('[data-droppable-id="closed"]');
+      expect(content).toBeInTheDocument();
+    });
+
+    it('droppableDisabled defaults to false', () => {
+      renderWithDndContext(<StatusColumn status="open" count={0} />);
+
+      // Should have droppable ID (indicates it's a drop target)
+      const content = document.querySelector('[data-droppable-id="open"]');
+      expect(content).toBeInTheDocument();
+    });
+
+    it('works with multiple StatusColumns in same DndContext', () => {
+      render(
+        <DndContext>
+          <StatusColumn status="open" count={1} />
+          <StatusColumn status="in_progress" count={2} />
+          <StatusColumn status="closed" count={0} />
+        </DndContext>
+      );
+
+      expect(document.querySelector('[data-droppable-id="open"]')).toBeInTheDocument();
+      expect(document.querySelector('[data-droppable-id="in_progress"]')).toBeInTheDocument();
+      expect(document.querySelector('[data-droppable-id="closed"]')).toBeInTheDocument();
     });
   });
 });
