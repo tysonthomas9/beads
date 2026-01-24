@@ -169,3 +169,13 @@ export {
   isSquashedMutation,
   isBurnedMutation,
 } from './mutation';
+
+// Graph types (React Flow)
+export type {
+  IssueNodeData,
+  IssueNode,
+  DependencyEdgeData,
+  DependencyEdge,
+  GraphNodeType,
+  GraphEdgeType,
+} from './graph';
