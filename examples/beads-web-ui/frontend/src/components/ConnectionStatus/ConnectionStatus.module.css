@@ -74,3 +74,42 @@
 .indicator {
   background-color: var(--color-text-muted);
 }
+
+/* ===========================
+ * Retry button
+ * =========================== */
+.retryButton {
+  margin-left: var(--space-2);
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-family-base);
+  font-size: var(--font-size-xs);
+  cursor: pointer;
+  transition: background-color var(--transition-fast),
+    border-color var(--transition-fast);
+}
+
+.retryButton:hover {
+  background: var(--color-bg-secondary);
+  border-color: var(--color-text-muted);
+}
+
+.retryButton:focus {
+  outline: none;
+}
+
+.retryButton:focus:not(:focus-visible) {
+  outline: none;
+}
+
+.retryButton:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.retryButton:active {
+  background: var(--color-bg-tertiary);
+}

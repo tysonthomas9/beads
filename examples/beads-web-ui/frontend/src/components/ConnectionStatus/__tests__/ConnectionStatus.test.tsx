@@ -6,8 +6,8 @@
  * Unit tests for ConnectionStatus component.
  */
 
-import { describe, it, expect } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { describe, it, expect, vi } from 'vitest';
+import { render, screen, fireEvent } from '@testing-library/react';
 import '@testing-library/jest-dom';
 
 import { ConnectionStatus } from '../ConnectionStatus';
@@ -192,6 +192,112 @@ describe('ConnectionStatus', () => {
         <ConnectionStatus state="connected" variant="badge" showText={false} />
       );
       expect(screen.queryByText('Connected')).not.toBeInTheDocument();
+    });
+  });
+
+  describe('reconnect counter and retry button', () => {
+    it('shows attempt count when reconnecting with attempts > 0', () => {
+      render(<ConnectionStatus state="reconnecting" reconnectAttempts={3} />);
+      expect(
+        screen.getByText('Reconnecting (attempt 3)...')
+      ).toBeInTheDocument();
+    });
+
+    it('shows simple reconnecting text when attempts is 0', () => {
+      render(<ConnectionStatus state="reconnecting" reconnectAttempts={0} />);
+      expect(screen.getByText('Reconnecting...')).toBeInTheDocument();
+    });
+
+    it('shows simple reconnecting text when attempts not provided', () => {
+      render(<ConnectionStatus state="reconnecting" />);
+      expect(screen.getByText('Reconnecting...')).toBeInTheDocument();
+    });
+
+    it('shows retry button when reconnecting with onRetry callback', () => {
+      const onRetry = vi.fn();
+      render(
+        <ConnectionStatus
+          state="reconnecting"
+          reconnectAttempts={2}
+          onRetry={onRetry}
+        />
+      );
+      expect(screen.getByRole('button', { name: /retry/i })).toBeInTheDocument();
+    });
+
+    it('calls onRetry when retry button clicked', () => {
+      const onRetry = vi.fn();
+      render(
+        <ConnectionStatus
+          state="reconnecting"
+          reconnectAttempts={2}
+          onRetry={onRetry}
+        />
+      );
+      fireEvent.click(screen.getByRole('button', { name: /retry/i }));
+      expect(onRetry).toHaveBeenCalledTimes(1);
+    });
+
+    it('hides retry button when showRetryButton is false', () => {
+      render(
+        <ConnectionStatus
+          state="reconnecting"
+          reconnectAttempts={2}
+          onRetry={() => {}}
+          showRetryButton={false}
+        />
+      );
+      expect(screen.queryByRole('button')).not.toBeInTheDocument();
+    });
+
+    it('hides retry button when not in reconnecting state', () => {
+      render(
+        <ConnectionStatus
+          state="connected"
+          reconnectAttempts={2}
+          onRetry={() => {}}
+        />
+      );
+      expect(screen.queryByRole('button')).not.toBeInTheDocument();
+    });
+
+    it('hides retry button when reconnectAttempts is 0', () => {
+      render(
+        <ConnectionStatus
+          state="reconnecting"
+          reconnectAttempts={0}
+          onRetry={() => {}}
+        />
+      );
+      expect(screen.queryByRole('button')).not.toBeInTheDocument();
+    });
+
+    it('hides retry button when onRetry is not provided', () => {
+      render(
+        <ConnectionStatus state="reconnecting" reconnectAttempts={2} />
+      );
+      expect(screen.queryByRole('button')).not.toBeInTheDocument();
+    });
+
+    it('retry button has accessible label', () => {
+      render(
+        <ConnectionStatus
+          state="reconnecting"
+          reconnectAttempts={1}
+          onRetry={() => {}}
+        />
+      );
+      expect(screen.getByRole('button')).toHaveAttribute(
+        'aria-label',
+        'Retry connection now'
+      );
+    });
+
+    it('updates aria-label when reconnect attempts shown', () => {
+      render(<ConnectionStatus state="reconnecting" reconnectAttempts={5} />);
+      expect(
+        screen.getByLabelText('Connection status: Reconnecting (attempt 5)...')
+      ).toBeInTheDocument();
     });
   });
 });
