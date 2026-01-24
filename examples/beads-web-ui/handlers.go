@@ -36,6 +36,21 @@ type ReadyResponse struct {
 	Error   string         `json:"error,omitempty"`
 }
 
+// CloseRequest represents the JSON body for the close endpoint.
+type CloseRequest struct {
+	Reason      string `json:"reason,omitempty"`
+	Session     string `json:"session,omitempty"`
+	SuggestNext bool   `json:"suggest_next,omitempty"`
+	Force       bool   `json:"force,omitempty"`
+}
+
+// CloseResponse wraps the close result for JSON response.
+type CloseResponse struct {
+	Success bool            `json:"success"`
+	Data    json.RawMessage `json:"data,omitempty"`
+	Error   string          `json:"error,omitempty"`
+}
+
 // issueGetter is an internal interface for testing issue retrieval.
 // The production code uses *rpc.Client which implements this interface.
 type issueGetter interface {
@@ -85,6 +100,33 @@ func (p *patchPoolAdapter) Get(ctx context.Context) (issueUpdater, error) {
 }
 
 func (p *patchPoolAdapter) Put(client issueUpdater) {
+	if c, ok := client.(*rpc.Client); ok {
+		p.pool.Put(c)
+	}
+}
+
+// issueCloser is an internal interface for testing issue close operations.
+// The production code uses *rpc.Client which implements this interface.
+type issueCloser interface {
+	CloseIssue(args *rpc.CloseArgs) (*rpc.Response, error)
+}
+
+// closeConnectionGetter is an internal interface for testing close handler pool operations.
+type closeConnectionGetter interface {
+	Get(ctx context.Context) (issueCloser, error)
+	Put(client issueCloser)
+}
+
+// closePoolAdapter wraps *daemon.ConnectionPool to implement closeConnectionGetter.
+type closePoolAdapter struct {
+	pool *daemon.ConnectionPool
+}
+
+func (p *closePoolAdapter) Get(ctx context.Context) (issueCloser, error) {
+	return p.pool.Get(ctx)
+}
+
+func (p *closePoolAdapter) Put(client issueCloser) {
 	if c, ok := client.(*rpc.Client); ok {
 		p.pool.Put(c)
 	}
@@ -881,6 +923,98 @@ func handleCreateIssueWithPool(pool createConnectionGetter) http.HandlerFunc {
 			Data:    resp.Data,
 		}); err != nil {
 			log.Printf("Failed to encode create response: %v", err)
+		}
+	}
+}
+
+// handleCloseIssue returns a handler that closes an issue by ID.
+func handleCloseIssue(pool *daemon.ConnectionPool) http.HandlerFunc {
+	if pool == nil {
+		return handleCloseIssueWithPool(nil)
+	}
+	return handleCloseIssueWithPool(&closePoolAdapter{pool: pool})
+}
+
+// handleCloseIssueWithPool is the internal implementation that accepts an interface for testing.
+func handleCloseIssueWithPool(pool closeConnectionGetter) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+
+		// Extract issue ID from path parameter
+		issueID := r.PathValue("id")
+		if issueID == "" {
+			writeErrorResponse(w, http.StatusBadRequest, "missing issue ID")
+			return
+		}
+
+		// Parse optional JSON body
+		var req CloseRequest
+		if r.Body != nil && r.ContentLength > 0 {
+			if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+				writeErrorResponse(w, http.StatusBadRequest, "invalid request body: "+err.Error())
+				return
+			}
+		}
+
+		// Check pool availability
+		if pool == nil {
+			writeErrorResponse(w, http.StatusServiceUnavailable, "connection pool not initialized")
+			return
+		}
+
+		// Get connection from pool
+		ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+		defer cancel()
+
+		client, err := pool.Get(ctx)
+		if err != nil {
+			status := http.StatusServiceUnavailable
+			if errors.Is(err, context.DeadlineExceeded) {
+				status = http.StatusGatewayTimeout
+			}
+			writeErrorResponse(w, status, "daemon not available")
+			return
+		}
+		defer pool.Put(client)
+
+		// Build CloseArgs from path and body
+		args := &rpc.CloseArgs{
+			ID:          issueID,
+			Reason:      req.Reason,
+			Session:     req.Session,
+			SuggestNext: req.SuggestNext,
+			Force:       req.Force,
+		}
+
+		// Call CloseIssue RPC
+		resp, err := client.CloseIssue(args)
+		if err != nil {
+			// Check if it's a "not found" error
+			if strings.Contains(err.Error(), "not found") {
+				writeErrorResponse(w, http.StatusNotFound, fmt.Sprintf("issue not found: %s", issueID))
+				return
+			}
+			// Check for "has open blockers" error (when force=false)
+			if strings.Contains(err.Error(), "blocker") {
+				writeErrorResponse(w, http.StatusConflict, err.Error())
+				return
+			}
+			writeErrorResponse(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+
+		if !resp.Success {
+			writeErrorResponse(w, http.StatusInternalServerError, resp.Error)
+			return
+		}
+
+		// Return success response with closed issue data
+		w.WriteHeader(http.StatusOK)
+		if err := json.NewEncoder(w).Encode(CloseResponse{
+			Success: true,
+			Data:    resp.Data,
+		}); err != nil {
+			log.Printf("Failed to encode close response: %v", err)
 		}
 	}
 }
