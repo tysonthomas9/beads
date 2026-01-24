@@ -44,3 +44,9 @@ export type {
   UseOptimisticStatusUpdateOptions,
   UseOptimisticStatusUpdateReturn,
 } from './useOptimisticStatusUpdate'
+
+export { useFallbackPolling } from './useFallbackPolling'
+export type {
+  UseFallbackPollingOptions,
+  UseFallbackPollingReturn,
+} from './useFallbackPolling'
