@@ -1,0 +1,23 @@
+/**
+ * Styles for DraggableIssueCard component.
+ */
+
+.draggable {
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.draggable:active {
+  cursor: grabbing;
+}
+
+.draggable[data-dragging='true'] {
+  cursor: grabbing;
+}
+
+.overlay {
+  cursor: grabbing;
+  box-shadow: var(--shadow-lg);
+  pointer-events: none;
+}
