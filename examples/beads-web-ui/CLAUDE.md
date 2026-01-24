@@ -42,6 +42,23 @@ npm test           # Unit tests (vitest)
 npm run test:e2e   # E2E tests (playwright)
 ```
 
+### Manual Browser Testing
+
+**Always verify UI changes in Chrome before marking tasks complete.** Automated tests are not sufficient for frontend work - you must visually confirm the UI renders correctly.
+
+Use the browser automation tools (`mcp__claude-in-chrome__*`) to:
+1. Take a screenshot of the running app at `http://localhost:8080`
+2. Verify the component renders as designed
+3. Check responsive behavior if applicable
+
+```bash
+# Start the server first
+bd daemon start
+go run . -port 8080
+```
+
+Then use `mcp__claude-in-chrome__computer` with `action: screenshot` to capture and verify.
+
 ## Key Files
 
 - `routes.go` - HTTP route definitions
