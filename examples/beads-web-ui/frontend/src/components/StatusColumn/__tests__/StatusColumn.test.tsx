@@ -277,6 +277,74 @@ describe('StatusColumn', () => {
       expect(document.querySelector('[data-droppable-id="closed"]')).toBeInTheDocument();
     });
   });
+
+  describe('scrolling behavior', () => {
+    it('renders content area with many children', () => {
+      const manyChildren = Array.from({ length: 25 }, (_, i) => (
+        <div key={i} data-testid={`card-${i}`}>
+          Card {i}
+        </div>
+      ));
+
+      renderWithDndContext(
+        <StatusColumn status="open" count={25}>
+          {manyChildren}
+        </StatusColumn>
+      );
+
+      // Content area should exist with role="list"
+      const contentArea = screen.getByRole('list');
+      expect(contentArea).toBeInTheDocument();
+
+      // All children should be rendered
+      expect(screen.getByTestId('card-0')).toBeInTheDocument();
+      expect(screen.getByTestId('card-12')).toBeInTheDocument();
+      expect(screen.getByTestId('card-24')).toBeInTheDocument();
+    });
+
+    it('empty column has correct structure with count=0', () => {
+      renderWithDndContext(<StatusColumn status="open" count={0} />);
+
+      // Content area should exist
+      const contentArea = screen.getByRole('list');
+      expect(contentArea).toBeInTheDocument();
+
+      // Content area should be empty
+      expect(contentArea).toBeEmptyDOMElement();
+
+      // Droppable ID should still be set
+      const droppable = document.querySelector('[data-droppable-id="open"]');
+      expect(droppable).toBeInTheDocument();
+    });
+
+    it('renders with 50+ child elements without breaking layout', () => {
+      const manyChildren = Array.from({ length: 55 }, (_, i) => (
+        <div key={i} data-testid={`item-${i}`}>
+          Item {i}
+        </div>
+      ));
+
+      renderWithDndContext(
+        <StatusColumn status="in_progress" count={55}>
+          {manyChildren}
+        </StatusColumn>
+      );
+
+      // Component should render correctly
+      const section = screen.getByRole('region', { name: 'In Progress issues' });
+      expect(section).toBeInTheDocument();
+
+      // Content area should contain all children
+      const contentArea = screen.getByRole('list');
+      expect(contentArea).toBeInTheDocument();
+      expect(contentArea.children).toHaveLength(55);
+
+      // Verify first, middle, and last items
+      expect(screen.getByTestId('item-0')).toBeInTheDocument();
+      expect(screen.getByTestId('item-27')).toBeInTheDocument();
+      expect(screen.getByTestId('item-54')).toBeInTheDocument();
+    });
+  });
 });
 
 describe('formatStatusLabel', () => {
