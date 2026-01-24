@@ -14,3 +14,4 @@ export * from './table';
 export * from './StatusColumn';
 export * from './search';
 export * from './TypeIcon';
+export * from './FilterBar';
