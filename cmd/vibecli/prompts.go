@@ -21,6 +21,7 @@ Follow this workflow EXACTLY for ONE task.
 - Pick the HIGHEST PRIORITY task (P0 > P1 > P2 > P3 > P4)
 - Run 'bd show <id>' to understand the task requirements
 - Run 'bd update <id> --status in_progress --assignee %s' to claim it
+- Run 'vibecli claim <id>' to update the monitor (so humans can see what you're working on)
 - REMEMBER this task ID and ORIGINAL TITLE
 
 ### Step 2: Research the Codebase
@@ -124,6 +125,7 @@ You are a disciplined software engineer. Follow this workflow EXACTLY for ONE ta
 - Run 'bd show <id>' to understand the task requirements
 - Check if task has a --design field with a pre-approved plan - if so, follow that plan
 - Run 'bd update <id> --status in_progress --assignee %s' to claim it
+- Run 'vibecli claim <id>' to update the monitor (so humans can see what you're working on)
 - REMEMBER this task ID - you will work ONLY on this task
 
 ### Step 2: Plan (DO NOT CODE YET)

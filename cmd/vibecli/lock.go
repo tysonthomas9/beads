@@ -18,6 +18,8 @@ type LockInfo struct {
 	Command   string    `json:"command"`
 	StartedAt time.Time `json:"started_at"`
 	AgentName string    `json:"agent_name"`
+	TaskID    string    `json:"task_id,omitempty"`
+	TaskTitle string    `json:"task_title,omitempty"`
 }
 
 // AcquireLock attempts to acquire an agent lock for the worktree
@@ -96,6 +98,35 @@ func CheckLock(worktreePath string) (*LockInfo, bool, error) {
 	return &info, running, nil
 }
 
+// UpdateLockTask updates the lock file with task information
+// This is called by Claude after picking a task to work on
+func UpdateLockTask(worktreePath, taskID, taskTitle string) error {
+	lockPath := filepath.Join(worktreePath, LockFileName)
+
+	// Read existing lock
+	data, err := os.ReadFile(lockPath)
+	if err != nil {
+		return fmt.Errorf("no active lock to update: %w", err)
+	}
+
+	var info LockInfo
+	if err := json.Unmarshal(data, &info); err != nil {
+		return fmt.Errorf("invalid lock file: %w", err)
+	}
+
+	// Update task info
+	info.TaskID = taskID
+	info.TaskTitle = taskTitle
+
+	// Write back
+	data, err = json.MarshalIndent(info, "", "  ")
+	if err != nil {
+		return fmt.Errorf("failed to marshal lock info: %w", err)
+	}
+
+	return os.WriteFile(lockPath, data, 0644)
+}
+
 // IsProcessRunning checks if a process with the given PID is still running
 func IsProcessRunning(pid int) bool {
 	process, err := os.FindProcess(pid)
@@ -117,5 +148,8 @@ func GetLockStatus(worktreePath string) string {
 	}
 
 	duration := time.Since(info.StartedAt).Round(time.Second)
-	return fmt.Sprintf("running (%s, %s ago)", info.Command, duration)
+	if info.TaskID != "" {
+		return fmt.Sprintf("running %s: %s (%s)", info.Command, info.TaskID, duration)
+	}
+	return fmt.Sprintf("running (%s, %s)", info.Command, duration)
 }
