@@ -42,6 +42,7 @@ function createTestNodeData(overrides: Partial<IssueNodeData> = {}): IssueNodeDa
     issueType: issue.issue_type,
     dependencyCount: 0,
     dependentCount: 0,
+    isReady: true,
     ...overrides,
   };
 }
@@ -367,6 +368,28 @@ describe('IssueNode', () => {
       expect(screen.getByRole('heading', { name: 'Minimal' })).toBeInTheDocument();
       expect(screen.getByText('min-id')).toBeInTheDocument();
       expect(screen.getByText('P2')).toBeInTheDocument();
+    });
+  });
+
+  describe('isReady display', () => {
+    it('sets data-is-ready="true" when isReady is true', () => {
+      const props = createTestProps({
+        data: createTestNodeData({ isReady: true }),
+      });
+      const { container } = renderWithProvider(props);
+
+      const article = container.querySelector('article');
+      expect(article).toHaveAttribute('data-is-ready', 'true');
+    });
+
+    it('sets data-is-ready="false" when isReady is false', () => {
+      const props = createTestProps({
+        data: createTestNodeData({ isReady: false }),
+      });
+      const { container } = renderWithProvider(props);
+
+      const article = container.querySelector('article');
+      expect(article).toHaveAttribute('data-is-ready', 'false');
     });
   });
 });

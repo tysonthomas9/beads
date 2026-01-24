@@ -24,6 +24,8 @@ export interface IssueNodeData extends Record<string, unknown> {
   dependencyCount: number;
   /** Number of dependents (incoming edges) */
   dependentCount: number;
+  /** Whether this issue is ready (no blocking open dependencies) */
+  isReady: boolean;
 }
 
 /**
