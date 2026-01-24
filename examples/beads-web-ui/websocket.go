@@ -6,6 +6,7 @@ import (
 	"log"
 	"math/rand"
 	"net/http"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -28,12 +29,31 @@ const (
 	// Maximum message size allowed from peer.
 	maxMessageSize = 1024
 
-	// Mutation polling interval when subscribed.
-	mutationPollInterval = 2 * time.Second
+	// Default mutation polling interval when subscribed.
+	// Can be overridden via BEADS_WS_POLL_INTERVAL environment variable.
+	defaultMutationPollInterval = 2 * time.Second
 
 	// Timeout for acquiring daemon connection.
 	daemonAcquireTimeout = 2 * time.Second
 )
+
+// mutationPollInterval is the effective polling interval for mutations.
+// Set at init time from BEADS_WS_POLL_INTERVAL env var or defaults to defaultMutationPollInterval.
+var mutationPollInterval = defaultMutationPollInterval
+
+func init() {
+	if envVal := os.Getenv("BEADS_WS_POLL_INTERVAL"); envVal != "" {
+		d, err := time.ParseDuration(envVal)
+		if err != nil {
+			log.Printf("Invalid BEADS_WS_POLL_INTERVAL value %q: %v, using default %v", envVal, err, defaultMutationPollInterval)
+		} else if d <= 0 {
+			log.Printf("Invalid BEADS_WS_POLL_INTERVAL value %q: must be positive, using default %v", envVal, defaultMutationPollInterval)
+		} else {
+			mutationPollInterval = d
+			log.Printf("WebSocket poll interval set to %v from BEADS_WS_POLL_INTERVAL", d)
+		}
+	}
+}
 
 // WebSocket message types (client -> server).
 const (
@@ -163,8 +183,13 @@ func (wsc *wsConnection) readPump() {
 // writePump writes messages to the WebSocket connection.
 func (wsc *wsConnection) writePump() {
 	ticker := time.NewTicker(pingPeriod)
-	// Add jitter to polling interval to prevent thundering herd when many clients connect
-	jitter := time.Duration(rand.Int63n(int64(mutationPollInterval / 2)))
+	// Add jitter to polling interval to prevent thundering herd when many clients connect.
+	// Guard against very small intervals where mutationPollInterval/2 could be 0 (which panics).
+	jitterMax := int64(mutationPollInterval / 2)
+	if jitterMax <= 0 {
+		jitterMax = 1 // Minimum 1ns to avoid panic in rand.Int63n
+	}
+	jitter := time.Duration(rand.Int63n(jitterMax))
 	pollTicker := time.NewTicker(mutationPollInterval + jitter)
 	defer func() {
 		ticker.Stop()
