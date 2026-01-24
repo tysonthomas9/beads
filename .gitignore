@@ -130,3 +130,4 @@ output
 bd_test
 # Git worktrees for parallel agents
 worktrees/
+/vibecli
