@@ -21,7 +21,9 @@ func setupRoutes(mux *http.ServeMux, pool *daemon.ConnectionPool) {
 	// Phase 2 API routes
 	mux.HandleFunc("GET /api/issues", handleListIssues(pool))
 	// mux.Handle("/api/ready", readyHandler(pool))
-	// mux.Handle("/ws", websocketHandler(pool))
+
+	// WebSocket endpoint for real-time mutation events
+	mux.HandleFunc("/ws", handleWebSocket(pool))
 
 	// Static file serving with SPA routing (must be last - catches all paths)
 	mux.Handle("/", frontendHandler())
