@@ -234,6 +234,10 @@ func collectTaskStatus() (TaskSummary, []TaskInfo, []TaskInfo, []TaskInfo) {
 				if strings.Contains(issue.Title, "[Need Review]") {
 					continue
 				}
+				// Skip in_progress tasks - they appear in In Progress section
+				if issue.Status == "in_progress" {
+					continue
+				}
 				summary.Ready++
 				if count < 5 {
 					readyTasks = append(readyTasks, TaskInfo{
@@ -390,7 +394,18 @@ func renderDashboard(data *MonitorData) string {
 			syncIndicator += fmt.Sprintf("↓%d", agent.Behind)
 		}
 
-		line := fmt.Sprintf("  %-10s %-18s %s %-12s %s", agent.Name, agent.Branch, statusIcon, agent.Status, syncIndicator)
+		// Format left part with fixed widths
+		leftPart := fmt.Sprintf("  %-10s %-18s %s %-24s", agent.Name, agent.Branch, statusIcon, agent.Status)
+
+		// Right-align sync indicator (box content width is 66)
+		contentWidth := 66
+		leftWidth := displayWidth(leftPart)
+		syncWidth := displayWidth(syncIndicator)
+		padding := contentWidth - leftWidth - syncWidth
+		if padding < 0 {
+			padding = 0
+		}
+		line := leftPart + strings.Repeat(" ", padding) + syncIndicator
 		sb.WriteString(renderBoxLine(width, line))
 	}
 	if len(data.Agents) == 0 {
