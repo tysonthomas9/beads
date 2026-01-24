@@ -18,7 +18,8 @@ Follow this workflow EXACTLY for ONE task.
 - Run 'bd ready --limit 10' to see available tasks
 - SKIP any task with '[Need Review]' in the title (awaiting human approval)
 - SKIP any task already 'in_progress' by checking 'bd list --status=in_progress'
-- Pick the HIGHEST PRIORITY task (P0 > P1 > P2 > P3 > P4)
+- IGNORE existing assignees - if status is 'open', the task is available to claim
+- Pick the HIGHEST PRIORITY task (P0 > P1 > P2 > P3 > P4) that is NOT an epic
 - Run 'bd show <id>' to understand the task requirements
 - Run 'bd update <id> --status in_progress --assignee %s' to claim it
 - Run 'vibecli claim <id>' to update the monitor (so humans can see what you're working on)
@@ -121,7 +122,8 @@ You are a disciplined software engineer. Follow this workflow EXACTLY for ONE ta
 - Run 'bd ready --limit 10' to see available tasks (sorted by priority, only unblocked tasks shown)
 - SKIP any task with '[Need Review]' in the title (awaiting human approval)
 - Run 'bd list --status=in_progress --json' to check for stale tasks (updated_at >10 hours ago = abandoned, reclaim with 'bd update <id> --status in_progress --assignee %s')
-- Pick the HIGHEST PRIORITY task (P0 > P1 > P2 > P3 > P4) that is not already in_progress
+- IGNORE existing assignees - if status is 'open', the task is available to claim
+- Pick the HIGHEST PRIORITY task (P0 > P1 > P2 > P3 > P4) that is NOT an epic and not already in_progress
 - Run 'bd show <id>' to understand the task requirements
 - Check if task has a --design field with a pre-approved plan - if so, follow that plan
 - Run 'bd update <id> --status in_progress --assignee %s' to claim it
