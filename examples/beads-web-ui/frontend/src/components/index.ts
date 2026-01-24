@@ -4,6 +4,7 @@
  */
 
 export * from './AppLayout';
+export * from './EmptyColumn';
 export * from './IssueCard';
 export * from './table';
 export * from './StatusColumn';
