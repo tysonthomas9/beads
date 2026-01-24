@@ -16,11 +16,10 @@ test.describe("App", () => {
     await expect(page.locator("h1")).toHaveText("Beads")
   })
 
-  test("displays description text", async ({ page }) => {
+  test("displays connection status", async ({ page }) => {
     await page.goto("/")
-    await expect(
-      page.locator("p").filter({ hasText: "Task management" })
-    ).toHaveText("Task management interface for beads.")
+    // The app now shows a connection status indicator in the header
+    await expect(page.locator('[role="status"]')).toBeVisible()
   })
 
   test("has no console errors on load", async ({ page }) => {
