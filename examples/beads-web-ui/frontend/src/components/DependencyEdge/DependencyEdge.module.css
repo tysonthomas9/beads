@@ -1,0 +1,51 @@
+/**
+ * DependencyEdge component styles.
+ * Uses CSS Modules for component-scoped styling.
+ */
+
+/* Blocking edge - red/orange with animation */
+.blockingEdge {
+  stroke: var(--color-priority-0, #dc2626);
+  stroke-dasharray: 5 5;
+  animation: dashFlow 1s linear infinite;
+}
+
+/* Normal (non-blocking) edge - subtle gray */
+.normalEdge {
+  stroke: var(--color-border, #e5e7eb);
+}
+
+/* Animated dash for blocking edges */
+@keyframes dashFlow {
+  from {
+    stroke-dashoffset: 10;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+/* Respect reduced motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  .blockingEdge {
+    animation: none;
+  }
+}
+
+/* Edge label styling */
+.edgeLabel {
+  font-size: var(--font-size-xs, 0.75rem);
+  font-family: var(--font-family-mono, monospace);
+  color: var(--color-text-muted, #9ca3af);
+  background-color: var(--color-bg, #ffffff);
+  padding: 2px 6px;
+  border-radius: var(--radius-sm, 4px);
+  border: 1px solid var(--color-border, #e5e7eb);
+  white-space: nowrap;
+}
+
+/* Selected state - highlight the label */
+.edgeLabel.selected {
+  border-color: var(--color-primary, #3b82f6);
+  color: var(--color-primary, #3b82f6);
+}

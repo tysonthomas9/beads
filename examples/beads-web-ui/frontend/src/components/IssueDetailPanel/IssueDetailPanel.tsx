@@ -55,7 +55,9 @@ export function IssueDetailPanel({
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, onClose]);
 
-  // Lock body scroll when open, restoring previous value on close
+  // Lock body scroll when open, restoring previous value on close.
+  // Note: Only ONE panel should be open at a time. Multiple concurrent panels
+  // would require a scroll lock manager to handle overflow restoration properly.
   useEffect(() => {
     if (isOpen) {
       const previousOverflow = document.body.style.overflow;
@@ -72,7 +74,12 @@ export function IssueDetailPanel({
       const previouslyFocused = document.activeElement as HTMLElement | null;
       panelRef.current.focus();
       return () => {
-        if (previouslyFocused?.focus) {
+        // Check element is still in DOM before restoring focus (could be unmounted)
+        if (
+          previouslyFocused &&
+          document.contains(previouslyFocused) &&
+          previouslyFocused.focus
+        ) {
           previouslyFocused.focus();
         }
       };
