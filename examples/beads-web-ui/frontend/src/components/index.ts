@@ -1,7 +1,8 @@
 /**
  * Component exports.
- * Barrel file for convenient imports: import { StatusColumn, IssueTable } from '@/components';
+ * Barrel file for convenient imports: import { StatusColumn, IssueTable, IssueCard } from '@/components';
  */
 
+export * from './IssueCard';
 export * from './table';
 export * from './StatusColumn';
