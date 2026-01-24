@@ -259,7 +259,7 @@ func TestHandleHealth(t *testing.T) {
 			req := httptest.NewRequest(tt.method, "/health", nil)
 			w := httptest.NewRecorder()
 
-			handleHealth(w, req)
+			handleHealth(nil)(w, req)
 
 			if w.Code != tt.wantStatus {
 				t.Errorf("status = %d, want %d", w.Code, tt.wantStatus)
@@ -284,7 +284,7 @@ func TestHandleHealth(t *testing.T) {
 
 func TestSetupRoutes(t *testing.T) {
 	mux := http.NewServeMux()
-	setupRoutes(mux)
+	setupRoutes(mux, nil) // nil pool for basic routing tests
 
 	tests := []struct {
 		name       string
@@ -328,7 +328,7 @@ func TestSetupRoutes(t *testing.T) {
 
 func TestHealthEndpointJSON(t *testing.T) {
 	mux := http.NewServeMux()
-	setupRoutes(mux)
+	setupRoutes(mux, nil) // nil pool for basic health tests
 
 	req := httptest.NewRequest(http.MethodGet, "/health", nil)
 	w := httptest.NewRecorder()
