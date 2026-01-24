@@ -49,6 +49,13 @@ function createFiltersWithType(type: string): FilterState {
   return { type: type as IssueType };
 }
 
+/**
+ * Create filter state with labels.
+ */
+function createFiltersWithLabels(labels: string[]): FilterState {
+  return { labels };
+}
+
 describe('FilterBar', () => {
   // Store original NODE_ENV
   const originalNodeEnv = process.env.NODE_ENV;
@@ -532,11 +539,284 @@ describe('FilterBar', () => {
         labels: ['bug'],
       };
 
-      render(<FilterBar filters={filters} actions={actions} />);
+      render(
+        <FilterBar
+          filters={filters}
+          actions={actions}
+          availableLabels={['bug', 'feature']}
+        />
+      );
 
       const select = screen.getByTestId('priority-filter');
       expect(select).toHaveValue('1');
       expect(screen.getByTestId('clear-filters')).toBeInTheDocument();
+      // Verify label filter is also visible
+      expect(screen.getByTestId('label-filter-trigger')).toBeInTheDocument();
+    });
+  });
+
+  describe('label filter rendering', () => {
+    it('does not render label filter when no availableLabels provided', () => {
+      const actions = createMockActions();
+      render(<FilterBar filters={createEmptyFilters()} actions={actions} />);
+
+      expect(screen.queryByTestId('label-filter-trigger')).not.toBeInTheDocument();
+    });
+
+    it('does not render label filter when availableLabels is empty', () => {
+      const actions = createMockActions();
+      render(
+        <FilterBar
+          filters={createEmptyFilters()}
+          actions={actions}
+          availableLabels={[]}
+        />
+      );
+
+      expect(screen.queryByTestId('label-filter-trigger')).not.toBeInTheDocument();
+    });
+
+    it('renders label filter trigger when availableLabels provided', () => {
+      const actions = createMockActions();
+      render(
+        <FilterBar
+          filters={createEmptyFilters()}
+          actions={actions}
+          availableLabels={['bug', 'feature', 'urgent']}
+        />
+      );
+
+      expect(screen.getByTestId('label-filter-trigger')).toBeInTheDocument();
+    });
+
+    it('shows "All labels" when no labels selected', () => {
+      const actions = createMockActions();
+      render(
+        <FilterBar
+          filters={createEmptyFilters()}
+          actions={actions}
+          availableLabels={['bug', 'feature']}
+        />
+      );
+
+      expect(screen.getByTestId('label-filter-trigger')).toHaveTextContent(
+        'All labels'
+      );
+    });
+
+    it('shows count when labels are selected', () => {
+      const actions = createMockActions();
+      render(
+        <FilterBar
+          filters={createFiltersWithLabels(['bug', 'urgent'])}
+          actions={actions}
+          availableLabels={['bug', 'feature', 'urgent']}
+        />
+      );
+
+      expect(screen.getByTestId('label-filter-trigger')).toHaveTextContent(
+        '2 selected'
+      );
+    });
+  });
+
+  describe('label filter interactions', () => {
+    it('opens dropdown menu when trigger is clicked', () => {
+      const actions = createMockActions();
+      render(
+        <FilterBar
+          filters={createEmptyFilters()}
+          actions={actions}
+          availableLabels={['bug', 'feature']}
+        />
+      );
+
+      fireEvent.click(screen.getByTestId('label-filter-trigger'));
+
+      expect(screen.getByTestId('label-filter-menu')).toBeInTheDocument();
+    });
+
+    it('displays all available labels in dropdown', () => {
+      const actions = createMockActions();
+      render(
+        <FilterBar
+          filters={createEmptyFilters()}
+          actions={actions}
+          availableLabels={['bug', 'feature', 'urgent']}
+        />
+      );
+
+      fireEvent.click(screen.getByTestId('label-filter-trigger'));
+
+      expect(screen.getByTestId('label-option-bug')).toBeInTheDocument();
+      expect(screen.getByTestId('label-option-feature')).toBeInTheDocument();
+      expect(screen.getByTestId('label-option-urgent')).toBeInTheDocument();
+    });
+
+    it('calls setLabels with label when checkbox clicked', () => {
+      const actions = createMockActions();
+      render(
+        <FilterBar
+          filters={createEmptyFilters()}
+          actions={actions}
+          availableLabels={['bug', 'feature']}
+        />
+      );
+
+      fireEvent.click(screen.getByTestId('label-filter-trigger'));
+      fireEvent.click(screen.getByTestId('label-option-bug'));
+
+      expect(actions.setLabels).toHaveBeenCalledWith(['bug']);
+    });
+
+    it('adds label to existing selection', () => {
+      const actions = createMockActions();
+      render(
+        <FilterBar
+          filters={createFiltersWithLabels(['bug'])}
+          actions={actions}
+          availableLabels={['bug', 'feature']}
+        />
+      );
+
+      fireEvent.click(screen.getByTestId('label-filter-trigger'));
+      fireEvent.click(screen.getByTestId('label-option-feature'));
+
+      expect(actions.setLabels).toHaveBeenCalledWith(['bug', 'feature']);
+    });
+
+    it('removes label from selection when unchecked', () => {
+      const actions = createMockActions();
+      render(
+        <FilterBar
+          filters={createFiltersWithLabels(['bug', 'feature'])}
+          actions={actions}
+          availableLabels={['bug', 'feature']}
+        />
+      );
+
+      fireEvent.click(screen.getByTestId('label-filter-trigger'));
+      fireEvent.click(screen.getByTestId('label-option-bug'));
+
+      expect(actions.setLabels).toHaveBeenCalledWith(['feature']);
+    });
+
+    it('calls setLabels with undefined when last label unchecked', () => {
+      const actions = createMockActions();
+      render(
+        <FilterBar
+          filters={createFiltersWithLabels(['bug'])}
+          actions={actions}
+          availableLabels={['bug', 'feature']}
+        />
+      );
+
+      fireEvent.click(screen.getByTestId('label-filter-trigger'));
+      fireEvent.click(screen.getByTestId('label-option-bug'));
+
+      expect(actions.setLabels).toHaveBeenCalledWith(undefined);
+    });
+
+    it('closes dropdown when clicking outside', () => {
+      const actions = createMockActions();
+      render(
+        <FilterBar
+          filters={createEmptyFilters()}
+          actions={actions}
+          availableLabels={['bug', 'feature']}
+        />
+      );
+
+      fireEvent.click(screen.getByTestId('label-filter-trigger'));
+      expect(screen.getByTestId('label-filter-menu')).toBeInTheDocument();
+
+      // Click outside
+      fireEvent.mouseDown(document.body);
+
+      expect(screen.queryByTestId('label-filter-menu')).not.toBeInTheDocument();
+    });
+  });
+
+  describe('label filter visibility', () => {
+    it('shows clear button when labels are selected', () => {
+      const actions = createMockActions();
+      render(
+        <FilterBar
+          filters={createFiltersWithLabels(['bug'])}
+          actions={actions}
+          availableLabels={['bug', 'feature']}
+        />
+      );
+
+      expect(screen.getByTestId('clear-filters')).toBeInTheDocument();
+    });
+  });
+
+  describe('label filter accessibility', () => {
+    it('trigger has accessible label', () => {
+      const actions = createMockActions();
+      render(
+        <FilterBar
+          filters={createEmptyFilters()}
+          actions={actions}
+          availableLabels={['bug']}
+        />
+      );
+
+      expect(
+        screen.getByRole('button', { name: /filter by labels/i })
+      ).toBeInTheDocument();
+    });
+
+    it('trigger has aria-expanded attribute', () => {
+      const actions = createMockActions();
+      render(
+        <FilterBar
+          filters={createEmptyFilters()}
+          actions={actions}
+          availableLabels={['bug']}
+        />
+      );
+
+      const trigger = screen.getByTestId('label-filter-trigger');
+      expect(trigger).toHaveAttribute('aria-expanded', 'false');
+
+      fireEvent.click(trigger);
+      expect(trigger).toHaveAttribute('aria-expanded', 'true');
+    });
+
+    it('dropdown menu has group role', () => {
+      const actions = createMockActions();
+      render(
+        <FilterBar
+          filters={createEmptyFilters()}
+          actions={actions}
+          availableLabels={['bug']}
+        />
+      );
+
+      fireEvent.click(screen.getByTestId('label-filter-trigger'));
+
+      expect(screen.getByRole('group')).toBeInTheDocument();
+    });
+
+    it('checkboxes reflect checked state correctly', () => {
+      const actions = createMockActions();
+      render(
+        <FilterBar
+          filters={createFiltersWithLabels(['bug'])}
+          actions={actions}
+          availableLabels={['bug', 'feature']}
+        />
+      );
+
+      fireEvent.click(screen.getByTestId('label-filter-trigger'));
+
+      const bugCheckbox = screen.getByTestId('label-option-bug');
+      const featureCheckbox = screen.getByTestId('label-option-feature');
+
+      expect(bugCheckbox).toBeChecked();
+      expect(featureCheckbox).not.toBeChecked();
     });
   });
 

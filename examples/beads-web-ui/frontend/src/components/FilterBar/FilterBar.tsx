@@ -4,7 +4,7 @@
  * Integrates with useFilterState hook for URL synchronization.
  */
 
-import { useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import type { Priority, IssueType } from '@/types';
 import {
   useFilterState,
@@ -72,6 +72,8 @@ export interface FilterBarProps {
   className?: string;
   /** Show/hide clear button (defaults to auto-detect from filters) */
   showClear?: boolean;
+  /** Available labels for the label filter dropdown */
+  availableLabels?: string[];
 }
 
 /**
@@ -93,6 +95,7 @@ export function FilterBar({
   actions: externalActions,
   className,
   showClear,
+  availableLabels,
 }: FilterBarProps): JSX.Element {
   // Use internal hook when not in controlled mode
   const [internalFilters, internalActions] = useFilterState();
@@ -146,6 +149,43 @@ export function FilterBar({
   const handleClearAll = useCallback(() => {
     actions.clearAll();
   }, [actions]);
+
+  // Label dropdown state
+  const [labelDropdownOpen, setLabelDropdownOpen] = useState(false);
+  const labelDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (
+        labelDropdownRef.current &&
+        !labelDropdownRef.current.contains(event.target as Node)
+      ) {
+        setLabelDropdownOpen(false);
+      }
+    }
+    if (labelDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [labelDropdownOpen]);
+
+  // Handle label toggle
+  const handleLabelToggle = useCallback(
+    (label: string) => {
+      const current = filters.labels ?? [];
+      const newLabels = current.includes(label)
+        ? current.filter((l) => l !== label)
+        : [...current, label];
+      actions.setLabels(newLabels.length > 0 ? newLabels : undefined);
+    },
+    [filters.labels, actions]
+  );
+
+  // Toggle label dropdown
+  const toggleLabelDropdown = useCallback(() => {
+    setLabelDropdownOpen((prev) => !prev);
+  }, []);
 
   const rootClassName = className
     ? `${styles.filterBar} ${className}`
@@ -201,6 +241,54 @@ export function FilterBar({
             ))}
           </select>
         </div>
+
+        {/* Label filter dropdown */}
+        {availableLabels && availableLabels.length > 0 && (
+          <div className={styles.filterGroup} ref={labelDropdownRef}>
+            <span className={styles.label}>Labels</span>
+            <div className={styles.dropdownContainer}>
+              <button
+                type="button"
+                className={styles.dropdownTrigger}
+                onClick={toggleLabelDropdown}
+                aria-expanded={labelDropdownOpen}
+                aria-haspopup="true"
+                aria-label="Filter by labels"
+                data-testid="label-filter-trigger"
+              >
+                {filters.labels && filters.labels.length > 0
+                  ? `${filters.labels.length} selected`
+                  : 'All labels'}
+                <span className={styles.dropdownArrow} aria-hidden="true">
+                  ▼
+                </span>
+              </button>
+              {labelDropdownOpen && (
+                <div
+                  className={styles.dropdownMenu}
+                  role="group"
+                  aria-label="Select labels"
+                  data-testid="label-filter-menu"
+                >
+                  {availableLabels.map((label) => {
+                    const isSelected = filters.labels?.includes(label) ?? false;
+                    return (
+                      <label key={label} className={styles.dropdownItem}>
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => handleLabelToggle(label)}
+                          data-testid={`label-option-${label}`}
+                        />
+                        <span>{label}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Clear button */}
