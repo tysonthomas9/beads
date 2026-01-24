@@ -18,13 +18,14 @@
    * =========================== */
   --color-status-open: #3b82f6;        /* blue-500 */
   --color-status-in-progress: #f59e0b; /* amber-500 */
-  --color-status-closed: #10b981;      /* green-500 */
+  --color-status-closed: #10b981;      /* emerald-500 */
 
   /* ===========================
    * Colors - State
    * =========================== */
   --color-blocked: #ef4444; /* red-500 */
   --color-ready: #22c55e;   /* green-500 */
+  --color-closed: #10b981;  /* emerald-500, same as status-closed */
 
   /* ===========================
    * Colors - Semantic
