@@ -90,6 +90,37 @@
   background-color: var(--color-priority-4);
 }
 
+/* =================================
+ * Priority-based card left border accents
+ * ================================= */
+
+/* P0: Critical - strong visual indicator with red border and subtle background */
+.issueCard[data-priority='0'] {
+  border-left: 3px solid var(--color-priority-0);
+  background-color: #fef2f2; /* Fallback for older browsers */
+  background-color: color-mix(in srgb, var(--color-priority-0) 5%, var(--color-bg));
+}
+
+/* P1: High - orange border for urgency */
+.issueCard[data-priority='1'] {
+  border-left: 3px solid var(--color-priority-1);
+}
+
+/* P2: Medium - subtle yellow border */
+.issueCard[data-priority='2'] {
+  border-left: 3px solid var(--color-priority-2);
+}
+
+/* P3: Normal - very subtle border, de-emphasized */
+.issueCard[data-priority='3'] {
+  border-left: 2px solid var(--color-border);
+}
+
+/* P4: Backlog - minimal visual weight */
+.issueCard[data-priority='4'] {
+  border-left: 2px solid var(--color-border-light);
+}
+
 .title {
   margin: 0;
   font-size: var(--font-size-sm);

@@ -1,0 +1,65 @@
+/**
+ * AppLayout component.
+ * Top-level layout wrapper with header and main content area.
+ */
+
+import type { ReactNode } from 'react';
+import styles from './AppLayout.module.css';
+
+/**
+ * Props for the AppLayout component.
+ */
+export interface AppLayoutProps {
+  /** Main content to render in the content area */
+  children: ReactNode;
+  /** Optional element to render in the header navigation area (center) */
+  navigation?: ReactNode;
+  /** Optional element to render in the header actions area (right) */
+  actions?: ReactNode;
+  /** Application title displayed in header (defaults to "Beads") */
+  title?: string;
+  /** Additional CSS class name */
+  className?: string;
+}
+
+/**
+ * AppLayout provides the main application structure.
+ * Includes a sticky header with title, navigation, and actions slots,
+ * and a scrollable main content area.
+ */
+export function AppLayout({
+  children,
+  navigation,
+  actions,
+  title = 'Beads',
+  className,
+}: AppLayoutProps): JSX.Element {
+  const rootClassName = className
+    ? `${styles.appLayout} ${className}`
+    : styles.appLayout;
+
+  return (
+    <div className={rootClassName}>
+      <header className={styles.header} role="banner">
+        <div className={styles.headerContent}>
+          <div className={styles.brand}>
+            <h1 className={styles.title}>{title}</h1>
+          </div>
+          {navigation && (
+            <nav className={styles.navigation} aria-label="Main navigation">
+              {navigation}
+            </nav>
+          )}
+          {actions && (
+            <div className={styles.actions}>
+              {actions}
+            </div>
+          )}
+        </div>
+      </header>
+      <main className={styles.main} role="main" id="main-content">
+        {children}
+      </main>
+    </div>
+  );
+}

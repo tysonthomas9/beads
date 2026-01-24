@@ -13,7 +13,7 @@ test.describe("App", () => {
 
   test("displays main heading", async ({ page }) => {
     await page.goto("/")
-    await expect(page.locator("h1")).toHaveText("Beads Web UI")
+    await expect(page.locator("h1")).toHaveText("Beads")
   })
 
   test("displays description text", async ({ page }) => {
