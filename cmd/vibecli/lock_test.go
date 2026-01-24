@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -195,5 +196,89 @@ func TestGetLockStatus(t *testing.T) {
 	status = GetLockStatus(tmpDir)
 	if status == "" {
 		t.Error("Expected non-empty status with task")
+	}
+}
+
+func TestGetLockStatus_PlanningAgentNoTaskID(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	err := AcquireLock(tmpDir, "plan", "falcon")
+	if err != nil {
+		t.Fatalf("AcquireLock failed: %v", err)
+	}
+	defer ReleaseLock(tmpDir)
+
+	status := GetLockStatus(tmpDir)
+	// Planning agent without TaskID should show "planning: ..."
+	if !strings.HasPrefix(status, "planning: ...") {
+		t.Errorf("Expected 'planning: ...' prefix, got '%s'", status)
+	}
+}
+
+func TestGetLockStatus_WorkingAgentNoTaskID(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	err := AcquireLock(tmpDir, "task", "nova")
+	if err != nil {
+		t.Fatalf("AcquireLock failed: %v", err)
+	}
+	defer ReleaseLock(tmpDir)
+
+	status := GetLockStatus(tmpDir)
+	// Implementation agent without TaskID should show "working: ..."
+	if !strings.HasPrefix(status, "working: ...") {
+		t.Errorf("Expected 'working: ...' prefix, got '%s'", status)
+	}
+}
+
+func TestGetLockStatus_PlanningAgentWithTaskID(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	err := AcquireLock(tmpDir, "plan", "falcon")
+	if err != nil {
+		t.Fatalf("AcquireLock failed: %v", err)
+	}
+	defer ReleaseLock(tmpDir)
+
+	UpdateLockTask(tmpDir, "bd-test", "Test Task")
+	status := GetLockStatus(tmpDir)
+
+	// Should contain the task ID (actual prefix depends on task status from bd)
+	if !strings.Contains(status, "bd-test") {
+		t.Errorf("Expected status to contain 'bd-test', got '%s'", status)
+	}
+}
+
+func TestGetLockStatus_WorkingAgentWithTaskID(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	err := AcquireLock(tmpDir, "task", "nova")
+	if err != nil {
+		t.Fatalf("AcquireLock failed: %v", err)
+	}
+	defer ReleaseLock(tmpDir)
+
+	UpdateLockTask(tmpDir, "bd-test", "Test Task")
+	status := GetLockStatus(tmpDir)
+
+	// Should contain the task ID
+	if !strings.Contains(status, "bd-test") {
+		t.Errorf("Expected status to contain 'bd-test', got '%s'", status)
+	}
+}
+
+func TestGetLockStatus_DurationFormat(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	err := AcquireLock(tmpDir, "task", "nova")
+	if err != nil {
+		t.Fatalf("AcquireLock failed: %v", err)
+	}
+	defer ReleaseLock(tmpDir)
+
+	status := GetLockStatus(tmpDir)
+	// Should include duration in parentheses
+	if !strings.Contains(status, "(") || !strings.Contains(status, ")") {
+		t.Errorf("Expected status to include duration in parentheses, got '%s'", status)
 	}
 }

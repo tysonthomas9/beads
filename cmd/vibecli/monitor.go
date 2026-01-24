@@ -56,6 +56,7 @@ type MonitorData struct {
 	ReviewTasks        []TaskInfo          // top 5 need review tasks
 	InProgressTasks    []TaskInfo          // all in_progress tasks
 	AgentTasks         map[string]TaskInfo // agent name -> current task (from assignee)
+	TaskConflicts      map[string][]string // TaskID -> agent names (if multiple agents claim same task)
 	SyncStatus         SyncInfo
 	Stats              MonitorStats
 }
@@ -151,7 +152,16 @@ func collectMonitorData() *MonitorData {
 	data.Tasks, data.NeedsPlanningTasks, data.ReadyToImplement, data.ReviewTasks, data.InProgressTasks, data.AgentTasks = collectTaskStatus()
 
 	// Collect agents, passing the task map for fallback lookup
-	data.Agents = collectAgentStatus(data.AgentTasks)
+	var taskIDToAgents map[string][]string
+	data.Agents, taskIDToAgents = collectAgentStatus(data.AgentTasks)
+
+	// Detect task conflicts (multiple agents claiming same task)
+	data.TaskConflicts = make(map[string][]string)
+	for taskID, agents := range taskIDToAgents {
+		if len(agents) > 1 {
+			data.TaskConflicts[taskID] = agents
+		}
+	}
 
 	// Collect sync status
 	data.SyncStatus = collectSyncStatus(data.Agents)
@@ -162,13 +172,15 @@ func collectMonitorData() *MonitorData {
 	return data
 }
 
-func collectAgentStatus(agentTasks map[string]TaskInfo) []AgentStatus {
+func collectAgentStatus(agentTasks map[string]TaskInfo) ([]AgentStatus, map[string][]string) {
 	worktrees, err := DiscoverWorktrees()
 	if err != nil {
-		return nil
+		return nil, nil
 	}
 
 	var agents []AgentStatus
+	taskIDToAgents := make(map[string][]string) // Track which agents claim which tasks
+
 	for _, wt := range worktrees {
 		agent := AgentStatus{
 			Name:   wt.Name,
@@ -177,18 +189,46 @@ func collectAgentStatus(agentTasks map[string]TaskInfo) []AgentStatus {
 
 		// Check for running agent (lock status)
 		lockStatus := GetLockStatus(wt.Path)
+
+		// Also check lock file directly to get TaskID for conflict detection
+		if lockInfo, running, _ := CheckLock(wt.Path); running && lockInfo != nil && lockInfo.TaskID != "" {
+			taskIDToAgents[lockInfo.TaskID] = append(taskIDToAgents[lockInfo.TaskID], wt.Name)
+		}
+
 		if lockStatus != "" {
 			// Lock file has status - check if it needs task ID from fallback
 			if strings.Contains(lockStatus, "...") {
 				if task, ok := agentTasks[wt.Name]; ok {
-					// Replace "..." with actual task ID from assignee
-					lockStatus = strings.Replace(lockStatus, "...", task.ID, 1)
+					// Get actual task status to determine correct state
+					taskStatus := getTaskStatus(task.ID)
+					// Extract duration part (e.g., " (2m8s)")
+					durationIdx := strings.Index(lockStatus, " (")
+					durationPart := ""
+					if durationIdx != -1 {
+						durationPart = lockStatus[durationIdx:]
+					}
+					// Update state based on task status and agent type
+					switch taskStatus {
+					case "needs_review":
+						// Only show "review" for planning agents
+						if strings.HasPrefix(lockStatus, "planning:") {
+							lockStatus = fmt.Sprintf("review: %s%s", task.ID, durationPart)
+						} else {
+							// Implementation agents show "working"
+							lockStatus = fmt.Sprintf("working: %s%s", task.ID, durationPart)
+						}
+					case "closed":
+						lockStatus = fmt.Sprintf("done: %s%s", task.ID, durationPart)
+					default:
+						// Keep original state prefix, just replace "..."
+						lockStatus = strings.Replace(lockStatus, "...", task.ID, 1)
+					}
 				}
 			}
 			agent.Status = lockStatus
 		} else if task, ok := agentTasks[wt.Name]; ok {
-			// Fallback: agent has assigned task but no lock - assume it's implementing
-			agent.Status = fmt.Sprintf("task: %s", task.ID)
+			// Agent has assigned task but no running process - agent died
+			agent.Status = fmt.Sprintf("error: %s", task.ID)
 		} else {
 			// Check git status
 			clean, _ := IsCleanWorkingTree(wt.Path)
@@ -210,7 +250,7 @@ func collectAgentStatus(agentTasks map[string]TaskInfo) []AgentStatus {
 		agents = append(agents, agent)
 	}
 
-	return agents
+	return agents, taskIDToAgents
 }
 
 func getWorktreeGitSyncStatus(path string) (ahead, behind int) {
@@ -312,6 +352,9 @@ func collectTaskStatus() (TaskSummary, []TaskInfo, []TaskInfo, []TaskInfo, []Tas
 	}
 
 	// Get need review tasks (top 5)
+	// Note: Don't add to agentTasks - these tasks have status=open meaning
+	// the planning agent finished and released its lock. The assignee field
+	// still points to the planning agent but it's no longer running.
 	needReviewOutput, err := runBdCommand("list", "--status=open", "--json")
 	if err == nil {
 		var issues []BdIssue
@@ -339,6 +382,27 @@ func collectTaskStatus() (TaskSummary, []TaskInfo, []TaskInfo, []TaskInfo, []Tas
 		var issues []BdIssue
 		if json.Unmarshal([]byte(blockedOutput), &issues) == nil {
 			summary.Blocked = len(issues)
+		}
+	}
+
+	// Also add closed tasks to agentTasks for "done" state display
+	// This helps when agents complete tasks but lock file has no TaskID (old prompts)
+	closedOutput, err := runBdCommand("list", "--status=closed", "--json")
+	if err == nil {
+		var issues []BdIssue
+		if json.Unmarshal([]byte(closedOutput), &issues) == nil {
+			for _, issue := range issues {
+				if issue.Assignee != "" {
+					// Only add if not already in agentTasks (in_progress takes precedence)
+					if _, exists := agentTasks[issue.Assignee]; !exists {
+						agentTasks[issue.Assignee] = TaskInfo{
+							ID:       issue.ID,
+							Title:    issue.Title,
+							Priority: issue.Priority,
+						}
+					}
+				}
+			}
 		}
 	}
 
@@ -420,8 +484,12 @@ func renderDashboard(data *MonitorData) string {
 	sb.WriteString(renderBoxSeparator(width))
 	for _, agent := range data.Agents {
 		statusIcon := "✓"
-		// Running agents show "task:" or "plan:" prefix
-		if strings.HasPrefix(agent.Status, "task:") || strings.HasPrefix(agent.Status, "plan:") {
+		// Running agents show explicit state prefixes
+		if strings.HasPrefix(agent.Status, "planning:") ||
+			strings.HasPrefix(agent.Status, "working:") ||
+			strings.HasPrefix(agent.Status, "done:") ||
+			strings.HasPrefix(agent.Status, "review:") ||
+			strings.HasPrefix(agent.Status, "error:") {
 			statusIcon = "●"
 		} else if strings.Contains(agent.Status, "changes") || agent.Status == "dirty" {
 			statusIcon = "●"
@@ -461,10 +529,10 @@ func renderDashboard(data *MonitorData) string {
 	planningAgents := 0
 	implementAgents := 0
 	for _, agent := range data.Agents {
-		// Running agents show "task:" or "plan:" prefix
-		if strings.HasPrefix(agent.Status, "plan:") {
+		// Count by explicit state prefix
+		if strings.HasPrefix(agent.Status, "planning:") {
 			planningAgents++
-		} else if strings.HasPrefix(agent.Status, "task:") {
+		} else if strings.HasPrefix(agent.Status, "working:") {
 			implementAgents++
 		}
 	}
@@ -477,6 +545,14 @@ func renderDashboard(data *MonitorData) string {
 	if implementAgents > 0 && data.Tasks.ReadyToImplement == 0 {
 		sb.WriteString(renderBoxLine(width, ""))
 		sb.WriteString(renderBoxLine(width, "  ⚠️  Implementation agents running but no tasks ready"))
+	}
+	if len(data.TaskConflicts) > 0 {
+		sb.WriteString(renderBoxLine(width, ""))
+		sb.WriteString(renderBoxLine(width, "  ⚠️  TASK CONFLICTS - Multiple agents claiming same task:"))
+		for taskID, agents := range data.TaskConflicts {
+			agentList := strings.Join(agents, ", ")
+			sb.WriteString(renderBoxLine(width, fmt.Sprintf("    • %s: %s", taskID, agentList)))
+		}
 	}
 
 	// Tasks section

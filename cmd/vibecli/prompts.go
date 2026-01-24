@@ -22,7 +22,7 @@ Follow this workflow EXACTLY for ONE task.
 - Pick the HIGHEST PRIORITY task (P0 > P1 > P2 > P3 > P4) that is NOT an epic
 - Run 'bd show <id>' to understand the task requirements
 - Run 'bd update <id> --status in_progress --assignee %s' to claim it
-- Run 'vibecli claim <id>' to update the monitor (so humans can see what you're working on)
+- Run 'vibecli claim <id>' to register the task with the agent monitor
 - REMEMBER this task ID and ORIGINAL TITLE
 
 ### Step 2: Research the Codebase
@@ -125,23 +125,22 @@ You are a disciplined software engineer. Follow this workflow EXACTLY for ONE ta
 - IGNORE existing assignees - if status is 'open', the task is available to claim
 - Pick the HIGHEST PRIORITY task (P0 > P1 > P2 > P3 > P4) that is NOT an epic and not already in_progress
 - Run 'bd show <id>' to understand the task requirements
-- Check if task has a --design field with a pre-approved plan - if so, follow that plan
+- SKIP any task that does NOT have a --design field - it must go through 'vibecli plan' first
+- If NO tasks have a --design field, STOP and tell the user: "No planned tasks available. Run 'vibecli plan' first."
+- Follow the pre-approved plan in the --design field
 - Run 'bd update <id> --status in_progress --assignee %s' to claim it
-- Run 'vibecli claim <id>' to update the monitor (so humans can see what you're working on)
+- Run 'vibecli claim <id>' to register the task with the agent monitor
 - REMEMBER this task ID - you will work ONLY on this task
 
-### Step 2: Plan (DO NOT CODE YET)
+### Step 2: Review the Design
 Before writing any code:
-- If task has a --design field, review and follow that plan
-- Otherwise: Read relevant existing code to understand patterns and conventions
-- Identify what files need to be created or modified
-- Write a brief plan as a comment explaining your approach
-- Consider edge cases and potential issues
-- Identify any dependencies or blockers
-- ONLY proceed to Step 3 after planning is complete
+- Read and understand the --design field thoroughly
+- Identify the files to create/modify as specified in the design
+- Note any edge cases or dependencies mentioned
+- ONLY proceed to Step 3 after you fully understand the plan
 
 ### Step 3: Implement
-- Follow the plan from Step 2 (or the --design field if present)
+- Follow the design plan exactly
 - Keep changes minimal and focused ONLY on this task
 - Follow existing code patterns in the codebase
 - Do not refactor unrelated code

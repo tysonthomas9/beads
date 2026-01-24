@@ -148,7 +148,7 @@ func IsProcessRunning(pid int) bool {
 }
 
 // GetLockStatus returns a human-readable status for a worktree's lock
-// Format: "{command}: {taskID} ({duration})" or "{command}: ... ({duration})" if no task yet
+// Uses explicit state words: planning, working, done, review
 func GetLockStatus(worktreePath string) string {
 	info, running, err := CheckLock(worktreePath)
 	if err != nil || !running {
@@ -161,16 +161,28 @@ func GetLockStatus(worktreePath string) string {
 		// Check actual task status
 		taskStatus := getTaskStatus(info.TaskID)
 		switch taskStatus {
-		case "needs_review":
-			return fmt.Sprintf("%s: %s → review (%s)", info.Command, info.TaskID, duration)
 		case "closed":
-			return fmt.Sprintf("%s: %s done (%s)", info.Command, info.TaskID, duration)
+			return fmt.Sprintf("done: %s (%s)", info.TaskID, duration)
+		case "needs_review":
+			// Only show "review" for planning agents that completed their work
+			if info.Command == "plan" {
+				return fmt.Sprintf("review: %s (%s)", info.TaskID, duration)
+			}
+			// Implementation agents show "working" even on [Need Review] tasks
+			return fmt.Sprintf("working: %s (%s)", info.TaskID, duration)
 		default:
-			return fmt.Sprintf("%s: %s (%s)", info.Command, info.TaskID, duration)
+			// Use "planning" or "working" based on command
+			if info.Command == "plan" {
+				return fmt.Sprintf("planning: %s (%s)", info.TaskID, duration)
+			}
+			return fmt.Sprintf("working: %s (%s)", info.TaskID, duration)
 		}
 	}
-	// No TaskID yet - show just command type with ellipsis
-	return fmt.Sprintf("%s: ... (%s)", info.Command, duration)
+	// No TaskID yet - show state with ellipsis
+	if info.Command == "plan" {
+		return fmt.Sprintf("planning: ... (%s)", duration)
+	}
+	return fmt.Sprintf("working: ... (%s)", duration)
 }
 
 // getTaskStatus returns the status of a beads task
