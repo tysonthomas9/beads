@@ -1,0 +1,76 @@
+/**
+ * ConnectionStatus component styles.
+ * Uses CSS Modules for component-scoped styling.
+ */
+
+.connectionStatus {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-family: var(--font-family-base);
+}
+
+/* Status indicator dot */
+.indicator {
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-full);
+  flex-shrink: 0;
+  transition: background-color var(--transition-fast);
+}
+
+/* Status text */
+.text {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ===========================
+ * Variant: inline (default)
+ * =========================== */
+.inline {
+  /* Minimal visual footprint */
+}
+
+/* ===========================
+ * Variant: badge
+ * =========================== */
+.badge {
+  padding: var(--space-1) var(--space-2);
+  background-color: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+/* ===========================
+ * State-based indicator colors
+ * Colors prepared for T077 styling task
+ * =========================== */
+
+/* Connected - success green */
+.connectionStatus[data-state='connected'] .indicator {
+  background-color: var(--color-success);
+}
+
+/* Connecting - warning amber */
+.connectionStatus[data-state='connecting'] .indicator {
+  background-color: var(--color-warning);
+}
+
+/* Reconnecting - warning amber */
+.connectionStatus[data-state='reconnecting'] .indicator {
+  background-color: var(--color-warning);
+}
+
+/* Disconnected - danger red */
+.connectionStatus[data-state='disconnected'] .indicator {
+  background-color: var(--color-danger);
+}
+
+/* Fallback for unknown state */
+.indicator {
+  background-color: var(--color-text-muted);
+}
