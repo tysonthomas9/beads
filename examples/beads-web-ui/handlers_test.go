@@ -1778,6 +1778,115 @@ var _ = func() bool {
 }()
 
 // ===========================================================================
+// parseBlockedParams tests
+// ===========================================================================
+
+func TestParseBlockedParams_EmptyQuery(t *testing.T) {
+	req := httptest.NewRequest(http.MethodGet, "/api/blocked", nil)
+
+	args := parseBlockedParams(req)
+
+	// Verify default values
+	if args.ParentID != "" {
+		t.Errorf("ParentID = %q, want empty", args.ParentID)
+	}
+}
+
+func TestParseBlockedParams_ParentID(t *testing.T) {
+	req := httptest.NewRequest(http.MethodGet, "/api/blocked?parent_id=epic-123", nil)
+
+	args := parseBlockedParams(req)
+
+	if args.ParentID != "epic-123" {
+		t.Errorf("ParentID = %q, want %q", args.ParentID, "epic-123")
+	}
+}
+
+// ===========================================================================
+// handleBlocked tests
+// ===========================================================================
+
+func TestHandleBlocked_NilPool(t *testing.T) {
+	handler := handleBlocked(nil)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/blocked", nil)
+	rr := httptest.NewRecorder()
+
+	handler.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusServiceUnavailable {
+		t.Errorf("status code = %d, want %d", rr.Code, http.StatusServiceUnavailable)
+	}
+
+	var resp BlockedResponse
+	if err := json.NewDecoder(rr.Body).Decode(&resp); err != nil {
+		t.Errorf("failed to decode response: %v", err)
+		return
+	}
+
+	if resp.Success {
+		t.Error("Success = true, want false")
+	}
+	if resp.Error != "connection pool not initialized" {
+		t.Errorf("Error = %q, want %q", resp.Error, "connection pool not initialized")
+	}
+}
+
+func TestHandleBlocked_PoolClosed(t *testing.T) {
+	// Create and immediately close the pool
+	pool, err := daemon.NewConnectionPool("/tmp/test.sock", 1)
+	if err != nil {
+		t.Fatalf("NewConnectionPool() error = %v", err)
+	}
+	pool.Close()
+
+	handler := handleBlocked(pool)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/blocked", nil)
+	rr := httptest.NewRecorder()
+
+	handler.ServeHTTP(rr, req)
+
+	// Should return ServiceUnavailable when pool is closed
+	if rr.Code != http.StatusServiceUnavailable {
+		t.Errorf("status code = %d, want %d", rr.Code, http.StatusServiceUnavailable)
+	}
+
+	var resp BlockedResponse
+	if err := json.NewDecoder(rr.Body).Decode(&resp); err != nil {
+		t.Errorf("failed to decode response: %v", err)
+		return
+	}
+
+	if resp.Success {
+		t.Error("Success = true, want false")
+	}
+}
+
+func TestHandleBlocked_ContentType(t *testing.T) {
+	handler := handleBlocked(nil)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/blocked", nil)
+	rr := httptest.NewRecorder()
+
+	handler.ServeHTTP(rr, req)
+
+	contentType := rr.Header().Get("Content-Type")
+	if contentType != "application/json" {
+		t.Errorf("Content-Type = %q, want %q", contentType, "application/json")
+	}
+}
+
+// Verify that rpc.BlockedArgs fields match what we expect (compile-time check)
+var _ = func() bool {
+	args := &rpc.BlockedArgs{
+		ParentID: "",
+	}
+	_ = args
+	return true
+}()
+
+// ===========================================================================
 // validateCreateRequest tests
 // ===========================================================================
 

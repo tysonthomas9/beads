@@ -342,6 +342,113 @@ func handleReady(pool *daemon.ConnectionPool) http.HandlerFunc {
 	}
 }
 
+// BlockedResponse wraps the blocked issues data for JSON response.
+type BlockedResponse struct {
+	Success bool                   `json:"success"`
+	Data    []*types.BlockedIssue  `json:"data,omitempty"`
+	Error   string                 `json:"error,omitempty"`
+}
+
+// handleBlocked returns issues that have blocking dependencies (waiting on other issues).
+func handleBlocked(pool *daemon.ConnectionPool) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+
+		if pool == nil {
+			w.WriteHeader(http.StatusServiceUnavailable)
+			if err := json.NewEncoder(w).Encode(BlockedResponse{
+				Success: false,
+				Error:   "connection pool not initialized",
+			}); err != nil {
+				log.Printf("Failed to encode blocked response: %v", err)
+			}
+			return
+		}
+
+		// Parse query parameters into BlockedArgs
+		args := parseBlockedParams(r)
+
+		// Acquire connection with 5-second timeout
+		ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+		defer cancel()
+
+		client, err := pool.Get(ctx)
+		if err != nil {
+			status := http.StatusServiceUnavailable
+			if errors.Is(err, context.DeadlineExceeded) {
+				status = http.StatusGatewayTimeout
+			}
+			w.WriteHeader(status)
+			if err := json.NewEncoder(w).Encode(BlockedResponse{
+				Success: false,
+				Error:   err.Error(),
+			}); err != nil {
+				log.Printf("Failed to encode blocked response: %v", err)
+			}
+			return
+		}
+		defer pool.Put(client)
+
+		// Execute Blocked RPC call
+		resp, err := client.Blocked(args)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			if err := json.NewEncoder(w).Encode(BlockedResponse{
+				Success: false,
+				Error:   fmt.Sprintf("rpc error: %v", err),
+			}); err != nil {
+				log.Printf("Failed to encode blocked response: %v", err)
+			}
+			return
+		}
+
+		if !resp.Success {
+			w.WriteHeader(http.StatusInternalServerError)
+			if err := json.NewEncoder(w).Encode(BlockedResponse{
+				Success: false,
+				Error:   resp.Error,
+			}); err != nil {
+				log.Printf("Failed to encode blocked response: %v", err)
+			}
+			return
+		}
+
+		// Parse the blocked issues from RPC response
+		var issues []*types.BlockedIssue
+		if err := json.Unmarshal(resp.Data, &issues); err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			if err := json.NewEncoder(w).Encode(BlockedResponse{
+				Success: false,
+				Error:   fmt.Sprintf("failed to parse blocked issues: %v", err),
+			}); err != nil {
+				log.Printf("Failed to encode blocked response: %v", err)
+			}
+			return
+		}
+
+		w.WriteHeader(http.StatusOK)
+		if err := json.NewEncoder(w).Encode(BlockedResponse{
+			Success: true,
+			Data:    issues,
+		}); err != nil {
+			log.Printf("Failed to encode blocked response: %v", err)
+		}
+	}
+}
+
+// parseBlockedParams parses query parameters into rpc.BlockedArgs.
+func parseBlockedParams(r *http.Request) *rpc.BlockedArgs {
+	args := &rpc.BlockedArgs{}
+	q := r.URL.Query()
+
+	// Parse optional parent_id parameter
+	if v := q.Get("parent_id"); v != "" {
+		args.ParentID = v
+	}
+
+	return args
+}
+
 // parseListParams extracts ListArgs from HTTP query parameters.
 func parseListParams(r *http.Request) *rpc.ListArgs {
 	query := r.URL.Query()
