@@ -10,9 +10,10 @@ import (
 var syncAll bool
 
 var syncCmd = &cobra.Command{
-	Use:     "sync <worktree> [branch]",
-	Short:   "Sync worktree with integration branch",
-	GroupID: "git",
+	Use:               "sync <worktree> [branch]",
+	Short:             "Sync worktree with integration branch",
+	GroupID:           "git",
+	ValidArgsFunction: worktreeThenBranchCompletion,
 	Long: `Sync worktree(s) with an integration branch.
 
 Merges the integration branch INTO the worktree branch, updating
