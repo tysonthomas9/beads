@@ -28,7 +28,8 @@ func setupRoutes(mux *http.ServeMux, pool *daemon.ConnectionPool) {
 	mux.HandleFunc("GET /api/issues/{id}", handleGetIssue(pool))
 	mux.HandleFunc("GET /api/issues", handleListIssues(pool))
 
-	// mux.Handle("/api/ready", readyHandler(pool))
+	// Ready endpoint for issues ready to work on
+	mux.HandleFunc("GET /api/ready", handleReady(pool))
 
 	// WebSocket endpoint for real-time mutation events
 	mux.HandleFunc("/ws", handleWebSocket(pool))
