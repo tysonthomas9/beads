@@ -18,6 +18,9 @@ func setupRoutes(mux *http.ServeMux, pool *daemon.ConnectionPool) {
 	// API health endpoint that reports daemon connection status
 	mux.HandleFunc("GET /api/health", handleAPIHealth(pool))
 
+	// Issue endpoints
+	mux.HandleFunc("GET /api/issues/{id}", handleGetIssue(pool))
+
 	// Phase 2 API routes (to be implemented):
 	// mux.Handle("/api/issues", issuesHandler(pool))
 	// mux.Handle("/api/ready", readyHandler(pool))
