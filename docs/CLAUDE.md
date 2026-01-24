@@ -96,6 +96,17 @@ golangci-lint run ./...
 - Script-based tests in `cmd/bd/testdata/*.txt` (see `scripttest_test.go`)
 - RPC layer has extensive isolation and edge case coverage
 
+### Manual Testing Best Practices
+
+- **WebSocket endpoints**: Do NOT use `curl` to test WebSocket endpoints - it only confirms the endpoint rejects non-WebSocket requests. Use a real WebSocket client:
+  ```bash
+  # Using wscat (npm install -g wscat)
+  wscat -c ws://localhost:8080/ws
+  > {"type":"subscribe","since":0}
+  # Then create an issue in another terminal and verify mutation arrives
+  ```
+- **Integration tests**: When claiming "manual testing complete," actually test the full flow end-to-end, not just that endpoints respond
+
 ## Important Notes
 
 - **Always read AGENTS.md first** - it has the complete workflow
