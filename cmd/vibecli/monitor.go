@@ -223,21 +223,26 @@ func collectTaskStatus() (TaskSummary, []TaskInfo, []TaskInfo, []TaskInfo) {
 	var reviewTasks []TaskInfo
 	var inProgressTasks []TaskInfo
 
-	// Get ready tasks (top 5)
+	// Get ready tasks (top 5), excluding [Need Review] tasks which appear in Need Review section
 	readyOutput, err := runBdCommand("ready", "--json")
 	if err == nil {
 		var issues []BdIssue
 		if json.Unmarshal([]byte(readyOutput), &issues) == nil {
-			summary.Ready = len(issues)
-			for i, issue := range issues {
-				if i >= 5 {
-					break
+			count := 0
+			for _, issue := range issues {
+				// Skip [Need Review] tasks - they appear in Need Review section
+				if strings.Contains(issue.Title, "[Need Review]") {
+					continue
 				}
-				readyTasks = append(readyTasks, TaskInfo{
-					ID:       issue.ID,
-					Title:    issue.Title,
-					Priority: issue.Priority,
-				})
+				summary.Ready++
+				if count < 5 {
+					readyTasks = append(readyTasks, TaskInfo{
+						ID:       issue.ID,
+						Title:    issue.Title,
+						Priority: issue.Priority,
+					})
+					count++
+				}
 			}
 		}
 	}
