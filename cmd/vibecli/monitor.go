@@ -465,7 +465,7 @@ func renderDashboard(data *MonitorData) string {
 	sb.WriteString(renderBoxSeparator(width))
 	sb.WriteString(renderBoxLine(width, " WORK QUEUE"))
 	sb.WriteString(renderBoxSeparator(width))
-	taskSummary := fmt.Sprintf("  Plan: %-3d  Implement: %-3d  Review: %-3d  In Progress: %-3d  Blocked: %-3d",
+	taskSummary := fmt.Sprintf("  Plan: %-3d  Impl: %-3d  Review: %-3d  Active: %-3d  Blocked: %-3d",
 		data.Tasks.NeedsPlanning, data.Tasks.ReadyToImplement, data.Tasks.NeedReview, data.Tasks.InProgress, data.Tasks.Blocked)
 	sb.WriteString(renderBoxLine(width, taskSummary))
 
