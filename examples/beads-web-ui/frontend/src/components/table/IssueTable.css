@@ -198,3 +198,41 @@
   font-size: var(--font-size-xs);
   white-space: nowrap;
 }
+
+/* Checkbox column - narrow fixed width */
+.issue-table__header-cell--checkbox,
+.issue-table__cell--checkbox {
+  width: 40px;
+  min-width: 40px;
+  max-width: 40px;
+  padding: var(--space-2) var(--space-3);
+  text-align: center;
+}
+
+/* Checkbox input styling */
+.issue-table__checkbox {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  accent-color: var(--color-primary);
+  /* Remove default margin */
+  margin: 0;
+}
+
+/* Hover state for checkbox cell */
+.issue-table__cell--checkbox:hover {
+  background-color: var(--color-bg-tertiary);
+}
+
+/* Screen reader only text for header */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}

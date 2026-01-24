@@ -19,6 +19,12 @@ export interface IssueTableProps {
   selectedId?: string;
   /** Additional CSS class name */
   className?: string;
+  /** Whether to show checkbox column */
+  showCheckbox?: boolean;
+  /** Set of selected issue IDs */
+  selectedIds?: Set<string>;
+  /** Callback when checkbox selection changes */
+  onSelectionChange?: (issueId: string, selected: boolean) => void;
 }
 
 /**
@@ -31,6 +37,9 @@ export function IssueTable({
   onRowClick,
   selectedId,
   className,
+  showCheckbox,
+  selectedIds,
+  onSelectionChange,
 }: IssueTableProps) {
   const tableClassName = ['issue-table', className].filter(Boolean).join(' ');
 
@@ -39,6 +48,12 @@ export function IssueTable({
       <table className={tableClassName} data-testid="issue-table">
         <thead className="issue-table__head">
           <tr>
+            {showCheckbox && (
+              <th className="issue-table__header-cell issue-table__header-cell--checkbox">
+                {/* Header checkbox will be added in a future task */}
+                <span className="sr-only">Select</span>
+              </th>
+            )}
             {columns.map((column) => (
               <th
                 key={column.id}
@@ -58,7 +73,7 @@ export function IssueTable({
           {issues.length === 0 ? (
             <tr className="issue-table__empty-row">
               <td
-                colSpan={columns.length}
+                colSpan={columns.length + (showCheckbox ? 1 : 0)}
                 className="issue-table__empty-cell"
                 data-testid="issue-table-empty"
               >
@@ -71,9 +86,11 @@ export function IssueTable({
                 key={issue.id}
                 issue={issue}
                 columns={columns}
-                isSelected={selectedId === issue.id}
+                isSelected={showCheckbox ? selectedIds?.has(issue.id) : selectedId === issue.id}
                 isClickable={!!onRowClick}
                 onClick={onRowClick}
+                showCheckbox={showCheckbox}
+                onSelectionChange={onSelectionChange}
               />
             ))
           )}

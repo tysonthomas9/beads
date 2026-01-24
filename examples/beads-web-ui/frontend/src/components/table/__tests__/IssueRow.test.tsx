@@ -840,4 +840,173 @@ describe('IssueRow', () => {
       expect(titleCell).toHaveTextContent(specialTitle);
     });
   });
+
+  // ============= Checkbox Tests =============
+
+  describe('checkbox functionality', () => {
+    it('does not render checkbox when showCheckbox is false', () => {
+      const issue = createMockIssue();
+      const { container } = renderIssueRow({
+        issue,
+        columns: DEFAULT_ISSUE_COLUMNS,
+        showCheckbox: false,
+      });
+
+      expect(container.querySelector('.issue-table__checkbox')).not.toBeInTheDocument();
+    });
+
+    it('does not render checkbox when showCheckbox is undefined', () => {
+      const issue = createMockIssue();
+      const { container } = renderIssueRow({
+        issue,
+        columns: DEFAULT_ISSUE_COLUMNS,
+      });
+
+      expect(container.querySelector('.issue-table__checkbox')).not.toBeInTheDocument();
+    });
+
+    it('renders checkbox when showCheckbox is true', () => {
+      const issue = createMockIssue();
+      const { container } = renderIssueRow({
+        issue,
+        columns: DEFAULT_ISSUE_COLUMNS,
+        showCheckbox: true,
+      });
+
+      expect(container.querySelector('.issue-table__checkbox')).toBeInTheDocument();
+    });
+
+    it('checkbox is checked when isSelected is true', () => {
+      const issue = createMockIssue();
+      const { container } = renderIssueRow({
+        issue,
+        columns: DEFAULT_ISSUE_COLUMNS,
+        showCheckbox: true,
+        isSelected: true,
+      });
+
+      const checkbox = container.querySelector('.issue-table__checkbox') as HTMLInputElement;
+      expect(checkbox.checked).toBe(true);
+    });
+
+    it('checkbox is unchecked when isSelected is false', () => {
+      const issue = createMockIssue();
+      const { container } = renderIssueRow({
+        issue,
+        columns: DEFAULT_ISSUE_COLUMNS,
+        showCheckbox: true,
+        isSelected: false,
+      });
+
+      const checkbox = container.querySelector('.issue-table__checkbox') as HTMLInputElement;
+      expect(checkbox.checked).toBe(false);
+    });
+
+    it('onSelectionChange called with issue id and true when checked', () => {
+      const issue = createMockIssue({ id: 'bd-check-test' });
+      const handleSelectionChange = vi.fn();
+      const { container } = renderIssueRow({
+        issue,
+        columns: DEFAULT_ISSUE_COLUMNS,
+        showCheckbox: true,
+        isSelected: false,
+        onSelectionChange: handleSelectionChange,
+      });
+
+      const checkbox = container.querySelector('.issue-table__checkbox') as HTMLInputElement;
+      fireEvent.click(checkbox);
+
+      expect(handleSelectionChange).toHaveBeenCalledTimes(1);
+      expect(handleSelectionChange).toHaveBeenCalledWith('bd-check-test', true);
+    });
+
+    it('onSelectionChange called with issue id and false when unchecked', () => {
+      const issue = createMockIssue({ id: 'bd-uncheck-test' });
+      const handleSelectionChange = vi.fn();
+      const { container } = renderIssueRow({
+        issue,
+        columns: DEFAULT_ISSUE_COLUMNS,
+        showCheckbox: true,
+        isSelected: true,
+        onSelectionChange: handleSelectionChange,
+      });
+
+      const checkbox = container.querySelector('.issue-table__checkbox') as HTMLInputElement;
+      fireEvent.click(checkbox);
+
+      expect(handleSelectionChange).toHaveBeenCalledTimes(1);
+      expect(handleSelectionChange).toHaveBeenCalledWith('bd-uncheck-test', false);
+    });
+
+    it('checkbox click does not trigger row onClick', () => {
+      const issue = createMockIssue();
+      const handleClick = vi.fn();
+      const handleSelectionChange = vi.fn();
+      const { container } = renderIssueRow({
+        issue,
+        columns: DEFAULT_ISSUE_COLUMNS,
+        showCheckbox: true,
+        isClickable: true,
+        onClick: handleClick,
+        onSelectionChange: handleSelectionChange,
+      });
+
+      // Click the checkbox cell
+      const checkboxCell = container.querySelector('.issue-table__cell--checkbox');
+      fireEvent.click(checkboxCell!);
+
+      expect(handleClick).not.toHaveBeenCalled();
+    });
+
+    it('checkbox has correct aria-label', () => {
+      const issue = createMockIssue({ id: 'bd-aria-test' });
+      const { container } = renderIssueRow({
+        issue,
+        columns: DEFAULT_ISSUE_COLUMNS,
+        showCheckbox: true,
+      });
+
+      const checkbox = container.querySelector('.issue-table__checkbox');
+      expect(checkbox).toHaveAttribute('aria-label', 'Select issue bd-aria-test');
+    });
+
+    it('checkbox cell is first in row before other columns', () => {
+      const issue = createMockIssue();
+      const { container } = renderIssueRow({
+        issue,
+        columns: DEFAULT_ISSUE_COLUMNS,
+        showCheckbox: true,
+      });
+
+      const cells = container.querySelectorAll('td');
+      expect(cells[0]).toHaveClass('issue-table__cell--checkbox');
+    });
+
+    it('total cells equals columns + 1 when checkbox shown', () => {
+      const issue = createMockIssue();
+      const { container } = renderIssueRow({
+        issue,
+        columns: DEFAULT_ISSUE_COLUMNS,
+        showCheckbox: true,
+      });
+
+      const cells = container.querySelectorAll('td');
+      expect(cells).toHaveLength(DEFAULT_ISSUE_COLUMNS.length + 1);
+    });
+
+    it('checkbox renders without onSelectionChange (optional chaining)', () => {
+      const issue = createMockIssue();
+      const { container } = renderIssueRow({
+        issue,
+        columns: DEFAULT_ISSUE_COLUMNS,
+        showCheckbox: true,
+        // onSelectionChange not provided
+      });
+
+      const checkbox = container.querySelector('.issue-table__checkbox') as HTMLInputElement;
+      // Should not throw when clicking
+      fireEvent.click(checkbox);
+      expect(checkbox).toBeInTheDocument();
+    });
+  });
 });
