@@ -29,6 +29,7 @@ export default defineConfig(({ mode }) => ({
         // Manual chunks for better caching
         manualChunks: {
           react: ["react", "react-dom"],
+          "react-flow": ["@xyflow/react"],
         },
       },
     },
