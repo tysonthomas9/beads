@@ -10,9 +10,10 @@ import (
 var mergeAll bool
 
 var mergeCmd = &cobra.Command{
-	Use:     "merge <source> [target]",
-	Short:   "Merge branches with AI conflict resolution",
-	GroupID: "git",
+	Use:               "merge <source> [target]",
+	Short:             "Merge branches with AI conflict resolution",
+	GroupID:           "git",
+	ValidArgsFunction: branchCompletion,
 	Long: `Merge branches with AI-assisted conflict resolution.
 
 When conflicts occur, Claude is launched to resolve them automatically.
