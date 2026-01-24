@@ -12,7 +12,7 @@ func TestDisplayWidth(t *testing.T) {
 		expected int
 	}{
 		{"ascii", "hello", 5},
-		{"unicode checkmark", "✓ clean", 7},
+		{"unicode checkmark", "✓ ready", 7},
 		{"unicode bullet", "● running", 9},
 		{"unicode arrows", "↑1 ↓2", 5},
 		{"empty", "", 0},

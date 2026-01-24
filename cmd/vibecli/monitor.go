@@ -65,7 +65,7 @@ type MonitorData struct {
 type AgentStatus struct {
 	Name   string
 	Branch string
-	Status string // "clean", "3 changes", "running (plan, 5m ago)"
+	Status string // "ready", "3 changes", "running (plan, 5m ago)"
 	Ahead  int    // commits ahead of integration branch
 	Behind int    // commits behind integration branch
 }
@@ -233,7 +233,7 @@ func collectAgentStatus(agentTasks map[string]TaskInfo) ([]AgentStatus, map[stri
 			// Check git status
 			clean, _ := IsCleanWorkingTree(wt.Path)
 			if clean {
-				agent.Status = "clean"
+				agent.Status = "ready"
 			} else {
 				changes := getUncommittedChangesCount(wt.Path)
 				if changes > 0 {

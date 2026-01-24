@@ -57,7 +57,7 @@ func runList(cmd *cobra.Command, args []string) {
 
 		// Check if working tree is clean
 		clean, _ := IsCleanWorkingTree(wt.Path)
-		status := "✓ clean"
+		status := "✓ ready"
 		if !clean {
 			status = "● dirty"
 		}
