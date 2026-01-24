@@ -27,6 +27,7 @@ func setupRoutes(mux *http.ServeMux, pool *daemon.ConnectionPool) {
 	// Issue endpoints
 	mux.HandleFunc("GET /api/issues/{id}", handleGetIssue(pool))
 	mux.HandleFunc("GET /api/issues", handleListIssues(pool))
+	mux.HandleFunc("POST /api/issues", handleCreateIssue(pool))
 	mux.HandleFunc("PATCH /api/issues/{id}", handlePatchIssue(pool))
 
 	// Ready endpoint for issues ready to work on
