@@ -34,6 +34,7 @@ go install ./cmd/vibecli
 | `vibecli sync <worktree> [branch]` | Syncs worktrees with integration branch | None |
 | `vibecli reset <worktree> [branch]` | Resets worktrees to a specific branch | Confirmation required |
 | `vibecli list` | Lists all agents and their status | None |
+| `vibecli monitor` | Comprehensive dashboard with agents, tasks, sync, stats | None |
 
 ### Shell Tab Completion
 
@@ -461,6 +462,9 @@ vibecli reset --all main                # Reset all worktrees to main
 ### Checking Agent Status
 ```bash
 vibecli list                            # Show all agents and their status
+vibecli monitor                         # Comprehensive dashboard
+vibecli monitor --watch                 # Auto-refresh dashboard every 5s
+vibecli mon -w -i 3                     # Refresh every 3 seconds
 ```
 
 ## Key Learnings
