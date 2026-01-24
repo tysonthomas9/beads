@@ -61,6 +61,16 @@ npm run test:e2e   # E2E tests (playwright)
 - `GET /api/stats` - Project statistics
 - `/ws` - WebSocket for real-time mutation events
 
+## Merge Conflicts
+
+If `package-lock.json` has merge conflicts, don't resolve them manually. Instead, regenerate it:
+
+```bash
+cd frontend
+git checkout --theirs package-lock.json  # or --ours, doesn't matter
+npm install                               # regenerates from package.json
+```
+
 ## Development
 
 ```bash
