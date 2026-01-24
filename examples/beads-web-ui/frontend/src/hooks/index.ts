@@ -32,3 +32,6 @@ export type { UseSelectionOptions, UseSelectionReturn } from './useSelection'
 
 export { useFilteredSelection } from './useFilteredSelection'
 export type { UseFilteredSelectionOptions, UseFilteredSelectionReturn } from './useFilteredSelection'
+
+export { useBulkClose } from './useBulkClose'
+export type { UseBulkCloseOptions, UseBulkCloseReturn } from './useBulkClose'
