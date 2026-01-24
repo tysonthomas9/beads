@@ -8,9 +8,10 @@ import (
 )
 
 var taskCmd = &cobra.Command{
-	Use:     "task [worktree]",
-	Short:   "Run a Claude implementation agent",
-	GroupID: "agents",
+	Use:               "task [worktree]",
+	Short:             "Run a Claude implementation agent",
+	GroupID:           "agents",
+	ValidArgsFunction: worktreeCompletion,
 	Long: `Run a Claude implementation agent in the specified worktree.
 
 The implementation agent will:

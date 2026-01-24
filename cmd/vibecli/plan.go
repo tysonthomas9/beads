@@ -8,9 +8,10 @@ import (
 )
 
 var planCmd = &cobra.Command{
-	Use:     "plan [worktree]",
-	Short:   "Run a Claude planning agent",
-	GroupID: "agents",
+	Use:               "plan [worktree]",
+	Short:             "Run a Claude planning agent",
+	GroupID:           "agents",
+	ValidArgsFunction: worktreeCompletion,
 	Long: `Run a Claude planning agent in the specified worktree.
 
 The planning agent will:
