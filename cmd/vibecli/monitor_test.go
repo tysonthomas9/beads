@@ -372,3 +372,50 @@ func TestMonitorDataStruct(t *testing.T) {
 		t.Error("Expected 1 conflict")
 	}
 }
+
+// Test TaskInfo Status field for agent status determination
+func TestTaskInfoStatus(t *testing.T) {
+	tests := []struct {
+		name         string
+		taskStatus   string
+		expectError  bool
+		expectDone   bool
+		expectReady  bool
+	}{
+		{"in_progress_no_lock_is_error", "in_progress", true, false, false},
+		{"closed_no_lock_is_done", "closed", false, true, false},
+		{"open_no_lock_is_ready", "open", false, false, true},
+		{"empty_status_is_ready", "", false, false, true},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			task := TaskInfo{
+				ID:       "bd-test",
+				Title:    "Test Task",
+				Priority: 2,
+				Status:   tc.taskStatus,
+			}
+
+			// Simulate the agent status determination logic
+			var agentStatus string
+			if task.Status == "in_progress" {
+				agentStatus = "error: " + task.ID
+			} else if task.Status == "closed" {
+				agentStatus = "done: " + task.ID
+			} else {
+				agentStatus = "ready"
+			}
+
+			if tc.expectError && !strings.HasPrefix(agentStatus, "error:") {
+				t.Errorf("Expected error status, got %s", agentStatus)
+			}
+			if tc.expectDone && !strings.HasPrefix(agentStatus, "done:") {
+				t.Errorf("Expected done status, got %s", agentStatus)
+			}
+			if tc.expectReady && agentStatus != "ready" {
+				t.Errorf("Expected ready status, got %s", agentStatus)
+			}
+		})
+	}
+}

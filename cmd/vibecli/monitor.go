@@ -75,6 +75,7 @@ type TaskInfo struct {
 	ID       string
 	Title    string
 	Priority int
+	Status   string // "in_progress", "closed", "open"
 }
 
 // TaskSummary holds task counts by category
@@ -226,11 +227,14 @@ func collectAgentStatus(agentTasks map[string]TaskInfo) ([]AgentStatus, map[stri
 				}
 			}
 			agent.Status = lockStatus
-		} else if task, ok := agentTasks[wt.Name]; ok {
-			// Agent has assigned task but no running process - agent died
+		} else if task, ok := agentTasks[wt.Name]; ok && task.Status == "in_progress" {
+			// Task still in_progress but no lock - agent died
 			agent.Status = fmt.Sprintf("error: %s", task.ID)
+		} else if task, ok := agentTasks[wt.Name]; ok && task.Status == "closed" {
+			// Task completed - show done state
+			agent.Status = fmt.Sprintf("done: %s", task.ID)
 		} else {
-			// Check git status
+			// No active task - check git status
 			clean, _ := IsCleanWorkingTree(wt.Path)
 			if clean {
 				agent.Status = "ready"
@@ -341,6 +345,7 @@ func collectTaskStatus() (TaskSummary, []TaskInfo, []TaskInfo, []TaskInfo, []Tas
 					ID:       issue.ID,
 					Title:    issue.Title,
 					Priority: issue.Priority,
+					Status:   "in_progress",
 				}
 				inProgressTasks = append(inProgressTasks, taskInfo)
 				// Build agent-task map from assignee field
@@ -399,6 +404,7 @@ func collectTaskStatus() (TaskSummary, []TaskInfo, []TaskInfo, []TaskInfo, []Tas
 							ID:       issue.ID,
 							Title:    issue.Title,
 							Priority: issue.Priority,
+							Status:   "closed",
 						}
 					}
 				}
