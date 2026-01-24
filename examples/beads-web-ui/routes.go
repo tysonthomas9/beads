@@ -34,6 +34,9 @@ func setupRoutes(mux *http.ServeMux, pool *daemon.ConnectionPool) {
 	// Ready endpoint for issues ready to work on
 	mux.HandleFunc("GET /api/ready", handleReady(pool))
 
+	// Blocked endpoint for issues with blocking dependencies
+	mux.HandleFunc("GET /api/blocked", handleBlocked(pool))
+
 	// WebSocket endpoint for real-time mutation events
 	mux.HandleFunc("/ws", handleWebSocket(pool))
 

@@ -325,6 +325,275 @@ describe('BeadsWebSocketClient', () => {
     })
   })
 
+  describe('getReconnectAttempts', () => {
+    it('returns 0 initially', () => {
+      const client = new BeadsWebSocketClient('ws://localhost:8080/ws', {
+        reconnect: true,
+      })
+
+      expect(client.getReconnectAttempts()).toBe(0)
+    })
+
+    it('increments on each reconnect attempt', () => {
+      const client = new BeadsWebSocketClient('ws://localhost:8080/ws', {
+        reconnect: true,
+      })
+
+      client.connect()
+      MockWebSocket.lastInstance?.simulateOpen()
+
+      // First disconnection
+      MockWebSocket.lastInstance?.simulateClose(1006)
+      expect(client.getReconnectAttempts()).toBe(1)
+
+      vi.advanceTimersByTime(2000)
+
+      // Second disconnection
+      MockWebSocket.lastInstance?.simulateClose(1006)
+      expect(client.getReconnectAttempts()).toBe(2)
+    })
+
+    it('resets to 0 on successful connection', () => {
+      const client = new BeadsWebSocketClient('ws://localhost:8080/ws', {
+        reconnect: true,
+      })
+
+      client.connect()
+      MockWebSocket.lastInstance?.simulateOpen()
+
+      // Simulate failure and reconnect attempts
+      MockWebSocket.lastInstance?.simulateClose(1006)
+      expect(client.getReconnectAttempts()).toBe(1)
+
+      vi.advanceTimersByTime(2000)
+      expect(client.getReconnectAttempts()).toBe(1)
+
+      // Successful reconnection
+      MockWebSocket.lastInstance?.simulateOpen()
+      expect(client.getReconnectAttempts()).toBe(0)
+    })
+  })
+
+  describe('retryNow', () => {
+    it('connects immediately when in reconnecting state', () => {
+      const client = new BeadsWebSocketClient('ws://localhost:8080/ws', {
+        reconnect: true,
+      })
+
+      client.connect()
+      MockWebSocket.lastInstance?.simulateOpen()
+
+      // Simulate disconnection
+      MockWebSocket.lastInstance?.simulateClose(1006)
+      expect(client.getState()).toBe('reconnecting')
+      expect(MockWebSocket.instances.length).toBe(1)
+
+      // Call retryNow
+      client.retryNow()
+
+      // Should have created a new WebSocket immediately
+      expect(MockWebSocket.instances.length).toBe(2)
+      expect(client.getState()).toBe('connecting')
+    })
+
+    it('cancels pending reconnect timer', () => {
+      const client = new BeadsWebSocketClient('ws://localhost:8080/ws', {
+        reconnect: true,
+      })
+
+      client.connect()
+      MockWebSocket.lastInstance?.simulateOpen()
+
+      // Simulate disconnection (schedules reconnect)
+      MockWebSocket.lastInstance?.simulateClose(1006)
+      expect(MockWebSocket.instances.length).toBe(1)
+
+      // Call retryNow immediately
+      client.retryNow()
+      expect(MockWebSocket.instances.length).toBe(2)
+
+      // Advance timer past when the scheduled reconnect would have fired
+      vi.advanceTimersByTime(5000)
+
+      // Should still only have 2 instances (the scheduled one was cancelled)
+      expect(MockWebSocket.instances.length).toBe(2)
+    })
+
+    it('resets reconnectAttempts to 0', () => {
+      const client = new BeadsWebSocketClient('ws://localhost:8080/ws', {
+        reconnect: true,
+      })
+
+      client.connect()
+      MockWebSocket.lastInstance?.simulateOpen()
+
+      // Simulate failure and let some reconnect attempts happen
+      MockWebSocket.lastInstance?.simulateClose(1006)
+      expect(client.getReconnectAttempts()).toBe(1)
+
+      vi.advanceTimersByTime(2000)
+      MockWebSocket.lastInstance?.simulateClose(1006)
+      expect(client.getReconnectAttempts()).toBe(2)
+
+      vi.advanceTimersByTime(4000)
+      MockWebSocket.lastInstance?.simulateClose(1006)
+      expect(client.getReconnectAttempts()).toBe(3)
+
+      // Now call retryNow
+      client.retryNow()
+      expect(client.getReconnectAttempts()).toBe(0)
+    })
+
+    it('is no-op when state is not reconnecting', () => {
+      const client = new BeadsWebSocketClient('ws://localhost:8080/ws', {
+        reconnect: true,
+      })
+
+      // Disconnected state
+      expect(client.getState()).toBe('disconnected')
+      client.retryNow()
+      expect(MockWebSocket.instances.length).toBe(0)
+
+      // Connecting state
+      client.connect()
+      expect(client.getState()).toBe('connecting')
+      client.retryNow()
+      expect(MockWebSocket.instances.length).toBe(1)
+
+      // Connected state
+      MockWebSocket.lastInstance?.simulateOpen()
+      expect(client.getState()).toBe('connected')
+      client.retryNow()
+      expect(MockWebSocket.instances.length).toBe(1)
+    })
+  })
+
+  describe('onReconnect callback', () => {
+    it('is called with attempt number on each reconnect', () => {
+      const onReconnect = vi.fn()
+      const client = new BeadsWebSocketClient('ws://localhost:8080/ws', {
+        reconnect: true,
+        onReconnect,
+      })
+
+      client.connect()
+      MockWebSocket.lastInstance?.simulateOpen()
+
+      // Initial connection calls onReconnect(0)
+      expect(onReconnect).toHaveBeenCalledWith(0)
+      onReconnect.mockClear()
+
+      // First disconnection
+      MockWebSocket.lastInstance?.simulateClose(1006)
+      expect(onReconnect).toHaveBeenCalledWith(1)
+
+      vi.advanceTimersByTime(2000)
+
+      // Second disconnection
+      MockWebSocket.lastInstance?.simulateClose(1006)
+      expect(onReconnect).toHaveBeenCalledWith(2)
+
+      vi.advanceTimersByTime(4000)
+
+      // Third disconnection
+      MockWebSocket.lastInstance?.simulateClose(1006)
+      expect(onReconnect).toHaveBeenCalledWith(3)
+
+      expect(onReconnect).toHaveBeenCalledTimes(3)
+    })
+
+    it('is called with 0 on initial connect', () => {
+      const onReconnect = vi.fn()
+      const client = new BeadsWebSocketClient('ws://localhost:8080/ws', {
+        reconnect: true,
+        onReconnect,
+      })
+
+      // During connection phase, onReconnect should not be called yet
+      client.connect()
+      expect(onReconnect).not.toHaveBeenCalled()
+
+      // On successful connection, onReconnect is called with 0
+      MockWebSocket.lastInstance?.simulateOpen()
+      expect(onReconnect).toHaveBeenCalledWith(0)
+      expect(onReconnect).toHaveBeenCalledTimes(1)
+    })
+
+    it('is not called again after manual disconnect', () => {
+      const onReconnect = vi.fn()
+      const client = new BeadsWebSocketClient('ws://localhost:8080/ws', {
+        reconnect: true,
+        onReconnect,
+      })
+
+      client.connect()
+      MockWebSocket.lastInstance?.simulateOpen()
+
+      // Initial connection calls onReconnect(0)
+      expect(onReconnect).toHaveBeenCalledWith(0)
+      expect(onReconnect).toHaveBeenCalledTimes(1)
+
+      onReconnect.mockClear()
+
+      // Manual disconnect should not trigger onReconnect
+      client.disconnect()
+
+      expect(onReconnect).not.toHaveBeenCalled()
+    })
+
+    it('is called with 0 when retryNow() is used', () => {
+      const onReconnect = vi.fn()
+      const client = new BeadsWebSocketClient('ws://localhost:8080/ws', {
+        reconnect: true,
+        onReconnect,
+      })
+
+      client.connect()
+      MockWebSocket.lastInstance?.simulateOpen()
+
+      // Simulate failure to enter reconnecting state
+      MockWebSocket.lastInstance?.simulateClose(1006)
+      expect(onReconnect).toHaveBeenCalledWith(1)
+
+      onReconnect.mockClear()
+
+      // Call retryNow
+      client.retryNow()
+
+      // Should notify that counter was reset to 0
+      expect(onReconnect).toHaveBeenCalledWith(0)
+    })
+
+    it('is called with 0 on successful connection', () => {
+      const onReconnect = vi.fn()
+      const client = new BeadsWebSocketClient('ws://localhost:8080/ws', {
+        reconnect: true,
+        onReconnect,
+      })
+
+      client.connect()
+      MockWebSocket.lastInstance?.simulateOpen()
+
+      // First call should be with 0 on initial connection
+      expect(onReconnect).toHaveBeenCalledWith(0)
+      onReconnect.mockClear()
+
+      // Simulate failure
+      MockWebSocket.lastInstance?.simulateClose(1006)
+      expect(onReconnect).toHaveBeenCalledWith(1)
+      onReconnect.mockClear()
+
+      // Advance timer to trigger reconnect
+      vi.advanceTimersByTime(2000)
+
+      // Successful reconnection
+      MockWebSocket.lastInstance?.simulateOpen()
+
+      // Should notify with 0 on successful reconnection
+      expect(onReconnect).toHaveBeenCalledWith(0)
+    })
+  })
+
   describe('Message handling', () => {
     it('calls onMutation for mutation messages', () => {
       const onMutation = vi.fn()

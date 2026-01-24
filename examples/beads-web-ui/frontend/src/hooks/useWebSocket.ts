@@ -35,6 +35,8 @@ export interface UseWebSocketReturn {
   lastError: string | null
   /** Convenience boolean - true when state === 'connected' */
   isConnected: boolean
+  /** Current number of reconnection attempts (reactive) */
+  reconnectAttempts: number
   /** Connect to the WebSocket server */
   connect: () => void
   /** Disconnect from the WebSocket server */
@@ -43,6 +45,8 @@ export interface UseWebSocketReturn {
   subscribe: (since?: number) => void
   /** Unsubscribe from mutation events */
   unsubscribe: () => void
+  /** Immediately retry connection (only works in 'reconnecting' state) */
+  retryNow: () => void
 }
 
 /**
@@ -78,6 +82,7 @@ export function useWebSocket(options: UseWebSocketOptions = {}): UseWebSocketRet
   // Reactive state
   const [state, setState] = useState<ConnectionState>('disconnected')
   const [lastError, setLastError] = useState<string | null>(null)
+  const [reconnectAttempts, setReconnectAttempts] = useState(0)
 
   // Refs for stable references across renders
   const clientRef = useRef<BeadsWebSocketClient | null>(null)
@@ -132,10 +137,15 @@ export function useWebSocket(options: UseWebSocketOptions = {}): UseWebSocketRet
         if (!mountedRef.current) return
         setState(newState)
         // Clear error on successful connection
+        // (reconnectAttempts is reset via onReconnect callback for consistency)
         if (newState === 'connected') {
           setLastError(null)
         }
         onStateChangeRef.current?.(newState)
+      },
+      onReconnect: (attempt: number) => {
+        if (!mountedRef.current) return
+        setReconnectAttempts(attempt)
       },
     }
 
@@ -188,6 +198,10 @@ export function useWebSocket(options: UseWebSocketOptions = {}): UseWebSocketRet
     clientRef.current?.unsubscribe()
   }, [])
 
+  const retryNow = useCallback(() => {
+    clientRef.current?.retryNow()
+  }, [])
+
   // Computed values
   const isConnected = state === 'connected'
 
@@ -195,9 +209,11 @@ export function useWebSocket(options: UseWebSocketOptions = {}): UseWebSocketRet
     state,
     lastError,
     isConnected,
+    reconnectAttempts,
     connect,
     disconnect,
     subscribe,
     unsubscribe,
+    retryNow,
   }
 }

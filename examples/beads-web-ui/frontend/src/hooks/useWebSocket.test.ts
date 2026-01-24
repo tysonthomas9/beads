@@ -95,15 +95,18 @@ describe('useWebSocket', () => {
       expect(result.current).toHaveProperty('state')
       expect(result.current).toHaveProperty('lastError')
       expect(result.current).toHaveProperty('isConnected')
+      expect(result.current).toHaveProperty('reconnectAttempts')
       expect(result.current).toHaveProperty('connect')
       expect(result.current).toHaveProperty('disconnect')
       expect(result.current).toHaveProperty('subscribe')
       expect(result.current).toHaveProperty('unsubscribe')
+      expect(result.current).toHaveProperty('retryNow')
 
       expect(typeof result.current.connect).toBe('function')
       expect(typeof result.current.disconnect).toBe('function')
       expect(typeof result.current.subscribe).toBe('function')
       expect(typeof result.current.unsubscribe).toBe('function')
+      expect(typeof result.current.retryNow).toBe('function')
     })
 
     it('initial state is disconnected', () => {
@@ -114,6 +117,7 @@ describe('useWebSocket', () => {
       expect(result.current.state).toBe('disconnected')
       expect(result.current.isConnected).toBe(false)
       expect(result.current.lastError).toBeNull()
+      expect(result.current.reconnectAttempts).toBe(0)
     })
   })
 
@@ -716,6 +720,165 @@ describe('useWebSocket', () => {
 
       // All reconnections should have happened within the max delay
       expect(MockWebSocket.instances.length).toBe(6)
+    })
+  })
+
+  describe('Reconnect features', () => {
+    it('reconnectAttempts starts at 0', () => {
+      const { result } = renderHook(() =>
+        useWebSocket({ url: 'ws://localhost:8080/ws', autoConnect: false })
+      )
+
+      expect(result.current.reconnectAttempts).toBe(0)
+    })
+
+    it('reconnectAttempts updates reactively on reconnect events', () => {
+      const { result } = renderHook(() =>
+        useWebSocket({
+          url: 'ws://localhost:8080/ws',
+          autoConnect: true,
+          reconnect: true,
+        })
+      )
+
+      act(() => {
+        MockWebSocket.lastInstance?.simulateOpen()
+      })
+
+      expect(result.current.reconnectAttempts).toBe(0)
+
+      // Simulate abnormal close to trigger reconnection
+      act(() => {
+        MockWebSocket.lastInstance?.simulateClose(1006)
+      })
+
+      expect(result.current.reconnectAttempts).toBe(1)
+
+      // Wait for reconnect attempt
+      act(() => {
+        vi.advanceTimersByTime(2000)
+      })
+
+      // Simulate another failure
+      act(() => {
+        MockWebSocket.lastInstance?.simulateClose(1006)
+      })
+
+      expect(result.current.reconnectAttempts).toBe(2)
+    })
+
+    it('reconnectAttempts resets to 0 on successful connection', () => {
+      const { result } = renderHook(() =>
+        useWebSocket({
+          url: 'ws://localhost:8080/ws',
+          autoConnect: true,
+          reconnect: true,
+        })
+      )
+
+      act(() => {
+        MockWebSocket.lastInstance?.simulateOpen()
+      })
+
+      // Simulate failure
+      act(() => {
+        MockWebSocket.lastInstance?.simulateClose(1006)
+      })
+
+      expect(result.current.reconnectAttempts).toBe(1)
+
+      // Wait for reconnect
+      act(() => {
+        vi.advanceTimersByTime(2000)
+      })
+
+      // Successful reconnection
+      act(() => {
+        MockWebSocket.lastInstance?.simulateOpen()
+      })
+
+      expect(result.current.reconnectAttempts).toBe(0)
+    })
+
+    it('retryNow() triggers immediate reconnection', () => {
+      const { result } = renderHook(() =>
+        useWebSocket({
+          url: 'ws://localhost:8080/ws',
+          autoConnect: true,
+          reconnect: true,
+        })
+      )
+
+      act(() => {
+        MockWebSocket.lastInstance?.simulateOpen()
+      })
+
+      // Simulate failure
+      act(() => {
+        MockWebSocket.lastInstance?.simulateClose(1006)
+      })
+
+      expect(result.current.state).toBe('reconnecting')
+      expect(MockWebSocket.instances.length).toBe(1)
+
+      // Call retryNow
+      act(() => {
+        result.current.retryNow()
+      })
+
+      // Should have created a new WebSocket immediately
+      expect(MockWebSocket.instances.length).toBe(2)
+      expect(result.current.state).toBe('connecting')
+    })
+
+    it('retryNow() resets reconnectAttempts to 0', () => {
+      const { result } = renderHook(() =>
+        useWebSocket({
+          url: 'ws://localhost:8080/ws',
+          autoConnect: true,
+          reconnect: true,
+        })
+      )
+
+      act(() => {
+        MockWebSocket.lastInstance?.simulateOpen()
+      })
+
+      // Simulate multiple failures
+      act(() => {
+        MockWebSocket.lastInstance?.simulateClose(1006)
+      })
+
+      expect(result.current.reconnectAttempts).toBe(1)
+
+      act(() => {
+        vi.advanceTimersByTime(2000)
+      })
+
+      act(() => {
+        MockWebSocket.lastInstance?.simulateClose(1006)
+      })
+
+      expect(result.current.reconnectAttempts).toBe(2)
+
+      // Call retryNow
+      act(() => {
+        result.current.retryNow()
+      })
+
+      expect(result.current.reconnectAttempts).toBe(0)
+    })
+
+    it('retryNow() is stable across renders', () => {
+      const { result, rerender } = renderHook(() =>
+        useWebSocket({ url: 'ws://localhost:8080/ws', autoConnect: false })
+      )
+
+      const initialRetryNow = result.current.retryNow
+
+      rerender()
+
+      expect(result.current.retryNow).toBe(initialRetryNow)
     })
   })
 })

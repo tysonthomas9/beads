@@ -7,6 +7,7 @@ import { get, post, patch, ApiError } from './client'
 import type {
   Issue,
   IssueDetails,
+  BlockedIssue,
   Statistics,
   WorkFilter,
   Priority,
@@ -113,6 +114,27 @@ export async function getReadyIssues(options?: WorkFilter): Promise<Issue[]> {
  */
 export async function getStats(): Promise<Statistics> {
   const response = await get<ApiResult<Statistics>>('/api/stats')
+  return unwrap(response)
+}
+
+/**
+ * Filter options for blocked issues.
+ */
+export interface BlockedFilter {
+  /** Filter to descendants of this parent issue/epic */
+  parent_id?: string
+}
+
+/**
+ * Get issues that have blocking dependencies (waiting on other issues).
+ */
+export async function getBlockedIssues(options?: BlockedFilter): Promise<BlockedIssue[]> {
+  const params: Record<string, unknown> = {}
+  if (options?.parent_id) {
+    params.parent_id = options.parent_id
+  }
+  const query = buildQueryString(params)
+  const response = await get<ApiResult<BlockedIssue[]>>(`/api/blocked${query}`)
   return unwrap(response)
 }
 

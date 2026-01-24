@@ -12,3 +12,6 @@ export type { UseSortOptions, UseSortReturn, SortState, SortDirection } from './
 
 export { useIssueFilter } from './useIssueFilter'
 export type { UseIssueFilterOptions, UseIssueFilterReturn } from './useIssueFilter'
+
+export { useBlockedIssues } from './useBlockedIssues'
+export type { UseBlockedIssuesOptions, UseBlockedIssuesResult } from './useBlockedIssues'
