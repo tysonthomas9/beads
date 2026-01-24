@@ -128,3 +128,39 @@
 .handle:hover {
   background-color: var(--color-primary);
 }
+
+/* =================================
+ * Status-based styling
+ * ================================= */
+
+/* Blocked: Red tint, indicates waiting on dependencies */
+.issueNode[data-status='blocked'] {
+  background-color: color-mix(in srgb, var(--color-blocked) 8%, var(--color-bg));
+  border-top: 2px solid var(--color-blocked);
+}
+
+/* In Progress: Amber tint, indicates active work */
+.issueNode[data-status='in_progress'] {
+  background-color: color-mix(in srgb, var(--color-status-in-progress) 8%, var(--color-bg));
+  border-top: 2px solid var(--color-status-in-progress);
+}
+
+/* Closed: Muted appearance to de-emphasize completed items */
+.issueNode[data-status='closed'] {
+  opacity: 0.7;
+  background-color: color-mix(in srgb, var(--color-status-closed) 5%, var(--color-bg));
+  border-top: 2px solid var(--color-status-closed);
+}
+
+/* Deferred: Grayed out to indicate paused/low priority */
+.issueNode[data-status='deferred'] {
+  opacity: 0.6;
+  background-color: var(--color-bg-tertiary);
+  border-top: 2px solid var(--color-text-muted);
+}
+
+/* Selected state should override status opacity */
+.issueNode.selected[data-status='closed'],
+.issueNode.selected[data-status='deferred'] {
+  opacity: 1;
+}
