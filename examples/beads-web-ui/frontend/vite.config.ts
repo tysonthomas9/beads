@@ -59,5 +59,6 @@ export default defineConfig(({ mode }) => ({
   test: {
     globals: true,
     environment: "node",
+    exclude: ["tests/e2e/**", "node_modules/**"],
   },
 }))
