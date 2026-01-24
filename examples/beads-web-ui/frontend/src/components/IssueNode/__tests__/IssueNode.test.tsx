@@ -290,6 +290,34 @@ describe('IssueNode', () => {
     });
   });
 
+  describe('status display', () => {
+    it.each(['open', 'in_progress', 'blocked', 'closed', 'deferred'] as const)(
+      'sets data-status="%s" attribute',
+      (status) => {
+        const issue = createTestIssue({ status });
+        const props = createTestProps({
+          data: createTestNodeData({ issue, status }),
+        });
+        const { container } = renderWithProvider(props);
+
+        const article = container.querySelector('article');
+        expect(article).toHaveAttribute('data-status', status);
+      }
+    );
+
+    it('sets data-status="unknown" when status is undefined', () => {
+      const issue = createTestIssue();
+      delete issue.status;
+      const props = createTestProps({
+        data: createTestNodeData({ issue, status: undefined }),
+      });
+      const { container } = renderWithProvider(props);
+
+      const article = container.querySelector('article');
+      expect(article).toHaveAttribute('data-status', 'unknown');
+    });
+  });
+
   describe('edge cases', () => {
     it('renders Untitled for empty title', () => {
       const issue = createTestIssue({ title: '' });
