@@ -11,7 +11,8 @@ import { render, screen, within, fireEvent } from '@testing-library/react';
 import '@testing-library/jest-dom';
 
 import { KanbanBoard } from '../KanbanBoard';
-import type { Issue, Status } from '@/types';
+import type { Issue, Status, IssueType } from '@/types';
+import type { FilterState } from '@/hooks/useFilterState';
 
 /**
  * Create a mock issue for testing.
@@ -492,6 +493,359 @@ describe('KanbanBoard', () => {
       const board = container.firstChild as HTMLElement;
       expect(board.className).toContain('board');
       expect(board).toHaveClass('my-custom-class');
+    });
+  });
+
+  describe('filtering', () => {
+    /**
+     * Create a diverse set of issues for filter testing.
+     */
+    function createFilterTestIssues(): Issue[] {
+      return [
+        createMockIssue({
+          id: 'task-p1-1',
+          title: 'Important Task',
+          status: 'open',
+          priority: 1,
+          issue_type: 'task',
+          labels: ['frontend', 'urgent'],
+        }),
+        createMockIssue({
+          id: 'bug-p2-1',
+          title: 'Critical Bug Fix',
+          status: 'open',
+          priority: 2,
+          issue_type: 'bug',
+          labels: ['backend'],
+        }),
+        createMockIssue({
+          id: 'feature-p1-1',
+          title: 'New Feature Request',
+          status: 'in_progress',
+          priority: 1,
+          issue_type: 'feature',
+          labels: ['frontend', 'design'],
+        }),
+        createMockIssue({
+          id: 'task-p3-1',
+          title: 'Low Priority Task',
+          status: 'closed',
+          priority: 3,
+          issue_type: 'task',
+          labels: [],
+        }),
+        createMockIssue({
+          id: 'epic-p0-1',
+          title: 'Epic for Q1',
+          status: 'open',
+          priority: 0,
+          issue_type: 'epic',
+          labels: ['roadmap'],
+        }),
+      ];
+    }
+
+    it('shows all issues when no filters provided', () => {
+      const issues = createFilterTestIssues();
+
+      render(<KanbanBoard issues={issues} />);
+
+      // All issues should be visible
+      expect(screen.getByText('Important Task')).toBeInTheDocument();
+      expect(screen.getByText('Critical Bug Fix')).toBeInTheDocument();
+      expect(screen.getByText('New Feature Request')).toBeInTheDocument();
+      expect(screen.getByText('Low Priority Task')).toBeInTheDocument();
+      expect(screen.getByText('Epic for Q1')).toBeInTheDocument();
+    });
+
+    it('shows all issues when filters prop is empty object', () => {
+      const issues = createFilterTestIssues();
+      const filters: FilterState = {};
+
+      render(<KanbanBoard issues={issues} filters={filters} />);
+
+      // All issues should be visible
+      expect(screen.getByText('Important Task')).toBeInTheDocument();
+      expect(screen.getByText('Critical Bug Fix')).toBeInTheDocument();
+      expect(screen.getByText('New Feature Request')).toBeInTheDocument();
+      expect(screen.getByText('Low Priority Task')).toBeInTheDocument();
+      expect(screen.getByText('Epic for Q1')).toBeInTheDocument();
+    });
+
+    it('filters by priority', () => {
+      const issues = createFilterTestIssues();
+      const filters: FilterState = { priority: 1 };
+
+      render(<KanbanBoard issues={issues} filters={filters} />);
+
+      // Only P1 issues should be visible
+      expect(screen.getByText('Important Task')).toBeInTheDocument();
+      expect(screen.getByText('New Feature Request')).toBeInTheDocument();
+
+      // Other priorities should not be visible
+      expect(screen.queryByText('Critical Bug Fix')).not.toBeInTheDocument();
+      expect(screen.queryByText('Low Priority Task')).not.toBeInTheDocument();
+      expect(screen.queryByText('Epic for Q1')).not.toBeInTheDocument();
+    });
+
+    it('filters by type', () => {
+      const issues = createFilterTestIssues();
+      const filters: FilterState = { type: 'bug' as IssueType };
+
+      render(<KanbanBoard issues={issues} filters={filters} />);
+
+      // Only bugs should be visible
+      expect(screen.getByText('Critical Bug Fix')).toBeInTheDocument();
+
+      // Other types should not be visible
+      expect(screen.queryByText('Important Task')).not.toBeInTheDocument();
+      expect(screen.queryByText('New Feature Request')).not.toBeInTheDocument();
+      expect(screen.queryByText('Low Priority Task')).not.toBeInTheDocument();
+      expect(screen.queryByText('Epic for Q1')).not.toBeInTheDocument();
+    });
+
+    it('filters by labels (AND logic)', () => {
+      const issues = createFilterTestIssues();
+      const filters: FilterState = { labels: ['frontend'] };
+
+      render(<KanbanBoard issues={issues} filters={filters} />);
+
+      // Only issues with 'frontend' label should be visible
+      expect(screen.getByText('Important Task')).toBeInTheDocument();
+      expect(screen.getByText('New Feature Request')).toBeInTheDocument();
+
+      // Issues without 'frontend' label should not be visible
+      expect(screen.queryByText('Critical Bug Fix')).not.toBeInTheDocument();
+      expect(screen.queryByText('Low Priority Task')).not.toBeInTheDocument();
+      expect(screen.queryByText('Epic for Q1')).not.toBeInTheDocument();
+    });
+
+    it('filters by multiple labels (AND logic)', () => {
+      const issues = createFilterTestIssues();
+      const filters: FilterState = { labels: ['frontend', 'urgent'] };
+
+      render(<KanbanBoard issues={issues} filters={filters} />);
+
+      // Only issues with BOTH 'frontend' AND 'urgent' labels should be visible
+      expect(screen.getByText('Important Task')).toBeInTheDocument();
+
+      // Issues without both labels should not be visible
+      expect(screen.queryByText('New Feature Request')).not.toBeInTheDocument();
+      expect(screen.queryByText('Critical Bug Fix')).not.toBeInTheDocument();
+    });
+
+    it('filters by search (case-insensitive)', () => {
+      const issues = createFilterTestIssues();
+      const filters: FilterState = { search: 'TASK' };
+
+      render(<KanbanBoard issues={issues} filters={filters} />);
+
+      // Issues with 'task' in title (case-insensitive) should be visible
+      expect(screen.getByText('Important Task')).toBeInTheDocument();
+      expect(screen.getByText('Low Priority Task')).toBeInTheDocument();
+
+      // Issues without 'task' in title should not be visible
+      expect(screen.queryByText('Critical Bug Fix')).not.toBeInTheDocument();
+      expect(screen.queryByText('New Feature Request')).not.toBeInTheDocument();
+      expect(screen.queryByText('Epic for Q1')).not.toBeInTheDocument();
+    });
+
+    it('combines multiple filters (AND)', () => {
+      const issues = createFilterTestIssues();
+      const filters: FilterState = { priority: 1, type: 'task' as IssueType };
+
+      render(<KanbanBoard issues={issues} filters={filters} />);
+
+      // Only P1 tasks should be visible
+      expect(screen.getByText('Important Task')).toBeInTheDocument();
+
+      // P1 feature should not be visible (wrong type)
+      expect(screen.queryByText('New Feature Request')).not.toBeInTheDocument();
+      // P3 task should not be visible (wrong priority)
+      expect(screen.queryByText('Low Priority Task')).not.toBeInTheDocument();
+    });
+
+    it('updates when filters change', () => {
+      const issues = createFilterTestIssues();
+      const { rerender } = render(<KanbanBoard issues={issues} filters={{}} />);
+
+      // Initially all visible
+      expect(screen.getByText('Important Task')).toBeInTheDocument();
+      expect(screen.getByText('Critical Bug Fix')).toBeInTheDocument();
+
+      // Apply filter
+      rerender(<KanbanBoard issues={issues} filters={{ type: 'bug' as IssueType }} />);
+
+      // Only bug visible now
+      expect(screen.getByText('Critical Bug Fix')).toBeInTheDocument();
+      expect(screen.queryByText('Important Task')).not.toBeInTheDocument();
+    });
+
+    it('handles issues with undefined optional fields', () => {
+      const issuesWithMissingFields: Issue[] = [
+        createMockIssue({
+          id: 'no-labels',
+          title: 'Issue Without Labels',
+          status: 'open',
+          priority: 1,
+          issue_type: undefined,
+          labels: undefined,
+        }),
+        createMockIssue({
+          id: 'with-labels',
+          title: 'Issue With Labels',
+          status: 'open',
+          priority: 1,
+          issue_type: 'task',
+          labels: ['test'],
+        }),
+      ];
+
+      // Filter by type should exclude issue with undefined type
+      const filters: FilterState = { type: 'task' as IssueType };
+
+      render(<KanbanBoard issues={issuesWithMissingFields} filters={filters} />);
+
+      expect(screen.getByText('Issue With Labels')).toBeInTheDocument();
+      expect(screen.queryByText('Issue Without Labels')).not.toBeInTheDocument();
+    });
+
+    it('handles issues with missing labels when label filter applied', () => {
+      const issues: Issue[] = [
+        createMockIssue({
+          id: 'no-labels',
+          title: 'Issue Without Labels',
+          status: 'open',
+          labels: undefined,
+        }),
+        createMockIssue({
+          id: 'empty-labels',
+          title: 'Issue With Empty Labels',
+          status: 'open',
+          labels: [],
+        }),
+        createMockIssue({
+          id: 'with-label',
+          title: 'Issue With Label',
+          status: 'open',
+          labels: ['test'],
+        }),
+      ];
+
+      const filters: FilterState = { labels: ['test'] };
+
+      render(<KanbanBoard issues={issues} filters={filters} />);
+
+      // Only issue with matching label visible
+      expect(screen.getByText('Issue With Label')).toBeInTheDocument();
+      expect(screen.queryByText('Issue Without Labels')).not.toBeInTheDocument();
+      expect(screen.queryByText('Issue With Empty Labels')).not.toBeInTheDocument();
+    });
+
+    it('column counts reflect filtered issues', () => {
+      const issues = createFilterTestIssues();
+      const filters: FilterState = { priority: 1 };
+
+      render(<KanbanBoard issues={issues} filters={filters} />);
+
+      // Open column should show 1 (only P1 task)
+      const openColumn = screen.getByRole('region', { name: 'Open issues' });
+      expect(within(openColumn).getByLabelText('1 issue')).toBeInTheDocument();
+
+      // In Progress column should show 1 (only P1 feature)
+      const progressColumn = screen.getByRole('region', { name: 'In Progress issues' });
+      expect(within(progressColumn).getByLabelText('1 issue')).toBeInTheDocument();
+
+      // Closed column should show 0 (no P1 closed issues)
+      const closedColumn = screen.getByRole('region', { name: 'Closed issues' });
+      expect(within(closedColumn).getByLabelText('0 issues')).toBeInTheDocument();
+    });
+
+    it('empty search string shows all issues', () => {
+      const issues = createFilterTestIssues();
+      const filters: FilterState = { search: '' };
+
+      render(<KanbanBoard issues={issues} filters={filters} />);
+
+      // All issues should be visible
+      expect(screen.getByText('Important Task')).toBeInTheDocument();
+      expect(screen.getByText('Critical Bug Fix')).toBeInTheDocument();
+      expect(screen.getByText('New Feature Request')).toBeInTheDocument();
+    });
+
+    it('empty labels array shows all issues', () => {
+      const issues = createFilterTestIssues();
+      const filters: FilterState = { labels: [] };
+
+      render(<KanbanBoard issues={issues} filters={filters} />);
+
+      // All issues should be visible
+      expect(screen.getByText('Important Task')).toBeInTheDocument();
+      expect(screen.getByText('Critical Bug Fix')).toBeInTheDocument();
+      expect(screen.getByText('New Feature Request')).toBeInTheDocument();
+    });
+
+    it('filters work with all four filter types combined', () => {
+      const issues: Issue[] = [
+        createMockIssue({
+          id: 'match-all',
+          title: 'Perfect Match Issue',
+          status: 'open',
+          priority: 2,
+          issue_type: 'bug',
+          labels: ['critical', 'backend'],
+        }),
+        createMockIssue({
+          id: 'wrong-priority',
+          title: 'Perfect Match But Wrong Priority',
+          status: 'open',
+          priority: 1,
+          issue_type: 'bug',
+          labels: ['critical', 'backend'],
+        }),
+        createMockIssue({
+          id: 'wrong-type',
+          title: 'Perfect Match But Wrong Type',
+          status: 'open',
+          priority: 2,
+          issue_type: 'task',
+          labels: ['critical', 'backend'],
+        }),
+        createMockIssue({
+          id: 'wrong-labels',
+          title: 'Perfect Match But Wrong Labels',
+          status: 'open',
+          priority: 2,
+          issue_type: 'bug',
+          labels: ['frontend'],
+        }),
+        createMockIssue({
+          id: 'wrong-title',
+          title: 'Something Else Entirely',
+          status: 'open',
+          priority: 2,
+          issue_type: 'bug',
+          labels: ['critical', 'backend'],
+        }),
+      ];
+
+      const filters: FilterState = {
+        priority: 2,
+        type: 'bug' as IssueType,
+        labels: ['critical', 'backend'],
+        search: 'Perfect',
+      };
+
+      render(<KanbanBoard issues={issues} filters={filters} />);
+
+      // Only the perfect match should be visible
+      expect(screen.getByText('Perfect Match Issue')).toBeInTheDocument();
+
+      // All others should be filtered out
+      expect(screen.queryByText('Perfect Match But Wrong Priority')).not.toBeInTheDocument();
+      expect(screen.queryByText('Perfect Match But Wrong Type')).not.toBeInTheDocument();
+      expect(screen.queryByText('Perfect Match But Wrong Labels')).not.toBeInTheDocument();
+      expect(screen.queryByText('Something Else Entirely')).not.toBeInTheDocument();
     });
   });
 });
