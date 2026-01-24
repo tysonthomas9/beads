@@ -60,3 +60,11 @@ export type {
 
 export { useGraphData } from './useGraphData'
 export type { UseGraphDataOptions, UseGraphDataReturn } from './useGraphData'
+
+export { useAutoLayout } from './useAutoLayout'
+export type {
+  UseAutoLayoutOptions,
+  UseAutoLayoutReturn,
+  LayoutDirection,
+  RankAlignment,
+} from './useAutoLayout'
