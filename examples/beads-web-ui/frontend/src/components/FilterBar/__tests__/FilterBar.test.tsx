@@ -12,6 +12,7 @@ import '@testing-library/jest-dom';
 
 import { FilterBar } from '../FilterBar';
 import type { FilterState, FilterActions } from '@/hooks/useFilterState';
+import type { IssueType } from '@/types';
 
 /**
  * Create mock filter actions for controlled mode testing.
@@ -39,6 +40,13 @@ function createEmptyFilters(): FilterState {
  */
 function createFiltersWithPriority(priority: number): FilterState {
   return { priority: priority as 0 | 1 | 2 | 3 | 4 };
+}
+
+/**
+ * Create filter state with type.
+ */
+function createFiltersWithType(type: string): FilterState {
+  return { type: type as IssueType };
 }
 
 describe('FilterBar', () => {
@@ -292,7 +300,7 @@ describe('FilterBar', () => {
       const actions = createMockActions();
       render(<FilterBar filters={createEmptyFilters()} actions={actions} />);
 
-      expect(screen.getByRole('combobox')).toBeInTheDocument();
+      expect(screen.getByRole('combobox', { name: /filter by priority/i })).toBeInTheDocument();
     });
 
     it('keyboard navigation works for priority dropdown', () => {
@@ -529,6 +537,171 @@ describe('FilterBar', () => {
       const select = screen.getByTestId('priority-filter');
       expect(select).toHaveValue('1');
       expect(screen.getByTestId('clear-filters')).toBeInTheDocument();
+    });
+  });
+
+  describe('type filter rendering', () => {
+    it('renders type dropdown with data-testid', () => {
+      const actions = createMockActions();
+      render(<FilterBar filters={createEmptyFilters()} actions={actions} />);
+
+      expect(screen.getByTestId('type-filter')).toBeInTheDocument();
+    });
+
+    it('renders type dropdown with correct options', () => {
+      const actions = createMockActions();
+      render(<FilterBar filters={createEmptyFilters()} actions={actions} />);
+
+      const select = screen.getByTestId('type-filter');
+      const options = select.querySelectorAll('option');
+
+      expect(options).toHaveLength(6);
+      expect(options[0]).toHaveTextContent('All types');
+      expect(options[1]).toHaveTextContent('Bug');
+      expect(options[2]).toHaveTextContent('Feature');
+      expect(options[3]).toHaveTextContent('Task');
+      expect(options[4]).toHaveTextContent('Epic');
+      expect(options[5]).toHaveTextContent('Chore');
+    });
+
+    it('shows "All types" selected when no filter is active', () => {
+      const actions = createMockActions();
+      render(<FilterBar filters={createEmptyFilters()} actions={actions} />);
+
+      const select = screen.getByTestId('type-filter');
+      expect(select).toHaveValue('');
+    });
+
+    it('shows selected type when filter is active', () => {
+      const actions = createMockActions();
+      render(
+        <FilterBar filters={createFiltersWithType('bug')} actions={actions} />
+      );
+
+      const select = screen.getByTestId('type-filter');
+      expect(select).toHaveValue('bug');
+    });
+  });
+
+  describe('type filter interactions', () => {
+    it('calls setType with correct value when type selected', () => {
+      const actions = createMockActions();
+      render(<FilterBar filters={createEmptyFilters()} actions={actions} />);
+
+      const select = screen.getByTestId('type-filter');
+      fireEvent.change(select, { target: { value: 'feature' } });
+
+      expect(actions.setType).toHaveBeenCalledWith('feature');
+    });
+
+    it('calls setType with undefined when "All types" selected', () => {
+      const actions = createMockActions();
+      render(
+        <FilterBar filters={createFiltersWithType('task')} actions={actions} />
+      );
+
+      const select = screen.getByTestId('type-filter');
+      fireEvent.change(select, { target: { value: '' } });
+
+      expect(actions.setType).toHaveBeenCalledWith(undefined);
+    });
+
+    it('calls setType for each type value correctly', () => {
+      const types = ['bug', 'feature', 'task', 'epic', 'chore'];
+
+      types.forEach((type) => {
+        const actions = createMockActions();
+        const { unmount } = render(
+          <FilterBar filters={createEmptyFilters()} actions={actions} />
+        );
+
+        const select = screen.getByTestId('type-filter');
+        fireEvent.change(select, { target: { value: type } });
+
+        expect(actions.setType).toHaveBeenCalledWith(type);
+
+        unmount();
+      });
+    });
+  });
+
+  describe('type filter visibility', () => {
+    it('shows clear button when type is selected', () => {
+      const actions = createMockActions();
+      render(
+        <FilterBar filters={createFiltersWithType('bug')} actions={actions} />
+      );
+
+      expect(screen.getByTestId('clear-filters')).toBeInTheDocument();
+    });
+  });
+
+  describe('type filter accessibility', () => {
+    it('type dropdown has accessible label', () => {
+      const actions = createMockActions();
+      render(<FilterBar filters={createEmptyFilters()} actions={actions} />);
+
+      const select = screen.getByRole('combobox', { name: /filter by type/i });
+      expect(select).toBeInTheDocument();
+    });
+
+    it('type dropdown has associated label element', () => {
+      const actions = createMockActions();
+      render(<FilterBar filters={createEmptyFilters()} actions={actions} />);
+
+      const label = screen.getByText('Type');
+      expect(label).toBeInTheDocument();
+      expect(label).toHaveAttribute('for', 'type-filter');
+    });
+  });
+
+  describe('combined filters', () => {
+    it('renders both priority and type filters', () => {
+      const actions = createMockActions();
+      render(<FilterBar filters={createEmptyFilters()} actions={actions} />);
+
+      expect(screen.getByTestId('priority-filter')).toBeInTheDocument();
+      expect(screen.getByTestId('type-filter')).toBeInTheDocument();
+    });
+
+    it('shows clear button when both filters are active', () => {
+      const actions = createMockActions();
+      const filters: FilterState = {
+        priority: 2,
+        type: 'bug',
+      };
+
+      render(<FilterBar filters={filters} actions={actions} />);
+
+      expect(screen.getByTestId('clear-filters')).toBeInTheDocument();
+    });
+
+    it('displays both filter values correctly', () => {
+      const actions = createMockActions();
+      const filters: FilterState = {
+        priority: 1,
+        type: 'feature',
+      };
+
+      render(<FilterBar filters={filters} actions={actions} />);
+
+      expect(screen.getByTestId('priority-filter')).toHaveValue('1');
+      expect(screen.getByTestId('type-filter')).toHaveValue('feature');
+    });
+
+    it('clears both filters when clear button clicked', () => {
+      const actions = createMockActions();
+      const filters: FilterState = {
+        priority: 3,
+        type: 'task',
+      };
+
+      render(<FilterBar filters={filters} actions={actions} />);
+
+      const clearButton = screen.getByTestId('clear-filters');
+      fireEvent.click(clearButton);
+
+      expect(actions.clearAll).toHaveBeenCalledTimes(1);
     });
   });
 });

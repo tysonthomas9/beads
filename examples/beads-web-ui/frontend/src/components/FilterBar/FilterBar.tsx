@@ -1,11 +1,11 @@
 /**
  * FilterBar component.
- * UI component for filtering issues by priority.
+ * UI component for filtering issues by priority and type.
  * Integrates with useFilterState hook for URL synchronization.
  */
 
 import { useCallback } from 'react';
-import type { Priority } from '@/types';
+import type { Priority, IssueType } from '@/types';
 import {
   useFilterState,
   type FilterState,
@@ -38,6 +38,29 @@ const PRIORITY_OPTIONS: PriorityOption[] = [
 ];
 
 /**
+ * Type option for the dropdown.
+ */
+interface TypeOption {
+  /** Display label */
+  label: string;
+  /** Value (undefined = all) */
+  value: IssueType | undefined;
+}
+
+/**
+ * Type options for the dropdown.
+ * Order: All, then known types in display order.
+ */
+const TYPE_OPTIONS: TypeOption[] = [
+  { label: 'All types', value: undefined },
+  { label: 'Bug', value: 'bug' },
+  { label: 'Feature', value: 'feature' },
+  { label: 'Task', value: 'task' },
+  { label: 'Epic', value: 'epic' },
+  { label: 'Chore', value: 'chore' },
+];
+
+/**
  * Props for the FilterBar component.
  */
 export interface FilterBarProps {
@@ -52,7 +75,7 @@ export interface FilterBarProps {
 }
 
 /**
- * FilterBar renders a filter bar with priority dropdown.
+ * FilterBar renders a filter bar with priority and type dropdowns.
  * Supports both controlled and uncontrolled modes.
  *
  * @example
@@ -106,6 +129,19 @@ export function FilterBar({
     [actions]
   );
 
+  // Handle type change
+  const handleTypeChange = useCallback(
+    (event: React.ChangeEvent<HTMLSelectElement>) => {
+      const value = event.target.value;
+      if (value === '') {
+        actions.setType(undefined);
+      } else {
+        actions.setType(value as IssueType);
+      }
+    },
+    [actions]
+  );
+
   // Handle clear all
   const handleClearAll = useCallback(() => {
     actions.clearAll();
@@ -132,6 +168,30 @@ export function FilterBar({
             data-testid="priority-filter"
           >
             {PRIORITY_OPTIONS.map((option) => (
+              <option
+                key={option.value ?? 'all'}
+                value={option.value ?? ''}
+              >
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* Type dropdown */}
+        <div className={styles.filterGroup}>
+          <label htmlFor="type-filter" className={styles.label}>
+            Type
+          </label>
+          <select
+            id="type-filter"
+            className={styles.select}
+            value={filters.type ?? ''}
+            onChange={handleTypeChange}
+            aria-label="Filter by type"
+            data-testid="type-filter"
+          >
+            {TYPE_OPTIONS.map((option) => (
               <option
                 key={option.value ?? 'all'}
                 value={option.value ?? ''}
