@@ -38,3 +38,9 @@ export type { UseBulkCloseOptions, UseBulkCloseReturn } from './useBulkClose'
 
 export { useIssues } from './useIssues'
 export type { UseIssuesOptions, UseIssuesReturn } from './useIssues'
+
+export { useOptimisticStatusUpdate } from './useOptimisticStatusUpdate'
+export type {
+  UseOptimisticStatusUpdateOptions,
+  UseOptimisticStatusUpdateReturn,
+} from './useOptimisticStatusUpdate'

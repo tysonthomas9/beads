@@ -230,11 +230,9 @@ func collectAgentStatus(agentTasks map[string]TaskInfo) ([]AgentStatus, map[stri
 		} else if task, ok := agentTasks[wt.Name]; ok && task.Status == "in_progress" {
 			// Task still in_progress but no lock - agent died
 			agent.Status = fmt.Sprintf("error: %s", task.ID)
-		} else if task, ok := agentTasks[wt.Name]; ok && task.Status == "closed" {
-			// Task completed - show done state
-			agent.Status = fmt.Sprintf("done: %s", task.ID)
 		} else {
-			// No active task - check git status
+			// No lock and no in_progress task - check git status
+			// (closed tasks don't trigger "done" fallback - "done" only shows while agent is running)
 			clean, _ := IsCleanWorkingTree(wt.Path)
 			if clean {
 				agent.Status = "ready"
@@ -387,28 +385,6 @@ func collectTaskStatus() (TaskSummary, []TaskInfo, []TaskInfo, []TaskInfo, []Tas
 		var issues []BdIssue
 		if json.Unmarshal([]byte(blockedOutput), &issues) == nil {
 			summary.Blocked = len(issues)
-		}
-	}
-
-	// Also add closed tasks to agentTasks for "done" state display
-	// This helps when agents complete tasks but lock file has no TaskID (old prompts)
-	closedOutput, err := runBdCommand("list", "--status=closed", "--json")
-	if err == nil {
-		var issues []BdIssue
-		if json.Unmarshal([]byte(closedOutput), &issues) == nil {
-			for _, issue := range issues {
-				if issue.Assignee != "" {
-					// Only add if not already in agentTasks (in_progress takes precedence)
-					if _, exists := agentTasks[issue.Assignee]; !exists {
-						agentTasks[issue.Assignee] = TaskInfo{
-							ID:       issue.ID,
-							Title:    issue.Title,
-							Priority: issue.Priority,
-							Status:   "closed",
-						}
-					}
-				}
-			}
 		}
 	}
 

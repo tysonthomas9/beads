@@ -60,7 +60,7 @@ func TestGenerateTaskPrompt(t *testing.T) {
 				"Implementation Task",
 				"--design",
 				"git push origin HEAD",
-				"vibecli plan",
+				"loom plan",
 			},
 		},
 		{

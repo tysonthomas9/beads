@@ -18,3 +18,4 @@ export * from './FilterBar';
 export * from './KanbanBoard';
 export * from './BulkActionToolbar';
 export * from './ConnectionStatus';
+export * from './ErrorToast';

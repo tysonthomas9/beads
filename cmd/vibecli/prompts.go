@@ -22,7 +22,7 @@ Follow this workflow EXACTLY for ONE task.
 - Pick the HIGHEST PRIORITY task (P0 > P1 > P2 > P3 > P4) that is NOT an epic
 - Run 'bd show <id>' to understand the task requirements
 - Run 'bd update <id> --status in_progress --assignee %s' to claim it
-- Run 'vibecli claim <id>' to register the task with the agent monitor
+- Run 'loom claim <id>' to register the task with the agent monitor
 - REMEMBER this task ID and ORIGINAL TITLE
 
 ### Step 2: Research the Codebase
@@ -125,11 +125,11 @@ You are a disciplined software engineer. Follow this workflow EXACTLY for ONE ta
 - IGNORE existing assignees - if status is 'open', the task is available to claim
 - Pick the HIGHEST PRIORITY task (P0 > P1 > P2 > P3 > P4) that is NOT an epic and not already in_progress
 - Run 'bd show <id>' to understand the task requirements
-- SKIP any task that does NOT have a --design field - it must go through 'vibecli plan' first
-- If NO tasks have a --design field, STOP and tell the user: "No planned tasks available. Run 'vibecli plan' first."
+- SKIP any task that does NOT have a --design field - it must go through 'loom plan' first
+- If NO tasks have a --design field, STOP and tell the user: "No planned tasks available. Run 'loom plan' first."
 - Follow the pre-approved plan in the --design field
 - Run 'bd update <id> --status in_progress --assignee %s' to claim it
-- Run 'vibecli claim <id>' to register the task with the agent monitor
+- Run 'loom claim <id>' to register the task with the agent monitor
 - REMEMBER this task ID - you will work ONLY on this task
 
 ### Step 2: Review the Design
