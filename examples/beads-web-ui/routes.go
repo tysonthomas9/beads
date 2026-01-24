@@ -24,8 +24,10 @@ func setupRoutes(mux *http.ServeMux, pool *daemon.ConnectionPool) {
 	// Stats endpoint for project statistics
 	mux.HandleFunc("GET /api/stats", handleStats(pool))
 
-	// Phase 2 API routes
+	// Issue endpoints
+	mux.HandleFunc("GET /api/issues/{id}", handleGetIssue(pool))
 	mux.HandleFunc("GET /api/issues", handleListIssues(pool))
+
 	// mux.Handle("/api/ready", readyHandler(pool))
 
 	// WebSocket endpoint for real-time mutation events
