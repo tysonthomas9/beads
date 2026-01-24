@@ -51,6 +51,13 @@ func runTask(cmd *cobra.Command, args []string) {
 
 	agentName := GetWorktreeName(worktreePath)
 
+	// Acquire lock to prevent concurrent agents
+	if err := AcquireLock(worktreePath, "task", agentName); err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		os.Exit(1)
+	}
+	defer ReleaseLock(worktreePath)
+
 	fmt.Println("=========================================")
 	fmt.Printf("Running IMPLEMENTATION agent in: %s\n", worktreePath)
 	fmt.Printf("Agent name: %s\n", agentName)

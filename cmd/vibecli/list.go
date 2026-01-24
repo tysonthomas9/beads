@@ -18,7 +18,7 @@ var listCmd = &cobra.Command{
 Shows:
   - Worktree name
   - Current branch
-  - Working tree status (clean/dirty)
+  - Status: running agent, dirty working tree, or clean
 
 Examples:
   vibecli list                     # List all agents
@@ -48,6 +48,13 @@ func runList(cmd *cobra.Command, args []string) {
 	fmt.Println("-------------------")
 
 	for _, wt := range worktrees {
+		// Check for running agent first (highest priority)
+		lockStatus := GetLockStatus(wt.Path)
+		if lockStatus != "" {
+			fmt.Printf("  %-12s  %-20s  ● %s\n", wt.Name, wt.Branch, lockStatus)
+			continue
+		}
+
 		// Check if working tree is clean
 		clean, _ := IsCleanWorkingTree(wt.Path)
 		status := "✓ clean"
