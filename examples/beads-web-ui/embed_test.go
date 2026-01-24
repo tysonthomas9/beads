@@ -155,7 +155,7 @@ func TestFrontendHandler(t *testing.T) {
 		},
 		{
 			name:             "hashed JS asset serves with long cache",
-			path:             "/assets/index-Dcxw5X7l.js",
+			path:             "/assets/index-BVxmCqSO.js",
 			wantStatus:       http.StatusOK,
 			wantCacheControl: "public, max-age=31536000, immutable",
 			wantBodyContains: "", // don't check body for assets
