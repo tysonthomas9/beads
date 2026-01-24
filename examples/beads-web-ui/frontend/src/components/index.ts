@@ -7,6 +7,8 @@ export * from './AppLayout';
 export * from './EmptyState';
 export * from './IssueCard';
 export * from './DraggableIssueCard';
+export * from './IssueDetailPanel';
+export * from './LoadingSkeleton';
 export * from './table';
 export * from './StatusColumn';
 export * from './search';

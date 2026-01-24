@@ -15,3 +15,6 @@ export type { UseIssueFilterOptions, UseIssueFilterReturn } from './useIssueFilt
 
 export { useBlockedIssues } from './useBlockedIssues'
 export type { UseBlockedIssuesOptions, UseBlockedIssuesResult } from './useBlockedIssues'
+
+export { useMutationHandler } from './useMutationHandler'
+export type { UseMutationHandlerOptions, UseMutationHandlerReturn } from './useMutationHandler'

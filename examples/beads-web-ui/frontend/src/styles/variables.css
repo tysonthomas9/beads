@@ -55,6 +55,12 @@
   --color-highlight: #fef08a; /* yellow-200 */
 
   /* ===========================
+   * Colors - Skeleton Loading
+   * =========================== */
+  --color-skeleton-bg: var(--color-bg-tertiary);
+  --color-skeleton-shimmer: #e5e7eb; /* gray-200, slightly lighter for shimmer */
+
+  /* ===========================
    * Spacing Scale
    * =========================== */
   --space-0: 0;
