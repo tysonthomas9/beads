@@ -17,6 +17,7 @@ import {
   type DragEndEvent,
 } from '@dnd-kit/core';
 import type { Issue, Status } from '@/types';
+import type { FilterState } from '@/hooks/useFilterState';
 import { StatusColumn } from '@/components/StatusColumn';
 import { DraggableIssueCard } from '@/components/DraggableIssueCard';
 import styles from './KanbanBoard.module.css';
@@ -29,6 +30,8 @@ export interface KanbanBoardProps {
   issues: Issue[];
   /** Status columns to show, in order (default: open, in_progress, closed) */
   statuses?: Status[];
+  /** Optional filter state to apply to issues */
+  filters?: FilterState;
   /** Callback when card is clicked */
   onIssueClick?: (issue: Issue) => void;
   /** Callback when drag ends - receives issue and new status */
@@ -48,6 +51,7 @@ const DEFAULT_STATUSES: Status[] = ['open', 'in_progress', 'closed'];
 export function KanbanBoard({
   issues,
   statuses = DEFAULT_STATUSES,
+  filters,
   onIssueClick,
   onDragEnd,
   className,
@@ -62,6 +66,42 @@ export function KanbanBoard({
     useSensor(KeyboardSensor)
   );
 
+  // Filter issues based on active filters
+  const filteredIssues = useMemo(() => {
+    if (!filters) return issues;
+
+    return issues.filter((issue) => {
+      // Priority filter (exact match)
+      if (filters.priority !== undefined && issue.priority !== filters.priority) {
+        return false;
+      }
+
+      // Type filter (exact match)
+      if (filters.type !== undefined && issue.issue_type !== filters.type) {
+        return false;
+      }
+
+      // Labels filter (issue must have ALL specified labels)
+      if (filters.labels !== undefined && filters.labels.length > 0) {
+        const issueLabels = issue.labels ?? [];
+        if (!filters.labels.every((label) => issueLabels.includes(label))) {
+          return false;
+        }
+      }
+
+      // Search filter (case-insensitive title match)
+      if (filters.search !== undefined && filters.search !== '') {
+        const searchLower = filters.search.toLowerCase();
+        const titleLower = issue.title.toLowerCase();
+        if (!titleLower.includes(searchLower)) {
+          return false;
+        }
+      }
+
+      return true;
+    });
+  }, [issues, filters]);
+
   // Group issues by status for efficient rendering
   const issuesByStatus = useMemo(() => {
     const grouped = new Map<Status, Issue[]>();
@@ -69,8 +109,8 @@ export function KanbanBoard({
     for (const status of statuses) {
       grouped.set(status, []);
     }
-    // Group issues into their respective status buckets
-    for (const issue of issues) {
+    // Group filtered issues into their respective status buckets
+    for (const issue of filteredIssues) {
       const status = issue.status ?? 'open';
       const existing = grouped.get(status);
       if (existing) {
@@ -78,7 +118,7 @@ export function KanbanBoard({
       }
     }
     return grouped;
-  }, [issues, statuses]);
+  }, [filteredIssues, statuses]);
 
   // Handle drag start - store the dragged issue for DragOverlay
   const handleDragStart = useCallback((event: DragStartEvent) => {
