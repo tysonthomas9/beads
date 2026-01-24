@@ -96,6 +96,13 @@ golangci-lint run ./...
 - Script-based tests in `cmd/bd/testdata/*.txt` (see `scripttest_test.go`)
 - RPC layer has extensive isolation and edge case coverage
 
+### When Spawning Agents to Write Tests
+
+When using the Task tool to spawn agents for test writing, instruct them to:
+- **Never duplicate production code** in test files - tests should call actual production functions
+- **Use existing test infrastructure** - check for mock types and helpers already in the codebase
+- **Only mock external dependencies** - create mocks for interfaces, not reimplementations of logic
+
 ## Important Notes
 
 - **Always read AGENTS.md first** - it has the complete workflow
