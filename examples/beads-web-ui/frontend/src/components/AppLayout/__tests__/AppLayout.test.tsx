@@ -47,6 +47,13 @@ describe('AppLayout', () => {
       const rootDiv = container.firstChild;
       expect(rootDiv).toHaveClass('custom-class');
     });
+
+    it('renders empty main area when no children provided', () => {
+      render(<AppLayout>{null}</AppLayout>);
+
+      const main = screen.getByRole('main');
+      expect(main).toBeInTheDocument();
+    });
   });
 
   describe('title', () => {
@@ -82,7 +89,7 @@ describe('AppLayout', () => {
     });
   });
 
-  describe('slots', () => {
+  describe('navigation slot', () => {
     it('renders navigation slot content when provided', () => {
       render(
         <AppLayout navigation={<button>Nav Button</button>}>
@@ -94,6 +101,30 @@ describe('AppLayout', () => {
       expect(screen.getByRole('navigation')).toBeInTheDocument();
     });
 
+    it('renders navigation inside nav element', () => {
+      render(
+        <AppLayout navigation={<span data-testid="nav-content">Navigation</span>}>
+          <p>Content</p>
+        </AppLayout>
+      );
+
+      const nav = screen.getByRole('navigation');
+      expect(nav).toBeInTheDocument();
+      expect(nav).toContainElement(screen.getByTestId('nav-content'));
+    });
+
+    it('does not render nav element when navigation prop is undefined', () => {
+      render(
+        <AppLayout>
+          <p>Content</p>
+        </AppLayout>
+      );
+
+      expect(screen.queryByRole('navigation')).not.toBeInTheDocument();
+    });
+  });
+
+  describe('actions slot', () => {
     it('renders actions slot content when provided', () => {
       render(
         <AppLayout actions={<button>Action Button</button>}>
@@ -104,25 +135,16 @@ describe('AppLayout', () => {
       expect(screen.getByRole('button', { name: 'Action Button' })).toBeInTheDocument();
     });
 
-    it('does not render navigation element when prop is undefined', () => {
-      render(
-        <AppLayout>
-          <p>Content</p>
-        </AppLayout>
-      );
-
-      expect(screen.queryByRole('navigation')).not.toBeInTheDocument();
-    });
-
-    it('does not render actions element when prop is undefined', () => {
+    it('does not render actions element when actions prop is undefined', () => {
       const { container } = render(
         <AppLayout>
           <p>Content</p>
         </AppLayout>
       );
 
-      // Actions is a div, not a semantic element, so we check by class pattern
-      const actionsDiv = container.querySelector('[class*="actions"]');
+      // Check that only brand exists in header (no actions div)
+      const header = container.querySelector('header');
+      const actionsDiv = header?.querySelector('[class*="actions"]');
       expect(actionsDiv).not.toBeInTheDocument();
     });
   });
@@ -181,8 +203,8 @@ describe('AppLayout', () => {
 
       const rootDiv = container.firstChild as HTMLElement;
       const children = Array.from(rootDiv.children);
-      const headerIndex = children.findIndex(el => el.tagName === 'HEADER');
-      const mainIndex = children.findIndex(el => el.tagName === 'MAIN');
+      const headerIndex = children.findIndex((el) => el.tagName === 'HEADER');
+      const mainIndex = children.findIndex((el) => el.tagName === 'MAIN');
 
       expect(headerIndex).toBeLessThan(mainIndex);
     });
@@ -204,6 +226,79 @@ describe('AppLayout', () => {
       expect(main).toBeInTheDocument();
       expect(header?.parentElement).toBe(rootDiv);
       expect(main?.parentElement).toBe(rootDiv);
+    });
+  });
+
+  describe('props', () => {
+    it('preserves existing classes when adding custom className', () => {
+      const { container } = render(
+        <AppLayout className="custom-class">
+          <p>Content</p>
+        </AppLayout>
+      );
+
+      const root = container.firstChild as HTMLElement;
+      // Should have both the module CSS class and custom class
+      expect(root.classList.length).toBeGreaterThanOrEqual(2);
+      expect(root).toHaveClass('custom-class');
+    });
+  });
+
+  describe('edge cases', () => {
+    it('handles empty title', () => {
+      render(
+        <AppLayout title="">
+          <p>Content</p>
+        </AppLayout>
+      );
+
+      const heading = screen.getByRole('heading', { level: 1 });
+      expect(heading).toBeInTheDocument();
+      expect(heading.textContent).toBe('');
+    });
+
+    it('handles complex nested children', () => {
+      render(
+        <AppLayout>
+          <div>
+            <section>
+              <article>
+                <p data-testid="nested-content">Deeply nested</p>
+              </article>
+            </section>
+          </div>
+        </AppLayout>
+      );
+
+      expect(screen.getByTestId('nested-content')).toBeInTheDocument();
+    });
+
+    it('handles multiple children', () => {
+      render(
+        <AppLayout>
+          <div data-testid="child-1">First</div>
+          <div data-testid="child-2">Second</div>
+          <div data-testid="child-3">Third</div>
+        </AppLayout>
+      );
+
+      expect(screen.getByTestId('child-1')).toBeInTheDocument();
+      expect(screen.getByTestId('child-2')).toBeInTheDocument();
+      expect(screen.getByTestId('child-3')).toBeInTheDocument();
+    });
+
+    it('renders both navigation and actions when provided', () => {
+      render(
+        <AppLayout
+          navigation={<button>Nav</button>}
+          actions={<button>Action</button>}
+        >
+          <p>Content</p>
+        </AppLayout>
+      );
+
+      expect(screen.getByRole('button', { name: 'Nav' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Action' })).toBeInTheDocument();
     });
   });
 });

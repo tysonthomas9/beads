@@ -4,6 +4,12 @@
 
 export { IssueTable, type IssueTableProps } from './IssueTable';
 export { IssueRow, type IssueRowProps } from './IssueRow';
+export {
+  TableHeader,
+  type TableHeaderProps,
+  type SortState,
+  type SortDirection,
+} from './TableHeader';
 export { renderCellContent } from './cellRenderers';
 export {
   type ColumnDef,

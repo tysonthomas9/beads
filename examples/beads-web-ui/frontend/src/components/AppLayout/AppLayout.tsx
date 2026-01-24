@@ -1,6 +1,6 @@
 /**
- * AppLayout component.
- * Top-level layout wrapper with header and main content area.
+ * AppLayout component - top-level layout wrapper.
+ * Provides a consistent structure with fixed header and main content area.
  */
 
 import type { ReactNode } from 'react';
@@ -23,7 +23,7 @@ export interface AppLayoutProps {
 }
 
 /**
- * AppLayout provides the main application structure.
+ * AppLayout provides the top-level structure for the application.
  * Includes a sticky header with title, navigation, and actions slots,
  * and a scrollable main content area.
  */
