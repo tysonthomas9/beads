@@ -30,5 +30,5 @@
     "forceConsistentCasingInFileNames": true
   },
   "include": ["src"],
-  "exclude": ["**/*.test.ts", "**/*.spec.ts", "tests", "playwright.config.ts"]
+  "exclude": ["**/*.test.ts", "**/*.test.tsx", "**/*.spec.ts", "**/*.spec.tsx", "tests", "playwright.config.ts"]
 }
