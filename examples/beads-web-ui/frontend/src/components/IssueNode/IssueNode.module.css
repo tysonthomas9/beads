@@ -164,3 +164,30 @@
 .issueNode.selected[data-status='deferred'] {
   opacity: 1;
 }
+
+/* =================================
+ * Highlight Ready Mode
+ * When highlight-ready is enabled on container,
+ * dim non-ready nodes and enhance ready nodes.
+ * Note: Using :global() wrapper around parent selector
+ * with :local() for the CSS Module class to ensure
+ * proper scoping with hashed class names.
+ * ================================= */
+
+/* Ready nodes get enhanced when in highlight mode */
+:global([data-highlight-ready="true"]) :local(.issueNode)[data-is-ready="true"] {
+  box-shadow: var(--shadow-md), 0 0 8px color-mix(in srgb, var(--color-ready) 30%, transparent);
+}
+
+/* Non-ready nodes get dimmed when in highlight mode */
+:global([data-highlight-ready="true"]) :local(.issueNode)[data-is-ready="false"] {
+  opacity: 0.4;
+  filter: grayscale(50%);
+  transition: opacity var(--transition-normal), filter var(--transition-normal);
+}
+
+/* Override: selected nodes should never be fully dimmed */
+:global([data-highlight-ready="true"]) :local(.issueNode.selected)[data-is-ready="false"] {
+  opacity: 0.8;
+  filter: grayscale(20%);
+}

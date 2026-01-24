@@ -22,3 +22,4 @@ export * from './ErrorDisplay';
 export * from './ErrorToast';
 export * from './IssueNode';
 export * from './DependencyEdge';
+export * from './GraphControls';

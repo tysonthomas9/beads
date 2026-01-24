@@ -745,4 +745,129 @@ describe('useGraphData', () => {
       expect(edgeData?.targetIssueId).toBe('B')
     })
   })
+
+  describe('isReady computation', () => {
+    it('sets isReady: true when blockedIssueIds is undefined', () => {
+      const issue = createTestIssue({ id: 'A', status: 'open' })
+      const { result } = renderHook(() => useGraphData([issue]))
+
+      const node = result.current.nodes[0]
+      expect(node.data.isReady).toBe(true)
+    })
+
+    it('sets isReady: true when issue ID not in blockedIssueIds', () => {
+      const issue = createTestIssue({ id: 'A', status: 'open' })
+      const blockedIssueIds = new Set(['B', 'C']) // A is not blocked
+
+      const { result } = renderHook(() =>
+        useGraphData([issue], { blockedIssueIds })
+      )
+
+      const node = result.current.nodes[0]
+      expect(node.data.isReady).toBe(true)
+    })
+
+    it('sets isReady: false when issue ID in blockedIssueIds', () => {
+      const issue = createTestIssue({ id: 'A', status: 'open' })
+      const blockedIssueIds = new Set(['A']) // A is blocked
+
+      const { result } = renderHook(() =>
+        useGraphData([issue], { blockedIssueIds })
+      )
+
+      const node = result.current.nodes[0]
+      expect(node.data.isReady).toBe(false)
+    })
+
+    it('sets isReady: false for closed issues regardless of blockers', () => {
+      const issue = createTestIssue({ id: 'A', status: 'closed' })
+      const blockedIssueIds = new Set<string>() // Not blocked
+
+      const { result } = renderHook(() =>
+        useGraphData([issue], { blockedIssueIds })
+      )
+
+      const node = result.current.nodes[0]
+      expect(node.data.isReady).toBe(false)
+    })
+
+    it('sets isReady: false for deferred issues regardless of blockers', () => {
+      const issue = createTestIssue({ id: 'A', status: 'deferred' })
+      const blockedIssueIds = new Set<string>() // Not blocked
+
+      const { result } = renderHook(() =>
+        useGraphData([issue], { blockedIssueIds })
+      )
+
+      const node = result.current.nodes[0]
+      expect(node.data.isReady).toBe(false)
+    })
+
+    it('sets isReady: true for open issues without blockers', () => {
+      const issue = createTestIssue({ id: 'A', status: 'open' })
+      const blockedIssueIds = new Set<string>()
+
+      const { result } = renderHook(() =>
+        useGraphData([issue], { blockedIssueIds })
+      )
+
+      const node = result.current.nodes[0]
+      expect(node.data.isReady).toBe(true)
+    })
+
+    it('sets isReady: true for in_progress issues without blockers', () => {
+      const issue = createTestIssue({ id: 'A', status: 'in_progress' })
+      const blockedIssueIds = new Set<string>()
+
+      const { result } = renderHook(() =>
+        useGraphData([issue], { blockedIssueIds })
+      )
+
+      const node = result.current.nodes[0]
+      expect(node.data.isReady).toBe(true)
+    })
+
+    it('correctly computes isReady for multiple issues', () => {
+      const openNotBlocked = createTestIssue({ id: 'A', status: 'open' })
+      const openBlocked = createTestIssue({ id: 'B', status: 'open' })
+      const closedNotBlocked = createTestIssue({ id: 'C', status: 'closed' })
+      const inProgressNotBlocked = createTestIssue({ id: 'D', status: 'in_progress' })
+
+      const blockedIssueIds = new Set(['B'])
+
+      const { result } = renderHook(() =>
+        useGraphData(
+          [openNotBlocked, openBlocked, closedNotBlocked, inProgressNotBlocked],
+          { blockedIssueIds }
+        )
+      )
+
+      const nodeA = result.current.nodes.find((n) => n.id === 'node-A')
+      const nodeB = result.current.nodes.find((n) => n.id === 'node-B')
+      const nodeC = result.current.nodes.find((n) => n.id === 'node-C')
+      const nodeD = result.current.nodes.find((n) => n.id === 'node-D')
+
+      expect(nodeA?.data.isReady).toBe(true)  // open, not blocked
+      expect(nodeB?.data.isReady).toBe(false) // open, blocked
+      expect(nodeC?.data.isReady).toBe(false) // closed
+      expect(nodeD?.data.isReady).toBe(true)  // in_progress, not blocked
+    })
+
+    it('memoizes correctly when blockedIssueIds changes', () => {
+      const issue = createTestIssue({ id: 'A', status: 'open' })
+
+      const { result, rerender } = renderHook(
+        ({ blockedIssueIds }) => useGraphData([issue], { blockedIssueIds }),
+        { initialProps: { blockedIssueIds: new Set<string>() } }
+      )
+
+      const firstResult = result.current
+
+      // Change blockedIssueIds
+      rerender({ blockedIssueIds: new Set(['A']) })
+
+      expect(result.current).not.toBe(firstResult)
+      expect(result.current.nodes[0].data.isReady).toBe(false)
+    })
+  })
 })

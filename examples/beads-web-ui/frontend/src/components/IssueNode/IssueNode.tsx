@@ -34,7 +34,7 @@ function getPriorityLevel(priority: number | undefined): 0 | 1 | 2 | 3 | 4 {
  * IssueNode renders an issue as a React Flow node in the dependency graph.
  */
 function IssueNodeComponent({ data, selected }: IssueNodeProps): JSX.Element {
-  const { title, priority, status, issueType, dependencyCount, dependentCount, issue } = data;
+  const { title, priority, status, issueType, dependencyCount, dependentCount, issue, isReady } = data;
   const displayId = formatIssueId(issue.id);
   const displayTitle = title || 'Untitled';
   const priorityLevel = getPriorityLevel(priority);
@@ -48,6 +48,7 @@ function IssueNodeComponent({ data, selected }: IssueNodeProps): JSX.Element {
       className={rootClassName}
       data-priority={priorityLevel}
       data-status={status || 'unknown'}
+      data-is-ready={isReady}
       aria-label={`Issue: ${displayTitle}`}
     >
       {/* Target handle for incoming dependencies */}
@@ -110,7 +111,8 @@ function arePropsEqual(prev: IssueNodeProps, next: IssueNodeProps): boolean {
     prev.data.priority === next.data.priority &&
     prev.data.issueType === next.data.issueType &&
     prev.data.dependencyCount === next.data.dependencyCount &&
-    prev.data.dependentCount === next.data.dependentCount
+    prev.data.dependentCount === next.data.dependentCount &&
+    prev.data.isReady === next.data.isReady
   );
 }
 

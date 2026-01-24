@@ -40,6 +40,8 @@ function isBlockingType(type: DependencyType): boolean {
 export interface UseGraphDataOptions {
   /** Filter to include only certain dependency types in edges (default: all) */
   includeDependencyTypes?: DependencyType[]
+  /** Set of issue IDs that are blocked by open dependencies */
+  blockedIssueIds?: Set<string>
 }
 
 /**
@@ -121,11 +123,39 @@ function shouldIncludeDependency(
  * }
  * ```
  */
+/**
+ * Non-ready statuses - issues with these statuses are never "ready".
+ */
+const NON_READY_STATUSES = new Set(['closed', 'deferred'])
+
+/**
+ * Check if an issue is ready based on status and blocked state.
+ * An issue is ready if:
+ * - It's not closed or deferred
+ * - It's not in the blockedIssueIds set
+ */
+function computeIsReady(
+  issueId: string,
+  status: string | undefined,
+  blockedIssueIds: Set<string> | undefined
+): boolean {
+  // Closed and deferred issues are never ready
+  if (status && NON_READY_STATUSES.has(status)) {
+    return false
+  }
+  // If we have blocked info, check if this issue is blocked
+  if (blockedIssueIds && blockedIssueIds.has(issueId)) {
+    return false
+  }
+  // Default to ready if not blocked and not closed/deferred
+  return true
+}
+
 export function useGraphData(
   issues: Issue[],
   options: UseGraphDataOptions = {}
 ): UseGraphDataReturn {
-  const { includeDependencyTypes } = options
+  const { includeDependencyTypes, blockedIssueIds } = options
 
   return useMemo(() => {
     // Handle empty input
@@ -189,6 +219,7 @@ export function useGraphData(
         issueType: issue.issue_type,
         dependencyCount: outgoingCounts.get(issue.id) ?? 0,
         dependentCount: incomingCounts.get(issue.id) ?? 0,
+        isReady: computeIsReady(issue.id, issue.status, blockedIssueIds),
       },
     }))
 
@@ -233,5 +264,5 @@ export function useGraphData(
       totalDependencies,
       blockingDependencies,
     }
-  }, [issues, includeDependencyTypes])
+  }, [issues, includeDependencyTypes, blockedIssueIds])
 }
