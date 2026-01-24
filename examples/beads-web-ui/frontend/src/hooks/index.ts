@@ -32,3 +32,9 @@ export type { UseSelectionOptions, UseSelectionReturn } from './useSelection'
 
 export { useFilteredSelection } from './useFilteredSelection'
 export type { UseFilteredSelectionOptions, UseFilteredSelectionReturn } from './useFilteredSelection'
+
+export { useOptimisticStatusUpdate } from './useOptimisticStatusUpdate'
+export type {
+  UseOptimisticStatusUpdateOptions,
+  UseOptimisticStatusUpdateReturn,
+} from './useOptimisticStatusUpdate'
