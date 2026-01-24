@@ -18,9 +18,9 @@ func setupRoutes(mux *http.ServeMux, pool *daemon.ConnectionPool) {
 	// API health endpoint that reports daemon connection status
 	mux.HandleFunc("GET /api/health", handleAPIHealth(pool))
 
-	// Phase 2 API routes (to be implemented):
+	// Phase 2 API routes
+	mux.HandleFunc("GET /api/ready", handleReady(pool))
 	// mux.Handle("/api/issues", issuesHandler(pool))
-	// mux.Handle("/api/ready", readyHandler(pool))
 	// mux.Handle("/ws", websocketHandler(pool))
 
 	// Static file serving with SPA routing (must be last - catches all paths)
