@@ -57,3 +57,6 @@ export type {
   UseBulkPriorityReturn,
   PriorityOption,
 } from './useBulkPriority'
+
+export { useGraphData } from './useGraphData'
+export type { UseGraphDataOptions, UseGraphDataReturn } from './useGraphData'
