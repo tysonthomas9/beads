@@ -292,29 +292,35 @@ describe('StatusColumn', () => {
         </StatusColumn>
       );
 
-      // Content area should exist with role="list"
+      // Verify content area exists and has proper structure
       const contentArea = screen.getByRole('list');
       expect(contentArea).toBeInTheDocument();
+      expect(contentArea).toHaveAttribute('data-droppable-id', 'open');
 
-      // All children should be rendered
-      expect(screen.getByTestId('card-0')).toBeInTheDocument();
-      expect(screen.getByTestId('card-12')).toBeInTheDocument();
-      expect(screen.getByTestId('card-24')).toBeInTheDocument();
+      // Verify all children are rendered within the scrollable content
+      for (let i = 0; i < 25; i++) {
+        expect(screen.getByTestId(`card-${i}`)).toBeInTheDocument();
+      }
     });
 
     it('empty column has correct structure with count=0', () => {
       renderWithDndContext(<StatusColumn status="open" count={0} />);
 
-      // Content area should exist
+      // Verify header renders with count
+      expect(screen.getByRole('heading', { name: 'Open' })).toBeInTheDocument();
+      expect(screen.getByText('0')).toBeInTheDocument();
+
+      // Verify content area exists and is empty
       const contentArea = screen.getByRole('list');
       expect(contentArea).toBeInTheDocument();
-
-      // Content area should be empty
       expect(contentArea).toBeEmptyDOMElement();
 
-      // Droppable ID should still be set
+      // Verify droppable ID is still set
       const droppable = document.querySelector('[data-droppable-id="open"]');
       expect(droppable).toBeInTheDocument();
+
+      // Verify accessibility label uses plural for 0
+      expect(screen.getByLabelText('0 issues')).toBeInTheDocument();
     });
 
     it('renders with 50+ child elements without breaking layout', () => {
@@ -330,9 +336,11 @@ describe('StatusColumn', () => {
         </StatusColumn>
       );
 
-      // Component should render correctly
-      const section = screen.getByRole('region', { name: 'In Progress issues' });
-      expect(section).toBeInTheDocument();
+      // Verify component structure is intact
+      expect(
+        screen.getByRole('heading', { name: 'In Progress' })
+      ).toBeInTheDocument();
+      expect(screen.getByText('55')).toBeInTheDocument();
 
       // Content area should contain all children
       const contentArea = screen.getByRole('list');
@@ -343,6 +351,11 @@ describe('StatusColumn', () => {
       expect(screen.getByTestId('item-0')).toBeInTheDocument();
       expect(screen.getByTestId('item-27')).toBeInTheDocument();
       expect(screen.getByTestId('item-54')).toBeInTheDocument();
+
+      // Verify section structure remains valid
+      const section = screen.getByRole('region', { name: 'In Progress issues' });
+      expect(section).toBeInTheDocument();
+      expect(section).toContainElement(contentArea);
     });
   });
 });

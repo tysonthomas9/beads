@@ -3,7 +3,7 @@
  * Encapsulates row rendering logic from IssueTable for better separation of concerns.
  */
 
-import type { KeyboardEvent } from 'react';
+import type { KeyboardEvent, ChangeEvent, MouseEvent } from 'react';
 import type { Issue } from '@/types';
 import type { ColumnDef } from './columns';
 import { getCellValue } from './columns';
@@ -26,6 +26,10 @@ export interface IssueRowProps<T extends Issue> {
   onClick?: ((issue: T) => void) | undefined;
   /** Additional CSS class name */
   className?: string | undefined;
+  /** Whether to show checkbox column */
+  showCheckbox?: boolean | undefined;
+  /** Callback when checkbox state changes */
+  onSelectionChange?: ((issueId: string, selected: boolean) => void) | undefined;
 }
 
 /**
@@ -39,6 +43,8 @@ export function IssueRow<T extends Issue>({
   isClickable = false,
   onClick,
   className,
+  showCheckbox = false,
+  onSelectionChange,
 }: IssueRowProps<T>) {
   const handleClick = () => {
     if (isClickable && onClick) {
@@ -51,6 +57,15 @@ export function IssueRow<T extends Issue>({
       event.preventDefault();
       onClick(issue);
     }
+  };
+
+  const handleCheckboxChange = (e: ChangeEvent<HTMLInputElement>) => {
+    onSelectionChange?.(issue.id, e.target.checked);
+  };
+
+  const handleCheckboxClick = (e: MouseEvent<HTMLTableCellElement>) => {
+    // Prevent row click from firing
+    e.stopPropagation();
   };
 
   const rowClassName = [
@@ -71,6 +86,20 @@ export function IssueRow<T extends Issue>({
       aria-selected={isClickable ? isSelected : undefined}
       data-testid={`issue-row-${issue.id}`}
     >
+      {showCheckbox && (
+        <td
+          className="issue-table__cell issue-table__cell--checkbox"
+          onClick={handleCheckboxClick}
+        >
+          <input
+            type="checkbox"
+            className="issue-table__checkbox"
+            checked={isSelected}
+            onChange={handleCheckboxChange}
+            aria-label={`Select issue ${issue.id}`}
+          />
+        </td>
+      )}
       {columns.map((column) => {
         const value = getCellValue(issue, column);
         return (

@@ -424,4 +424,67 @@ describe('IssueTable', () => {
       expect(columns[1]?.sortable).toBe(false);
     });
   });
+
+  // ============= Checkbox Props Tests =============
+
+  describe('checkbox props', () => {
+    it('accepts showCheckbox prop', () => {
+      const props: IssueTableProps = {
+        issues: [createMockIssue()],
+        showCheckbox: true,
+      };
+      expect(props.showCheckbox).toBe(true);
+    });
+
+    it('accepts selectedIds Set prop', () => {
+      const selectedIds = new Set(['bd-001', 'bd-002']);
+      const props: IssueTableProps = {
+        issues: [
+          createMockIssue({ id: 'bd-001' }),
+          createMockIssue({ id: 'bd-002' }),
+          createMockIssue({ id: 'bd-003' }),
+        ],
+        showCheckbox: true,
+        selectedIds,
+      };
+      expect(props.selectedIds?.has('bd-001')).toBe(true);
+      expect(props.selectedIds?.has('bd-002')).toBe(true);
+      expect(props.selectedIds?.has('bd-003')).toBe(false);
+    });
+
+    it('accepts onSelectionChange callback', () => {
+      const onSelectionChange = vi.fn();
+      const props: IssueTableProps = {
+        issues: [createMockIssue()],
+        showCheckbox: true,
+        onSelectionChange,
+      };
+      expect(props.onSelectionChange).toBe(onSelectionChange);
+    });
+
+    it('showCheckbox defaults to undefined', () => {
+      const props: IssueTableProps = {
+        issues: [createMockIssue()],
+      };
+      expect(props.showCheckbox).toBeUndefined();
+    });
+
+    it('selectedIds can be undefined', () => {
+      const props: IssueTableProps = {
+        issues: [createMockIssue()],
+        showCheckbox: true,
+        // selectedIds not provided
+      };
+      expect(props.selectedIds).toBeUndefined();
+    });
+
+    it('onSelectionChange can be undefined', () => {
+      const props: IssueTableProps = {
+        issues: [createMockIssue()],
+        showCheckbox: true,
+        // onSelectionChange not provided
+      };
+      expect(props.onSelectionChange).toBeUndefined();
+    });
+  });
 });

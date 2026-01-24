@@ -88,7 +88,7 @@
   scrollbar-color: var(--color-border) transparent;
 }
 
-/* Webkit scrollbar styling (Chrome/Safari) */
+/* Webkit scrollbar styling (Chrome, Safari, Edge) */
 .content::-webkit-scrollbar {
   width: 6px;
 }
@@ -100,6 +100,7 @@
 .content::-webkit-scrollbar-thumb {
   background: var(--color-border);
   border-radius: var(--radius-full);
+  transition: background var(--transition-fast);
 }
 
 .content::-webkit-scrollbar-thumb:hover {

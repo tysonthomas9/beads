@@ -51,10 +51,11 @@ type MonitorData struct {
 	Timestamp          time.Time
 	Agents             []AgentStatus
 	Tasks              TaskSummary
-	NeedsPlanningTasks []TaskInfo // Ready tasks without design (top 5)
-	ReadyToImplement   []TaskInfo // Ready tasks with design (top 5)
-	ReviewTasks        []TaskInfo // top 5 need review tasks
-	InProgressTasks    []TaskInfo // all in_progress tasks
+	NeedsPlanningTasks []TaskInfo          // Ready tasks without design (top 5)
+	ReadyToImplement   []TaskInfo          // Ready tasks with design (top 5)
+	ReviewTasks        []TaskInfo          // top 5 need review tasks
+	InProgressTasks    []TaskInfo          // all in_progress tasks
+	AgentTasks         map[string]TaskInfo // agent name -> current task (from assignee)
 	SyncStatus         SyncInfo
 	Stats              MonitorStats
 }
@@ -110,6 +111,7 @@ type BdIssue struct {
 	Priority  int    `json:"priority"`
 	IssueType string `json:"issue_type"`
 	Design    string `json:"design"`
+	Assignee  string `json:"assignee"`
 }
 
 // BdStats represents output from bd stats --json
@@ -145,11 +147,11 @@ func clearScreen() {
 func collectMonitorData() *MonitorData {
 	data := &MonitorData{Timestamp: time.Now()}
 
-	// Collect agents
-	data.Agents = collectAgentStatus()
+	// Collect tasks FIRST to get agent-task mapping
+	data.Tasks, data.NeedsPlanningTasks, data.ReadyToImplement, data.ReviewTasks, data.InProgressTasks, data.AgentTasks = collectTaskStatus()
 
-	// Collect tasks
-	data.Tasks, data.NeedsPlanningTasks, data.ReadyToImplement, data.ReviewTasks, data.InProgressTasks = collectTaskStatus()
+	// Collect agents, passing the task map for fallback lookup
+	data.Agents = collectAgentStatus(data.AgentTasks)
 
 	// Collect sync status
 	data.SyncStatus = collectSyncStatus(data.Agents)
@@ -160,7 +162,7 @@ func collectMonitorData() *MonitorData {
 	return data
 }
 
-func collectAgentStatus() []AgentStatus {
+func collectAgentStatus(agentTasks map[string]TaskInfo) []AgentStatus {
 	worktrees, err := DiscoverWorktrees()
 	if err != nil {
 		return nil
@@ -176,7 +178,17 @@ func collectAgentStatus() []AgentStatus {
 		// Check for running agent (lock status)
 		lockStatus := GetLockStatus(wt.Path)
 		if lockStatus != "" {
+			// Lock file has status - check if it needs task ID from fallback
+			if strings.Contains(lockStatus, "...") {
+				if task, ok := agentTasks[wt.Name]; ok {
+					// Replace "..." with actual task ID from assignee
+					lockStatus = strings.Replace(lockStatus, "...", task.ID, 1)
+				}
+			}
 			agent.Status = lockStatus
+		} else if task, ok := agentTasks[wt.Name]; ok {
+			// Fallback: agent has assigned task but no lock - assume it's implementing
+			agent.Status = fmt.Sprintf("task: %s", task.ID)
 		} else {
 			// Check git status
 			clean, _ := IsCleanWorkingTree(wt.Path)
@@ -221,12 +233,13 @@ func getWorktreeGitSyncStatus(path string) (ahead, behind int) {
 	return ahead, behind
 }
 
-func collectTaskStatus() (TaskSummary, []TaskInfo, []TaskInfo, []TaskInfo, []TaskInfo) {
+func collectTaskStatus() (TaskSummary, []TaskInfo, []TaskInfo, []TaskInfo, []TaskInfo, map[string]TaskInfo) {
 	var summary TaskSummary
 	var needsPlanningTasks []TaskInfo
 	var readyToImplementTasks []TaskInfo
 	var reviewTasks []TaskInfo
 	var inProgressTasks []TaskInfo
+	agentTasks := make(map[string]TaskInfo)
 
 	// Get ready tasks, split by workflow stage
 	readyOutput, err := runBdCommand("ready", "--json")
@@ -277,18 +290,23 @@ func collectTaskStatus() (TaskSummary, []TaskInfo, []TaskInfo, []TaskInfo, []Tas
 		}
 	}
 
-	// Get in_progress tasks (all)
+	// Get in_progress tasks (all) and build agent-task map
 	inProgressOutput, err := runBdCommand("list", "--status=in_progress", "--json")
 	if err == nil {
 		var issues []BdIssue
 		if json.Unmarshal([]byte(inProgressOutput), &issues) == nil {
 			summary.InProgress = len(issues)
 			for _, issue := range issues {
-				inProgressTasks = append(inProgressTasks, TaskInfo{
+				taskInfo := TaskInfo{
 					ID:       issue.ID,
 					Title:    issue.Title,
 					Priority: issue.Priority,
-				})
+				}
+				inProgressTasks = append(inProgressTasks, taskInfo)
+				// Build agent-task map from assignee field
+				if issue.Assignee != "" {
+					agentTasks[issue.Assignee] = taskInfo
+				}
 			}
 		}
 	}
@@ -324,7 +342,7 @@ func collectTaskStatus() (TaskSummary, []TaskInfo, []TaskInfo, []TaskInfo, []Tas
 		}
 	}
 
-	return summary, needsPlanningTasks, readyToImplementTasks, reviewTasks, inProgressTasks
+	return summary, needsPlanningTasks, readyToImplementTasks, reviewTasks, inProgressTasks, agentTasks
 }
 
 func collectSyncStatus(agents []AgentStatus) SyncInfo {
@@ -402,7 +420,8 @@ func renderDashboard(data *MonitorData) string {
 	sb.WriteString(renderBoxSeparator(width))
 	for _, agent := range data.Agents {
 		statusIcon := "✓"
-		if strings.Contains(agent.Status, "running") {
+		// Running agents show "task:" or "plan:" prefix
+		if strings.HasPrefix(agent.Status, "task:") || strings.HasPrefix(agent.Status, "plan:") {
 			statusIcon = "●"
 		} else if strings.Contains(agent.Status, "changes") || agent.Status == "dirty" {
 			statusIcon = "●"
@@ -442,12 +461,11 @@ func renderDashboard(data *MonitorData) string {
 	planningAgents := 0
 	implementAgents := 0
 	for _, agent := range data.Agents {
-		if strings.Contains(agent.Status, "running") {
-			if strings.Contains(agent.Status, "plan") {
-				planningAgents++
-			} else if strings.Contains(agent.Status, "task") {
-				implementAgents++
-			}
+		// Running agents show "task:" or "plan:" prefix
+		if strings.HasPrefix(agent.Status, "plan:") {
+			planningAgents++
+		} else if strings.HasPrefix(agent.Status, "task:") {
+			implementAgents++
 		}
 	}
 

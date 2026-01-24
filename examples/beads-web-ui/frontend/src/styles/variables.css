@@ -36,6 +36,11 @@
   --color-info: #06b6d4;    /* cyan-500 */
 
   /* ===========================
+   * Colors - Issue Type
+   * =========================== */
+  --color-type-epic: #8b5cf6; /* purple-500 */
+
+  /* ===========================
    * Colors - Neutral (Light Theme)
    * =========================== */
   --color-bg: #ffffff;

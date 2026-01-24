@@ -148,6 +148,7 @@ func IsProcessRunning(pid int) bool {
 }
 
 // GetLockStatus returns a human-readable status for a worktree's lock
+// Format: "{command}: {taskID} ({duration})" or "{command}: ... ({duration})" if no task yet
 func GetLockStatus(worktreePath string) string {
 	info, running, err := CheckLock(worktreePath)
 	if err != nil || !running {
@@ -161,16 +162,15 @@ func GetLockStatus(worktreePath string) string {
 		taskStatus := getTaskStatus(info.TaskID)
 		switch taskStatus {
 		case "needs_review":
-			return fmt.Sprintf("done → review (%s)", duration)
+			return fmt.Sprintf("%s: %s → review (%s)", info.Command, info.TaskID, duration)
 		case "closed":
-			return fmt.Sprintf("done (%s)", duration)
-		case "in_progress":
-			return fmt.Sprintf("working: %s (%s)", info.TaskID, duration)
+			return fmt.Sprintf("%s: %s done (%s)", info.Command, info.TaskID, duration)
 		default:
-			return fmt.Sprintf("running %s: %s (%s)", info.Command, info.TaskID, duration)
+			return fmt.Sprintf("%s: %s (%s)", info.Command, info.TaskID, duration)
 		}
 	}
-	return fmt.Sprintf("running (%s, %s)", info.Command, duration)
+	// No TaskID yet - show just command type with ellipsis
+	return fmt.Sprintf("%s: ... (%s)", info.Command, duration)
 }
 
 // getTaskStatus returns the status of a beads task
