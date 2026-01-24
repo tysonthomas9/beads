@@ -50,3 +50,10 @@ export type {
   UseFallbackPollingOptions,
   UseFallbackPollingReturn,
 } from './useFallbackPolling'
+
+export { useBulkPriority, PRIORITY_OPTIONS } from './useBulkPriority'
+export type {
+  UseBulkPriorityOptions,
+  UseBulkPriorityReturn,
+  PriorityOption,
+} from './useBulkPriority'
