@@ -3,6 +3,19 @@
  * Uses CSS Modules for component-scoped styling.
  */
 
+/* ===========================
+ * Pulse Animation
+ * Used for transient states (connecting/reconnecting)
+ * =========================== */
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
 .connectionStatus {
   display: inline-flex;
   align-items: center;
@@ -55,14 +68,16 @@
   background-color: var(--color-success);
 }
 
-/* Connecting - warning amber */
+/* Connecting - warning amber with pulse */
 .connectionStatus[data-state='connecting'] .indicator {
   background-color: var(--color-warning);
+  animation: pulse 1.5s ease-in-out infinite;
 }
 
-/* Reconnecting - warning amber */
+/* Reconnecting - warning amber with pulse */
 .connectionStatus[data-state='reconnecting'] .indicator {
   background-color: var(--color-warning);
+  animation: pulse 1.5s ease-in-out infinite;
 }
 
 /* Disconnected - danger red */
@@ -112,4 +127,39 @@
 
 .retryButton:active {
   background: var(--color-bg-tertiary);
+}
+
+/* ===========================
+ * Disconnected state text emphasis
+ * Red text provides urgency/warning
+ * =========================== */
+.connectionStatus[data-state='disconnected'] .text {
+  color: var(--color-danger);
+}
+
+/* ===========================
+ * Badge variant border colors by state
+ * Subtle tint to reinforce state
+ * =========================== */
+.badge[data-state='connected'] {
+  border-color: var(--color-success);
+}
+
+.badge[data-state='connecting'],
+.badge[data-state='reconnecting'] {
+  border-color: var(--color-warning);
+}
+
+.badge[data-state='disconnected'] {
+  border-color: var(--color-danger);
+}
+
+/* ===========================
+ * Accessibility: Reduced Motion
+ * Disables pulse animation for users who prefer reduced motion
+ * =========================== */
+@media (prefers-reduced-motion: reduce) {
+  .indicator {
+    animation: none !important;
+  }
 }
