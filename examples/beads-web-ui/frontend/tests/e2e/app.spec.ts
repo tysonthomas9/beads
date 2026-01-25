@@ -19,7 +19,8 @@ test.describe("App", () => {
   test("displays connection status", async ({ page }) => {
     await page.goto("/")
     // The app now shows a connection status indicator in the header
-    await expect(page.locator('[role="status"]')).toBeVisible()
+    // Use data-state attribute to find ConnectionStatus specifically (dnd-kit adds other status elements)
+    await expect(page.locator('[data-state]')).toBeVisible()
   })
 
   test("has no console errors on load", async ({ page }) => {

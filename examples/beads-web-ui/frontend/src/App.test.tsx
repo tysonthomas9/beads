@@ -15,10 +15,39 @@ import App from './App';
 import type { ConnectionState } from '@/api/websocket';
 import type { UseIssuesReturn } from '@/hooks/useIssues';
 
-// Mock useIssues and useViewState hooks
+// Create a hoisted mock for useIssues that can be shared across mock definitions
+const { mockUseIssues } = vi.hoisted(() => ({
+  mockUseIssues: vi.fn(),
+}));
+
+// Mock the hooks barrel file - includes useIssues, useViewState, and filter hooks
 vi.mock('@/hooks', () => ({
-  useIssues: vi.fn(),
+  useIssues: mockUseIssues,
   useViewState: vi.fn(() => ['kanban', vi.fn()]),
+  useFilterState: vi.fn(() => [
+    {}, // FilterState
+    {
+      setPriority: vi.fn(),
+      setType: vi.fn(),
+      setLabels: vi.fn(),
+      setSearch: vi.fn(),
+      clearFilter: vi.fn(),
+      clearAll: vi.fn(),
+    }, // FilterActions
+  ]),
+  useIssueFilter: vi.fn((issues: unknown[]) => ({
+    filteredIssues: issues,
+    count: Array.isArray(issues) ? issues.length : 0,
+    totalCount: Array.isArray(issues) ? issues.length : 0,
+    hasActiveFilters: false,
+    activeFilters: [],
+  })),
+  useDebounce: vi.fn((value: unknown) => value),
+}));
+
+// Also mock the direct useIssues import path
+vi.mock('@/hooks/useIssues', () => ({
+  useIssues: mockUseIssues,
 }));
 
 // Import the mocked module for type-safe access
@@ -75,6 +104,17 @@ describe('App', () => {
       render(<App />);
 
       expect(screen.getByTestId('view-switcher')).toBeInTheDocument();
+    });
+
+    it('renders KanbanBoard in main content by default', () => {
+      vi.mocked(useIssues).mockReturnValue(createMockUseIssuesReturn());
+
+      render(<App />);
+
+      // KanbanBoard renders with status columns
+      expect(screen.getByRole('heading', { name: 'Open' })).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'In Progress' })).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'Closed' })).toBeInTheDocument();
     });
   });
 

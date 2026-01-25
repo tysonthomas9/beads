@@ -14,13 +14,46 @@ import App from '../App';
 import type { Issue, Status } from '@/types';
 import type { ConnectionState } from '@/api/websocket';
 
-// Mock the useIssues hook
+// Create a hoisted mock for useIssues that can be shared across mock definitions
+const { mockUseIssues } = vi.hoisted(() => ({
+  mockUseIssues: vi.fn(),
+}));
+
+// Mock the useIssues hook from its direct module
 vi.mock('@/hooks/useIssues', () => ({
-  useIssues: vi.fn(),
+  useIssues: mockUseIssues,
+}));
+
+// Mock the hooks barrel file that App.tsx imports from
+vi.mock('@/hooks', () => ({
+  useIssues: mockUseIssues,
+  useViewState: vi.fn(() => ['kanban', vi.fn()]),
+  useFilterState: vi.fn(() => [
+    {}, // FilterState
+    {
+      setPriority: vi.fn(),
+      setType: vi.fn(),
+      setLabels: vi.fn(),
+      setSearch: vi.fn(),
+      clearFilter: vi.fn(),
+      clearAll: vi.fn(),
+    }, // FilterActions
+  ]),
+  useIssueFilter: vi.fn((issues: unknown[]) => ({
+    filteredIssues: issues,
+    count: Array.isArray(issues) ? issues.length : 0,
+    totalCount: Array.isArray(issues) ? issues.length : 0,
+    hasActiveFilters: false,
+    activeFilters: [],
+  })),
+  useDebounce: vi.fn((value: unknown) => value),
 }));
 
 // Import the mocked module
 import { useIssues } from '@/hooks/useIssues';
+
+// Alias for convenience in tests
+const useIssuesMock = mockUseIssues;
 
 /**
  * Create a mock issue for testing.
@@ -305,9 +338,10 @@ describe('App', () => {
 
       const { container } = render(<App />);
 
-      // The loading state has a flex container with gap styling
+      // The loading state has a flex container with gap and padding styling
+      // Use padding to distinguish from filter navigation (which only has gap)
       const loadingFlexContainer = container.querySelector(
-        'div[style*="gap: 1rem"]'
+        'div[style*="padding: 1rem"]'
       );
       expect(loadingFlexContainer).not.toBeInTheDocument();
     });
@@ -653,6 +687,77 @@ describe('App', () => {
       // Verify success state
       expect(screen.queryByTestId('error-display')).not.toBeInTheDocument();
       expect(screen.getByText('Retrieved Issue')).toBeInTheDocument();
+    });
+  });
+
+  describe('filter integration', () => {
+    it('renders SearchInput in the navigation slot', () => {
+      const mockReturn = createMockUseIssuesReturn({
+        issues: [createMockIssue()],
+      });
+      vi.mocked(useIssues).mockReturnValue(mockReturn);
+
+      render(<App />);
+
+      // SearchInput should be rendered with the search input test id
+      expect(screen.getByTestId('search-input')).toBeInTheDocument();
+      expect(screen.getByPlaceholderText('Search issues...')).toBeInTheDocument();
+    });
+
+    it('renders FilterBar in the navigation slot', () => {
+      const mockReturn = createMockUseIssuesReturn({
+        issues: [createMockIssue()],
+      });
+      vi.mocked(useIssues).mockReturnValue(mockReturn);
+
+      render(<App />);
+
+      // FilterBar should be rendered with its test id
+      expect(screen.getByTestId('filter-bar')).toBeInTheDocument();
+      expect(screen.getByTestId('priority-filter')).toBeInTheDocument();
+      expect(screen.getByTestId('type-filter')).toBeInTheDocument();
+    });
+
+    it('does not render filter navigation in loading state', () => {
+      const mockReturn = createMockUseIssuesReturn({
+        isLoading: true,
+      });
+      vi.mocked(useIssues).mockReturnValue(mockReturn);
+
+      render(<App />);
+
+      // FilterBar and SearchInput should not be rendered in loading state
+      expect(screen.queryByTestId('search-input')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('filter-bar')).not.toBeInTheDocument();
+    });
+
+    it('does not render filter navigation in error state', () => {
+      const mockReturn = createMockUseIssuesReturn({
+        isLoading: false,
+        error: 'Network error',
+      });
+      vi.mocked(useIssues).mockReturnValue(mockReturn);
+
+      render(<App />);
+
+      // FilterBar and SearchInput should not be rendered in error state
+      expect(screen.queryByTestId('search-input')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('filter-bar')).not.toBeInTheDocument();
+    });
+
+    it('passes filtered issues to KanbanBoard', () => {
+      const issues = [
+        createMockIssue({ id: 'issue-1', title: 'First Issue', status: 'open' }),
+        createMockIssue({ id: 'issue-2', title: 'Second Issue', status: 'closed' }),
+      ];
+      const mockReturn = createMockUseIssuesReturn({ issues });
+      vi.mocked(useIssues).mockReturnValue(mockReturn);
+
+      render(<App />);
+
+      // With the mock returning all issues, both should be visible
+      expect(screen.getByText('First Issue')).toBeInTheDocument();
+      expect(screen.getByText('Second Issue')).toBeInTheDocument();
     });
   });
 });

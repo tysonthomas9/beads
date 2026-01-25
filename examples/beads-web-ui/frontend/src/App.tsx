@@ -2,12 +2,13 @@
  * Main App component.
  * Wires useIssues hook to KanbanBoard with loading states, error handling,
  * and optimistic drag-drop updates. Manages view switching between Kanban,
- * Table, and Graph views with URL synchronization.
+ * Table, and Graph views with URL synchronization. Supports filtering and
+ * search across all views.
  */
 
 import { useState, useCallback, useEffect, useRef } from 'react';
 import type { Status } from '@/types';
-import { useIssues, useViewState } from '@/hooks';
+import { useIssues, useViewState, useFilterState, useIssueFilter, useDebounce } from '@/hooks';
 import {
   AppLayout,
   KanbanBoard,
@@ -18,6 +19,8 @@ import {
   ErrorDisplay,
   ConnectionStatus,
   ErrorToast,
+  FilterBar,
+  SearchInput,
 } from '@/components';
 
 function App() {
@@ -33,6 +36,29 @@ function App() {
   } = useIssues();
 
   const [activeView, setActiveView] = useViewState();
+
+  // Filter state with URL synchronization
+  const [filters, filterActions] = useFilterState();
+
+  // Local search state with debouncing
+  const [searchValue, setSearchValue] = useState(filters.search ?? '');
+  const debouncedSearch = useDebounce(searchValue, 300);
+
+  // Sync debounced search to filter state
+  useEffect(() => {
+    filterActions.setSearch(debouncedSearch || undefined);
+  }, [debouncedSearch, filterActions]);
+
+  // Apply filters to issues
+  // Build filter options conditionally to satisfy exactOptionalPropertyTypes
+  const filterOptions: Parameters<typeof useIssueFilter>[1] = {};
+  if (filters.search !== undefined) filterOptions.searchTerm = filters.search;
+  if (filters.priority !== undefined) filterOptions.priority = filters.priority;
+  if (filters.type !== undefined) filterOptions.issueType = filters.type;
+  if (filters.labels !== undefined) filterOptions.labels = filters.labels;
+
+  const { filteredIssues } = useIssueFilter(issues, filterOptions);
+
   const [toastError, setToastError] = useState<string | null>(null);
   const mountedRef = useRef(true);
 
@@ -60,7 +86,13 @@ function App() {
   // Stable callback for ErrorToast to avoid timer resets
   const handleToastDismiss = useCallback(() => setToastError(null), []);
 
-  // Loading state: show skeleton columns
+  // Handle search clear to sync both local and filter state
+  const handleSearchClear = useCallback(() => {
+    setSearchValue('');
+    filterActions.setSearch(undefined);
+  }, [filterActions]);
+
+  // Loading state: show skeleton columns (ViewSwitcher disabled, no filters)
   if (isLoading) {
     return (
       <AppLayout
@@ -82,7 +114,7 @@ function App() {
     );
   }
 
-  // Error state: show error display with retry
+  // Error state: show error display with retry (ViewSwitcher disabled, no filters)
   if (error && !isLoading) {
     return (
       <AppLayout
@@ -111,15 +143,28 @@ function App() {
     );
   }
 
-  // Success state: show view based on activeView
+  // Navigation element with view switcher, search, and filters (success state only)
+  const navigation = (
+    <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+      <ViewSwitcher
+        activeView={activeView}
+        onChange={setActiveView}
+      />
+      <SearchInput
+        value={searchValue}
+        onChange={setSearchValue}
+        onClear={handleSearchClear}
+        placeholder="Search issues..."
+        size="sm"
+      />
+      <FilterBar filters={filters} actions={filterActions} />
+    </div>
+  );
+
+  // Success state: show view based on activeView with filtered issues
   return (
     <AppLayout
-      navigation={
-        <ViewSwitcher
-          activeView={activeView}
-          onChange={setActiveView}
-        />
-      }
+      navigation={navigation}
       actions={
         <ConnectionStatus
           state={connectionState}
@@ -129,13 +174,13 @@ function App() {
       }
     >
       {activeView === 'kanban' && (
-        <KanbanBoard issues={issues} onDragEnd={handleDragEnd} />
+        <KanbanBoard issues={filteredIssues} onDragEnd={handleDragEnd} />
       )}
       {activeView === 'table' && (
-        <IssueTable issues={issues} sortable />
+        <IssueTable issues={filteredIssues} sortable />
       )}
       {activeView === 'graph' && (
-        <GraphView issues={issues} />
+        <GraphView issues={filteredIssues} />
       )}
       {toastError && (
         <ErrorToast message={toastError} onDismiss={handleToastDismiss} />
