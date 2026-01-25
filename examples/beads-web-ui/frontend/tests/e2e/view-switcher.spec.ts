@@ -1,0 +1,213 @@
+import { test, expect } from "@playwright/test"
+
+/**
+ * Mock issues for testing view switching.
+ * Minimal data required for views to render.
+ */
+const mockIssues = [
+  {
+    id: "test-1",
+    title: "Test Issue",
+    status: "open",
+    priority: 2,
+    issue_type: "task",
+    created_at: "2026-01-24T10:00:00Z",
+    updated_at: "2026-01-24T10:00:00Z",
+  },
+]
+
+test.describe("ViewSwitcher URL Sync", () => {
+  test("clicking Table tab updates URL to ?view=table", async ({ page }) => {
+    // Mock the /api/ready endpoint
+    await page.route("**/api/ready", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          success: true,
+          data: mockIssues,
+        }),
+      })
+    })
+
+    // Mock WebSocket to prevent connection errors
+    await page.route("**/ws", async (route) => {
+      await route.abort()
+    })
+
+    // Navigate to root (default kanban view) and wait for API response
+    const [response] = await Promise.all([
+      page.waitForResponse((res) => res.url().includes("/api/ready") && res.status() === 200),
+      page.goto("/"),
+    ])
+    expect(response.ok()).toBe(true)
+
+    // Verify URL has no view param initially
+    expect(page.url()).not.toContain("view=")
+
+    // Wait for ViewSwitcher to be visible and click Table tab
+    const tableTab = page.getByTestId("view-tab-table")
+    await expect(tableTab).toBeVisible()
+    await tableTab.click()
+
+    // Verify URL now contains ?view=table
+    expect(page.url()).toContain("view=table")
+
+    // Verify Table tab is selected
+    await expect(tableTab).toHaveAttribute("aria-selected", "true")
+  })
+
+  test("clicking Graph tab updates URL to ?view=graph", async ({ page }) => {
+    // Mock the /api/ready endpoint
+    await page.route("**/api/ready", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          success: true,
+          data: mockIssues,
+        }),
+      })
+    })
+
+    // Mock WebSocket to prevent connection errors
+    await page.route("**/ws", async (route) => {
+      await route.abort()
+    })
+
+    // Navigate to root and wait for API response
+    const [response] = await Promise.all([
+      page.waitForResponse((res) => res.url().includes("/api/ready") && res.status() === 200),
+      page.goto("/"),
+    ])
+    expect(response.ok()).toBe(true)
+
+    // Wait for ViewSwitcher to be visible and click Graph tab
+    const graphTab = page.getByTestId("view-tab-graph")
+    await expect(graphTab).toBeVisible()
+    await graphTab.click()
+
+    // Verify URL contains ?view=graph
+    expect(page.url()).toContain("view=graph")
+
+    // Verify Graph tab is selected
+    await expect(graphTab).toHaveAttribute("aria-selected", "true")
+  })
+
+  test("clicking Kanban tab removes view param from URL", async ({ page }) => {
+    // Mock the /api/ready endpoint
+    await page.route("**/api/ready", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          success: true,
+          data: mockIssues,
+        }),
+      })
+    })
+
+    // Mock WebSocket to prevent connection errors
+    await page.route("**/ws", async (route) => {
+      await route.abort()
+    })
+
+    // Navigate to root and wait for API response
+    const [response] = await Promise.all([
+      page.waitForResponse((res) => res.url().includes("/api/ready") && res.status() === 200),
+      page.goto("/"),
+    ])
+    expect(response.ok()).toBe(true)
+
+    // Wait for ViewSwitcher to be visible and switch to Table view first
+    const tableTab = page.getByTestId("view-tab-table")
+    await expect(tableTab).toBeVisible()
+    await tableTab.click()
+
+    // Verify URL has view param after clicking Table
+    expect(page.url()).toContain("view=table")
+
+    // Click Kanban tab
+    const kanbanTab = page.getByTestId("view-tab-kanban")
+    await expect(kanbanTab).toBeVisible()
+    await kanbanTab.click()
+
+    // Verify URL no longer has view param (clean URL for default)
+    expect(page.url()).not.toContain("view=")
+
+    // Verify Kanban tab is selected
+    await expect(kanbanTab).toHaveAttribute("aria-selected", "true")
+  })
+
+  test("navigating to ?view=table loads Table view", async ({ page }) => {
+    // Mock the /api/ready endpoint
+    await page.route("**/api/ready", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          success: true,
+          data: mockIssues,
+        }),
+      })
+    })
+
+    // Mock WebSocket to prevent connection errors
+    await page.route("**/ws", async (route) => {
+      await route.abort()
+    })
+
+    // Navigate directly to table view via URL
+    const [response] = await Promise.all([
+      page.waitForResponse((res) => res.url().includes("/api/ready") && res.status() === 200),
+      page.goto("/?view=table"),
+    ])
+    expect(response.ok()).toBe(true)
+
+    // Verify Table tab is selected
+    const tableTab = page.getByTestId("view-tab-table")
+    await expect(tableTab).toBeVisible()
+    await expect(tableTab).toHaveAttribute("aria-selected", "true")
+
+    // Verify Kanban tab is not selected
+    const kanbanTab = page.getByTestId("view-tab-kanban")
+    await expect(kanbanTab).toHaveAttribute("aria-selected", "false")
+  })
+
+  test("navigating to ?view=graph loads Graph view", async ({ page }) => {
+    // Mock the /api/ready endpoint
+    await page.route("**/api/ready", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          success: true,
+          data: mockIssues,
+        }),
+      })
+    })
+
+    // Mock WebSocket to prevent connection errors
+    await page.route("**/ws", async (route) => {
+      await route.abort()
+    })
+
+    // Navigate directly to graph view via URL
+    const [response] = await Promise.all([
+      page.waitForResponse((res) => res.url().includes("/api/ready") && res.status() === 200),
+      page.goto("/?view=graph"),
+    ])
+    expect(response.ok()).toBe(true)
+
+    // Verify Graph tab is selected
+    const graphTab = page.getByTestId("view-tab-graph")
+    await expect(graphTab).toBeVisible()
+    await expect(graphTab).toHaveAttribute("aria-selected", "true")
+
+    // Verify other tabs are not selected
+    const kanbanTab = page.getByTestId("view-tab-kanban")
+    const tableTab = page.getByTestId("view-tab-table")
+    await expect(kanbanTab).toHaveAttribute("aria-selected", "false")
+    await expect(tableTab).toHaveAttribute("aria-selected", "false")
+  })
+})
