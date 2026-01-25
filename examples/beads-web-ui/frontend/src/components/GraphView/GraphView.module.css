@@ -51,3 +51,11 @@
 .graphView :global(#arrow) path {
   fill: var(--color-border);
 }
+
+/* Legend positioned at bottom-left */
+.legend {
+  position: absolute;
+  bottom: var(--space-3);
+  left: var(--space-3);
+  z-index: 10;
+}
