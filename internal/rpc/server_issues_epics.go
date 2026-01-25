@@ -753,21 +753,24 @@ func (s *Server) handleUpdate(req *Request) Response {
 		}
 	}
 
+	// Fetch updated issue before emitting mutation to ensure we have current data
+	updatedIssue, getErr := store.GetIssue(ctx, updateArgs.ID)
+	if getErr != nil {
+		return Response{
+			Success: false,
+			Error:   fmt.Sprintf("failed to get updated issue: %v", getErr),
+		}
+	}
+
 	// Emit mutation event for event-driven daemon (only if any updates or label/parent operations were performed)
 	if len(updates) > 0 || len(updateArgs.SetLabels) > 0 || len(updateArgs.AddLabels) > 0 || len(updateArgs.RemoveLabels) > 0 || updateArgs.Parent != nil {
-		// Determine effective assignee: use new assignee from update if provided, otherwise use existing
-		effectiveAssignee := issue.Assignee
-		if updateArgs.Assignee != nil && *updateArgs.Assignee != "" {
-			effectiveAssignee = *updateArgs.Assignee
-		}
-
 		// Check if this was a status change - emit rich MutationStatus event
 		if updateArgs.Status != nil && *updateArgs.Status != string(issue.Status) {
 			s.emitRichMutation(MutationEvent{
 				Type:      MutationStatus,
 				IssueID:   updateArgs.ID,
-				Title:     issue.Title,
-				Assignee:  effectiveAssignee,
+				Title:     updatedIssue.Title,
+				Assignee:  updatedIssue.Assignee,
 				Actor:     actor,
 				OldStatus: string(issue.Status),
 				NewStatus: *updateArgs.Status,
@@ -776,18 +779,10 @@ func (s *Server) handleUpdate(req *Request) Response {
 			s.emitRichMutation(MutationEvent{
 				Type:     MutationUpdate,
 				IssueID:  updateArgs.ID,
-				Title:    issue.Title,
-				Assignee: effectiveAssignee,
+				Title:    updatedIssue.Title,
+				Assignee: updatedIssue.Assignee,
 				Actor:    actor,
 			})
-		}
-	}
-
-	updatedIssue, getErr := store.GetIssue(ctx, updateArgs.ID)
-	if getErr != nil {
-		return Response{
-			Success: false,
-			Error:   fmt.Sprintf("failed to get updated issue: %v", getErr),
 		}
 	}
 
