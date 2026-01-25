@@ -68,3 +68,6 @@ export type {
   LayoutDirection,
   RankAlignment,
 } from './useAutoLayout'
+
+export { useIssueDetail } from './useIssueDetail'
+export type { UseIssueDetailReturn } from './useIssueDetail'
