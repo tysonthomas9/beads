@@ -20,6 +20,7 @@ import type { Issue, Status } from '@/types';
 import type { FilterState } from '@/hooks/useFilterState';
 import { StatusColumn } from '@/components/StatusColumn';
 import { DraggableIssueCard } from '@/components/DraggableIssueCard';
+import { EmptyColumn } from '@/components/EmptyColumn';
 import styles from './KanbanBoard.module.css';
 
 /**
@@ -170,13 +171,17 @@ export function KanbanBoard({
               status={status}
               count={statusIssues.length}
             >
-              {statusIssues.map((issue) => (
-                <DraggableIssueCard
-                  key={issue.id}
-                  issue={issue}
-                  {...(onIssueClick !== undefined && { onClick: onIssueClick })}
-                />
-              ))}
+              {statusIssues.length === 0 ? (
+                <EmptyColumn status={status} />
+              ) : (
+                statusIssues.map((issue) => (
+                  <DraggableIssueCard
+                    key={issue.id}
+                    issue={issue}
+                    {...(onIssueClick !== undefined && { onClick: onIssueClick })}
+                  />
+                ))
+              )}
             </StatusColumn>
           );
         })}

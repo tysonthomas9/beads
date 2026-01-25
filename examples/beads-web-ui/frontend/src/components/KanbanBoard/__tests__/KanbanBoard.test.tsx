@@ -262,6 +262,44 @@ describe('KanbanBoard', () => {
       expect(within(closedColumn).getByLabelText('0 issues')).toBeInTheDocument();
     });
 
+    it('renders EmptyColumn in empty status columns', () => {
+      render(<KanbanBoard issues={[]} />);
+
+      // Each empty column should show EmptyColumn with appropriate message
+      expect(screen.getByText('No open issues')).toBeInTheDocument();
+      expect(screen.getByText('No issues in progress')).toBeInTheDocument();
+      expect(screen.getByText('No closed issues')).toBeInTheDocument();
+    });
+
+    it('renders EmptyColumn when filter results in empty column', () => {
+      const issues = [
+        createMockIssue({ id: 'open-1', title: 'Open Task', status: 'open', issue_type: 'task' }),
+        createMockIssue({ id: 'progress-1', title: 'In Progress Bug', status: 'in_progress', issue_type: 'bug' }),
+      ];
+      const filters: FilterState = { type: 'feature' as IssueType };
+
+      render(<KanbanBoard issues={issues} filters={filters} />);
+
+      // All columns should be empty due to filter (no features)
+      expect(screen.getByText('No open issues')).toBeInTheDocument();
+      expect(screen.getByText('No issues in progress')).toBeInTheDocument();
+      expect(screen.getByText('No closed issues')).toBeInTheDocument();
+    });
+
+    it('shows EmptyColumn only in columns without issues', () => {
+      const issues = [
+        createMockIssue({ id: 'open-1', title: 'Open Issue', status: 'open' }),
+      ];
+
+      render(<KanbanBoard issues={issues} />);
+
+      // Open column should NOT show EmptyColumn
+      expect(screen.queryByText('No open issues')).not.toBeInTheDocument();
+      // But other columns should show EmptyColumn
+      expect(screen.getByText('No issues in progress')).toBeInTheDocument();
+      expect(screen.getByText('No closed issues')).toBeInTheDocument();
+    });
+
     it('issues without status default to open', () => {
       const issueWithoutStatus = createMockIssue({
         id: 'no-status-issue',
