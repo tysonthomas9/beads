@@ -6,6 +6,8 @@
   cursor: grab;
   touch-action: none;
   user-select: none;
+  display: block;
+  width: 100%;
 }
 
 .draggable:active {
