@@ -381,24 +381,11 @@ test.describe("ViewSwitcher", () => {
 })
 
 test.describe("ViewSwitcher URL Sync", () => {
+  test.beforeEach(async ({ page }) => {
+    await setupMocks(page)
+  })
+
   test("clicking Table tab updates URL to ?view=table", async ({ page }) => {
-    // Mock the /api/ready endpoint
-    await page.route("**/api/ready", async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: "application/json",
-        body: JSON.stringify({
-          success: true,
-          data: mockIssues,
-        }),
-      })
-    })
-
-    // Mock WebSocket to prevent connection errors
-    await page.route("**/ws", async (route) => {
-      await route.abort()
-    })
-
     // Navigate to root (default kanban view) and wait for API response
     const [response] = await Promise.all([
       page.waitForResponse((res) => res.url().includes("/api/ready") && res.status() === 200),
@@ -422,23 +409,6 @@ test.describe("ViewSwitcher URL Sync", () => {
   })
 
   test("clicking Graph tab updates URL to ?view=graph", async ({ page }) => {
-    // Mock the /api/ready endpoint
-    await page.route("**/api/ready", async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: "application/json",
-        body: JSON.stringify({
-          success: true,
-          data: mockIssues,
-        }),
-      })
-    })
-
-    // Mock WebSocket to prevent connection errors
-    await page.route("**/ws", async (route) => {
-      await route.abort()
-    })
-
     // Navigate to root and wait for API response
     const [response] = await Promise.all([
       page.waitForResponse((res) => res.url().includes("/api/ready") && res.status() === 200),
@@ -459,23 +429,6 @@ test.describe("ViewSwitcher URL Sync", () => {
   })
 
   test("clicking Kanban tab removes view param from URL", async ({ page }) => {
-    // Mock the /api/ready endpoint
-    await page.route("**/api/ready", async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: "application/json",
-        body: JSON.stringify({
-          success: true,
-          data: mockIssues,
-        }),
-      })
-    })
-
-    // Mock WebSocket to prevent connection errors
-    await page.route("**/ws", async (route) => {
-      await route.abort()
-    })
-
     // Navigate to root and wait for API response
     const [response] = await Promise.all([
       page.waitForResponse((res) => res.url().includes("/api/ready") && res.status() === 200),
@@ -504,23 +457,6 @@ test.describe("ViewSwitcher URL Sync", () => {
   })
 
   test("navigating to ?view=table loads Table view", async ({ page }) => {
-    // Mock the /api/ready endpoint
-    await page.route("**/api/ready", async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: "application/json",
-        body: JSON.stringify({
-          success: true,
-          data: mockIssues,
-        }),
-      })
-    })
-
-    // Mock WebSocket to prevent connection errors
-    await page.route("**/ws", async (route) => {
-      await route.abort()
-    })
-
     // Navigate directly to table view via URL
     const [response] = await Promise.all([
       page.waitForResponse((res) => res.url().includes("/api/ready") && res.status() === 200),
@@ -536,26 +472,17 @@ test.describe("ViewSwitcher URL Sync", () => {
     // Verify Kanban tab is not selected
     const kanbanTab = page.getByTestId("view-tab-kanban")
     await expect(kanbanTab).toHaveAttribute("aria-selected", "false")
+
+    // Verify IssueTable is rendered
+    const issueTable = page.getByTestId("issue-table")
+    await expect(issueTable).toBeVisible()
+
+    // Verify Kanban view is not rendered
+    const openColumn = page.locator('section[data-status="open"]')
+    await expect(openColumn).not.toBeVisible()
   })
 
   test("navigating to ?view=graph loads Graph view", async ({ page }) => {
-    // Mock the /api/ready endpoint
-    await page.route("**/api/ready", async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: "application/json",
-        body: JSON.stringify({
-          success: true,
-          data: mockIssues,
-        }),
-      })
-    })
-
-    // Mock WebSocket to prevent connection errors
-    await page.route("**/ws", async (route) => {
-      await route.abort()
-    })
-
     // Navigate directly to graph view via URL
     const [response] = await Promise.all([
       page.waitForResponse((res) => res.url().includes("/api/ready") && res.status() === 200),
@@ -573,5 +500,15 @@ test.describe("ViewSwitcher URL Sync", () => {
     const tableTab = page.getByTestId("view-tab-table")
     await expect(kanbanTab).toHaveAttribute("aria-selected", "false")
     await expect(tableTab).toHaveAttribute("aria-selected", "false")
+
+    // Verify GraphView is rendered
+    const graphView = page.getByTestId("graph-view")
+    await expect(graphView).toBeVisible()
+
+    // Verify other views are not rendered
+    const issueTable = page.getByTestId("issue-table")
+    const openColumn = page.locator('section[data-status="open"]')
+    await expect(issueTable).not.toBeVisible()
+    await expect(openColumn).not.toBeVisible()
   })
 })
