@@ -456,4 +456,211 @@ test.describe("KanbanBoard", () => {
     await expect(openColumn.locator("article").filter({ hasText: "Issue To Drag" })).toBeVisible()
     await expect(inProgressColumn.locator("article")).toHaveCount(0)
   })
+
+  test("drag shows visual feedback during operation", async ({ page }) => {
+    // Single test issue to drag
+    const testIssue = [
+      {
+        id: "visual-test-issue",
+        title: "Visual Feedback Test",
+        status: "open",
+        priority: 2,
+        created_at: "2026-01-24T10:00:00Z",
+        updated_at: "2026-01-24T10:00:00Z",
+      },
+    ]
+
+    await page.route("**/api/ready", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ success: true, data: testIssue }),
+      })
+    })
+
+    // Mock PATCH to succeed (we'll complete the drag)
+    await page.route("**/api/issues/*", async (route) => {
+      if (route.request().method() === "PATCH") {
+        const body = route.request().postDataJSON() as { status?: string }
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({
+            success: true,
+            data: { ...testIssue[0], status: body.status },
+          }),
+        })
+      } else {
+        await route.continue()
+      }
+    })
+
+    await page.route("**/ws", async (route) => {
+      await route.abort()
+    })
+
+    // Navigate and wait for board to render
+    await Promise.all([
+      page.waitForResponse((res) => res.url().includes("/api/ready") && res.status() === 200),
+      page.goto("/"),
+    ])
+
+    const openColumn = page.locator('section[data-status="open"]')
+    const inProgressColumn = page.locator('section[data-status="in_progress"]')
+    await expect(openColumn).toBeVisible()
+
+    // Get draggable wrapper (has accessible role)
+    const draggableWrapper = page.getByRole("button", { name: "Issue: Visual Feedback Test" })
+    await expect(draggableWrapper).toBeVisible()
+
+    // Get drop target
+    const dropTarget = inProgressColumn.locator('[data-droppable-id="in_progress"]')
+    await expect(dropTarget).toBeVisible()
+
+    // Get bounding boxes
+    const dragBox = await draggableWrapper.boundingBox()
+    const dropBox = await dropTarget.boundingBox()
+    if (!dragBox || !dropBox) throw new Error("Could not get element bounds")
+
+    const startX = dragBox.x + dragBox.width / 2
+    const startY = dragBox.y + dragBox.height / 2
+    const endX = dropBox.x + dropBox.width / 2
+    const endY = dropBox.y + dropBox.height / 2
+
+    // Use dispatchEvent for all pointer events (consistent with @dnd-kit's PointerSensor)
+    // 1. Initiate drag with pointerdown
+    await draggableWrapper.dispatchEvent("pointerdown", {
+      clientX: startX,
+      clientY: startY,
+      button: 0,
+      buttons: 1,
+      pointerId: 1,
+      pointerType: "mouse",
+      isPrimary: true,
+    })
+
+    // 2. Move past activation threshold (>5px) to trigger drag activation
+    await page.dispatchEvent("body", "pointermove", {
+      clientX: startX + 10,
+      clientY: startY,
+      button: 0,
+      buttons: 1,
+      pointerId: 1,
+      pointerType: "mouse",
+      isPrimary: true,
+    })
+
+    // 3. Wait for drag to activate (deterministic) and verify visual feedback
+    await expect(draggableWrapper).toHaveAttribute("data-dragging", "true", { timeout: 2000 })
+
+    // Verify opacity is 0.5 via evaluate
+    const sourceOpacity = await draggableWrapper.evaluate((el) => {
+      return window.getComputedStyle(el).opacity
+    })
+    expect(sourceOpacity).toBe("0.5")
+
+    // Verify cursor is "grabbing" on the draggable element
+    const cursorStyle = await draggableWrapper.evaluate((el) => {
+      return window.getComputedStyle(el).cursor
+    })
+    expect(cursorStyle).toBe("grabbing")
+
+    // 4. Verify DragOverlay is visible during drag
+    // The DragOverlay renders a DraggableIssueCard with isOverlay prop,
+    // which has the .overlay class (from DraggableIssueCard.module.css).
+    // Target by class pattern to reliably find the overlay element.
+    const overlayWrapper = page.locator('[class*="overlay"]').filter({ has: page.locator("article") })
+    await expect(overlayWrapper).toBeVisible()
+
+    // The overlay wrapper should have elevated shadow (box-shadow from CSS)
+    const overlayShadow = await overlayWrapper.evaluate((el) => {
+      return window.getComputedStyle(el).boxShadow
+    })
+    // Should have a non-empty box-shadow (the exact value depends on CSS variables)
+    expect(overlayShadow).not.toBe("none")
+
+    // 5. Move to drop target column
+    await page.dispatchEvent("body", "pointermove", {
+      clientX: endX,
+      clientY: endY,
+      button: 0,
+      buttons: 1,
+      pointerId: 1,
+      pointerType: "mouse",
+      isPrimary: true,
+    })
+
+    // 6. Wait for drop target to receive hover state (deterministic)
+    await expect(dropTarget).toHaveAttribute("data-is-over", "true", { timeout: 2000 })
+
+    // Wait for CSS transition (0.15s defined in StatusColumn.module.css)
+    await page.waitForTimeout(200)
+
+    // Verify drop target has highlighted background and border via class
+    // The .contentDropOver class should be applied when data-is-over is true
+    const hasDropOverClass = await dropTarget.evaluate((el) => {
+      return Array.from(el.classList).some(c => c.includes("contentDropOver"))
+    })
+    expect(hasDropOverClass).toBe(true)
+
+    // Get the highlighted colors for later comparison
+    const targetBgColor = await dropTarget.evaluate((el) => {
+      return window.getComputedStyle(el).backgroundColor
+    })
+    const targetBorderColor = await dropTarget.evaluate((el) => {
+      return window.getComputedStyle(el).borderColor
+    })
+
+    // 7. Complete drag with pointerup
+    await page.dispatchEvent("body", "pointerup", {
+      clientX: endX,
+      clientY: endY,
+      button: 0,
+      buttons: 0,
+      pointerId: 1,
+      pointerType: "mouse",
+      isPrimary: true,
+    })
+
+    // Wait for the PATCH API call to complete
+    await page.waitForResponse(
+      (res) =>
+        res.url().includes("/api/issues/visual-test-issue") &&
+        res.request().method() === "PATCH"
+    )
+
+    // 8. Verify visual feedback resets
+    // The card has moved to the new column, so we check the new draggable
+    const movedCard = inProgressColumn.getByRole("button", { name: "Issue: Visual Feedback Test" })
+    await expect(movedCard).toBeVisible()
+
+    // The moved card should not have data-dragging
+    const hasDragging = await movedCard.getAttribute("data-dragging")
+    expect(hasDragging).toBeNull()
+
+    // Opacity should be back to 1
+    const finalOpacity = await movedCard.evaluate((el) => {
+      return window.getComputedStyle(el).opacity
+    })
+    expect(finalOpacity).toBe("1")
+
+    // DragOverlay should no longer be visible (only one card should exist now)
+    const allCards = page.locator("article").filter({ hasText: "Visual Feedback Test" })
+    await expect(allCards).toHaveCount(1)
+
+    // Drop target should no longer have data-is-over
+    const isOverAttr = await dropTarget.getAttribute("data-is-over")
+    expect(isOverAttr).toBeNull()
+
+    // Verify drop target colors have reset (not the highlighted state)
+    const finalBgColor = await dropTarget.evaluate((el) => {
+      return window.getComputedStyle(el).backgroundColor
+    })
+    const finalBorderColor = await dropTarget.evaluate((el) => {
+      return window.getComputedStyle(el).borderColor
+    })
+    // Colors should be different from the highlighted state during drag
+    expect(finalBgColor).not.toBe(targetBgColor)
+    expect(finalBorderColor).not.toBe(targetBorderColor)
+  })
 })
