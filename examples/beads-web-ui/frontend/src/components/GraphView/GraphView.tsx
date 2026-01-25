@@ -17,7 +17,8 @@ import type { Issue, IssueNode as IssueNodeType } from '@/types';
 import { useGraphData, type UseGraphDataOptions } from '@/hooks/useGraphData';
 import { useAutoLayout, type UseAutoLayoutOptions } from '@/hooks/useAutoLayout';
 import { useBlockedIssues } from '@/hooks/useBlockedIssues';
-import { IssueNode, DependencyEdge, GraphControls } from '@/components';
+import { IssueNode, DependencyEdge, GraphControls, NodeTooltip } from '@/components';
+import type { TooltipPosition } from '@/components/NodeTooltip';
 import styles from './GraphView.module.css';
 
 // Register custom node and edge types
@@ -83,6 +84,10 @@ export function GraphView({
 }: GraphViewProps): JSX.Element {
   const [highlightReady, setHighlightReady] = useState(false);
 
+  // Tooltip state for hover preview
+  const [hoveredIssue, setHoveredIssue] = useState<Issue | null>(null);
+  const [tooltipPosition, setTooltipPosition] = useState<TooltipPosition | null>(null);
+
   // Fetch blocked issues for ready state calculation
   const { data: blockedIssues } = useBlockedIssues({ enabled: true });
   const blockedIssueIds = useMemo(() => {
@@ -114,19 +119,29 @@ export function GraphView({
     [onNodeClick]
   );
 
-  // Handle node mouse enter
+  // Handle node mouse enter - sets tooltip state and calls external callback
   const handleNodeMouseEnter: NodeMouseHandler<IssueNodeType> = useCallback(
     (event, node) => {
-      if (onNodeMouseEnter && node.data?.issue) {
-        onNodeMouseEnter(node.data.issue, event);
+      if (node.data?.issue) {
+        // Set tooltip position from mouse coordinates
+        const mouseEvent = event as unknown as React.MouseEvent;
+        setHoveredIssue(node.data.issue);
+        setTooltipPosition({ x: mouseEvent.clientX, y: mouseEvent.clientY });
+
+        // Call external callback if provided
+        if (onNodeMouseEnter) {
+          onNodeMouseEnter(node.data.issue, event);
+        }
       }
     },
     [onNodeMouseEnter]
   );
 
-  // Handle node mouse leave
+  // Handle node mouse leave - clears tooltip state and calls external callback
   const handleNodeMouseLeave: NodeMouseHandler<IssueNodeType> = useCallback(
     () => {
+      setHoveredIssue(null);
+      setTooltipPosition(null);
       onNodeMouseLeave?.();
     },
     [onNodeMouseLeave]
@@ -155,12 +170,9 @@ export function GraphView({
   if (onNodeClick) {
     reactFlowProps.onNodeClick = handleNodeClick;
   }
-  if (onNodeMouseEnter) {
-    reactFlowProps.onNodeMouseEnter = handleNodeMouseEnter;
-  }
-  if (onNodeMouseLeave) {
-    reactFlowProps.onNodeMouseLeave = handleNodeMouseLeave;
-  }
+  // Always add mouse handlers for tooltip functionality
+  reactFlowProps.onNodeMouseEnter = handleNodeMouseEnter;
+  reactFlowProps.onNodeMouseLeave = handleNodeMouseLeave;
 
   // Build MiniMap props conditionally
   const miniMapProps: Record<string, unknown> = {
@@ -188,6 +200,7 @@ export function GraphView({
         <Background gap={16} size={1} />
         {showMiniMap && <MiniMap {...(miniMapProps as Record<string, never>)} />}
       </ReactFlow>
+      <NodeTooltip issue={hoveredIssue} position={tooltipPosition} />
     </div>
   );
 }

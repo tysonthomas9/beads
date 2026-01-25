@@ -25,4 +25,5 @@ export * from './DependencyEdge';
 export * from './GraphControls';
 export * from './GraphView';
 export * from './GraphViewContainer';
+export * from './NodeTooltip';
 export * from './ViewSwitcher';
