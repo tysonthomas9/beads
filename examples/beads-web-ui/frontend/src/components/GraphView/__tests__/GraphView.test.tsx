@@ -29,14 +29,16 @@ vi.mock('@/hooks/useBlockedIssues', () => ({
 
 // Mock React Flow components
 vi.mock('@xyflow/react', () => ({
-  ReactFlow: vi.fn(({ children, onNodeClick, nodes }) => (
+  ReactFlow: vi.fn(({ children, onNodeClick, onNodeMouseEnter, onNodeMouseLeave, nodes }) => (
     <div data-testid="react-flow" data-node-count={nodes?.length ?? 0}>
-      {/* Simulate node rendering to test click handlers */}
+      {/* Simulate node rendering to test click and hover handlers */}
       {nodes?.map((node: IssueNode) => (
         <div
           key={node.id}
           data-testid={`node-${node.id}`}
           onClick={(event) => onNodeClick?.(event, node)}
+          onMouseEnter={(event) => onNodeMouseEnter?.(event, node)}
+          onMouseLeave={(event) => onNodeMouseLeave?.(event, node)}
         >
           {node.data?.title}
         </div>
@@ -65,6 +67,16 @@ vi.mock('@/components', () => ({
         onChange={(e) => onHighlightReadyChange(e.target.checked)}
       />
     </div>
+  )),
+  NodeTooltip: vi.fn(({ issue, position }) => (
+    issue && position ? (
+      <div
+        data-testid="node-tooltip"
+        data-issue-id={issue.id}
+        data-position-x={position.x}
+        data-position-y={position.y}
+      />
+    ) : null
   )),
 }));
 
@@ -499,6 +511,118 @@ describe('GraphView', () => {
           blockedIssueIds: expect.any(Set),
         })
       );
+    });
+  });
+
+  describe('tooltip integration', () => {
+    it('shows NodeTooltip component on node mouse enter', () => {
+      const issues = [createTestIssue({ id: 'issue-hover', title: 'Hover Issue' })];
+      const nodes = createTestNodes(issues);
+
+      setupMocks({ nodes });
+
+      const props = createTestProps({ issues });
+      render(<GraphView {...props} />);
+
+      // Tooltip should not be visible initially
+      expect(screen.queryByTestId('node-tooltip')).not.toBeInTheDocument();
+
+      // Hover over the node
+      const node = screen.getByTestId('node-node-issue-hover');
+      fireEvent.mouseEnter(node, { clientX: 100, clientY: 200 });
+
+      // Tooltip should now be visible
+      expect(screen.getByTestId('node-tooltip')).toBeInTheDocument();
+    });
+
+    it('hides NodeTooltip on node mouse leave', () => {
+      const issues = [createTestIssue({ id: 'issue-leave', title: 'Leave Issue' })];
+      const nodes = createTestNodes(issues);
+
+      setupMocks({ nodes });
+
+      const props = createTestProps({ issues });
+      render(<GraphView {...props} />);
+
+      // Hover to show tooltip
+      const node = screen.getByTestId('node-node-issue-leave');
+      fireEvent.mouseEnter(node, { clientX: 100, clientY: 200 });
+      expect(screen.getByTestId('node-tooltip')).toBeInTheDocument();
+
+      // Leave the node
+      fireEvent.mouseLeave(node);
+
+      // Tooltip should be hidden
+      expect(screen.queryByTestId('node-tooltip')).not.toBeInTheDocument();
+    });
+
+    it('passes correct issue and position to NodeTooltip', () => {
+      const issues = [createTestIssue({ id: 'issue-position', title: 'Position Issue' })];
+      const nodes = createTestNodes(issues);
+
+      setupMocks({ nodes });
+
+      const props = createTestProps({ issues });
+      render(<GraphView {...props} />);
+
+      // Hover over the node with specific coordinates
+      const node = screen.getByTestId('node-node-issue-position');
+      fireEvent.mouseEnter(node, { clientX: 250, clientY: 350 });
+
+      // Verify tooltip receives correct props via data attributes
+      const tooltip = screen.getByTestId('node-tooltip');
+      expect(tooltip).toHaveAttribute('data-issue-id', 'issue-position');
+      expect(tooltip).toHaveAttribute('data-position-x', '250');
+      expect(tooltip).toHaveAttribute('data-position-y', '350');
+    });
+
+    it('still calls external onNodeMouseEnter callback when provided', () => {
+      const issues = [createTestIssue({ id: 'issue-callback', title: 'Callback Issue' })];
+      const nodes = createTestNodes(issues);
+
+      setupMocks({ nodes });
+
+      const onNodeMouseEnter = vi.fn();
+      const props = createTestProps({ issues, onNodeMouseEnter });
+      render(<GraphView {...props} />);
+
+      // Hover over the node
+      const node = screen.getByTestId('node-node-issue-callback');
+      fireEvent.mouseEnter(node, { clientX: 100, clientY: 200 });
+
+      // External callback should be called with the issue
+      expect(onNodeMouseEnter).toHaveBeenCalledTimes(1);
+      expect(onNodeMouseEnter).toHaveBeenCalledWith(
+        issues[0],
+        expect.any(Object) // The event object
+      );
+
+      // Tooltip should also be shown (internal state still works)
+      expect(screen.getByTestId('node-tooltip')).toBeInTheDocument();
+    });
+
+    it('still calls external onNodeMouseLeave callback when provided', () => {
+      const issues = [createTestIssue({ id: 'issue-leave-cb', title: 'Leave Callback Issue' })];
+      const nodes = createTestNodes(issues);
+
+      setupMocks({ nodes });
+
+      const onNodeMouseLeave = vi.fn();
+      const props = createTestProps({ issues, onNodeMouseLeave });
+      render(<GraphView {...props} />);
+
+      // Hover to show tooltip, then leave
+      const node = screen.getByTestId('node-node-issue-leave-cb');
+      fireEvent.mouseEnter(node, { clientX: 100, clientY: 200 });
+      expect(screen.getByTestId('node-tooltip')).toBeInTheDocument();
+
+      fireEvent.mouseLeave(node);
+
+      // External callback should be called
+      expect(onNodeMouseLeave).toHaveBeenCalledTimes(1);
+
+      // Tooltip should also be hidden (internal state still works)
+      expect(screen.queryByTestId('node-tooltip')).not.toBeInTheDocument();
     });
   });
 });
