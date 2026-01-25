@@ -17,7 +17,7 @@ import type { Issue, IssueNode as IssueNodeType } from '@/types';
 import { useGraphData, type UseGraphDataOptions } from '@/hooks/useGraphData';
 import { useAutoLayout, type UseAutoLayoutOptions } from '@/hooks/useAutoLayout';
 import { useBlockedIssues } from '@/hooks/useBlockedIssues';
-import { IssueNode, DependencyEdge, GraphControls, NodeTooltip } from '@/components';
+import { IssueNode, DependencyEdge, GraphControls, GraphLegend, NodeTooltip } from '@/components';
 import type { TooltipPosition } from '@/components/NodeTooltip';
 import styles from './GraphView.module.css';
 
@@ -83,6 +83,7 @@ export function GraphView({
   className,
 }: GraphViewProps): JSX.Element {
   const [highlightReady, setHighlightReady] = useState(false);
+  const [legendCollapsed, setLegendCollapsed] = useState(true);
 
   // Tooltip state for hover preview
   const [hoveredIssue, setHoveredIssue] = useState<Issue | null>(null);
@@ -201,6 +202,11 @@ export function GraphView({
         {showMiniMap && <MiniMap {...(miniMapProps as Record<string, never>)} />}
       </ReactFlow>
       <NodeTooltip issue={hoveredIssue} position={tooltipPosition} />
+      <GraphLegend
+        collapsed={legendCollapsed}
+        onToggle={() => setLegendCollapsed(!legendCollapsed)}
+        {...(styles.legend ? { className: styles.legend } : {})}
+      />
     </div>
   );
 }

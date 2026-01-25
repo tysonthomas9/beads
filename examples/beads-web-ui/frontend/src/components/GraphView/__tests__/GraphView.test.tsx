@@ -68,6 +68,15 @@ vi.mock('@/components', () => ({
       />
     </div>
   )),
+  GraphLegend: vi.fn(({ collapsed, onToggle, className }) => (
+    <div
+      data-testid="graph-legend"
+      data-collapsed={collapsed}
+      className={className}
+    >
+      <button onClick={onToggle} data-testid="legend-toggle">Legend</button>
+    </div>
+  )),
   NodeTooltip: vi.fn(({ issue, position }) => (
     issue && position ? (
       <div

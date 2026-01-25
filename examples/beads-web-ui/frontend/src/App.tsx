@@ -62,8 +62,9 @@ function App() {
   const [toastError, setToastError] = useState<string | null>(null);
   const mountedRef = useRef(true);
 
-  // Cleanup on unmount
+  // Track mount state for async operations (must set true in setup for StrictMode compatibility)
   useEffect(() => {
+    mountedRef.current = true;
     return () => {
       mountedRef.current = false;
     };
