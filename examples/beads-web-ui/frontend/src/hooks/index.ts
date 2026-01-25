@@ -71,3 +71,6 @@ export type {
 
 export { useViewState } from './useViewState'
 export type { UseViewStateOptions, UseViewStateReturn } from './useViewState'
+
+export { useIssueDetail } from './useIssueDetail'
+export type { UseIssueDetailReturn } from './useIssueDetail'
