@@ -7,6 +7,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import type { Status } from '@/types';
 import { useIssues } from '@/hooks/useIssues';
+import { useFilterState, useIssueFilter, useDebounce } from '@/hooks';
 import {
   AppLayout,
   KanbanBoard,
@@ -14,6 +15,8 @@ import {
   ErrorDisplay,
   ConnectionStatus,
   ErrorToast,
+  FilterBar,
+  SearchInput,
 } from '@/components';
 
 function App() {
@@ -27,6 +30,28 @@ function App() {
     updateIssueStatus,
     retryConnection,
   } = useIssues();
+
+  // Filter state with URL synchronization
+  const [filters, filterActions] = useFilterState();
+
+  // Local search state with debouncing
+  const [searchValue, setSearchValue] = useState(filters.search ?? '');
+  const debouncedSearch = useDebounce(searchValue, 300);
+
+  // Sync debounced search to filter state
+  useEffect(() => {
+    filterActions.setSearch(debouncedSearch || undefined);
+  }, [debouncedSearch, filterActions]);
+
+  // Apply filters to issues
+  // Build filter options conditionally to satisfy exactOptionalPropertyTypes
+  const filterOptions: Parameters<typeof useIssueFilter>[1] = {};
+  if (filters.search !== undefined) filterOptions.searchTerm = filters.search;
+  if (filters.priority !== undefined) filterOptions.priority = filters.priority;
+  if (filters.type !== undefined) filterOptions.issueType = filters.type;
+  if (filters.labels !== undefined) filterOptions.labels = filters.labels;
+
+  const { filteredIssues } = useIssueFilter(issues, filterOptions);
 
   const [toastError, setToastError] = useState<string | null>(null);
   const mountedRef = useRef(true);
@@ -54,6 +79,12 @@ function App() {
 
   // Stable callback for ErrorToast to avoid timer resets
   const handleToastDismiss = useCallback(() => setToastError(null), []);
+
+  // Handle search clear to sync both local and filter state
+  const handleSearchClear = useCallback(() => {
+    setSearchValue('');
+    filterActions.setSearch(undefined);
+  }, [filterActions]);
 
   // Loading state: show skeleton columns
   if (isLoading) {
@@ -90,9 +121,24 @@ function App() {
     );
   }
 
+  // Navigation element with search and filters
+  const filterNavigation = (
+    <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+      <SearchInput
+        value={searchValue}
+        onChange={setSearchValue}
+        onClear={handleSearchClear}
+        placeholder="Search issues..."
+        size="sm"
+      />
+      <FilterBar filters={filters} actions={filterActions} />
+    </div>
+  );
+
   // Success state: show Kanban board
   return (
     <AppLayout
+      navigation={filterNavigation}
       actions={
         <ConnectionStatus
           state={connectionState}
@@ -101,7 +147,7 @@ function App() {
         />
       }
     >
-      <KanbanBoard issues={issues} onDragEnd={handleDragEnd} />
+      <KanbanBoard issues={filteredIssues} onDragEnd={handleDragEnd} />
       {toastError && (
         <ErrorToast message={toastError} onDismiss={handleToastDismiss} />
       )}

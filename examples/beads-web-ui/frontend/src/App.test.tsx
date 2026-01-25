@@ -15,9 +15,38 @@ import App from './App';
 import type { ConnectionState } from '@/api/websocket';
 import type { UseIssuesReturn } from '@/hooks/useIssues';
 
-// Mock useIssues hook
+// Create a hoisted mock for useIssues that can be shared across mock definitions
+const { mockUseIssues } = vi.hoisted(() => ({
+  mockUseIssues: vi.fn(),
+}));
+
+// Mock the hooks barrel file - includes useIssues and filter hooks
 vi.mock('@/hooks', () => ({
-  useIssues: vi.fn(),
+  useIssues: mockUseIssues,
+  useFilterState: vi.fn(() => [
+    {}, // FilterState
+    {
+      setPriority: vi.fn(),
+      setType: vi.fn(),
+      setLabels: vi.fn(),
+      setSearch: vi.fn(),
+      clearFilter: vi.fn(),
+      clearAll: vi.fn(),
+    }, // FilterActions
+  ]),
+  useIssueFilter: vi.fn((issues: unknown[]) => ({
+    filteredIssues: issues,
+    count: Array.isArray(issues) ? issues.length : 0,
+    totalCount: Array.isArray(issues) ? issues.length : 0,
+    hasActiveFilters: false,
+    activeFilters: [],
+  })),
+  useDebounce: vi.fn((value: unknown) => value),
+}));
+
+// Also mock the direct useIssues import path
+vi.mock('@/hooks/useIssues', () => ({
+  useIssues: mockUseIssues,
 }));
 
 // Import the mocked module for type-safe access
@@ -68,14 +97,15 @@ describe('App', () => {
       expect(screen.getByRole('heading', { name: 'Beads' })).toBeInTheDocument();
     });
 
-    it('renders main content text', () => {
+    it('renders KanbanBoard in main content', () => {
       vi.mocked(useIssues).mockReturnValue(createMockUseIssuesReturn());
 
       render(<App />);
 
-      expect(
-        screen.getByText('Task management interface for beads.')
-      ).toBeInTheDocument();
+      // KanbanBoard renders with status columns
+      expect(screen.getByRole('heading', { name: 'Open' })).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'In Progress' })).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'Closed' })).toBeInTheDocument();
     });
   });
 
@@ -93,10 +123,11 @@ describe('App', () => {
     it('renders ConnectionStatus in the actions slot', () => {
       vi.mocked(useIssues).mockReturnValue(createMockUseIssuesReturn());
 
-      render(<App />);
+      const { container } = render(<App />);
 
-      // ConnectionStatus renders with role="status"
-      expect(screen.getByRole('status')).toBeInTheDocument();
+      // ConnectionStatus renders with data-state attribute
+      const status = container.querySelector('[data-state]');
+      expect(status).toBeInTheDocument();
     });
 
     it('passes connectionState to ConnectionStatus', () => {
@@ -185,10 +216,10 @@ describe('App', () => {
         })
       );
 
-      render(<App />);
+      const { container } = render(<App />);
 
-      const status = screen.getByRole('status');
-      expect(status).toHaveAttribute('data-state', 'connected');
+      const status = container.querySelector('[data-state="connected"]');
+      expect(status).toBeInTheDocument();
       expect(screen.getByText('Connected')).toBeInTheDocument();
     });
 
@@ -201,10 +232,10 @@ describe('App', () => {
         })
       );
 
-      render(<App />);
+      const { container } = render(<App />);
 
-      const status = screen.getByRole('status');
-      expect(status).toHaveAttribute('data-state', 'disconnected');
+      const status = container.querySelector('[data-state="disconnected"]');
+      expect(status).toBeInTheDocument();
       expect(screen.getByText('Disconnected')).toBeInTheDocument();
     });
 
@@ -219,10 +250,10 @@ describe('App', () => {
         })
       );
 
-      render(<App />);
+      const { container } = render(<App />);
 
-      const status = screen.getByRole('status');
-      expect(status).toHaveAttribute('data-state', 'reconnecting');
+      const status = container.querySelector('[data-state="reconnecting"]');
+      expect(status).toBeInTheDocument();
       expect(
         screen.getByText('Reconnecting (attempt 5)...')
       ).toBeInTheDocument();
@@ -238,10 +269,10 @@ describe('App', () => {
         })
       );
 
-      render(<App />);
+      const { container } = render(<App />);
 
-      const status = screen.getByRole('status');
-      expect(status).toHaveAttribute('data-state', 'connecting');
+      const status = container.querySelector('[data-state="connecting"]');
+      expect(status).toBeInTheDocument();
       expect(screen.getByText('Connecting...')).toBeInTheDocument();
     });
   });
@@ -250,9 +281,10 @@ describe('App', () => {
     it('ConnectionStatus has correct aria attributes', () => {
       vi.mocked(useIssues).mockReturnValue(createMockUseIssuesReturn());
 
-      render(<App />);
+      const { container } = render(<App />);
 
-      const status = screen.getByRole('status');
+      // Use data-state selector to find ConnectionStatus specifically
+      const status = container.querySelector('[data-state]');
       expect(status).toHaveAttribute('aria-live', 'polite');
       expect(status).toHaveAttribute(
         'aria-label',
