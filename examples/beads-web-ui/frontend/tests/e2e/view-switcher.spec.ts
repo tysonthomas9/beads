@@ -1,8 +1,8 @@
 import { test, expect } from "@playwright/test"
 
 /**
- * Mock issues for testing ViewSwitcher component.
- * Each issue includes the minimum required fields for API compatibility.
+ * Mock issues for testing view switching.
+ * Minimal set to verify views render with data.
  */
 const mockIssues = [
   {
@@ -25,7 +25,7 @@ const mockIssues = [
 
 test.describe("ViewSwitcher", () => {
   test.beforeEach(async ({ page }) => {
-    // Mock the /api/ready endpoint to return our test data
+    // Mock /api/ready endpoint to return test data
     await page.route("**/api/ready", async (route) => {
       await route.fulfill({
         status: 200,
@@ -44,15 +44,14 @@ test.describe("ViewSwitcher", () => {
   })
 
   test("default view is Kanban", async ({ page }) => {
-    // Navigate to the app and wait for API response
-    const [response] = await Promise.all([
+    // Navigate and wait for API response
+    await Promise.all([
       page.waitForResponse((res) => res.url().includes("/api/ready") && res.status() === 200),
       page.goto("/"),
     ])
-    expect(response.ok()).toBe(true)
 
     // Verify Kanban tab is selected
-    const kanbanTab = page.locator('[data-testid="view-tab-kanban"]')
+    const kanbanTab = page.getByTestId("view-tab-kanban")
     await expect(kanbanTab).toHaveAttribute("aria-selected", "true")
 
     // Verify Kanban column is visible
@@ -61,22 +60,21 @@ test.describe("ViewSwitcher", () => {
   })
 
   test("clicking Table tab renders IssueTable", async ({ page }) => {
-    // Navigate to the app and wait for API response
-    const [response] = await Promise.all([
+    // Navigate and wait for API response
+    await Promise.all([
       page.waitForResponse((res) => res.url().includes("/api/ready") && res.status() === 200),
       page.goto("/"),
     ])
-    expect(response.ok()).toBe(true)
 
-    // Click the Table tab
-    const tableTab = page.locator('[data-testid="view-tab-table"]')
+    // Click Table tab
+    const tableTab = page.getByTestId("view-tab-table")
     await tableTab.click()
 
     // Verify Table tab is selected
     await expect(tableTab).toHaveAttribute("aria-selected", "true")
 
     // Verify IssueTable is visible
-    const issueTable = page.locator('[data-testid="issue-table"]')
+    const issueTable = page.getByTestId("issue-table")
     await expect(issueTable).toBeVisible()
 
     // Verify Kanban column is NOT visible
@@ -85,44 +83,42 @@ test.describe("ViewSwitcher", () => {
   })
 
   test("clicking Graph tab renders GraphView", async ({ page }) => {
-    // Navigate to the app and wait for API response
-    const [response] = await Promise.all([
+    // Navigate and wait for API response
+    await Promise.all([
       page.waitForResponse((res) => res.url().includes("/api/ready") && res.status() === 200),
       page.goto("/"),
     ])
-    expect(response.ok()).toBe(true)
 
-    // Click the Graph tab
-    const graphTab = page.locator('[data-testid="view-tab-graph"]')
+    // Click Graph tab
+    const graphTab = page.getByTestId("view-tab-graph")
     await graphTab.click()
 
     // Verify Graph tab is selected
     await expect(graphTab).toHaveAttribute("aria-selected", "true")
 
     // Verify GraphView is visible
-    const graphView = page.locator('[data-testid="graph-view"]')
+    const graphView = page.getByTestId("graph-view")
     await expect(graphView).toBeVisible()
 
     // Verify IssueTable is NOT visible
-    const issueTable = page.locator('[data-testid="issue-table"]')
+    const issueTable = page.getByTestId("issue-table")
     await expect(issueTable).not.toBeVisible()
   })
 
   test("clicking Kanban tab returns to KanbanBoard", async ({ page }) => {
-    // Navigate to the app and wait for API response
-    const [response] = await Promise.all([
+    // Navigate and wait for API response
+    await Promise.all([
       page.waitForResponse((res) => res.url().includes("/api/ready") && res.status() === 200),
       page.goto("/"),
     ])
-    expect(response.ok()).toBe(true)
 
-    // First switch away from Kanban to Table
-    const tableTab = page.locator('[data-testid="view-tab-table"]')
+    // Click Table tab first (switch away from Kanban)
+    const tableTab = page.getByTestId("view-tab-table")
     await tableTab.click()
     await expect(tableTab).toHaveAttribute("aria-selected", "true")
 
-    // Click Kanban tab to switch back
-    const kanbanTab = page.locator('[data-testid="view-tab-kanban"]')
+    // Click Kanban tab to return
+    const kanbanTab = page.getByTestId("view-tab-kanban")
     await kanbanTab.click()
 
     // Verify Kanban tab is selected
