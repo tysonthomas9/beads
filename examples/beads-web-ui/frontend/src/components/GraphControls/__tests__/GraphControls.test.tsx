@@ -13,6 +13,19 @@ import '@testing-library/jest-dom';
 import { GraphControls } from '../GraphControls';
 import type { GraphControlsProps } from '../GraphControls';
 
+// Mock useReactFlow hook
+const mockZoomIn = vi.fn();
+const mockZoomOut = vi.fn();
+const mockFitView = vi.fn();
+
+vi.mock('@xyflow/react', () => ({
+  useReactFlow: () => ({
+    zoomIn: mockZoomIn,
+    zoomOut: mockZoomOut,
+    fitView: mockFitView,
+  }),
+}));
+
 /**
  * Create test props for GraphControls component.
  */
@@ -25,6 +38,12 @@ function createTestProps(overrides: Partial<GraphControlsProps> = {}): GraphCont
 }
 
 describe('GraphControls', () => {
+  beforeEach(() => {
+    mockZoomIn.mockClear();
+    mockZoomOut.mockClear();
+    mockFitView.mockClear();
+  });
+
   describe('rendering', () => {
     it('renders checkbox with correct checked state when false', () => {
       const props = createTestProps({ highlightReady: false });
@@ -169,6 +188,73 @@ describe('GraphControls', () => {
 
       const container = screen.getByTestId('graph-controls');
       expect(container.className).toMatch(/graphControls/);
+    });
+  });
+
+  describe('zoom controls', () => {
+    it('renders zoom controls by default', () => {
+      const props = createTestProps();
+      render(<GraphControls {...props} />);
+
+      expect(screen.getByTestId('zoom-in-button')).toBeInTheDocument();
+      expect(screen.getByTestId('zoom-out-button')).toBeInTheDocument();
+      expect(screen.getByTestId('fit-view-button')).toBeInTheDocument();
+    });
+
+    it('hides zoom controls when showZoomControls is false', () => {
+      const props = createTestProps({ showZoomControls: false });
+      render(<GraphControls {...props} />);
+
+      expect(screen.queryByTestId('zoom-in-button')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('zoom-out-button')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('fit-view-button')).not.toBeInTheDocument();
+    });
+
+    it('calls zoomIn when zoom in button is clicked', () => {
+      const props = createTestProps();
+      render(<GraphControls {...props} />);
+
+      const zoomInButton = screen.getByTestId('zoom-in-button');
+      fireEvent.click(zoomInButton);
+
+      expect(mockZoomIn).toHaveBeenCalledWith({ duration: 200 });
+    });
+
+    it('calls zoomOut when zoom out button is clicked', () => {
+      const props = createTestProps();
+      render(<GraphControls {...props} />);
+
+      const zoomOutButton = screen.getByTestId('zoom-out-button');
+      fireEvent.click(zoomOutButton);
+
+      expect(mockZoomOut).toHaveBeenCalledWith({ duration: 200 });
+    });
+
+    it('calls fitView when fit view button is clicked', () => {
+      const props = createTestProps();
+      render(<GraphControls {...props} />);
+
+      const fitViewButton = screen.getByTestId('fit-view-button');
+      fireEvent.click(fitViewButton);
+
+      expect(mockFitView).toHaveBeenCalledWith({ duration: 200, padding: 0.2 });
+    });
+
+    it('zoom buttons have correct aria-labels', () => {
+      const props = createTestProps();
+      render(<GraphControls {...props} />);
+
+      expect(screen.getByLabelText('Zoom in')).toBeInTheDocument();
+      expect(screen.getByLabelText('Zoom out')).toBeInTheDocument();
+      expect(screen.getByLabelText('Fit to view')).toBeInTheDocument();
+    });
+
+    it('zoom controls group has correct aria-label', () => {
+      const props = createTestProps();
+      render(<GraphControls {...props} />);
+
+      const zoomGroup = screen.getByRole('group', { name: 'Zoom controls' });
+      expect(zoomGroup).toBeInTheDocument();
     });
   });
 });

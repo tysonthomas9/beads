@@ -12,12 +12,8 @@
   overflow: hidden;
 }
 
-/* Controls positioned at top-right */
+/* Controls styling (positioned by React Flow Panel) */
 .controls {
-  position: absolute;
-  top: var(--space-3);
-  right: var(--space-3);
-  z-index: 10;
   background-color: var(--color-bg);
   padding: var(--space-2) var(--space-3);
   border-radius: var(--radius-md);

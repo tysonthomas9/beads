@@ -1,9 +1,11 @@
 /**
  * GraphControls component for graph view toggle controls.
- * Provides a "Highlight Ready" toggle that dims blocked and closed nodes.
+ * Provides a "Highlight Ready" toggle that dims blocked and closed nodes,
+ * plus zoom controls (zoom in, zoom out, fit view).
  */
 
 import { useCallback } from 'react';
+import { useReactFlow } from '@xyflow/react';
 import styles from './GraphControls.module.css';
 
 /**
@@ -18,13 +20,19 @@ export interface GraphControlsProps {
   disabled?: boolean;
   /** Title for disabled state tooltip */
   disabledTitle?: string;
+  /** Whether to show zoom controls (default: true) */
+  showZoomControls?: boolean;
   /** Additional CSS class name */
   className?: string;
 }
 
 /**
  * GraphControls renders toggle controls for the dependency graph.
- * Currently provides a "Highlight Ready" toggle that dims blocked nodes.
+ * Provides a "Highlight Ready" toggle that dims blocked nodes,
+ * plus zoom controls for navigating large graphs.
+ *
+ * NOTE: This component must be rendered inside a ReactFlow component
+ * to use the zoom controls (useReactFlow hook requires ReactFlow context).
  *
  * @example
  * ```tsx
@@ -33,11 +41,12 @@ export interface GraphControlsProps {
  *
  *   return (
  *     <div data-highlight-ready={highlightReady}>
- *       <GraphControls
- *         highlightReady={highlightReady}
- *         onHighlightReadyChange={setHighlightReady}
- *       />
- *       <ReactFlow nodes={nodes} edges={edges} />
+ *       <ReactFlow nodes={nodes} edges={edges}>
+ *         <GraphControls
+ *           highlightReady={highlightReady}
+ *           onHighlightReadyChange={setHighlightReady}
+ *         />
+ *       </ReactFlow>
  *     </div>
  *   );
  * }
@@ -48,14 +57,29 @@ export function GraphControls({
   onHighlightReadyChange,
   disabled = false,
   disabledTitle,
+  showZoomControls = true,
   className,
 }: GraphControlsProps): JSX.Element {
+  const { zoomIn, zoomOut, fitView } = useReactFlow();
+
   const handleChange = useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) => {
       onHighlightReadyChange(event.target.checked);
     },
     [onHighlightReadyChange]
   );
+
+  const handleZoomIn = useCallback(() => {
+    zoomIn({ duration: 200 });
+  }, [zoomIn]);
+
+  const handleZoomOut = useCallback(() => {
+    zoomOut({ duration: 200 });
+  }, [zoomOut]);
+
+  const handleFitView = useCallback(() => {
+    fitView({ duration: 200, padding: 0.2 });
+  }, [fitView]);
 
   const rootClassName = className
     ? `${styles.graphControls} ${className}`
@@ -78,6 +102,41 @@ export function GraphControls({
         />
         <span className={styles.toggleText}>Highlight Ready</span>
       </label>
+
+      {showZoomControls && (
+        <>
+          <div className={styles.divider} aria-hidden="true" />
+          <div className={styles.zoomControls} role="group" aria-label="Zoom controls">
+            <button
+              type="button"
+              onClick={handleZoomIn}
+              className={styles.zoomButton}
+              aria-label="Zoom in"
+              data-testid="zoom-in-button"
+            >
+              +
+            </button>
+            <button
+              type="button"
+              onClick={handleZoomOut}
+              className={styles.zoomButton}
+              aria-label="Zoom out"
+              data-testid="zoom-out-button"
+            >
+              −
+            </button>
+            <button
+              type="button"
+              onClick={handleFitView}
+              className={styles.zoomButton}
+              aria-label="Fit to view"
+              data-testid="fit-view-button"
+            >
+              ⊞
+            </button>
+          </div>
+        </>
+      )}
     </div>
   );
 }

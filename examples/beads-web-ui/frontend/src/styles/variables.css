@@ -47,8 +47,11 @@
   --color-bg: #ffffff;
   --color-bg-secondary: #f9fafb;
   --color-bg-tertiary: #f3f4f6;
+  --color-bg-hover: #f3f4f6;    /* gray-100, for hover states */
+  --color-bg-active: #e5e7eb;   /* gray-200, for active states */
   --color-border: #e5e7eb;
   --color-border-light: #f3f4f6;
+  --color-border-hover: #d1d5db; /* gray-300, for hover states */
   --color-text: #111827;
   --color-text-secondary: #6b7280;
   --color-text-muted: #9ca3af;

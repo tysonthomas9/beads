@@ -48,6 +48,11 @@ vi.mock('@xyflow/react', () => ({
   )),
   Background: vi.fn(() => <div data-testid="background" />),
   MiniMap: vi.fn(() => <div data-testid="minimap" />),
+  Panel: vi.fn(({ children, position }) => (
+    <div data-testid="react-flow-panel" data-position={position}>
+      {children}
+    </div>
+  )),
 }));
 
 // Mock child components

@@ -10,6 +10,7 @@ import {
   ReactFlow,
   Background,
   MiniMap,
+  Panel,
   type NodeMouseHandler,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
@@ -190,16 +191,18 @@ export function GraphView({
       data-highlight-ready={highlightReady}
       data-testid="graph-view"
     >
-      {showControls && (
-        <GraphControls
-          highlightReady={highlightReady}
-          onHighlightReadyChange={setHighlightReady}
-          {...(styles.controls ? { className: styles.controls } : {})}
-        />
-      )}
       <ReactFlow {...(reactFlowProps as Record<string, never>)}>
         <Background gap={16} size={1} />
         {showMiniMap && <MiniMap {...(miniMapProps as Record<string, never>)} />}
+        {showControls && (
+          <Panel position="top-right">
+            <GraphControls
+              highlightReady={highlightReady}
+              onHighlightReadyChange={setHighlightReady}
+              {...(styles.controls ? { className: styles.controls } : {})}
+            />
+          </Panel>
+        )}
       </ReactFlow>
       <NodeTooltip issue={hoveredIssue} position={tooltipPosition} />
       <GraphLegend

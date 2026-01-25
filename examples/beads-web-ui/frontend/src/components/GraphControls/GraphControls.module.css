@@ -55,3 +55,54 @@
 .toggleLabel:has(input:checked) .toggleText {
   color: var(--color-ready);
 }
+
+/* Divider between highlight toggle and zoom controls */
+.divider {
+  width: 1px;
+  height: 20px;
+  background-color: var(--color-border);
+}
+
+/* Zoom controls button group */
+.zoomControls {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+/* Zoom button styles */
+.zoomButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-medium);
+  line-height: 1;
+  color: var(--color-text-secondary);
+  background-color: transparent;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition:
+    background-color var(--transition-fast),
+    border-color var(--transition-fast),
+    color var(--transition-fast);
+}
+
+.zoomButton:hover {
+  background-color: var(--color-bg-hover);
+  border-color: var(--color-border-hover);
+  color: var(--color-text);
+}
+
+.zoomButton:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.zoomButton:active {
+  background-color: var(--color-bg-active);
+}
