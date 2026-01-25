@@ -1,15 +1,19 @@
 /**
  * Main App component.
  * Wires useIssues hook to KanbanBoard with loading states, error handling,
- * and optimistic drag-drop updates.
+ * and optimistic drag-drop updates. Manages view switching between Kanban,
+ * Table, and Graph views with URL synchronization.
  */
 
 import { useState, useCallback, useEffect, useRef } from 'react';
 import type { Status } from '@/types';
-import { useIssues } from '@/hooks/useIssues';
+import { useIssues, useViewState } from '@/hooks';
 import {
   AppLayout,
   KanbanBoard,
+  IssueTable,
+  GraphView,
+  ViewSwitcher,
   LoadingSkeleton,
   ErrorDisplay,
   ConnectionStatus,
@@ -28,6 +32,7 @@ function App() {
     retryConnection,
   } = useIssues();
 
+  const [activeView, setActiveView] = useViewState();
   const [toastError, setToastError] = useState<string | null>(null);
   const mountedRef = useRef(true);
 
@@ -58,7 +63,16 @@ function App() {
   // Loading state: show skeleton columns
   if (isLoading) {
     return (
-      <AppLayout actions={<ConnectionStatus state={connectionState} />}>
+      <AppLayout
+        navigation={
+          <ViewSwitcher
+            activeView={activeView}
+            onChange={setActiveView}
+            disabled
+          />
+        }
+        actions={<ConnectionStatus state={connectionState} />}
+      >
         <div style={{ display: 'flex', gap: '1rem', padding: '1rem' }}>
           <LoadingSkeleton.Column />
           <LoadingSkeleton.Column />
@@ -72,6 +86,13 @@ function App() {
   if (error && !isLoading) {
     return (
       <AppLayout
+        navigation={
+          <ViewSwitcher
+            activeView={activeView}
+            onChange={setActiveView}
+            disabled
+          />
+        }
         actions={
           <ConnectionStatus
             state={connectionState}
@@ -90,9 +111,15 @@ function App() {
     );
   }
 
-  // Success state: show Kanban board
+  // Success state: show view based on activeView
   return (
     <AppLayout
+      navigation={
+        <ViewSwitcher
+          activeView={activeView}
+          onChange={setActiveView}
+        />
+      }
       actions={
         <ConnectionStatus
           state={connectionState}
@@ -101,7 +128,15 @@ function App() {
         />
       }
     >
-      <KanbanBoard issues={issues} onDragEnd={handleDragEnd} />
+      {activeView === 'kanban' && (
+        <KanbanBoard issues={issues} onDragEnd={handleDragEnd} />
+      )}
+      {activeView === 'table' && (
+        <IssueTable issues={issues} sortable />
+      )}
+      {activeView === 'graph' && (
+        <GraphView issues={issues} />
+      )}
       {toastError && (
         <ErrorToast message={toastError} onDismiss={handleToastDismiss} />
       )}

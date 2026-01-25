@@ -68,3 +68,6 @@ export type {
   LayoutDirection,
   RankAlignment,
 } from './useAutoLayout'
+
+export { useViewState } from './useViewState'
+export type { UseViewStateOptions, UseViewStateReturn } from './useViewState'

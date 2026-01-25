@@ -15,9 +15,10 @@ import App from './App';
 import type { ConnectionState } from '@/api/websocket';
 import type { UseIssuesReturn } from '@/hooks/useIssues';
 
-// Mock useIssues hook
+// Mock useIssues and useViewState hooks
 vi.mock('@/hooks', () => ({
   useIssues: vi.fn(),
+  useViewState: vi.fn(() => ['kanban', vi.fn()]),
 }));
 
 // Import the mocked module for type-safe access
@@ -68,14 +69,12 @@ describe('App', () => {
       expect(screen.getByRole('heading', { name: 'Beads' })).toBeInTheDocument();
     });
 
-    it('renders main content text', () => {
+    it('renders ViewSwitcher in navigation slot', () => {
       vi.mocked(useIssues).mockReturnValue(createMockUseIssuesReturn());
 
       render(<App />);
 
-      expect(
-        screen.getByText('Task management interface for beads.')
-      ).toBeInTheDocument();
+      expect(screen.getByTestId('view-switcher')).toBeInTheDocument();
     });
   });
 
@@ -90,13 +89,20 @@ describe('App', () => {
   });
 
   describe('ConnectionStatus integration', () => {
+    /**
+     * Helper to get ConnectionStatus element specifically.
+     * ConnectionStatus has data-variant="inline" while DndContext's live region doesn't.
+     */
+    const getConnectionStatus = (container: HTMLElement) =>
+      container.querySelector('[data-variant="inline"]');
+
     it('renders ConnectionStatus in the actions slot', () => {
       vi.mocked(useIssues).mockReturnValue(createMockUseIssuesReturn());
 
-      render(<App />);
+      const { container } = render(<App />);
 
-      // ConnectionStatus renders with role="status"
-      expect(screen.getByRole('status')).toBeInTheDocument();
+      // ConnectionStatus renders with data-variant="inline"
+      expect(getConnectionStatus(container)).toBeInTheDocument();
     });
 
     it('passes connectionState to ConnectionStatus', () => {
@@ -152,12 +158,19 @@ describe('App', () => {
 
       const { container } = render(<App />);
 
-      const statusElement = container.querySelector('[data-variant="inline"]');
+      const statusElement = getConnectionStatus(container);
       expect(statusElement).toBeInTheDocument();
     });
   });
 
   describe('connection states', () => {
+    /**
+     * Helper to get ConnectionStatus element via aria-label.
+     * This distinguishes it from DndContext's live region which doesn't have an aria-label.
+     */
+    const getConnectionStatus = () =>
+      screen.getByLabelText(/Connection status:/);
+
     it.each<[ConnectionState, string]>([
       ['connected', 'Connected'],
       ['connecting', 'Connecting...'],
@@ -187,7 +200,7 @@ describe('App', () => {
 
       render(<App />);
 
-      const status = screen.getByRole('status');
+      const status = getConnectionStatus();
       expect(status).toHaveAttribute('data-state', 'connected');
       expect(screen.getByText('Connected')).toBeInTheDocument();
     });
@@ -203,7 +216,7 @@ describe('App', () => {
 
       render(<App />);
 
-      const status = screen.getByRole('status');
+      const status = getConnectionStatus();
       expect(status).toHaveAttribute('data-state', 'disconnected');
       expect(screen.getByText('Disconnected')).toBeInTheDocument();
     });
@@ -221,7 +234,7 @@ describe('App', () => {
 
       render(<App />);
 
-      const status = screen.getByRole('status');
+      const status = getConnectionStatus();
       expect(status).toHaveAttribute('data-state', 'reconnecting');
       expect(
         screen.getByText('Reconnecting (attempt 5)...')
@@ -240,7 +253,7 @@ describe('App', () => {
 
       render(<App />);
 
-      const status = screen.getByRole('status');
+      const status = getConnectionStatus();
       expect(status).toHaveAttribute('data-state', 'connecting');
       expect(screen.getByText('Connecting...')).toBeInTheDocument();
     });
@@ -252,7 +265,7 @@ describe('App', () => {
 
       render(<App />);
 
-      const status = screen.getByRole('status');
+      const status = screen.getByLabelText('Connection status: Connected');
       expect(status).toHaveAttribute('aria-live', 'polite');
       expect(status).toHaveAttribute(
         'aria-label',
@@ -270,7 +283,7 @@ describe('App', () => {
 
       render(<App />);
 
-      const retryButton = screen.getByRole('button');
+      const retryButton = screen.getByRole('button', { name: /retry/i });
       expect(retryButton).toHaveAttribute('aria-label', 'Retry connection now');
     });
   });
@@ -319,7 +332,8 @@ describe('App', () => {
 
       render(<App />);
 
-      expect(screen.queryByRole('button')).not.toBeInTheDocument();
+      // Note: ViewSwitcher has buttons (tabs), so we specifically check for retry button
+      expect(screen.queryByRole('button', { name: /retry/i })).not.toBeInTheDocument();
     });
 
     it('does not show retry button when connected', () => {
@@ -332,7 +346,8 @@ describe('App', () => {
 
       render(<App />);
 
-      expect(screen.queryByRole('button')).not.toBeInTheDocument();
+      // Note: ViewSwitcher has buttons (tabs), so we specifically check for retry button
+      expect(screen.queryByRole('button', { name: /retry/i })).not.toBeInTheDocument();
     });
   });
 });
