@@ -59,6 +59,16 @@ go run . -port 8080
 
 Then use `mcp__claude-in-chrome__computer` with `action: screenshot` to capture and verify.
 
+### Visual Testing Guidelines
+
+When performing UI verification, don't just check that elements exist or operations succeed:
+
+1. **Verify content renders, not just containers** - Confirm that actual content (text, badges, icons) is visible, not just empty placeholder boxes or skeleton states
+2. **Check all aspects of real-time updates** - When testing WebSocket/live updates, verify both structural changes (item counts, column moves) AND content changes (titles, field values)
+3. **Compare expected vs actual visual output** - If a card should show a title, priority badge, and type icon, explicitly verify each is visible
+4. **Flag rendering anomalies immediately** - Empty boxes, missing text, or skeleton states that persist after data loads indicate bugs worth reporting
+5. **Don't assume partial success means full success** - A count updating correctly doesn't mean the underlying cards are rendering properly
+
 ## Key Files
 
 - `routes.go` - HTTP route definitions
