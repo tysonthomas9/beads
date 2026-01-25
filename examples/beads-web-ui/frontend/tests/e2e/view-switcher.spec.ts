@@ -377,6 +377,34 @@ test.describe("ViewSwitcher", () => {
       await expect(page.locator('[data-testid="issue-table"]')).toBeVisible()
       await expect(page.locator('[data-testid="graph-view"]')).not.toBeVisible()
     })
+
+    test("Enter activates focused tab", async ({ page }) => {
+      await setupMocks(page)
+      await navigateAndWait(page, "/")
+
+      // Start on Kanban, use Tab key to move focus to Table button
+      // This simulates a user tabbing through without using arrow keys
+      const tableTab = page.locator('[data-testid="view-tab-table"]')
+      await tableTab.focus()
+
+      // Table should be focused but NOT selected yet (Kanban is still active)
+      await expect(tableTab).toBeFocused()
+
+      // Note: In the automatic activation tabs pattern used by ViewSwitcher,
+      // focus and selection happen together when using arrow keys.
+      // However, Enter/Space should also work on any focused tab.
+      // Press Enter to activate
+      await page.keyboard.press("Enter")
+
+      // Verify Table tab is now active
+      await expect(tableTab).toHaveAttribute("aria-selected", "true")
+
+      // Verify Table view is rendered
+      await expect(page.locator('[data-testid="issue-table"]')).toBeVisible()
+      await expect(
+        page.locator('section[data-status="open"]')
+      ).not.toBeVisible()
+    })
   })
 })
 
