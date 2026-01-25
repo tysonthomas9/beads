@@ -169,4 +169,174 @@ test.describe("KanbanBoard", () => {
     await expect(openColumn).toBeVisible()
     await expect(openColumn.getByText("Issue Without Status")).toBeVisible()
   })
+
+  test("drag issue from Open to In Progress updates status and persists", async ({ page }) => {
+    // Track API calls for verification
+    const patchCalls: { url: string; body: { status?: string } }[] = []
+    let hasReloaded = false
+
+    // Mock /api/ready with dynamic response based on reload state
+    await page.route("**/api/ready", async (route) => {
+      const issues = hasReloaded
+        ? mockIssues.map((issue) =>
+            issue.id === "issue-open-1"
+              ? { ...issue, status: "in_progress" }
+              : issue
+          )
+        : mockIssues
+
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ success: true, data: issues }),
+      })
+    })
+
+    // Mock PATCH /api/issues/:id and capture the call
+    await page.route("**/api/issues/*", async (route) => {
+      if (route.request().method() === "PATCH") {
+        const url = route.request().url()
+        const body = route.request().postDataJSON() as { status?: string }
+        patchCalls.push({ url, body })
+
+        // Simulate server response with updated timestamp
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({
+            success: true,
+            data: {
+              ...mockIssues[0],
+              status: body.status,
+              updated_at: new Date().toISOString(),
+            },
+          }),
+        })
+      } else {
+        await route.continue()
+      }
+    })
+
+    // Mock WebSocket
+    await page.route("**/ws", async (route) => {
+      await route.abort()
+    })
+
+    // Navigate and wait for initial load
+    await Promise.all([
+      page.waitForResponse((res) => res.url().includes("/api/ready")),
+      page.goto("/"),
+    ])
+
+    // Get column references
+    const openColumn = page.locator('section[data-status="open"]')
+    const inProgressColumn = page.locator('section[data-status="in_progress"]')
+
+    // Verify initial state
+    await expect(openColumn.locator("article")).toHaveCount(2)
+    await expect(inProgressColumn.locator("article")).toHaveCount(1)
+
+    // Verify initial card is visible in Open column
+    const cardToDrag = openColumn.locator("article").filter({ hasText: "Open Task 1" })
+    await expect(cardToDrag).toBeVisible()
+
+    // Get the draggable wrapper (has the @dnd-kit listeners)
+    const draggable = cardToDrag.locator("..")
+    const dropTarget = inProgressColumn.locator('[data-droppable-id="in_progress"]')
+
+    // Get positions for the drag operation
+    const sourceBox = await draggable.boundingBox()
+    const targetBox = await dropTarget.boundingBox()
+
+    if (!sourceBox || !targetBox) {
+      throw new Error("Could not get bounding boxes")
+    }
+
+    const startX = sourceBox.x + sourceBox.width / 2
+    const startY = sourceBox.y + sourceBox.height / 2
+    const endX = targetBox.x + targetBox.width / 2
+    const endY = targetBox.y + targetBox.height / 2
+
+    // Use Playwright's dispatchEvent to fire pointer events
+    // This creates events that go through the browser's event system
+    await draggable.dispatchEvent("pointerdown", {
+      clientX: startX,
+      clientY: startY,
+      button: 0,
+      buttons: 1,
+      pointerId: 1,
+      pointerType: "mouse",
+      isPrimary: true,
+    })
+
+    // Wait for drag to activate
+    await page.waitForTimeout(50)
+
+    // Move past activation threshold
+    await page.dispatchEvent("body", "pointermove", {
+      clientX: startX + 10,
+      clientY: startY,
+      button: 0,
+      buttons: 1,
+      pointerId: 1,
+      pointerType: "mouse",
+      isPrimary: true,
+    })
+
+    await page.waitForTimeout(50)
+
+    // Move to target
+    await page.dispatchEvent("body", "pointermove", {
+      clientX: endX,
+      clientY: endY,
+      button: 0,
+      buttons: 1,
+      pointerId: 1,
+      pointerType: "mouse",
+      isPrimary: true,
+    })
+
+    await page.waitForTimeout(50)
+
+    // Release at target
+    await page.dispatchEvent("body", "pointerup", {
+      clientX: endX,
+      clientY: endY,
+      button: 0,
+      buttons: 0,
+      pointerId: 1,
+      pointerType: "mouse",
+      isPrimary: true,
+    })
+
+    // Wait for the PATCH API call to complete (avoids arbitrary timeout)
+    await page.waitForResponse(
+      (res) =>
+        res.url().includes("/api/issues/issue-open-1") &&
+        res.request().method() === "PATCH"
+    )
+
+    // Verify UI updated (card moved to In Progress)
+    // Wait for visibility first to ensure component has re-rendered
+    await expect(inProgressColumn.getByText("Open Task 1")).toBeVisible()
+    await expect(openColumn.locator("article")).toHaveCount(1)
+    await expect(inProgressColumn.locator("article")).toHaveCount(2)
+
+    // Verify API call was made correctly
+    expect(patchCalls).toHaveLength(1)
+    expect(patchCalls[0].url).toContain("/api/issues/issue-open-1")
+    expect(patchCalls[0].body).toEqual({ status: "in_progress" })
+
+    // Verify persistence on reload
+    hasReloaded = true
+    await page.reload()
+
+    // Wait for data to load after reload
+    await page.waitForResponse((res) => res.url().includes("/api/ready"))
+
+    // Verify the card is still in In Progress after reload
+    // Wait for visibility first to ensure component has re-rendered
+    await expect(inProgressColumn.getByText("Open Task 1")).toBeVisible()
+    await expect(inProgressColumn.locator("article")).toHaveCount(2)
+  })
 })
