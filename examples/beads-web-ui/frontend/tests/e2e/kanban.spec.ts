@@ -169,4 +169,121 @@ test.describe("KanbanBoard", () => {
     await expect(openColumn).toBeVisible()
     await expect(openColumn.getByText("Issue Without Status")).toBeVisible()
   })
+
+  test("shows error toast and rolls back card on drag failure", async ({ page }) => {
+    // Mock /api/ready with a single test issue in 'open' column
+    const dragTestIssue = [
+      {
+        id: "drag-fail-issue",
+        title: "Issue To Drag",
+        status: "open",
+        priority: 2,
+        created_at: "2026-01-24T10:00:00Z",
+        updated_at: "2026-01-24T10:00:00Z",
+      },
+    ]
+
+    await page.route("**/api/ready", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ success: true, data: dragTestIssue }),
+      })
+    })
+
+    // Mock WebSocket to prevent connection errors
+    await page.route("**/ws", async (route) => {
+      await route.abort()
+    })
+
+    // Mock PATCH /api/issues/{id} to fail with 500
+    await page.route("**/api/issues/*", async (route) => {
+      if (route.request().method() === "PATCH") {
+        await route.fulfill({
+          status: 500,
+          contentType: "application/json",
+          body: JSON.stringify({ success: false, error: "Server error" }),
+        })
+      } else {
+        await route.continue()
+      }
+    })
+
+    // Navigate and wait for board to render
+    await Promise.all([
+      page.waitForResponse((res) => res.url().includes("/api/ready") && res.status() === 200),
+      page.goto("/"),
+    ])
+
+    const openColumn = page.locator('section[data-status="open"]')
+    const inProgressColumn = page.locator('section[data-status="in_progress"]')
+    await expect(openColumn).toBeVisible()
+
+    // Verify card is in Open column initially
+    const card = openColumn.locator("article").filter({ hasText: "Issue To Drag" })
+    await expect(card).toBeVisible()
+
+    // Wait for the PATCH request when drag completes
+    const patchPromise = page.waitForResponse(
+      (res) => res.url().includes("/api/issues/") && res.request().method() === "PATCH",
+      { timeout: 10000 }
+    )
+
+    // Find the draggable wrapper using its accessible role and name
+    const draggableWrapper = page.getByRole("button", { name: "Issue: Issue To Drag" })
+    await expect(draggableWrapper).toBeVisible()
+
+    // Get the droppable target
+    const dropTarget = inProgressColumn.locator('[data-droppable-id="in_progress"]')
+    await expect(dropTarget).toBeVisible()
+
+    // Get bounding boxes for pointer event coordinates
+    const dragBox = await draggableWrapper.boundingBox()
+    const dropBox = await dropTarget.boundingBox()
+    if (!dragBox || !dropBox) throw new Error("Could not get element bounds")
+
+    const startX = dragBox.x + dragBox.width / 2
+    const startY = dragBox.y + dragBox.height / 2
+    const endX = dropBox.x + dropBox.width / 2
+    const endY = dropBox.y + dropBox.height / 2
+
+    // Use dispatchEvent to fire pointer events that @dnd-kit's PointerSensor handles
+    await draggableWrapper.dispatchEvent("pointerdown", {
+      bubbles: true,
+      cancelable: true,
+      pointerId: 1,
+      pointerType: "mouse",
+      isPrimary: true,
+      clientX: startX,
+      clientY: startY,
+      button: 0,
+      buttons: 1,
+    })
+
+    // Move beyond activation threshold (5px)
+    await page.mouse.move(startX + 10, startY)
+    await page.waitForTimeout(50) // Allow time for drag activation
+
+    // Move to drop target
+    await page.mouse.move(endX, endY, { steps: 5 })
+    await page.waitForTimeout(50)
+
+    // Fire pointerup on the page to complete the drag
+    await page.mouse.up()
+
+    // Wait for PATCH to complete (will fail if drag didn't trigger API call)
+    await patchPromise
+
+    // Allow time for async error handling and React state updates
+    await page.waitForTimeout(500)
+
+    // Wait for and verify error toast appears
+    const toast = page.getByTestId("error-toast")
+    await expect(toast).toBeVisible({ timeout: 5000 })
+    await expect(toast).toHaveAttribute("role", "alert")
+
+    // Verify card rolled back to Open column
+    await expect(openColumn.locator("article").filter({ hasText: "Issue To Drag" })).toBeVisible()
+    await expect(inProgressColumn.locator("article")).toHaveCount(0)
+  })
 })
