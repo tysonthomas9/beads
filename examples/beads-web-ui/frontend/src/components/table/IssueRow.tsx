@@ -5,6 +5,7 @@
 
 import type { KeyboardEvent, ChangeEvent, MouseEvent } from 'react';
 import type { Issue } from '@/types';
+import type { BlockedInfo } from '@/components/KanbanBoard';
 import type { ColumnDef } from './columns';
 import { getCellValue } from './columns';
 import { renderCellContent } from './cellRenderers';
@@ -30,6 +31,10 @@ export interface IssueRowProps<T extends Issue> {
   showCheckbox?: boolean | undefined;
   /** Callback when checkbox state changes */
   onSelectionChange?: ((issueId: string, selected: boolean) => void) | undefined;
+  /** Whether this issue is blocked */
+  isBlocked?: boolean | undefined;
+  /** Blocked info for rendering the blocked cell */
+  blockedInfo?: BlockedInfo | undefined;
 }
 
 /**
@@ -45,6 +50,8 @@ export function IssueRow<T extends Issue>({
   className,
   showCheckbox = false,
   onSelectionChange,
+  isBlocked = false,
+  blockedInfo,
 }: IssueRowProps<T>) {
   const handleClick = () => {
     if (isClickable && onClick) {
@@ -72,6 +79,7 @@ export function IssueRow<T extends Issue>({
     'issue-table__row',
     isSelected ? 'issue-table__row--selected' : '',
     isClickable ? 'issue-table__row--clickable' : '',
+    isBlocked ? 'issue-table__row--blocked' : '',
     className,
   ]
     .filter(Boolean)
@@ -109,7 +117,7 @@ export function IssueRow<T extends Issue>({
             style={{ textAlign: column.align ?? 'left' }}
             data-column={column.id}
           >
-            {renderCellContent(column.id, value, issue)}
+            {renderCellContent(column.id, value, issue, { blockedInfo })}
           </td>
         );
       })}

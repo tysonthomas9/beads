@@ -10,7 +10,8 @@ export {
   type SortState,
   type SortDirection,
 } from './TableHeader';
-export { renderCellContent } from './cellRenderers';
+export { BlockedCell, type BlockedCellProps } from './BlockedCell';
+export { renderCellContent, type RenderCellOptions } from './cellRenderers';
 export {
   type ColumnDef,
   DEFAULT_ISSUE_COLUMNS,
