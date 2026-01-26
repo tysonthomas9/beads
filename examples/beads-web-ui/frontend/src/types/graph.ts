@@ -26,6 +26,10 @@ export interface IssueNodeData extends Record<string, unknown> {
   dependentCount: number;
   /** Whether this issue is ready (no blocking open dependencies) */
   isReady: boolean;
+  /** Number of issues this issue transitively blocks */
+  blockedCount: number;
+  /** Whether this is a root blocker (blocks others but not blocked itself) */
+  isRootBlocker: boolean;
 }
 
 /**
@@ -47,6 +51,8 @@ export interface DependencyEdgeData extends Record<string, unknown> {
   sourceIssueId: string;
   /** Target issue ID (for reference) */
   targetIssueId: string;
+  /** Whether this edge is part of a highlighted chain */
+  isHighlighted?: boolean;
 }
 
 /**

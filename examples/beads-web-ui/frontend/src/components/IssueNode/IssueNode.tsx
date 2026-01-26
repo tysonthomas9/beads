@@ -6,10 +6,14 @@
 import { memo } from 'react';
 import { Handle, Position, type NodeProps } from '@xyflow/react';
 import type { IssueNode as IssueNodeType } from '@/types';
+import { BlockedBadge } from '@/components/BlockedBadge';
 import styles from './IssueNode.module.css';
 
 export interface IssueNodeProps extends NodeProps<IssueNodeType> {
   // NodeProps provides: id, data, selected, dragging, etc.
+  // Extended with chain highlighting
+  /** Whether this node is part of a highlighted blocking chain */
+  'data-in-chain'?: boolean;
 }
 
 /**
@@ -34,7 +38,18 @@ function getPriorityLevel(priority: number | undefined): 0 | 1 | 2 | 3 | 4 {
  * IssueNode renders an issue as a React Flow node in the dependency graph.
  */
 function IssueNodeComponent({ data, selected }: IssueNodeProps): JSX.Element {
-  const { title, priority, status, issueType, dependencyCount, dependentCount, issue, isReady } = data;
+  const {
+    title,
+    priority,
+    status,
+    issueType,
+    dependencyCount,
+    dependentCount,
+    issue,
+    isReady,
+    blockedCount,
+    isRootBlocker,
+  } = data;
   const displayId = formatIssueId(issue.id);
   const displayTitle = title || 'Untitled';
   const priorityLevel = getPriorityLevel(priority);
@@ -49,6 +64,7 @@ function IssueNodeComponent({ data, selected }: IssueNodeProps): JSX.Element {
       data-priority={priorityLevel}
       data-status={status || 'unknown'}
       data-is-ready={isReady}
+      data-is-root-blocker={isRootBlocker}
       aria-label={`Issue: ${displayTitle}`}
     >
       {/* Target handle for incoming dependencies */}
@@ -58,6 +74,13 @@ function IssueNodeComponent({ data, selected }: IssueNodeProps): JSX.Element {
         className={styles.handle}
         id="target"
       />
+
+      {/* Blocked count badge - positioned at top-right corner */}
+      {blockedCount > 0 && (
+        <div className={styles.badgeContainer}>
+          <BlockedBadge blockedCount={blockedCount} />
+        </div>
+      )}
 
       <header className={styles.header}>
         <span className={styles.id}>{displayId}</span>
@@ -112,7 +135,9 @@ function arePropsEqual(prev: IssueNodeProps, next: IssueNodeProps): boolean {
     prev.data.issueType === next.data.issueType &&
     prev.data.dependencyCount === next.data.dependencyCount &&
     prev.data.dependentCount === next.data.dependentCount &&
-    prev.data.isReady === next.data.isReady
+    prev.data.isReady === next.data.isReady &&
+    prev.data.blockedCount === next.data.blockedCount &&
+    prev.data.isRootBlocker === next.data.isRootBlocker
   );
 }
 

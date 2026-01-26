@@ -40,6 +40,12 @@ const EDGE_ITEMS = [
   { type: 'normal', label: 'Dependency', style: 'solid' as const },
 ] as const;
 
+/** Special indicator legend items */
+const INDICATOR_ITEMS = [
+  { type: 'rootBlocker', label: 'Root Blocker', description: 'Blocks others, not blocked' },
+  { type: 'blockedBadge', label: 'Blocked Count', description: 'Number blocked by this' },
+] as const;
+
 /**
  * GraphLegend renders a collapsible panel explaining graph visual elements.
  *
@@ -134,6 +140,23 @@ export function GraphLegend({
                     aria-hidden="true"
                   />
                   <dd>{item.label}</dd>
+                </div>
+              ))}
+            </dl>
+          </section>
+
+          {/* Indicator types section */}
+          <section className={styles.section}>
+            <h4 className={styles.sectionTitle}>Indicators</h4>
+            <dl className={styles.list}>
+              {INDICATOR_ITEMS.map((item) => (
+                <div key={item.type} className={styles.legendItem}>
+                  <dt
+                    className={styles.indicatorSwatch}
+                    data-type={item.type}
+                    aria-hidden="true"
+                  />
+                  <dd title={item.description}>{item.label}</dd>
                 </div>
               ))}
             </dl>

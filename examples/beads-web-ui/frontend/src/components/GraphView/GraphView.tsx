@@ -84,6 +84,7 @@ export function GraphView({
   className,
 }: GraphViewProps): JSX.Element {
   const [highlightReady, setHighlightReady] = useState(false);
+  const [showBlockedOnly, setShowBlockedOnly] = useState(false);
   const [legendCollapsed, setLegendCollapsed] = useState(true);
 
   // Tooltip state for hover preview
@@ -189,6 +190,7 @@ export function GraphView({
     <div
       className={rootClassName}
       data-highlight-ready={highlightReady}
+      data-show-blocked-only={showBlockedOnly}
       data-testid="graph-view"
     >
       <ReactFlow {...(reactFlowProps as Record<string, never>)}>
@@ -199,6 +201,8 @@ export function GraphView({
             <GraphControls
               highlightReady={highlightReady}
               onHighlightReadyChange={setHighlightReady}
+              showBlockedOnly={showBlockedOnly}
+              onShowBlockedOnlyChange={setShowBlockedOnly}
               {...(styles.controls ? { className: styles.controls } : {})}
             />
           </Panel>

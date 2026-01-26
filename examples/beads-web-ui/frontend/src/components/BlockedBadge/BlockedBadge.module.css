@@ -1,0 +1,44 @@
+/**
+ * BlockedBadge component styles.
+ * Small circular badge positioned at top-right of a node.
+ */
+
+.blockedBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  font-size: 10px;
+  font-weight: var(--font-weight-bold);
+  font-family: var(--font-family-mono);
+  line-height: 1;
+  color: var(--color-text-inverse);
+  background-color: var(--color-blocked);
+  border-radius: 9px;
+  cursor: default;
+  user-select: none;
+  box-shadow: var(--shadow-xs);
+  transition: transform var(--transition-fast);
+}
+
+/* Interactive state when clickable */
+.blockedBadge[role="button"] {
+  cursor: pointer;
+}
+
+.blockedBadge[role="button"]:hover {
+  transform: scale(1.1);
+}
+
+.blockedBadge[role="button"]:focus-visible {
+  outline: 2px solid var(--color-text-inverse);
+  outline-offset: 1px;
+}
+
+/* Large count styling */
+.blockedBadge[data-large="true"] {
+  padding: 0 6px;
+  font-size: 9px;
+}
