@@ -42,6 +42,11 @@ export interface LoadingSkeletonColumnProps {
   cardCount?: number;
 }
 
+export interface LoadingSkeletonGraphProps {
+  /** Additional CSS class name */
+  className?: string;
+}
+
 /**
  * Base LoadingSkeleton component.
  * Renders an animated placeholder in the specified shape.
@@ -143,6 +148,39 @@ function Column({
   );
 }
 
+/**
+ * Graph skeleton matching GraphView layout.
+ * Use when lazy loading the GraphView component.
+ * Shows a placeholder with simulated nodes and edges.
+ */
+function Graph({ className }: LoadingSkeletonGraphProps): JSX.Element {
+  const rootClassName = className
+    ? `${styles.graph} ${className}`
+    : styles.graph;
+
+  return (
+    <div className={rootClassName} aria-hidden="true" data-testid="loading-skeleton-graph">
+      {/* Simulated graph nodes */}
+      <div className={styles.graphNodes}>
+        <div className={styles.graphNode}>
+          <LoadingSkeleton shape="rect" width={120} height={60} />
+        </div>
+        <div className={styles.graphNode}>
+          <LoadingSkeleton shape="rect" width={120} height={60} />
+        </div>
+        <div className={styles.graphNode}>
+          <LoadingSkeleton shape="rect" width={120} height={60} />
+        </div>
+      </div>
+      {/* MiniMap placeholder */}
+      <div className={styles.graphMiniMap}>
+        <LoadingSkeleton shape="rect" width={150} height={100} />
+      </div>
+    </div>
+  );
+}
+
 // Attach preset variants as static properties
 LoadingSkeleton.Card = Card;
 LoadingSkeleton.Column = Column;
+LoadingSkeleton.Graph = Graph;

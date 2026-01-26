@@ -26,7 +26,8 @@ export * from './BlockedBadge';
 export * from './BlockedSummary';
 export * from './GraphControls';
 export * from './GraphLegend';
-export * from './GraphView';
+// GraphView is NOT exported here - it's lazy loaded in App.tsx
+// Import directly from '@/components/GraphView' if needed
 export * from './GraphViewContainer';
 export * from './NodeTooltip';
 export * from './ViewSwitcher';

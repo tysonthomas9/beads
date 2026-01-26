@@ -18,8 +18,8 @@ vi.mock('@/hooks/useIssueDetail', () => ({
   useIssueDetail: vi.fn(),
 }));
 
-// Mock child components
-vi.mock('@/components', () => ({
+// Mock GraphView component (imported directly from @/components/GraphView)
+vi.mock('@/components/GraphView', () => ({
   GraphView: vi.fn(({ issues, onNodeClick, className }) => (
     <div
       data-testid="graph-view"
@@ -38,6 +38,10 @@ vi.mock('@/components', () => ({
       ))}
     </div>
   )),
+}));
+
+// Mock IssueDetailPanel (imported from barrel @/components)
+vi.mock('@/components', () => ({
   IssueDetailPanel: vi.fn(({ isOpen, issue, isLoading, error, onClose }) => (
     <div
       data-testid="issue-detail-panel"
