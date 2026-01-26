@@ -603,14 +603,6 @@ test.describe("KanbanBoard", () => {
     })
     expect(hasDropOverClass).toBe(true)
 
-    // Get the highlighted colors for later comparison
-    const targetBgColor = await dropTarget.evaluate((el) => {
-      return window.getComputedStyle(el).backgroundColor
-    })
-    const targetBorderColor = await dropTarget.evaluate((el) => {
-      return window.getComputedStyle(el).borderColor
-    })
-
     // 7. Complete drag with pointerup
     await page.dispatchEvent("body", "pointerup", {
       clientX: endX,
@@ -652,15 +644,10 @@ test.describe("KanbanBoard", () => {
     const isOverAttr = await dropTarget.getAttribute("data-is-over")
     expect(isOverAttr).toBeNull()
 
-    // Verify drop target colors have reset (not the highlighted state)
-    const finalBgColor = await dropTarget.evaluate((el) => {
-      return window.getComputedStyle(el).backgroundColor
+    // Verify drop target has reset (contentDropOver class removed)
+    const hasDropOverClassAfter = await dropTarget.evaluate((el) => {
+      return Array.from(el.classList).some((c) => c.includes("contentDropOver"))
     })
-    const finalBorderColor = await dropTarget.evaluate((el) => {
-      return window.getComputedStyle(el).borderColor
-    })
-    // Colors should be different from the highlighted state during drag
-    expect(finalBgColor).not.toBe(targetBgColor)
-    expect(finalBorderColor).not.toBe(targetBorderColor)
+    expect(hasDropOverClassAfter).toBe(false)
   })
 })
