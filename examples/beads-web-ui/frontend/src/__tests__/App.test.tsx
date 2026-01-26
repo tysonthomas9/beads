@@ -58,6 +58,7 @@ vi.mock('@/hooks', () => ({
 
 // Import the mocked module
 import { useIssues } from '@/hooks/useIssues';
+import { useFilterState } from '@/hooks';
 
 // Alias for convenience in tests
 const useIssuesMock = mockUseIssues;
@@ -765,6 +766,60 @@ describe('App', () => {
       // With the mock returning all issues, both should be visible
       expect(screen.getByText('First Issue')).toBeInTheDocument();
       expect(screen.getByText('Second Issue')).toBeInTheDocument();
+    });
+
+    it('clears search input when Clear filters button is clicked', async () => {
+      // Set up issues so the app renders in success state
+      const issues = [createMockIssue({ id: 'issue-1', title: 'Test Issue', status: 'open' })];
+      const mockReturn = createMockUseIssuesReturn({ issues });
+      vi.mocked(useIssues).mockReturnValue(mockReturn);
+
+      // Track filter state that will change when clearAll is called
+      let currentFilters: { search?: string } = { search: 'test query' };
+
+      const clearAll = vi.fn(() => {
+        // Simulate clearAll behavior: clears search
+        currentFilters = {};
+      });
+
+      const filterActions = {
+        setPriority: vi.fn(),
+        setType: vi.fn(),
+        setLabels: vi.fn(),
+        setSearch: vi.fn(),
+        clearFilter: vi.fn(),
+        clearAll,
+      };
+
+      // Mock useFilterState to return filter with search value
+      // This must be set before render so the initial useState gets the value
+      vi.mocked(useFilterState).mockReturnValue([currentFilters, filterActions]);
+
+      const { rerender } = render(<App />);
+
+      // Verify search input has the initial value
+      // Note: data-testid="search-input" is on the wrapper div, the actual input has data-testid="search-input-field"
+      const searchInput = screen.getByTestId('search-input-field') as HTMLInputElement;
+      expect(searchInput.value).toBe('test query');
+
+      // Clear filters button should be visible because search filter is active
+      const clearButton = screen.getByTestId('clear-filters');
+      expect(clearButton).toBeInTheDocument();
+
+      // Click clear filters - this calls clearAll which updates currentFilters
+      fireEvent.click(clearButton);
+      expect(clearAll).toHaveBeenCalledTimes(1);
+
+      // Update the mock to return the new filter state (search cleared)
+      vi.mocked(useFilterState).mockReturnValue([currentFilters, filterActions]);
+
+      // Rerender to trigger the useEffect that syncs filters.search to searchValue
+      rerender(<App />);
+
+      // Wait for the search input to be cleared
+      await waitFor(() => {
+        expect(searchInput.value).toBe('');
+      });
     });
   });
 });
