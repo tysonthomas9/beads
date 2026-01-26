@@ -1,9 +1,10 @@
 /**
  * IssueCard component for Kanban board.
- * Displays a single issue as a card with title, ID, and priority badge.
+ * Displays a single issue as a card with title, ID, priority badge, and optional blocked indicator.
  */
 
 import type { Issue } from '@/types';
+import { BlockedBadge } from '@/components/BlockedBadge';
 import styles from './IssueCard.module.css';
 
 /**
@@ -16,6 +17,10 @@ export interface IssueCardProps {
   onClick?: (issue: Issue) => void;
   /** Additional CSS class name */
   className?: string;
+  /** Number of issues blocking this one (optional) */
+  blockedByCount?: number;
+  /** IDs of blocking issues (optional) */
+  blockedBy?: string[];
 }
 
 /**
@@ -42,16 +47,19 @@ function getPriorityLevel(priority: number | undefined): 0 | 1 | 2 | 3 | 4 {
 
 /**
  * IssueCard displays a single issue in the Kanban board.
- * Shows title, ID, and priority badge.
+ * Shows title, ID, priority badge, and optional blocked indicator.
  */
 export function IssueCard({
   issue,
   onClick,
   className,
+  blockedByCount,
+  blockedBy,
 }: IssueCardProps): JSX.Element {
   const priority = getPriorityLevel(issue.priority);
   const displayId = formatIssueId(issue.id);
   const displayTitle = issue.title || 'Untitled';
+  const isBlocked = (blockedByCount ?? 0) > 0;
 
   const rootClassName = className
     ? `${styles.issueCard} ${className}`
@@ -74,14 +82,21 @@ export function IssueCard({
     <article
       className={rootClassName}
       data-priority={priority}
+      data-blocked={isBlocked ? 'true' : undefined}
       onClick={handleClick}
       onKeyDown={handleKeyDown}
       tabIndex={onClick ? 0 : undefined}
       role={onClick ? 'button' : undefined}
-      aria-label={`Issue: ${displayTitle}`}
+      aria-label={`Issue: ${displayTitle}${isBlocked ? ' (blocked)' : ''}`}
     >
       <header className={styles.header}>
         <span className={styles.id}>{displayId}</span>
+        {isBlocked && (
+          <BlockedBadge
+            blockedByCount={blockedByCount ?? 0}
+            {...(blockedBy !== undefined && { blockedBy })}
+          />
+        )}
         <span
           className={styles.priorityBadge}
           data-priority={priority}

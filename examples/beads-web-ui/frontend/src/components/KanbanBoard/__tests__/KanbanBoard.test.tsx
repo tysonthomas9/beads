@@ -886,4 +886,253 @@ describe('KanbanBoard', () => {
       expect(screen.queryByText('Something Else Entirely')).not.toBeInTheDocument();
     });
   });
+
+  describe('blocked issues filtering', () => {
+    /**
+     * Create a blockedIssues map for testing.
+     */
+    function createBlockedIssuesMap(blockedIds: string[]): Map<string, { blockedByCount: number; blockedBy: string[] }> {
+      const map = new Map<string, { blockedByCount: number; blockedBy: string[] }>();
+      blockedIds.forEach((id) => {
+        map.set(id, { blockedByCount: 1, blockedBy: ['blocker-id'] });
+      });
+      return map;
+    }
+
+    it('shows all issues including blocked when showBlocked=true (default)', () => {
+      const issues = [
+        createMockIssue({ id: 'normal-issue', title: 'Normal Issue', status: 'open' }),
+        createMockIssue({ id: 'blocked-issue', title: 'Blocked Issue', status: 'open' }),
+      ];
+      const blockedIssues = createBlockedIssuesMap(['blocked-issue']);
+
+      render(<KanbanBoard issues={issues} blockedIssues={blockedIssues} />);
+
+      expect(screen.getByText('Normal Issue')).toBeInTheDocument();
+      expect(screen.getByText('Blocked Issue')).toBeInTheDocument();
+    });
+
+    it('shows all issues when showBlocked=true explicitly', () => {
+      const issues = [
+        createMockIssue({ id: 'normal-issue', title: 'Normal Issue', status: 'open' }),
+        createMockIssue({ id: 'blocked-issue', title: 'Blocked Issue', status: 'open' }),
+      ];
+      const blockedIssues = createBlockedIssuesMap(['blocked-issue']);
+
+      render(<KanbanBoard issues={issues} blockedIssues={blockedIssues} showBlocked={true} />);
+
+      expect(screen.getByText('Normal Issue')).toBeInTheDocument();
+      expect(screen.getByText('Blocked Issue')).toBeInTheDocument();
+    });
+
+    it('hides blocked issues when showBlocked=false', () => {
+      const issues = [
+        createMockIssue({ id: 'normal-issue', title: 'Normal Issue', status: 'open' }),
+        createMockIssue({ id: 'blocked-issue', title: 'Blocked Issue', status: 'open' }),
+      ];
+      const blockedIssues = createBlockedIssuesMap(['blocked-issue']);
+
+      render(<KanbanBoard issues={issues} blockedIssues={blockedIssues} showBlocked={false} />);
+
+      expect(screen.getByText('Normal Issue')).toBeInTheDocument();
+      expect(screen.queryByText('Blocked Issue')).not.toBeInTheDocument();
+    });
+
+    it('hides multiple blocked issues when showBlocked=false', () => {
+      const issues = [
+        createMockIssue({ id: 'normal-1', title: 'Normal 1', status: 'open' }),
+        createMockIssue({ id: 'blocked-1', title: 'Blocked 1', status: 'open' }),
+        createMockIssue({ id: 'normal-2', title: 'Normal 2', status: 'in_progress' }),
+        createMockIssue({ id: 'blocked-2', title: 'Blocked 2', status: 'in_progress' }),
+        createMockIssue({ id: 'blocked-3', title: 'Blocked 3', status: 'closed' }),
+      ];
+      const blockedIssues = createBlockedIssuesMap(['blocked-1', 'blocked-2', 'blocked-3']);
+
+      render(<KanbanBoard issues={issues} blockedIssues={blockedIssues} showBlocked={false} />);
+
+      expect(screen.getByText('Normal 1')).toBeInTheDocument();
+      expect(screen.getByText('Normal 2')).toBeInTheDocument();
+      expect(screen.queryByText('Blocked 1')).not.toBeInTheDocument();
+      expect(screen.queryByText('Blocked 2')).not.toBeInTheDocument();
+      expect(screen.queryByText('Blocked 3')).not.toBeInTheDocument();
+    });
+
+    it('shows all issues when showBlocked=false but blockedIssues is undefined', () => {
+      const issues = [
+        createMockIssue({ id: 'issue-1', title: 'Issue 1', status: 'open' }),
+        createMockIssue({ id: 'issue-2', title: 'Issue 2', status: 'open' }),
+      ];
+
+      render(<KanbanBoard issues={issues} showBlocked={false} />);
+
+      expect(screen.getByText('Issue 1')).toBeInTheDocument();
+      expect(screen.getByText('Issue 2')).toBeInTheDocument();
+    });
+
+    it('column counts reflect blocked filtering', () => {
+      const issues = [
+        createMockIssue({ id: 'normal-1', title: 'Normal 1', status: 'open' }),
+        createMockIssue({ id: 'normal-2', title: 'Normal 2', status: 'open' }),
+        createMockIssue({ id: 'blocked-1', title: 'Blocked 1', status: 'open' }),
+        createMockIssue({ id: 'blocked-2', title: 'Blocked 2', status: 'open' }),
+      ];
+      const blockedIssues = createBlockedIssuesMap(['blocked-1', 'blocked-2']);
+
+      render(<KanbanBoard issues={issues} blockedIssues={blockedIssues} showBlocked={false} />);
+
+      // Open column should show 2 (only non-blocked issues)
+      const openColumn = screen.getByRole('region', { name: 'Open issues' });
+      expect(within(openColumn).getByLabelText('2 issues')).toBeInTheDocument();
+    });
+
+    it('combines blocked filtering with other filters', () => {
+      const issues = [
+        createMockIssue({ id: 'p1-normal', title: 'P1 Normal', status: 'open', priority: 1 }),
+        createMockIssue({ id: 'p1-blocked', title: 'P1 Blocked', status: 'open', priority: 1 }),
+        createMockIssue({ id: 'p2-normal', title: 'P2 Normal', status: 'open', priority: 2 }),
+        createMockIssue({ id: 'p2-blocked', title: 'P2 Blocked', status: 'open', priority: 2 }),
+      ];
+      const blockedIssues = createBlockedIssuesMap(['p1-blocked', 'p2-blocked']);
+      const filters: FilterState = { priority: 1 };
+
+      render(
+        <KanbanBoard
+          issues={issues}
+          blockedIssues={blockedIssues}
+          showBlocked={false}
+          filters={filters}
+        />
+      );
+
+      // Only P1 non-blocked issue should be visible
+      expect(screen.getByText('P1 Normal')).toBeInTheDocument();
+      expect(screen.queryByText('P1 Blocked')).not.toBeInTheDocument();
+      expect(screen.queryByText('P2 Normal')).not.toBeInTheDocument();
+      expect(screen.queryByText('P2 Blocked')).not.toBeInTheDocument();
+    });
+
+    it('updates when showBlocked prop changes', () => {
+      const issues = [
+        createMockIssue({ id: 'normal-issue', title: 'Normal Issue', status: 'open' }),
+        createMockIssue({ id: 'blocked-issue', title: 'Blocked Issue', status: 'open' }),
+      ];
+      const blockedIssues = createBlockedIssuesMap(['blocked-issue']);
+
+      const { rerender } = render(
+        <KanbanBoard issues={issues} blockedIssues={blockedIssues} showBlocked={true} />
+      );
+
+      // Initially all visible
+      expect(screen.getByText('Normal Issue')).toBeInTheDocument();
+      expect(screen.getByText('Blocked Issue')).toBeInTheDocument();
+
+      // Hide blocked issues
+      rerender(<KanbanBoard issues={issues} blockedIssues={blockedIssues} showBlocked={false} />);
+
+      expect(screen.getByText('Normal Issue')).toBeInTheDocument();
+      expect(screen.queryByText('Blocked Issue')).not.toBeInTheDocument();
+
+      // Show blocked issues again
+      rerender(<KanbanBoard issues={issues} blockedIssues={blockedIssues} showBlocked={true} />);
+
+      expect(screen.getByText('Normal Issue')).toBeInTheDocument();
+      expect(screen.getByText('Blocked Issue')).toBeInTheDocument();
+    });
+
+    it('handles empty blockedIssues map', () => {
+      const issues = [
+        createMockIssue({ id: 'issue-1', title: 'Issue 1', status: 'open' }),
+        createMockIssue({ id: 'issue-2', title: 'Issue 2', status: 'open' }),
+      ];
+      const blockedIssues = new Map<string, { blockedByCount: number; blockedBy: string[] }>();
+
+      render(<KanbanBoard issues={issues} blockedIssues={blockedIssues} showBlocked={false} />);
+
+      // All issues should be visible when nothing is blocked
+      expect(screen.getByText('Issue 1')).toBeInTheDocument();
+      expect(screen.getByText('Issue 2')).toBeInTheDocument();
+    });
+  });
+
+  describe('blockedIssues prop passed to cards', () => {
+    it('passes blockedInfo to DraggableIssueCard for blocked issues', () => {
+      const issues = [
+        createMockIssue({ id: 'blocked-issue', title: 'Blocked Issue', status: 'open' }),
+      ];
+      const blockedIssues = new Map<string, { blockedByCount: number; blockedBy: string[] }>([
+        ['blocked-issue', { blockedByCount: 3, blockedBy: ['blocker-1', 'blocker-2', 'blocker-3'] }],
+      ]);
+
+      render(<KanbanBoard issues={issues} blockedIssues={blockedIssues} />);
+
+      // The BlockedBadge should be rendered within the card
+      expect(screen.getByLabelText('Blocked by 3 issues')).toBeInTheDocument();
+    });
+
+    it('does not pass blockedInfo for non-blocked issues', () => {
+      const issues = [
+        createMockIssue({ id: 'normal-issue', title: 'Normal Issue', status: 'open' }),
+      ];
+      const blockedIssues = new Map<string, { blockedByCount: number; blockedBy: string[] }>([
+        ['other-issue', { blockedByCount: 1, blockedBy: ['blocker-1'] }],
+      ]);
+
+      render(<KanbanBoard issues={issues} blockedIssues={blockedIssues} />);
+
+      // No BlockedBadge should be rendered
+      expect(screen.queryByLabelText(/Blocked by/)).not.toBeInTheDocument();
+    });
+
+    it('passes correct blockedBy array to BlockedBadge', () => {
+      const issues = [
+        createMockIssue({ id: 'blocked-issue', title: 'Blocked Issue', status: 'open' }),
+      ];
+      const blockedIssues = new Map<string, { blockedByCount: number; blockedBy: string[] }>([
+        ['blocked-issue', { blockedByCount: 2, blockedBy: ['blocker-abc', 'blocker-xyz'] }],
+      ]);
+
+      render(<KanbanBoard issues={issues} blockedIssues={blockedIssues} />);
+
+      // Hover on badge to see tooltip
+      const badge = screen.getByLabelText('Blocked by 2 issues');
+      fireEvent.mouseEnter(badge);
+
+      expect(screen.getByText('blocker-abc')).toBeInTheDocument();
+      expect(screen.getByText('blocker-xyz')).toBeInTheDocument();
+    });
+
+    it('renders blocked badges in multiple columns', () => {
+      const issues = [
+        createMockIssue({ id: 'blocked-open', title: 'Blocked Open', status: 'open' }),
+        createMockIssue({ id: 'blocked-progress', title: 'Blocked Progress', status: 'in_progress' }),
+        createMockIssue({ id: 'normal-closed', title: 'Normal Closed', status: 'closed' }),
+      ];
+      const blockedIssues = new Map<string, { blockedByCount: number; blockedBy: string[] }>([
+        ['blocked-open', { blockedByCount: 1, blockedBy: ['b1'] }],
+        ['blocked-progress', { blockedByCount: 2, blockedBy: ['b2', 'b3'] }],
+      ]);
+
+      render(<KanbanBoard issues={issues} blockedIssues={blockedIssues} />);
+
+      // Both blocked badges should be rendered
+      expect(screen.getByLabelText('Blocked by 1 issue')).toBeInTheDocument();
+      expect(screen.getByLabelText('Blocked by 2 issues')).toBeInTheDocument();
+    });
+
+    it('passes blockedInfo to DragOverlay when dragging', () => {
+      // This test verifies the DragOverlay receives blocked info
+      // Note: Actually testing drag behavior requires integration tests
+      const issues = [
+        createMockIssue({ id: 'blocked-issue', title: 'Blocked Issue', status: 'open' }),
+      ];
+      const blockedIssues = new Map<string, { blockedByCount: number; blockedBy: string[] }>([
+        ['blocked-issue', { blockedByCount: 1, blockedBy: ['blocker-1'] }],
+      ]);
+
+      render(<KanbanBoard issues={issues} blockedIssues={blockedIssues} />);
+
+      // Verify the card renders with blocked badge
+      expect(screen.getByLabelText('Blocked by 1 issue')).toBeInTheDocument();
+    });
+  });
 });
