@@ -2,11 +2,37 @@ package main
 
 import (
 	"encoding/json"
+	"io/fs"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 )
+
+// discoverAssetFilenames returns the actual CSS and JS asset filenames from the embedded filesystem.
+// This allows tests to work regardless of the build-time hashes in filenames.
+func discoverAssetFilenames() (cssFile, jsFile string) {
+	distFS, err := fs.Sub(frontendFS, "frontend/dist/assets")
+	if err != nil {
+		return "", ""
+	}
+
+	entries, err := fs.ReadDir(distFS, ".")
+	if err != nil {
+		return "", ""
+	}
+
+	for _, entry := range entries {
+		name := entry.Name()
+		if strings.HasPrefix(name, "index-") && strings.HasSuffix(name, ".css") {
+			cssFile = name
+		}
+		if strings.HasPrefix(name, "index-") && strings.HasSuffix(name, ".js") && !strings.Contains(name, "react") {
+			jsFile = name
+		}
+	}
+	return cssFile, jsFile
+}
 
 func TestShouldCache(t *testing.T) {
 	tests := []struct {
@@ -111,6 +137,12 @@ func TestSetCacheHeaders(t *testing.T) {
 func TestFrontendHandler(t *testing.T) {
 	handler := frontendHandler()
 
+	// Discover actual asset filenames from the embedded filesystem
+	cssFile, jsFile := discoverAssetFilenames()
+	if cssFile == "" || jsFile == "" {
+		t.Skip("Could not discover asset filenames from embedded filesystem")
+	}
+
 	tests := []struct {
 		name             string
 		path             string
@@ -148,14 +180,14 @@ func TestFrontendHandler(t *testing.T) {
 		},
 		{
 			name:             "hashed CSS asset serves with long cache",
-			path:             "/assets/index-Bj8-cpyB.css",
+			path:             "/assets/" + cssFile,
 			wantStatus:       http.StatusOK,
 			wantCacheControl: "public, max-age=31536000, immutable",
 			wantBodyContains: "", // don't check body for assets
 		},
 		{
 			name:             "hashed JS asset serves with long cache",
-			path:             "/assets/index-BVxmCqSO.js",
+			path:             "/assets/" + jsFile,
 			wantStatus:       http.StatusOK,
 			wantCacheControl: "public, max-age=31536000, immutable",
 			wantBodyContains: "", // don't check body for assets
