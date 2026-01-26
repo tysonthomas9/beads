@@ -98,7 +98,7 @@ export function IssueCard({
           />
         )}
         <span
-          className={styles.priorityBadge}
+          className={`${styles.priorityBadge} ${styles[`priority${priority}`]}`}
           data-priority={priority}
           aria-label={`Priority ${priority}`}
         >

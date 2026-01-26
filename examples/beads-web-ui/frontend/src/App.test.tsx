@@ -415,19 +415,18 @@ describe('App', () => {
 
       const { container } = render(<App />);
 
-      // Find the navigation div (it has inline styles)
-      const navElement = container.querySelector('[style*="display"]');
+      // Find the navigation bar container
+      const navElement = container.querySelector('[data-testid="navigation-bar"]');
+      expect(navElement).toBeInTheDocument();
 
-      if (navElement) {
-        // Check that it contains all three components
-        const viewSwitcher = navElement.querySelector('[data-testid="view-switcher"]');
-        const searchInput = navElement.querySelector('[data-testid="search-input"]');
-        const filterBar = navElement.querySelector('[data-testid="filter-bar"]');
+      // Check that it contains all three components
+      const viewSwitcher = navElement?.querySelector('[data-testid="view-switcher"]');
+      const searchInput = navElement?.querySelector('[data-testid="search-input"]');
+      const filterBar = navElement?.querySelector('[data-testid="filter-bar"]');
 
-        expect(viewSwitcher).toBeInTheDocument();
-        expect(searchInput).toBeInTheDocument();
-        expect(filterBar).toBeInTheDocument();
-      }
+      expect(viewSwitcher).toBeInTheDocument();
+      expect(searchInput).toBeInTheDocument();
+      expect(filterBar).toBeInTheDocument();
     });
 
     it('navigation maintains component presence with filters', () => {

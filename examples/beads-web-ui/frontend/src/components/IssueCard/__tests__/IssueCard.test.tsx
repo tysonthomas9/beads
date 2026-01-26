@@ -117,6 +117,70 @@ describe('IssueCard', () => {
     });
   });
 
+  describe('priority badge styling', () => {
+    it.each([0, 1, 2, 3, 4] as const)(
+      'applies priority%i class to priority badge for priority %i',
+      (priority) => {
+        const issue = createTestIssue({ priority });
+        render(<IssueCard issue={issue} />);
+
+        const priorityBadge = screen.getByText(`P${priority}`);
+        // CSS Modules hashes class names, so we check for the pattern
+        expect(priorityBadge.className).toMatch(new RegExp(`priority${priority}`));
+      }
+    );
+
+    it('applies both priorityBadge base class and priority-specific class', () => {
+      const issue = createTestIssue({ priority: 2 });
+      render(<IssueCard issue={issue} />);
+
+      const priorityBadge = screen.getByText('P2');
+      // Should have both the base priorityBadge class and priority2 class
+      expect(priorityBadge.className).toMatch(/priorityBadge/);
+      expect(priorityBadge.className).toMatch(/priority2/);
+    });
+
+    it('priority badge has data-priority attribute for backwards compatibility', () => {
+      const issue = createTestIssue({ priority: 1 });
+      render(<IssueCard issue={issue} />);
+
+      const priorityBadge = screen.getByText('P1');
+      expect(priorityBadge).toHaveAttribute('data-priority', '1');
+    });
+
+    it.each([0, 1, 2, 3, 4] as const)(
+      'priority badge has data-priority="%i" attribute',
+      (priority) => {
+        const issue = createTestIssue({ priority });
+        render(<IssueCard issue={issue} />);
+
+        const priorityBadge = screen.getByText(`P${priority}`);
+        expect(priorityBadge).toHaveAttribute('data-priority', String(priority));
+      }
+    );
+
+    it('applies priority4 class when priority is undefined (default)', () => {
+      const issue = createTestIssue();
+      // @ts-expect-error Testing undefined priority
+      delete issue.priority;
+      render(<IssueCard issue={issue} />);
+
+      const priorityBadge = screen.getByText('P4');
+      expect(priorityBadge.className).toMatch(/priority4/);
+      expect(priorityBadge).toHaveAttribute('data-priority', '4');
+    });
+
+    it('applies priority4 class for out of range priority', () => {
+      // @ts-expect-error Testing invalid priority
+      const issue = createTestIssue({ priority: 99 });
+      render(<IssueCard issue={issue} />);
+
+      const priorityBadge = screen.getByText('P4');
+      expect(priorityBadge.className).toMatch(/priority4/);
+      expect(priorityBadge).toHaveAttribute('data-priority', '4');
+    });
+  });
+
   describe('onClick interaction', () => {
     it('calls onClick when card is clicked', () => {
       const issue = createTestIssue();
