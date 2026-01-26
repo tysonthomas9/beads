@@ -16,6 +16,10 @@ export interface GraphControlsProps {
   highlightReady: boolean;
   /** Callback when highlight ready mode is toggled */
   onHighlightReadyChange: (value: boolean) => void;
+  /** Whether show blocked only mode is enabled */
+  showBlockedOnly?: boolean;
+  /** Callback when show blocked only mode is toggled */
+  onShowBlockedOnlyChange?: (value: boolean) => void;
   /** Whether the toggle should be disabled (e.g., while loading) */
   disabled?: boolean;
   /** Title for disabled state tooltip */
@@ -55,6 +59,8 @@ export interface GraphControlsProps {
 export function GraphControls({
   highlightReady,
   onHighlightReadyChange,
+  showBlockedOnly = false,
+  onShowBlockedOnlyChange,
   disabled = false,
   disabledTitle,
   showZoomControls = true,
@@ -62,11 +68,18 @@ export function GraphControls({
 }: GraphControlsProps): JSX.Element {
   const { zoomIn, zoomOut, fitView } = useReactFlow();
 
-  const handleChange = useCallback(
+  const handleHighlightReadyChange = useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) => {
       onHighlightReadyChange(event.target.checked);
     },
     [onHighlightReadyChange]
+  );
+
+  const handleShowBlockedOnlyChange = useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      onShowBlockedOnlyChange?.(event.target.checked);
+    },
+    [onShowBlockedOnlyChange]
   );
 
   const handleZoomIn = useCallback(() => {
@@ -94,7 +107,7 @@ export function GraphControls({
         <input
           type="checkbox"
           checked={highlightReady}
-          onChange={handleChange}
+          onChange={handleHighlightReadyChange}
           disabled={disabled}
           className={styles.checkbox}
           aria-label="Highlight ready issues"
@@ -102,6 +115,24 @@ export function GraphControls({
         />
         <span className={styles.toggleText}>Highlight Ready</span>
       </label>
+
+      {onShowBlockedOnlyChange && (
+        <label
+          className={styles.toggleLabel}
+          title={disabled ? disabledTitle : undefined}
+        >
+          <input
+            type="checkbox"
+            checked={showBlockedOnly}
+            onChange={handleShowBlockedOnlyChange}
+            disabled={disabled}
+            className={`${styles.checkbox} ${styles.blockedCheckbox}`}
+            aria-label="Show only blocked issues"
+            data-testid="show-blocked-only-toggle"
+          />
+          <span className={styles.toggleText}>Show Blocked</span>
+        </label>
+      )}
 
       {showZoomControls && (
         <>

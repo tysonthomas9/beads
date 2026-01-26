@@ -56,6 +56,16 @@
   color: var(--color-ready);
 }
 
+/* Blocked checkbox uses red accent color */
+.blockedCheckbox {
+  accent-color: var(--color-blocked);
+}
+
+/* Highlight text red when blocked toggle is active */
+.toggleLabel:has(.blockedCheckbox:checked) .toggleText {
+  color: var(--color-blocked);
+}
+
 /* Divider between highlight toggle and zoom controls */
 .divider {
   width: 1px;

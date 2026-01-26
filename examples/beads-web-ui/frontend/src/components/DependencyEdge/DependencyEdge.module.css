@@ -49,3 +49,21 @@
   border-color: var(--color-primary, #3b82f6);
   color: var(--color-primary, #3b82f6);
 }
+
+/* =================================
+ * Highlighted Edge (part of chain)
+ * ================================= */
+
+/* Edge is part of highlighted blocking chain */
+.highlighted {
+  stroke: var(--color-blocked, #ef4444);
+  stroke-width: 3px;
+  filter: drop-shadow(0 0 4px var(--color-blocked, #ef4444));
+}
+
+/* Highlighted edge label */
+.edgeLabel.highlighted {
+  border-color: var(--color-blocked, #ef4444);
+  color: var(--color-blocked, #ef4444);
+  background-color: color-mix(in srgb, var(--color-blocked) 10%, var(--color-bg));
+}

@@ -15,6 +15,7 @@ import type {
   IssueNode,
   DependencyEdge,
 } from '@/types'
+import { computeAllBlockedCounts } from './useBlockedChain'
 
 /**
  * Blocking dependency types that affect ready work calculation.
@@ -206,24 +207,7 @@ export function useGraphData(
       }
     }
 
-    // Create nodes
-    const nodes: IssueNode[] = issues.map((issue) => ({
-      id: createNodeId(issue.id),
-      type: 'issue',
-      position: { x: 0, y: 0 }, // Layout handled by dagre in T061
-      data: {
-        issue,
-        title: issue.title,
-        status: issue.status,
-        priority: issue.priority,
-        issueType: issue.issue_type,
-        dependencyCount: outgoingCounts.get(issue.id) ?? 0,
-        dependentCount: incomingCounts.get(issue.id) ?? 0,
-        isReady: computeIsReady(issue.id, issue.status, blockedIssueIds),
-      },
-    }))
-
-    // Create edges and count totals
+    // Create edges first (needed for computing transitive blocked counts)
     const edges: DependencyEdge[] = []
     let totalDependencies = 0
     let blockingDependencies = 0
@@ -256,6 +240,37 @@ export function useGraphData(
         }
       }
     }
+
+    // Compute transitive blocked counts using the edges
+    const transitiveBlockedCounts = computeAllBlockedCounts(
+      issues.map((issue) => issue.id),
+      edges
+    )
+
+    // Create nodes with blocked count and root blocker flag
+    const nodes: IssueNode[] = issues.map((issue) => {
+      const isBlocked = blockedIssueIds?.has(issue.id) ?? false;
+      const blockedCount = transitiveBlockedCounts.get(issue.id) ?? 0;
+      const isRootBlocker = blockedCount > 0 && !isBlocked;
+
+      return {
+        id: createNodeId(issue.id),
+        type: 'issue',
+        position: { x: 0, y: 0 }, // Layout handled by dagre in T061
+        data: {
+          issue,
+          title: issue.title,
+          status: issue.status,
+          priority: issue.priority,
+          issueType: issue.issue_type,
+          dependencyCount: outgoingCounts.get(issue.id) ?? 0,
+          dependentCount: incomingCounts.get(issue.id) ?? 0,
+          isReady: computeIsReady(issue.id, issue.status, blockedIssueIds),
+          blockedCount,
+          isRootBlocker,
+        },
+      };
+    })
 
     return {
       nodes,

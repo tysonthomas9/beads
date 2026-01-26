@@ -46,12 +46,18 @@ function DependencyEdgeComponent({
   });
 
   const isBlocking = data?.isBlocking ?? false;
+  const isHighlighted = data?.isHighlighted ?? false;
   const dependencyType = data?.dependencyType ?? 'blocks';
 
   // Format label text (display as-is)
   const labelText = dependencyType;
 
-  const edgeClassName = isBlocking ? styles.blockingEdge : styles.normalEdge;
+  // Determine edge class based on blocking and highlight state
+  let edgeClassName = isBlocking ? styles.blockingEdge : styles.normalEdge;
+  if (isHighlighted) {
+    edgeClassName = `${edgeClassName} ${styles.highlighted}`;
+  }
+
   const labelClassName = selected
     ? `${styles.edgeLabel} ${styles.selected}`
     : styles.edgeLabel;

@@ -61,6 +61,13 @@ export type {
 export { useGraphData } from './useGraphData'
 export type { UseGraphDataOptions, UseGraphDataReturn } from './useGraphData'
 
+export { useBlockedChain, getBlockedChain, computeAllBlockedCounts } from './useBlockedChain'
+export type {
+  UseBlockedChainOptions,
+  UseBlockedChainReturn,
+  BlockedChainResult,
+} from './useBlockedChain'
+
 export { useAutoLayout } from './useAutoLayout'
 export type {
   UseAutoLayoutOptions,
