@@ -56,6 +56,7 @@
 
 .main {
   flex: 1;
+  height: 0; /* Enables percentage heights in children - standard flexbox pattern */
   display: flex;
   flex-direction: column;
   overflow: auto;
