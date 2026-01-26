@@ -3,7 +3,9 @@
  * Foundational component for Phase 4 List/Table View.
  */
 
+import { useMemo } from 'react';
 import type { Issue } from '@/types';
+import type { BlockedInfo } from '@/components/KanbanBoard';
 import { useSort, SortDirection } from '@/hooks';
 import { ColumnDef, DEFAULT_ISSUE_COLUMNS } from './columns';
 import { IssueRow } from './IssueRow';
@@ -34,6 +36,10 @@ export interface IssueTableProps {
     key: string;
     direction: SortDirection;
   };
+  /** Map of issue ID to blocked info (for showing blocked badges) */
+  blockedIssues?: Map<string, BlockedInfo>;
+  /** Whether to show blocked issues (default: true) */
+  showBlocked?: boolean;
 }
 
 /**
@@ -51,21 +57,31 @@ export function IssueTable({
   onSelectionChange,
   sortable = false,
   initialSort,
+  blockedIssues,
+  showBlocked = true,
 }: IssueTableProps) {
+  // Filter out blocked issues if showBlocked is false
+  const filteredIssues = useMemo(() => {
+    if (showBlocked || !blockedIssues) {
+      return issues;
+    }
+    return issues.filter((issue) => !blockedIssues.has(issue.id));
+  }, [issues, blockedIssues, showBlocked]);
+
   // Use the useSort hook for sorting
   const {
     sortedData,
     sortState: hookSortState,
     handleSort: hookHandleSort,
   } = useSort({
-    data: issues,
+    data: filteredIssues,
     columns,
     initialKey: sortable ? (initialSort?.key ?? null) : null,
     initialDirection: initialSort?.direction ?? 'asc',
   });
 
-  // Use sorted data when sortable, otherwise original issues
-  const displayData = sortable ? sortedData : issues;
+  // Use sorted data when sortable, otherwise filtered issues
+  const displayData = sortable ? sortedData : filteredIssues;
 
   // Use hook state and handlers when sortable, otherwise provide stable defaults
   // Note: Even when sortable=false, TableHeader still handles UI state internally
@@ -96,18 +112,24 @@ export function IssueTable({
               </td>
             </tr>
           ) : (
-            displayData.map((issue) => (
-              <IssueRow
-                key={issue.id}
-                issue={issue}
-                columns={columns}
-                isSelected={showCheckbox ? selectedIds?.has(issue.id) : selectedId === issue.id}
-                isClickable={!!onRowClick}
-                onClick={onRowClick}
-                showCheckbox={showCheckbox}
-                onSelectionChange={onSelectionChange}
-              />
-            ))
+            displayData.map((issue) => {
+              const blockedInfo = blockedIssues?.get(issue.id);
+              const isBlocked = blockedInfo !== undefined && blockedInfo.blockedByCount > 0;
+              return (
+                <IssueRow
+                  key={issue.id}
+                  issue={issue}
+                  columns={columns}
+                  isSelected={showCheckbox ? selectedIds?.has(issue.id) : selectedId === issue.id}
+                  isClickable={!!onRowClick}
+                  onClick={onRowClick}
+                  showCheckbox={showCheckbox}
+                  onSelectionChange={onSelectionChange}
+                  isBlocked={isBlocked}
+                  blockedInfo={blockedInfo}
+                />
+              );
+            })
           )}
         </tbody>
       </table>

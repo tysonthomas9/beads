@@ -199,17 +199,18 @@ describe('columns.ts helpers', () => {
   });
 
   describe('DEFAULT_ISSUE_COLUMNS', () => {
-    it('has 7 columns defined', () => {
-      expect(DEFAULT_ISSUE_COLUMNS).toHaveLength(7);
+    it('has 8 columns defined', () => {
+      expect(DEFAULT_ISSUE_COLUMNS).toHaveLength(8);
     });
 
-    it('includes id, priority, title, status, issue_type, assignee, updated_at columns', () => {
+    it('includes id, priority, title, status, blocked, issue_type, assignee, updated_at columns', () => {
       const columnIds = DEFAULT_ISSUE_COLUMNS.map((c) => c.id);
       expect(columnIds).toEqual([
         'id',
         'priority',
         'title',
         'status',
+        'blocked',
         'issue_type',
         'assignee',
         'updated_at',

@@ -209,7 +209,12 @@ function App() {
         />
       )}
       {activeView === 'table' && (
-        <IssueTable issues={filteredIssues} sortable />
+        <IssueTable
+          issues={filteredIssues}
+          sortable
+          {...(blockedIssuesMap !== undefined && { blockedIssues: blockedIssuesMap })}
+          {...(filters.showBlocked !== undefined && { showBlocked: filters.showBlocked })}
+        />
       )}
       {activeView === 'graph' && (
         <GraphView issues={filteredIssues} />

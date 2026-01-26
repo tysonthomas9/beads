@@ -129,6 +129,14 @@ export const DEFAULT_ISSUE_COLUMNS: ColumnDef<Issue>[] = [
     sortable: true,
   },
   {
+    id: 'blocked',
+    header: 'Blocked',
+    accessor: () => null, // Custom accessor - blocked info passed separately
+    width: '80px',
+    align: 'center',
+    sortable: true,
+  },
+  {
     id: 'issue_type',
     header: 'Type',
     accessor: 'issue_type',
