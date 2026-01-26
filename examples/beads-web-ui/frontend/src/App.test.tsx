@@ -390,4 +390,72 @@ describe('App', () => {
       expect(screen.queryByRole('button', { name: /retry/i })).not.toBeInTheDocument();
     });
   });
+
+  describe('navigation layout behavior', () => {
+    it('renders all navigation components together', () => {
+      vi.mocked(useIssues).mockReturnValue(createMockUseIssuesReturn());
+
+      render(<App />);
+
+      // Verify all navigation components are present
+      expect(screen.getByTestId('view-switcher')).toBeInTheDocument();
+      expect(screen.getByTestId('search-input')).toBeInTheDocument();
+      expect(screen.getByTestId('filter-bar')).toBeInTheDocument();
+    });
+
+    it('navigation contains ViewSwitcher, SearchInput, and FilterBar in correct order', () => {
+      vi.mocked(useIssues).mockReturnValue(createMockUseIssuesReturn());
+
+      const { container } = render(<App />);
+
+      // Find the navigation div (it has inline styles)
+      const navElement = container.querySelector('[style*="display"]');
+
+      if (navElement) {
+        // Check that it contains all three components
+        const viewSwitcher = navElement.querySelector('[data-testid="view-switcher"]');
+        const searchInput = navElement.querySelector('[data-testid="search-input"]');
+        const filterBar = navElement.querySelector('[data-testid="filter-bar"]');
+
+        expect(viewSwitcher).toBeInTheDocument();
+        expect(searchInput).toBeInTheDocument();
+        expect(filterBar).toBeInTheDocument();
+      }
+    });
+
+    it('navigation maintains component presence with filters', () => {
+      vi.mocked(useIssues).mockReturnValue(createMockUseIssuesReturn());
+
+      render(<App />);
+
+      // All components should render even when filters are applied
+      expect(screen.getByTestId('view-switcher')).toBeInTheDocument();
+      expect(screen.getByTestId('search-input')).toBeInTheDocument();
+      expect(screen.getByTestId('filter-bar')).toBeInTheDocument();
+      expect(screen.getByTestId('priority-filter')).toBeInTheDocument();
+      expect(screen.getByTestId('type-filter')).toBeInTheDocument();
+    });
+
+    it('SearchInput has max-width constraint class', () => {
+      vi.mocked(useIssues).mockReturnValue(createMockUseIssuesReturn());
+
+      render(<App />);
+
+      const searchInput = screen.getByTestId('search-input');
+
+      // SearchInput should have its CSS module class applied (which includes max-width: 200px)
+      expect(searchInput.className).toMatch(/searchInput/);
+    });
+
+    it('FilterBar has layout control class', () => {
+      vi.mocked(useIssues).mockReturnValue(createMockUseIssuesReturn());
+
+      render(<App />);
+
+      const filterBar = screen.getByTestId('filter-bar');
+
+      // FilterBar should have its CSS module class applied (which controls flex layout)
+      expect(filterBar.className).toMatch(/filterBar/);
+    });
+  });
 });

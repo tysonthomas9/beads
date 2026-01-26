@@ -146,7 +146,7 @@ function App() {
 
   // Navigation element with view switcher, search, and filters (success state only)
   const navigation = (
-    <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+    <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'nowrap' }}>
       <ViewSwitcher
         activeView={activeView}
         onChange={setActiveView}

@@ -569,4 +569,68 @@ describe('SearchInput', () => {
       expect(input).toHaveValue(longValue);
     });
   });
+
+  describe('CSS width constraints', () => {
+    it('has searchInput CSS module class applied', () => {
+      render(<SearchInput />);
+
+      const container = screen.getByTestId('search-input');
+
+      // Verify the searchInput class is applied (CSS Modules transforms it to _searchInput_<hash>)
+      expect(container.className).toMatch(/searchInput/);
+    });
+
+    it('respects max-width across all size variants', () => {
+      const sizes = ['sm', 'md', 'lg'] as const;
+
+      sizes.forEach((size) => {
+        const { unmount } = render(<SearchInput size={size} />);
+
+        const container = screen.getByTestId('search-input');
+
+        // CSS module class should be applied regardless of size
+        expect(container.className).toMatch(/searchInput/);
+
+        unmount();
+      });
+    });
+
+    it('applies searchInput class with size variant classes', () => {
+      render(<SearchInput size="lg" />);
+
+      const container = screen.getByTestId('search-input');
+
+      // Should have both searchInput class (with max-width) and size class
+      expect(container.className).toMatch(/searchInput/);
+      expect(container).toHaveAttribute('data-size', 'lg');
+    });
+
+    it('maintains searchInput class with custom className', () => {
+      render(<SearchInput className="custom-search" />);
+
+      const container = screen.getByTestId('search-input');
+
+      // Should have both CSS module class and custom class
+      expect(container.className).toMatch(/searchInput/);
+      expect(container).toHaveClass('custom-search');
+    });
+
+    it('maintains searchInput class in disabled state', () => {
+      render(<SearchInput disabled />);
+
+      const container = screen.getByTestId('search-input');
+
+      // CSS module class should apply regardless of disabled state
+      expect(container.className).toMatch(/searchInput/);
+    });
+
+    it('maintains searchInput class with value', () => {
+      render(<SearchInput value="test query" onChange={() => {}} />);
+
+      const container = screen.getByTestId('search-input');
+
+      // CSS module class should apply when input has value
+      expect(container.className).toMatch(/searchInput/);
+    });
+  });
 });

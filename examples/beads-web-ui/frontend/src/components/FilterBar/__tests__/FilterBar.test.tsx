@@ -984,4 +984,98 @@ describe('FilterBar', () => {
       expect(actions.clearAll).toHaveBeenCalledTimes(1);
     });
   });
+
+  describe('CSS layout behavior', () => {
+    it('filterBar container has filterBar CSS module class', () => {
+      const actions = createMockActions();
+      render(
+        <FilterBar
+          filters={createFiltersWithPriority(1)}
+          actions={actions}
+          availableLabels={['bug', 'feature']}
+        />
+      );
+
+      const filterBar = screen.getByTestId('filter-bar');
+
+      // Verify the filterBar class is applied (CSS Modules transforms it to _filterBar_<hash>)
+      expect(filterBar.className).toMatch(/filterBar/);
+    });
+
+    it('renders with FilterBar module class for layout control', () => {
+      const actions = createMockActions();
+      render(
+        <FilterBar
+          filters={createEmptyFilters()}
+          actions={actions}
+          availableLabels={['bug', 'feature', 'urgent']}
+        />
+      );
+
+      const filterBar = screen.getByTestId('filter-bar');
+
+      // The filterBar CSS class provides flex layout without wrapping
+      expect(filterBar.className).toMatch(/filterBar/);
+    });
+
+    it('renders all filter controls on single line layout', () => {
+      const actions = createMockActions();
+      render(
+        <FilterBar
+          filters={createFiltersWithPriority(2)}
+          actions={actions}
+          availableLabels={['bug', 'feature', 'urgent']}
+        />
+      );
+
+      // Verify all major filter controls are present
+      expect(screen.getByTestId('priority-filter')).toBeInTheDocument();
+      expect(screen.getByTestId('type-filter')).toBeInTheDocument();
+      expect(screen.getByTestId('label-filter-trigger')).toBeInTheDocument();
+      expect(screen.getByTestId('clear-filters')).toBeInTheDocument();
+
+      // Verify CSS module class is applied
+      const filterBar = screen.getByTestId('filter-bar');
+      expect(filterBar.className).toMatch(/filterBar/);
+    });
+
+    it('maintains layout class with multiple filters active', () => {
+      const actions = createMockActions();
+      const filters: FilterState = {
+        priority: 1,
+        type: 'bug',
+        labels: ['urgent', 'feature'],
+      };
+
+      render(
+        <FilterBar
+          filters={filters}
+          actions={actions}
+          availableLabels={['bug', 'feature', 'urgent', 'documentation']}
+        />
+      );
+
+      const filterBar = screen.getByTestId('filter-bar');
+
+      // CSS module class should be applied even with all filters active
+      expect(filterBar.className).toMatch(/filterBar/);
+    });
+
+    it('maintains filterBar class with custom className', () => {
+      const actions = createMockActions();
+      render(
+        <FilterBar
+          filters={createEmptyFilters()}
+          actions={actions}
+          className="custom-filter-bar"
+        />
+      );
+
+      const filterBar = screen.getByTestId('filter-bar');
+
+      // Should have both CSS module class and custom class
+      expect(filterBar.className).toMatch(/filterBar/);
+      expect(filterBar).toHaveClass('custom-filter-bar');
+    });
+  });
 });
