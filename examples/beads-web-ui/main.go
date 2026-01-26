@@ -9,6 +9,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -23,7 +24,25 @@ const (
 	defaultPort            = 8080
 	defaultPoolSize        = 5
 	defaultShutdownTimeout = 5 * time.Second
+	defaultMaxPortAttempts = 10
 )
+
+// findAvailablePort attempts to find an available port starting from startPort.
+// It tries up to maxAttempts consecutive ports and returns a listener on the first
+// available port. The caller is responsible for closing the listener.
+func findAvailablePort(startPort, maxAttempts int) (net.Listener, int, error) {
+	for i := 0; i < maxAttempts; i++ {
+		port := startPort + i
+		addr := fmt.Sprintf(":%d", port)
+		listener, err := net.Listen("tcp", addr)
+		if err != nil {
+			continue
+		}
+		// Return the listener open to avoid race conditions
+		return listener, port, nil
+	}
+	return nil, 0, fmt.Errorf("no available port found in range %d-%d", startPort, startPort+maxAttempts-1)
+}
 
 func main() {
 	// Parse command-line flags
@@ -84,6 +103,15 @@ func main() {
 		log.Printf("CORS enabled for origins: %v", corsConfig.AllowedOrigins)
 	}
 
+	// Find an available port (auto-fallback if requested port is in use)
+	listener, actualPort, err := findAvailablePort(*port, defaultMaxPortAttempts)
+	if err != nil {
+		log.Fatalf("Could not find available port: %v", err)
+	}
+	if actualPort != *port {
+		log.Printf("Port %d in use, using port %d instead", *port, actualPort)
+	}
+
 	// Initialize daemon connection pool
 	var pool *daemon.ConnectionPool
 	var poolErr error
@@ -130,17 +158,17 @@ func main() {
 	handler := corsMiddleware(mux)
 
 	server := &http.Server{
-		Addr:         fmt.Sprintf(":%d", *port),
+		Addr:         fmt.Sprintf(":%d", actualPort),
 		Handler:      handler,
 		ReadTimeout:  15 * time.Second,
 		WriteTimeout: 15 * time.Second,
 		IdleTimeout:  60 * time.Second,
 	}
 
-	// Start server in a goroutine
+	// Start server in a goroutine using the pre-acquired listener
 	go func() {
-		log.Printf("Listening on http://localhost:%d", *port)
-		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		log.Printf("Listening on http://localhost:%d", actualPort)
+		if err := server.Serve(listener); err != nil && err != http.ErrServerClosed {
 			log.Fatalf("Server error: %v", err)
 		}
 	}()
