@@ -35,6 +35,7 @@ vi.mock('@/hooks', () => ({
       setType: vi.fn(),
       setLabels: vi.fn(),
       setSearch: vi.fn(),
+      setShowBlocked: vi.fn(),
       clearFilter: vi.fn(),
       clearAll: vi.fn(),
     }, // FilterActions
@@ -47,6 +48,12 @@ vi.mock('@/hooks', () => ({
     activeFilters: [],
   })),
   useDebounce: vi.fn((value: unknown) => value),
+  useBlockedIssues: vi.fn(() => ({
+    data: null,
+    loading: false,
+    error: null,
+    refetch: vi.fn(),
+  })),
 }));
 
 // Import the mocked module

@@ -7,7 +7,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { DndContext } from '@dnd-kit/core';
 import { useDraggable } from '@dnd-kit/core';
@@ -551,6 +551,89 @@ describe('DraggableIssueCard', () => {
       expect(() => {
         render(<DraggableIssueCard issue={mockIssue} onClick={undefined} />);
       }).not.toThrow();
+    });
+  });
+
+  describe('blocked props', () => {
+    it('passes blockedByCount to IssueCard', () => {
+      const mockIssue = createMockIssue();
+
+      render(<DraggableIssueCard issue={mockIssue} blockedByCount={3} />);
+
+      // BlockedBadge should be rendered with count
+      expect(screen.getByLabelText('Blocked by 3 issues')).toBeInTheDocument();
+    });
+
+    it('passes blockedBy array to IssueCard', () => {
+      const mockIssue = createMockIssue();
+      const blockers = ['blocker-1', 'blocker-2'];
+
+      render(
+        <DraggableIssueCard
+          issue={mockIssue}
+          blockedByCount={2}
+          blockedBy={blockers}
+        />
+      );
+
+      // Hover to show tooltip
+      const badge = screen.getByLabelText('Blocked by 2 issues');
+      fireEvent.mouseEnter(badge);
+
+      expect(screen.getByText('blocker-1')).toBeInTheDocument();
+      expect(screen.getByText('blocker-2')).toBeInTheDocument();
+    });
+
+    it('does not render BlockedBadge when blockedByCount is undefined', () => {
+      const mockIssue = createMockIssue();
+
+      render(<DraggableIssueCard issue={mockIssue} />);
+
+      expect(screen.queryByLabelText(/Blocked by/)).not.toBeInTheDocument();
+    });
+
+    it('does not render BlockedBadge when blockedByCount is 0', () => {
+      const mockIssue = createMockIssue();
+
+      render(<DraggableIssueCard issue={mockIssue} blockedByCount={0} />);
+
+      expect(screen.queryByLabelText(/Blocked by/)).not.toBeInTheDocument();
+    });
+
+    it('passes blocked props in overlay mode', () => {
+      const mockIssue = createMockIssue();
+
+      render(
+        <DraggableIssueCard
+          issue={mockIssue}
+          blockedByCount={5}
+          blockedBy={['b1', 'b2', 'b3', 'b4', 'b5']}
+          isOverlay={true}
+        />
+      );
+
+      // BlockedBadge should still render in overlay mode
+      expect(screen.getByLabelText('Blocked by 5 issues')).toBeInTheDocument();
+    });
+
+    it('IssueCard has data-blocked attribute when blocked', () => {
+      const mockIssue = createMockIssue();
+
+      const { container } = render(
+        <DraggableIssueCard issue={mockIssue} blockedByCount={1} />
+      );
+
+      const article = container.querySelector('article');
+      expect(article).toHaveAttribute('data-blocked', 'true');
+    });
+
+    it('IssueCard does not have data-blocked when not blocked', () => {
+      const mockIssue = createMockIssue();
+
+      const { container } = render(<DraggableIssueCard issue={mockIssue} />);
+
+      const article = container.querySelector('article');
+      expect(article).not.toHaveAttribute('data-blocked');
     });
   });
 });

@@ -1,19 +1,24 @@
 /**
- * BlockedBadge component displays a badge showing how many issues are blocked by a node.
- * Used in the Graph view to indicate blocking relationships at a glance.
+ * BlockedBadge component.
+ * Shows a visual indicator for blocked/blocking issues with count and tooltip.
+ * Supports two variants:
+ * - "blockedBy": Shows "Blocked by X issues" (for Kanban cards)
+ * - "blocks": Shows "Blocks X issues" (for Graph nodes)
  */
 
-import { memo } from 'react';
+import { useState, useCallback, memo } from 'react';
 import styles from './BlockedBadge.module.css';
 
 /**
  * Props for the BlockedBadge component.
  */
 export interface BlockedBadgeProps {
-  /** Number of issues blocked by this issue */
-  blockedCount: number;
-  /** Optional list of blocked issue IDs for tooltip */
-  blockedBy?: string[];
+  /** Number of issues (blocking this one or blocked by this one, depending on variant) */
+  count: number;
+  /** IDs of related issues (for tooltip) */
+  issueIds?: string[];
+  /** Variant determines the semantic: "blockedBy" (default) or "blocks" */
+  variant?: 'blockedBy' | 'blocks';
   /** Optional click handler */
   onClick?: () => void;
   /** Additional CSS class name */
@@ -21,65 +26,99 @@ export interface BlockedBadgeProps {
 }
 
 /**
- * Maximum number of blockers to show in tooltip before truncating.
+ * Format issue IDs for tooltip display.
+ * Shows first 5, then "and N more..." if there are more.
  */
-const MAX_TOOLTIP_ITEMS = 5;
+function formatIssueList(issueIds: string[]): string[] {
+  const maxDisplay = 5;
+  if (issueIds.length <= maxDisplay) {
+    return issueIds;
+  }
+  const displayed = issueIds.slice(0, maxDisplay);
+  const remaining = issueIds.length - maxDisplay;
+  return [...displayed, `and ${remaining} more...`];
+}
 
 /**
- * BlockedBadge renders a small badge showing the count of blocked issues.
- * Shows a tooltip on hover with the first few blocker IDs.
- *
- * @example
- * ```tsx
- * <BlockedBadge blockedCount={3} blockedBy={['bd-abc', 'bd-def', 'bd-ghi']} />
- * ```
+ * BlockedBadge displays a blocked/blocking indicator badge.
+ * Shows a red pill with block icon and count.
+ * Tooltip shows the list of related issues on hover.
  */
 function BlockedBadgeComponent({
-  blockedCount,
-  blockedBy,
+  count,
+  issueIds = [],
+  variant = 'blockedBy',
   onClick,
   className,
 }: BlockedBadgeProps): JSX.Element | null {
-  // Don't render if no blocked issues
-  if (blockedCount <= 0) {
-    return null;
-  }
+  const [showTooltip, setShowTooltip] = useState(false);
 
-  // Build tooltip text
-  let tooltipText = `Blocks ${blockedCount} issue${blockedCount === 1 ? '' : 's'}`;
-  if (blockedBy && blockedBy.length > 0) {
-    const displayIds = blockedBy.slice(0, MAX_TOOLTIP_ITEMS);
-    const remaining = blockedBy.length - MAX_TOOLTIP_ITEMS;
-    tooltipText = displayIds.join('\n');
-    if (remaining > 0) {
-      tooltipText += `\n...and ${remaining} more`;
-    }
-  }
+  const handleShow = useCallback(() => {
+    setShowTooltip(true);
+  }, []);
+
+  const handleHide = useCallback(() => {
+    setShowTooltip(false);
+  }, []);
 
   // Keyboard handler for accessibility
-  const handleKeyDown = (event: React.KeyboardEvent) => {
-    if (onClick && (event.key === 'Enter' || event.key === ' ')) {
-      event.preventDefault();
-      onClick();
-    }
-  };
+  const handleKeyDown = useCallback(
+    (event: React.KeyboardEvent) => {
+      if (onClick && (event.key === 'Enter' || event.key === ' ')) {
+        event.preventDefault();
+        onClick();
+      }
+    },
+    [onClick]
+  );
+
+  // Don't render if count is 0
+  if (count === 0) {
+    return null;
+  }
 
   const rootClassName = className
     ? `${styles.blockedBadge} ${className}`
     : styles.blockedBadge;
 
+  const issueList = formatIssueList(issueIds);
+  const isBlockedBy = variant === 'blockedBy';
+  const ariaLabel = isBlockedBy
+    ? `Blocked by ${count} issue${count === 1 ? '' : 's'}`
+    : `Blocks ${count} issue${count === 1 ? '' : 's'}`;
+  const tooltipHeader = isBlockedBy ? 'Blocked by:' : 'Blocks:';
+
   return (
     <span
       className={rootClassName}
-      title={tooltipText}
+      onMouseEnter={handleShow}
+      onMouseLeave={handleHide}
+      onFocus={handleShow}
+      onBlur={handleHide}
       onClick={onClick}
       onKeyDown={onClick ? handleKeyDown : undefined}
-      role={onClick ? 'button' : undefined}
-      tabIndex={onClick ? 0 : undefined}
-      aria-label={`Blocks ${blockedCount} issue${blockedCount === 1 ? '' : 's'}`}
+      tabIndex={0}
+      role="button"
+      aria-label={ariaLabel}
       data-testid="blocked-badge"
     >
-      {blockedCount}
+      <span className={styles.icon} aria-hidden="true">
+        ⛔
+      </span>
+      <span className={styles.count}>{count}</span>
+
+      {showTooltip && issueList.length > 0 && (
+        <div className={styles.tooltip} role="tooltip">
+          <div className={styles.tooltipHeader}>{tooltipHeader}</div>
+          <ul className={styles.tooltipList}>
+            {issueList.map((id, index) => (
+              <li key={index} className={styles.tooltipItem}>
+                {id}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </span>
   );
 }

@@ -163,6 +163,28 @@
   cursor: pointer;
 }
 
+/* Show Blocked checkbox label */
+.checkboxLabel {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  user-select: none;
+}
+
+.checkboxLabel input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--color-blocked);
+  cursor: pointer;
+}
+
+.checkboxLabel span {
+  font-weight: var(--font-weight-medium);
+}
+
 /* Responsive: stack on smaller viewports */
 @media (max-width: 480px) {
   .filterBar {

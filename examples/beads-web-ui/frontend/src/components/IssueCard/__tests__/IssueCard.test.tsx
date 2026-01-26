@@ -275,4 +275,108 @@ describe('IssueCard', () => {
       expect(screen.getByText('P0')).toBeInTheDocument();
     });
   });
+
+  describe('blocked badge display', () => {
+    it('renders BlockedBadge when blockedByCount > 0', () => {
+      const issue = createTestIssue();
+      render(<IssueCard issue={issue} blockedByCount={3} />);
+
+      expect(screen.getByLabelText('Blocked by 3 issues')).toBeInTheDocument();
+    });
+
+    it('does not render BlockedBadge when blockedByCount is 0', () => {
+      const issue = createTestIssue();
+      render(<IssueCard issue={issue} blockedByCount={0} />);
+
+      expect(screen.queryByLabelText(/Blocked by/)).not.toBeInTheDocument();
+    });
+
+    it('does not render BlockedBadge when blockedByCount is undefined', () => {
+      const issue = createTestIssue();
+      render(<IssueCard issue={issue} />);
+
+      expect(screen.queryByLabelText(/Blocked by/)).not.toBeInTheDocument();
+    });
+
+    it('passes blockedBy array to BlockedBadge', () => {
+      const issue = createTestIssue();
+      const blockers = ['blocker-1', 'blocker-2'];
+      render(<IssueCard issue={issue} blockedByCount={2} blockedBy={blockers} />);
+
+      // Hover to show tooltip
+      const badge = screen.getByLabelText('Blocked by 2 issues');
+      fireEvent.mouseEnter(badge);
+
+      expect(screen.getByText('blocker-1')).toBeInTheDocument();
+      expect(screen.getByText('blocker-2')).toBeInTheDocument();
+    });
+
+    it('sets data-blocked attribute to true when blocked', () => {
+      const issue = createTestIssue();
+      const { container } = render(<IssueCard issue={issue} blockedByCount={1} />);
+
+      const article = container.querySelector('article');
+      expect(article).toHaveAttribute('data-blocked', 'true');
+    });
+
+    it('does not set data-blocked attribute when not blocked', () => {
+      const issue = createTestIssue();
+      const { container } = render(<IssueCard issue={issue} />);
+
+      const article = container.querySelector('article');
+      expect(article).not.toHaveAttribute('data-blocked');
+    });
+
+    it('does not set data-blocked when blockedByCount is 0', () => {
+      const issue = createTestIssue();
+      const { container } = render(<IssueCard issue={issue} blockedByCount={0} />);
+
+      const article = container.querySelector('article');
+      expect(article).not.toHaveAttribute('data-blocked');
+    });
+
+    it('aria-label includes (blocked) when issue is blocked', () => {
+      const issue = createTestIssue({ title: 'Blocked Issue' });
+      render(<IssueCard issue={issue} blockedByCount={1} />);
+
+      expect(screen.getByLabelText('Issue: Blocked Issue (blocked)')).toBeInTheDocument();
+    });
+
+    it('aria-label does not include (blocked) when not blocked', () => {
+      const issue = createTestIssue({ title: 'Normal Issue' });
+      render(<IssueCard issue={issue} />);
+
+      expect(screen.getByLabelText('Issue: Normal Issue')).toBeInTheDocument();
+      expect(screen.queryByLabelText(/blocked/)).not.toBeInTheDocument();
+    });
+
+    it('renders BlockedBadge with blockedByCount of 1', () => {
+      const issue = createTestIssue();
+      render(<IssueCard issue={issue} blockedByCount={1} />);
+
+      expect(screen.getByLabelText('Blocked by 1 issue')).toBeInTheDocument();
+      expect(screen.getByText('1')).toBeInTheDocument();
+    });
+
+    it('renders BlockedBadge with large blockedByCount', () => {
+      const issue = createTestIssue();
+      render(<IssueCard issue={issue} blockedByCount={99} />);
+
+      expect(screen.getByLabelText('Blocked by 99 issues')).toBeInTheDocument();
+      expect(screen.getByText('99')).toBeInTheDocument();
+    });
+
+    it('renders BlockedBadge without blockedBy array', () => {
+      const issue = createTestIssue();
+      render(<IssueCard issue={issue} blockedByCount={5} />);
+
+      // Badge should still render
+      expect(screen.getByLabelText('Blocked by 5 issues')).toBeInTheDocument();
+
+      // Tooltip should not show when hovering (no blockers to display)
+      const badge = screen.getByLabelText('Blocked by 5 issues');
+      fireEvent.mouseEnter(badge);
+      expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
+    });
+  });
 });

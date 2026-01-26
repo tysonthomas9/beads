@@ -20,6 +20,8 @@ export interface FilterState {
   labels?: string[]
   /** Free-text search */
   search?: string
+  /** Whether to show blocked issues (default: false = hide blocked) */
+  showBlocked?: boolean
 }
 
 /**
@@ -34,6 +36,8 @@ export interface FilterActions {
   setLabels: (labels: string[] | undefined) => void
   /** Set search text */
   setSearch: (search: string | undefined) => void
+  /** Set show blocked toggle */
+  setShowBlocked: (showBlocked: boolean | undefined) => void
   /** Clear a specific filter */
   clearFilter: (key: keyof FilterState) => void
   /** Clear all filters */
@@ -104,6 +108,15 @@ function parseSearch(value: string | null): string | undefined {
 }
 
 /**
+ * Parse showBlocked from URL parameter.
+ * Returns true if 'true', undefined otherwise (default is false/hidden).
+ */
+function parseShowBlocked(value: string | null): boolean | undefined {
+  if (value === 'true') return true
+  return undefined
+}
+
+/**
  * Build filter state from parsed values.
  * Only includes keys with defined values to satisfy exactOptionalPropertyTypes.
  */
@@ -111,13 +124,15 @@ function buildFilterState(
   priority: Priority | undefined,
   type: IssueType | undefined,
   labels: string[] | undefined,
-  search: string | undefined
+  search: string | undefined,
+  showBlocked: boolean | undefined
 ): FilterState {
   const state: FilterState = {}
   if (priority !== undefined) state.priority = priority
   if (type !== undefined) state.type = type
   if (labels !== undefined) state.labels = labels
   if (search !== undefined) state.search = search
+  if (showBlocked !== undefined) state.showBlocked = showBlocked
   return state
 }
 
@@ -133,7 +148,8 @@ function parseFromUrl(): FilterState {
     parsePriority(params.get('priority')),
     parseType(params.get('type')),
     parseLabels(params.get('labels')),
-    parseSearch(params.get('search'))
+    parseSearch(params.get('search')),
+    parseShowBlocked(params.get('showBlocked'))
   )
 }
 
@@ -154,6 +170,9 @@ function toQueryString(state: FilterState): string {
   }
   if (state.search !== undefined && state.search !== '') {
     params.set('search', state.search)
+  }
+  if (state.showBlocked === true) {
+    params.set('showBlocked', 'true')
   }
 
   return params.toString()
@@ -176,6 +195,7 @@ function updateUrl(state: FilterState): void {
 
 /**
  * Check if filter state is empty (all undefined).
+ * Note: showBlocked is not considered for "empty" since it's a visibility toggle.
  */
 function isEmptyFilter(state: FilterState): boolean {
   return (
@@ -272,6 +292,10 @@ export function useFilterState(options: UseFilterStateOptions = {}): UseFilterSt
     setState((prev) => updateFilterState(prev, 'search', search))
   }, [])
 
+  const setShowBlocked = useCallback((showBlocked: boolean | undefined) => {
+    setState((prev) => updateFilterState(prev, 'showBlocked', showBlocked))
+  }, [])
+
   const clearFilter = useCallback((key: keyof FilterState) => {
     setState((prev) => {
       const next = { ...prev }
@@ -291,10 +315,11 @@ export function useFilterState(options: UseFilterStateOptions = {}): UseFilterSt
       setType,
       setLabels,
       setSearch,
+      setShowBlocked,
       clearFilter,
       clearAll,
     }),
-    [setPriority, setType, setLabels, setSearch, clearFilter, clearAll]
+    [setPriority, setType, setLabels, setSearch, setShowBlocked, clearFilter, clearAll]
   )
 
   return [state, actions]

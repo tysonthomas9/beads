@@ -78,7 +78,7 @@ function IssueNodeComponent({ data, selected }: IssueNodeProps): JSX.Element {
       {/* Blocked count badge - positioned at top-right corner */}
       {blockedCount > 0 && (
         <div className={styles.badgeContainer}>
-          <BlockedBadge blockedCount={blockedCount} />
+          <BlockedBadge count={blockedCount} variant="blocks" />
         </div>
       )}
 

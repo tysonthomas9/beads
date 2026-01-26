@@ -187,6 +187,14 @@ export function FilterBar({
     setLabelDropdownOpen((prev) => !prev);
   }, []);
 
+  // Handle show blocked toggle
+  const handleShowBlockedChange = useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      actions.setShowBlocked(event.target.checked ? true : undefined);
+    },
+    [actions]
+  );
+
   const rootClassName = className
     ? `${styles.filterBar} ${className}`
     : styles.filterBar;
@@ -289,6 +297,20 @@ export function FilterBar({
             </div>
           </div>
         )}
+
+        {/* Show Blocked toggle */}
+        <div className={styles.filterGroup}>
+          <label className={styles.checkboxLabel}>
+            <input
+              type="checkbox"
+              checked={filters.showBlocked === true}
+              onChange={handleShowBlockedChange}
+              aria-label="Show blocked issues"
+              data-testid="show-blocked-toggle"
+            />
+            <span>Show Blocked</span>
+          </label>
+        </div>
       </div>
 
       {/* Clear button */}

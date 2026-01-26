@@ -24,6 +24,14 @@ import { EmptyColumn } from '@/components/EmptyColumn';
 import styles from './KanbanBoard.module.css';
 
 /**
+ * Blocked issue info for lookup.
+ */
+export interface BlockedInfo {
+  blockedByCount: number;
+  blockedBy: string[];
+}
+
+/**
  * Props for the KanbanBoard component.
  */
 export interface KanbanBoardProps {
@@ -39,6 +47,10 @@ export interface KanbanBoardProps {
   onDragEnd?: (issueId: string, newStatus: Status, oldStatus: Status) => void;
   /** Additional CSS class name */
   className?: string;
+  /** Map of issue ID to blocked info (for showing blocked badges) */
+  blockedIssues?: Map<string, BlockedInfo>;
+  /** Whether to show blocked issues (default: true) */
+  showBlocked?: boolean;
 }
 
 /** Default status columns to display */
@@ -56,6 +68,8 @@ export function KanbanBoard({
   onIssueClick,
   onDragEnd,
   className,
+  blockedIssues,
+  showBlocked = true,
 }: KanbanBoardProps): JSX.Element {
   const [activeIssue, setActiveIssue] = useState<Issue | null>(null);
 
@@ -67,11 +81,18 @@ export function KanbanBoard({
     useSensor(KeyboardSensor)
   );
 
-  // Filter issues based on active filters
+  // Filter issues based on active filters and blocked visibility
   const filteredIssues = useMemo(() => {
-    if (!filters) return issues;
+    let result = issues;
 
-    return issues.filter((issue) => {
+    // Filter out blocked issues if showBlocked is false
+    if (!showBlocked && blockedIssues) {
+      result = result.filter((issue) => !blockedIssues.has(issue.id));
+    }
+
+    if (!filters) return result;
+
+    return result.filter((issue) => {
       // Priority filter (exact match)
       if (filters.priority !== undefined && issue.priority !== filters.priority) {
         return false;
@@ -101,7 +122,7 @@ export function KanbanBoard({
 
       return true;
     });
-  }, [issues, filters]);
+  }, [issues, filters, showBlocked, blockedIssues]);
 
   // Group issues by status for efficient rendering
   const issuesByStatus = useMemo(() => {
@@ -174,22 +195,39 @@ export function KanbanBoard({
               {statusIssues.length === 0 ? (
                 <EmptyColumn status={status} />
               ) : (
-                statusIssues.map((issue) => (
-                  <DraggableIssueCard
-                    key={issue.id}
-                    issue={issue}
-                    {...(onIssueClick !== undefined && { onClick: onIssueClick })}
-                  />
-                ))
+                statusIssues.map((issue) => {
+                  const blockedInfo = blockedIssues?.get(issue.id);
+                  return (
+                    <DraggableIssueCard
+                      key={issue.id}
+                      issue={issue}
+                      {...(onIssueClick !== undefined && { onClick: onIssueClick })}
+                      {...(blockedInfo !== undefined && {
+                        blockedByCount: blockedInfo.blockedByCount,
+                        blockedBy: blockedInfo.blockedBy,
+                      })}
+                    />
+                  );
+                })
               )}
             </StatusColumn>
           );
         })}
       </div>
       <DragOverlay dropAnimation={null}>
-        {activeIssue && (
-          <DraggableIssueCard issue={activeIssue} isOverlay />
-        )}
+        {activeIssue && (() => {
+          const blockedInfo = blockedIssues?.get(activeIssue.id);
+          return (
+            <DraggableIssueCard
+              issue={activeIssue}
+              isOverlay
+              {...(blockedInfo !== undefined && {
+                blockedByCount: blockedInfo.blockedByCount,
+                blockedBy: blockedInfo.blockedBy,
+              })}
+            />
+          );
+        })()}
       </DragOverlay>
     </DndContext>
   );

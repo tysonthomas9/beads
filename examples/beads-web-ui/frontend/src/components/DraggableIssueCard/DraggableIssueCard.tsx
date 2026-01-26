@@ -29,6 +29,8 @@ export function DraggableIssueCard({
   onClick,
   className,
   isOverlay = false,
+  blockedByCount,
+  blockedBy,
 }: DraggableIssueCardProps): JSX.Element {
   const { attributes, listeners, setNodeRef, transform, isDragging } =
     useDraggable({
@@ -37,12 +39,14 @@ export function DraggableIssueCard({
       disabled: isOverlay,
     });
 
-  // Build IssueCard props, only including onClick if defined
+  // Build IssueCard props, only including optional fields if defined
   // (required for exactOptionalPropertyTypes compatibility)
   const cardProps = {
     issue,
     ...(onClick !== undefined && { onClick }),
     ...(className !== undefined && { className }),
+    ...(blockedByCount !== undefined && { blockedByCount }),
+    ...(blockedBy !== undefined && { blockedBy }),
   };
 
   // In overlay mode, render without drag functionality

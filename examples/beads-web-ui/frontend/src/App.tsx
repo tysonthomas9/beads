@@ -6,9 +6,10 @@
  * search across all views.
  */
 
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import type { Status } from '@/types';
-import { useIssues, useViewState, useFilterState, useIssueFilter, useDebounce } from '@/hooks';
+import { useIssues, useViewState, useFilterState, useIssueFilter, useDebounce, useBlockedIssues } from '@/hooks';
+import type { BlockedInfo } from '@/components/KanbanBoard';
 import {
   AppLayout,
   KanbanBoard,
@@ -58,6 +59,22 @@ function App() {
   if (filters.labels !== undefined) filterOptions.labels = filters.labels;
 
   const { filteredIssues } = useIssueFilter(issues, filterOptions);
+
+  // Fetch blocked issues for display
+  const { data: blockedIssuesData } = useBlockedIssues();
+
+  // Convert BlockedIssue[] to Map<string, BlockedInfo> for efficient lookup
+  const blockedIssuesMap = useMemo(() => {
+    if (!blockedIssuesData) return undefined;
+    const map = new Map<string, BlockedInfo>();
+    for (const issue of blockedIssuesData) {
+      map.set(issue.id, {
+        blockedByCount: issue.blocked_by_count,
+        blockedBy: issue.blocked_by,
+      });
+    }
+    return map;
+  }, [blockedIssuesData]);
 
   const [toastError, setToastError] = useState<string | null>(null);
   const mountedRef = useRef(true);
@@ -175,7 +192,12 @@ function App() {
       }
     >
       {activeView === 'kanban' && (
-        <KanbanBoard issues={filteredIssues} onDragEnd={handleDragEnd} />
+        <KanbanBoard
+          issues={filteredIssues}
+          onDragEnd={handleDragEnd}
+          {...(blockedIssuesMap !== undefined && { blockedIssues: blockedIssuesMap })}
+          {...(filters.showBlocked !== undefined && { showBlocked: filters.showBlocked })}
+        />
       )}
       {activeView === 'table' && (
         <IssueTable issues={filteredIssues} sortable />
