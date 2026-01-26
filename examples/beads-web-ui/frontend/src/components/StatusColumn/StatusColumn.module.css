@@ -9,7 +9,9 @@
   width: 280px;
   min-width: 280px;
   max-width: 280px;
-  height: 100%;
+  /* Use flexbox stretch from parent instead of percentage height */
+  flex: 1 1 auto;
+  min-height: 0;
   background-color: var(--color-bg-secondary);
   border-radius: var(--radius-lg);
   overflow: hidden;

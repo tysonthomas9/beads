@@ -505,6 +505,52 @@ describe('DraggableIssueCard', () => {
     });
   });
 
+  describe('drag handle', () => {
+    it('renders SVG element with 6 circle elements', () => {
+      const mockIssue = createMockIssue();
+
+      const { container } = render(<DraggableIssueCard issue={mockIssue} />);
+
+      const svg = container.querySelector('svg');
+      expect(svg).toBeInTheDocument();
+
+      const circles = svg?.querySelectorAll('circle');
+      expect(circles).toHaveLength(6);
+    });
+
+    it('has correct CSS class (dragHandle)', () => {
+      const mockIssue = createMockIssue();
+
+      const { container } = render(<DraggableIssueCard issue={mockIssue} />);
+
+      const svg = container.querySelector('svg');
+      expect(svg).toBeInTheDocument();
+      // SVG uses className.baseVal for the string value
+      expect(svg?.classList.toString()).toContain('dragHandle');
+    });
+
+    it('has aria-hidden="true" for accessibility', () => {
+      const mockIssue = createMockIssue();
+
+      const { container } = render(<DraggableIssueCard issue={mockIssue} />);
+
+      const svg = container.querySelector('svg');
+      expect(svg).toBeInTheDocument();
+      expect(svg).toHaveAttribute('aria-hidden', 'true');
+    });
+
+    it('is not rendered in overlay mode', () => {
+      const mockIssue = createMockIssue();
+
+      const { container } = render(
+        <DraggableIssueCard issue={mockIssue} isOverlay={true} />
+      );
+
+      const svg = container.querySelector('svg');
+      expect(svg).not.toBeInTheDocument();
+    });
+  });
+
   describe('edge cases', () => {
     it('handles empty title', () => {
       const mockIssue = createMockIssue({ title: '' });
