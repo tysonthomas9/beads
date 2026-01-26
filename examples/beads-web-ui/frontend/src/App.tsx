@@ -10,6 +10,7 @@ import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import type { Status } from '@/types';
 import { useIssues, useViewState, useFilterState, useIssueFilter, useDebounce, useBlockedIssues } from '@/hooks';
 import type { BlockedInfo } from '@/components/KanbanBoard';
+import styles from './App.module.css';
 import {
   AppLayout,
   KanbanBoard,
@@ -145,13 +146,13 @@ function App() {
           />
         }
         actions={
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <div className={styles.actionsContainer}>
             <BlockedSummary onIssueClick={handleBlockedIssueClick} />
             <ConnectionStatus state={connectionState} />
           </div>
         }
       >
-        <div style={{ display: 'flex', gap: '1rem', padding: '1rem' }}>
+        <div className={styles.loadingContainer} data-testid="loading-container">
           <LoadingSkeleton.Column />
           <LoadingSkeleton.Column />
           <LoadingSkeleton.Column />
@@ -172,7 +173,7 @@ function App() {
           />
         }
         actions={
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <div className={styles.actionsContainer}>
             <BlockedSummary onIssueClick={handleBlockedIssueClick} />
             <ConnectionStatus
               state={connectionState}
@@ -194,7 +195,7 @@ function App() {
 
   // Navigation element with view switcher, search, and filters (success state only)
   const navigation = (
-    <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'nowrap' }}>
+    <div className={styles.navigationBar} data-testid="navigation-bar">
       <ViewSwitcher
         activeView={activeView}
         onChange={setActiveView}
@@ -215,7 +216,7 @@ function App() {
     <AppLayout
       navigation={navigation}
       actions={
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+        <div className={styles.actionsContainer}>
           <BlockedSummary onIssueClick={handleBlockedIssueClick} />
           <ConnectionStatus
             state={connectionState}

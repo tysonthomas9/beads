@@ -156,10 +156,9 @@ describe('App', () => {
       const { container } = render(<App />);
 
       // The loading skeleton columns have a specific structure
-      // We check for the flex container with three skeleton columns
-      // Use gap: 1rem to distinguish from the header actions flex container (gap: 0.5rem)
+      // We check for the loading container with three skeleton columns
       const flexContainer = container.querySelector(
-        'div[style*="gap: 1rem"]'
+        '[data-testid="loading-container"]'
       );
       expect(flexContainer).toBeInTheDocument();
 
@@ -347,12 +346,8 @@ describe('App', () => {
 
       const { container } = render(<App />);
 
-      // The loading state has a flex container with gap and padding styling
-      // Use padding to distinguish from filter navigation (which only has gap)
-      const loadingFlexContainer = container.querySelector(
-        'div[style*="padding: 1rem"]'
-      );
-      expect(loadingFlexContainer).not.toBeInTheDocument();
+      // The loading container should not be present when not loading
+      expect(screen.queryByTestId('loading-container')).not.toBeInTheDocument();
     });
 
     it('renders empty KanbanBoard when issues array is empty', () => {
