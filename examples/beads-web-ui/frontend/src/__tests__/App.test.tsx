@@ -157,8 +157,9 @@ describe('App', () => {
 
       // The loading skeleton columns have a specific structure
       // We check for the flex container with three skeleton columns
+      // Use gap: 1rem to distinguish from the header actions flex container (gap: 0.5rem)
       const flexContainer = container.querySelector(
-        'div[style*="display: flex"]'
+        'div[style*="gap: 1rem"]'
       );
       expect(flexContainer).toBeInTheDocument();
 

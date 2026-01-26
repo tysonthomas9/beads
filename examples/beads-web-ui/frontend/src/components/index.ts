@@ -23,6 +23,7 @@ export * from './ErrorToast';
 export * from './IssueNode';
 export * from './DependencyEdge';
 export * from './BlockedBadge';
+export * from './BlockedSummary';
 export * from './GraphControls';
 export * from './GraphLegend';
 export * from './GraphView';

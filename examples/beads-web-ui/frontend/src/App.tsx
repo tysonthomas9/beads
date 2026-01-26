@@ -19,6 +19,7 @@ import {
   LoadingSkeleton,
   ErrorDisplay,
   ConnectionStatus,
+  BlockedSummary,
   ErrorToast,
   FilterBar,
   SearchInput,
@@ -119,6 +120,19 @@ function App() {
     filterActions.setSearch(undefined);
   }, [filterActions]);
 
+  // Handle blocked issue click from BlockedSummary dropdown
+  const handleBlockedIssueClick = useCallback(
+    (issueId: string) => {
+      if (issueId === '__show_all_blocked__') {
+        // Toggle showBlocked filter to true
+        filterActions.setShowBlocked(true);
+      }
+      // Individual issue clicks could navigate to issue detail in the future
+      // For now, just show all blocked issues
+    },
+    [filterActions]
+  );
+
   // Loading state: show skeleton columns (ViewSwitcher disabled, no filters)
   if (isLoading) {
     return (
@@ -130,7 +144,12 @@ function App() {
             disabled
           />
         }
-        actions={<ConnectionStatus state={connectionState} />}
+        actions={
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <BlockedSummary onIssueClick={handleBlockedIssueClick} />
+            <ConnectionStatus state={connectionState} />
+          </div>
+        }
       >
         <div style={{ display: 'flex', gap: '1rem', padding: '1rem' }}>
           <LoadingSkeleton.Column />
@@ -153,11 +172,14 @@ function App() {
           />
         }
         actions={
-          <ConnectionStatus
-            state={connectionState}
-            onRetry={retryConnection}
-            reconnectAttempts={reconnectAttempts}
-          />
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <BlockedSummary onIssueClick={handleBlockedIssueClick} />
+            <ConnectionStatus
+              state={connectionState}
+              onRetry={retryConnection}
+              reconnectAttempts={reconnectAttempts}
+            />
+          </div>
         }
       >
         <ErrorDisplay
@@ -193,11 +215,14 @@ function App() {
     <AppLayout
       navigation={navigation}
       actions={
-        <ConnectionStatus
-          state={connectionState}
-          onRetry={retryConnection}
-          reconnectAttempts={reconnectAttempts}
-        />
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <BlockedSummary onIssueClick={handleBlockedIssueClick} />
+          <ConnectionStatus
+            state={connectionState}
+            onRetry={retryConnection}
+            reconnectAttempts={reconnectAttempts}
+          />
+        </div>
       }
     >
       {activeView === 'kanban' && (
