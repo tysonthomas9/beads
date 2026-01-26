@@ -53,7 +53,7 @@
 .id {
   font-family: var(--font-family-mono);
   font-size: var(--font-size-xs);
-  color: var(--color-text-muted);
+  color: var(--color-text-muted, #9ca3af);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -66,7 +66,7 @@
   font-weight: var(--font-weight-semibold);
   line-height: 1;
   border-radius: var(--radius-sm);
-  color: var(--color-text-inverse);
+  color: var(--color-text-inverse, #ffffff);
 }
 
 /* Priority-specific badge colors */
@@ -125,7 +125,7 @@
   margin: 0;
   font-size: var(--font-size-sm);
   font-weight: var(--font-weight-medium);
-  color: var(--color-text);
+  color: var(--color-text, #111827);
   line-height: var(--line-height-normal);
   /* Truncate to 2 lines */
   display: -webkit-box;
