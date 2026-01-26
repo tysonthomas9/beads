@@ -49,6 +49,15 @@ function App() {
     filterActions.setSearch(debouncedSearch || undefined);
   }, [debouncedSearch, filterActions]);
 
+  // Sync search value from filter state (e.g., when Clear filters is clicked)
+  useEffect(() => {
+    const filterSearch = filters.search ?? '';
+    // Only sync if it's an external change (differs from both local states)
+    if (filterSearch !== searchValue && filterSearch !== debouncedSearch) {
+      setSearchValue(filterSearch);
+    }
+  }, [filters.search, searchValue, debouncedSearch]);
+
   // Apply filters to issues
   // Build filter options conditionally to satisfy exactOptionalPropertyTypes
   const filterOptions: Parameters<typeof useIssueFilter>[1] = {};
