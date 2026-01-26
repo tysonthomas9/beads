@@ -191,6 +191,35 @@ describe('AppLayout', () => {
       const nav = screen.getByRole('navigation');
       expect(nav).toHaveAttribute('aria-label', 'Main navigation');
     });
+
+    it('has a skip link that targets main-content', () => {
+      render(
+        <AppLayout>
+          <p>Content</p>
+        </AppLayout>
+      );
+
+      const skipLink = screen.getByRole('link', { name: /skip to main content/i });
+      expect(skipLink).toBeInTheDocument();
+      expect(skipLink).toHaveAttribute('href', '#main-content');
+    });
+
+    it('skip link is the first focusable element', () => {
+      const { container } = render(
+        <AppLayout navigation={<button>Nav</button>}>
+          <p>Content</p>
+        </AppLayout>
+      );
+
+      // Get all focusable elements
+      const focusableElements = container.querySelectorAll(
+        'a[href], button, input, select, textarea, [tabindex]:not([tabindex="-1"])'
+      );
+
+      // Skip link should be first
+      expect(focusableElements[0]).toHaveAttribute('href', '#main-content');
+      expect(focusableElements[0]).toHaveTextContent(/skip to main content/i);
+    });
   });
 
   describe('structure', () => {

@@ -79,3 +79,44 @@
     padding: var(--space-3);
   }
 }
+
+/* ===========================
+ * Skip Link - Accessibility
+ * =========================== */
+.skipLink {
+  position: absolute;
+  left: var(--space-4);
+  transform: translateY(-100%);
+  background: var(--color-primary);
+  color: var(--color-text-inverse);
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  text-decoration: none;
+  z-index: var(--z-overlay);
+  transition: transform var(--transition-fast);
+}
+
+.skipLink:focus {
+  transform: translateY(var(--space-2));
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.skipLink:focus:not(:focus-visible) {
+  transform: translateY(var(--space-2));
+  outline: none;
+}
+
+.skipLink:focus-visible {
+  transform: translateY(var(--space-2));
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skipLink {
+    transition: none;
+  }
+}
