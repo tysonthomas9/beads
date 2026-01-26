@@ -57,6 +57,15 @@ describe('columns.ts helpers', () => {
     it.each([0, 1, 2, 3, 4] as const)('returns correct class for priority %d', (priority) => {
       expect(getPriorityClassName(priority)).toBe(`priority-${priority}`);
     });
+
+    /**
+     * P2 priority badge contrast fix verification.
+     * The CSS uses .priority-2 class to apply dark text color for WCAG AA contrast
+     * on the yellow background. This test ensures the class name is correctly generated.
+     */
+    it('returns priority-2 class for P2 contrast styling', () => {
+      expect(getPriorityClassName(2)).toBe('priority-2');
+    });
   });
 
   describe('formatStatus', () => {

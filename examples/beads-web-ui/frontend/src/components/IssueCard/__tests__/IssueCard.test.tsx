@@ -78,6 +78,19 @@ describe('IssueCard', () => {
       );
     });
 
+    /**
+     * P2 priority badge contrast fix verification.
+     * The CSS uses data-priority="2" to apply dark text color for WCAG AA contrast
+     * on the yellow background. This test ensures the attribute is correctly set.
+     */
+    it('P2 priority badge has data-priority="2" for CSS contrast styling', () => {
+      const issue = createTestIssue({ priority: 2 });
+      render(<IssueCard issue={issue} />);
+
+      const priorityBadge = screen.getByText('P2');
+      expect(priorityBadge).toHaveAttribute('data-priority', '2');
+    });
+
     it('defaults to P4 when priority is undefined', () => {
       const issue = createTestIssue();
       // @ts-expect-error Testing undefined priority

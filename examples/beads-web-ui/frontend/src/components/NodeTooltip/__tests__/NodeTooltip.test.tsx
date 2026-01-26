@@ -213,6 +213,19 @@ describe('NodeTooltip', () => {
       const badge = screen.getByText('P1');
       expect(badge).toHaveAttribute('data-priority', '1');
     });
+
+    /**
+     * P2 priority badge contrast fix verification.
+     * The CSS uses data-priority="2" to apply dark text color for WCAG AA contrast
+     * on the yellow background. This test ensures the attribute is correctly set.
+     */
+    it('P2 priority badge has data-priority="2" for CSS contrast styling', () => {
+      const issue = createTestIssue({ priority: 2 });
+      render(<NodeTooltip issue={issue} position={defaultPosition} />);
+
+      const badge = screen.getByText('P2');
+      expect(badge).toHaveAttribute('data-priority', '2');
+    });
   });
 
   describe('description', () => {

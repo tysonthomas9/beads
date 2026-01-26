@@ -113,6 +113,7 @@
 
 .priorityBadge[data-priority="2"] {
   background-color: var(--color-priority-2);
+  color: var(--color-text); /* Dark text for WCAG AA contrast */
 }
 
 .priorityBadge[data-priority="3"] {

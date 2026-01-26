@@ -100,7 +100,7 @@
 
 .priorityBadge[data-priority='0'] { background-color: var(--color-priority-0); }
 .priorityBadge[data-priority='1'] { background-color: var(--color-priority-1); }
-.priorityBadge[data-priority='2'] { background-color: var(--color-priority-2); }
+.priorityBadge[data-priority='2'] { background-color: var(--color-priority-2); color: var(--color-text); }
 .priorityBadge[data-priority='3'] { background-color: var(--color-priority-3); }
 .priorityBadge[data-priority='4'] { background-color: var(--color-priority-4); }
 
