@@ -1067,6 +1067,19 @@ func (s *SQLiteStorage) scanIssues(ctx context.Context, rows *sql.Rows) ([]*type
 		}
 	}
 
+	// Third pass: batch-load dependencies for all issues
+	depsMap, err := s.GetDependenciesForIssues(ctx, issueIDs)
+	if err != nil {
+		return nil, fmt.Errorf("failed to batch get dependencies: %w", err)
+	}
+
+	// Assign dependencies to issues
+	for _, issue := range issues {
+		if deps, ok := depsMap[issue.ID]; ok {
+			issue.Dependencies = deps
+		}
+	}
+
 	return issues, nil
 }
 

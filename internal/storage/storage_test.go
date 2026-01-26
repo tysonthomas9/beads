@@ -72,6 +72,9 @@ func (m *mockStorage) GetAllDependencyRecords(ctx context.Context) (map[string][
 func (m *mockStorage) GetDependencyCounts(ctx context.Context, issueIDs []string) (map[string]*types.DependencyCounts, error) {
 	return nil, nil
 }
+func (m *mockStorage) GetDependenciesForIssues(ctx context.Context, issueIDs []string) (map[string][]*types.Dependency, error) {
+	return nil, nil
+}
 func (m *mockStorage) GetDependencyTree(ctx context.Context, issueID string, maxDepth int, showAllPaths bool, reverse bool) ([]*types.TreeNode, error) {
 	return nil, nil
 }
