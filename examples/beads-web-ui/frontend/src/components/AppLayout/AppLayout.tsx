@@ -40,6 +40,9 @@ export function AppLayout({
 
   return (
     <div className={rootClassName}>
+      <a href="#main-content" className={styles.skipLink}>
+        Skip to main content
+      </a>
       <header className={styles.header} role="banner">
         <div className={styles.headerContent}>
           <div className={styles.brand}>
