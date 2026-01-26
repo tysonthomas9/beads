@@ -1,4 +1,10 @@
+/**
+ * @vitest-environment jsdom
+ */
+
 import { describe, it, expect, vi } from 'vitest';
+import { render, screen } from '@testing-library/react';
+import '@testing-library/jest-dom';
 import { IssueTable, IssueTableProps } from './IssueTable';
 import {
   ColumnDef,
@@ -640,6 +646,102 @@ describe('IssueTable', () => {
       expect(props.sortable).toBe(true);
       expect(props.showCheckbox).toBe(true);
       expect(props.selectedIds?.has('bd-abc')).toBe(true);
+    });
+  });
+
+  // ============= Sticky Column CSS Selector Tests =============
+
+  /**
+   * These tests verify the DOM attributes that the sticky column CSS selectors target.
+   * The CSS in IssueTable.css uses [data-column="id"] selectors to apply sticky positioning.
+   * CSS-only changes like position:sticky cannot be easily unit tested in JSDOM,
+   * so we verify the data attributes exist that the CSS selectors target.
+   */
+  describe('sticky column CSS selectors', () => {
+    it('ID column header has data-column="id" attribute for CSS sticky targeting', () => {
+      const { container } = render(
+        <IssueTable issues={[createMockIssue()]} columns={DEFAULT_ISSUE_COLUMNS} />
+      );
+
+      const idHeaderCell = container.querySelector('th[data-column="id"]');
+      expect(idHeaderCell).toBeInTheDocument();
+      expect(idHeaderCell).toHaveAttribute('data-column', 'id');
+    });
+
+    it('ID column body cells have data-column="id" attribute for CSS sticky targeting', () => {
+      const issues = [
+        createMockIssue({ id: 'bd-001' }),
+        createMockIssue({ id: 'bd-002' }),
+        createMockIssue({ id: 'bd-003' }),
+      ];
+      const { container } = render(
+        <IssueTable issues={issues} columns={DEFAULT_ISSUE_COLUMNS} />
+      );
+
+      const idBodyCells = container.querySelectorAll('td[data-column="id"]');
+      expect(idBodyCells).toHaveLength(3);
+      idBodyCells.forEach((cell) => {
+        expect(cell).toHaveAttribute('data-column', 'id');
+      });
+    });
+
+    it('checkbox column cells have the expected class for CSS sticky targeting', () => {
+      const { container } = render(
+        <IssueTable
+          issues={[createMockIssue()]}
+          columns={DEFAULT_ISSUE_COLUMNS}
+          showCheckbox={true}
+        />
+      );
+
+      // Checkbox header cell
+      const checkboxHeaderCell = container.querySelector(
+        'th.issue-table__header-cell--checkbox'
+      );
+      expect(checkboxHeaderCell).toBeInTheDocument();
+
+      // Checkbox body cell
+      const checkboxBodyCell = container.querySelector('td.issue-table__cell--checkbox');
+      expect(checkboxBodyCell).toBeInTheDocument();
+    });
+
+    it('ID column appears after checkbox column when both present', () => {
+      const { container } = render(
+        <IssueTable
+          issues={[createMockIssue()]}
+          columns={DEFAULT_ISSUE_COLUMNS}
+          showCheckbox={true}
+        />
+      );
+
+      const headerCells = container.querySelectorAll('th');
+      // First header should be checkbox
+      expect(headerCells[0]).toHaveClass('issue-table__header-cell--checkbox');
+      // Second header should be ID column
+      expect(headerCells[1]).toHaveAttribute('data-column', 'id');
+    });
+
+    it('table wrapper exists for horizontal scroll container', () => {
+      const { container } = render(
+        <IssueTable issues={[createMockIssue()]} columns={DEFAULT_ISSUE_COLUMNS} />
+      );
+
+      const wrapper = container.querySelector('.issue-table__wrapper');
+      expect(wrapper).toBeInTheDocument();
+    });
+
+    it('all column cells have data-column attribute matching column id', () => {
+      const { container } = render(
+        <IssueTable issues={[createMockIssue()]} columns={DEFAULT_ISSUE_COLUMNS} />
+      );
+
+      DEFAULT_ISSUE_COLUMNS.forEach((column) => {
+        const headerCell = container.querySelector(`th[data-column="${column.id}"]`);
+        expect(headerCell).toBeInTheDocument();
+
+        const bodyCell = container.querySelector(`td[data-column="${column.id}"]`);
+        expect(bodyCell).toBeInTheDocument();
+      });
     });
   });
 });
