@@ -5,9 +5,9 @@
 
 import { useState, useCallback } from 'react';
 import type { Issue } from '@/types';
-import { GraphView, IssueDetailPanel } from '@/components';
+import { IssueDetailPanel } from '@/components';
+import { GraphView, type GraphViewProps } from '@/components/GraphView';
 import { useIssueDetail } from '@/hooks/useIssueDetail';
-import type { GraphViewProps } from '@/components/GraphView';
 import styles from './GraphViewContainer.module.css';
 
 /**

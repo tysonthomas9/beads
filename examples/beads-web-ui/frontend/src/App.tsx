@@ -6,7 +6,7 @@
  * search across all views.
  */
 
-import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
+import { useState, useCallback, useEffect, useRef, useMemo, lazy, Suspense } from 'react';
 import type { Status } from '@/types';
 import { useIssues, useViewState, useFilterState, useIssueFilter, useDebounce, useBlockedIssues } from '@/hooks';
 import type { BlockedInfo } from '@/components/KanbanBoard';
@@ -14,7 +14,6 @@ import {
   AppLayout,
   KanbanBoard,
   IssueTable,
-  GraphView,
   ViewSwitcher,
   LoadingSkeleton,
   ErrorDisplay,
@@ -24,6 +23,11 @@ import {
   FilterBar,
   SearchInput,
 } from '@/components';
+
+// Lazy load GraphView (React Flow ~100KB)
+const GraphView = lazy(() =>
+  import('@/components/GraphView').then(m => ({ default: m.GraphView }))
+);
 
 function App() {
   const {
@@ -242,7 +246,9 @@ function App() {
         />
       )}
       {activeView === 'graph' && (
-        <GraphView issues={filteredIssues} />
+        <Suspense fallback={<LoadingSkeleton.Graph />}>
+          <GraphView issues={filteredIssues} />
+        </Suspense>
       )}
       {toastError && (
         <ErrorToast message={toastError} onDismiss={handleToastDismiss} />

@@ -398,10 +398,106 @@ describe('LoadingSkeleton.Column', () => {
   });
 });
 
+describe('LoadingSkeleton.Graph', () => {
+  describe('rendering', () => {
+    it('renders with data-testid="loading-skeleton-graph"', () => {
+      const { getByTestId } = render(<LoadingSkeleton.Graph />);
+
+      const graph = getByTestId('loading-skeleton-graph');
+      expect(graph).toBeInTheDocument();
+    });
+
+    it('renders with graph structure', () => {
+      const { container } = render(<LoadingSkeleton.Graph />);
+
+      const graph = container.firstChild as HTMLElement;
+      expect(graph).toBeInTheDocument();
+      expect(graph.className).toContain('graph');
+    });
+
+    it('has aria-hidden="true" for accessibility', () => {
+      const { container } = render(<LoadingSkeleton.Graph />);
+
+      const graph = container.firstChild as HTMLElement;
+      expect(graph).toHaveAttribute('aria-hidden', 'true');
+    });
+  });
+
+  describe('graph nodes', () => {
+    it('contains graphNodes section', () => {
+      const { container } = render(<LoadingSkeleton.Graph />);
+
+      const graphNodes = container.querySelector('[class*="graphNodes"]');
+      expect(graphNodes).toBeInTheDocument();
+    });
+
+    it('contains 3 simulated graph nodes', () => {
+      const { container } = render(<LoadingSkeleton.Graph />);
+
+      const graphNodes = container.querySelector('[class*="graphNodes"]');
+      const nodes = graphNodes?.querySelectorAll('[class*="graphNode"]');
+      expect(nodes?.length).toBe(3);
+    });
+
+    it('each node contains a skeleton rectangle', () => {
+      const { container } = render(<LoadingSkeleton.Graph />);
+
+      const graphNodes = container.querySelector('[class*="graphNodes"]');
+      const nodes = graphNodes?.querySelectorAll('[class*="graphNode"]');
+
+      nodes?.forEach((node) => {
+        const skeleton = node.querySelector('[class*="skeleton"]');
+        expect(skeleton).toBeInTheDocument();
+        expect(skeleton?.className).toContain('rect');
+      });
+    });
+  });
+
+  describe('minimap placeholder', () => {
+    it('contains minimap placeholder section', () => {
+      const { container } = render(<LoadingSkeleton.Graph />);
+
+      const miniMap = container.querySelector('[class*="graphMiniMap"]');
+      expect(miniMap).toBeInTheDocument();
+    });
+
+    it('minimap contains a skeleton rectangle', () => {
+      const { container } = render(<LoadingSkeleton.Graph />);
+
+      const miniMap = container.querySelector('[class*="graphMiniMap"]');
+      const skeleton = miniMap?.querySelector('[class*="skeleton"]');
+      expect(skeleton).toBeInTheDocument();
+      expect(skeleton?.className).toContain('rect');
+    });
+  });
+
+  describe('custom className', () => {
+    it('applies custom className to graph', () => {
+      const { container } = render(
+        <LoadingSkeleton.Graph className="custom-graph-class" />
+      );
+
+      const graph = container.firstChild as HTMLElement;
+      expect(graph).toHaveClass('custom-graph-class');
+    });
+
+    it('preserves graph class when custom className is added', () => {
+      const { container } = render(
+        <LoadingSkeleton.Graph className="my-graph" />
+      );
+
+      const graph = container.firstChild as HTMLElement;
+      expect(graph.className).toContain('graph');
+      expect(graph).toHaveClass('my-graph');
+    });
+  });
+});
+
 describe('LoadingSkeleton integration', () => {
-  it('Card and Column are accessible as static properties', () => {
+  it('Card, Column, and Graph are accessible as static properties', () => {
     expect(LoadingSkeleton.Card).toBeDefined();
     expect(LoadingSkeleton.Column).toBeDefined();
+    expect(LoadingSkeleton.Graph).toBeDefined();
   });
 
   it('Card component is a function', () => {
@@ -410,6 +506,10 @@ describe('LoadingSkeleton integration', () => {
 
   it('Column component is a function', () => {
     expect(typeof LoadingSkeleton.Column).toBe('function');
+  });
+
+  it('Graph component is a function', () => {
+    expect(typeof LoadingSkeleton.Graph).toBe('function');
   });
 
   it('renders all variants without errors', () => {
@@ -424,6 +524,7 @@ describe('LoadingSkeleton integration', () => {
           <LoadingSkeleton.Card />
           <LoadingSkeleton.Column />
           <LoadingSkeleton.Column cardCount={5} />
+          <LoadingSkeleton.Graph />
         </>
       );
     }).not.toThrow();
