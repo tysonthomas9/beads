@@ -554,6 +554,56 @@ describe('DraggableIssueCard', () => {
     });
   });
 
+  describe('drag handle', () => {
+    it('renders drag handle element in the DOM', () => {
+      const mockIssue = createMockIssue();
+
+      const { container } = render(<DraggableIssueCard issue={mockIssue} />);
+
+      const dragHandle = container.querySelector('svg');
+      expect(dragHandle).toBeInTheDocument();
+    });
+
+    it('has correct aria-hidden="true" for accessibility', () => {
+      const mockIssue = createMockIssue();
+
+      const { container } = render(<DraggableIssueCard issue={mockIssue} />);
+
+      const dragHandle = container.querySelector('svg');
+      expect(dragHandle).toHaveAttribute('aria-hidden', 'true');
+    });
+
+    it('has the correct CSS class', () => {
+      const mockIssue = createMockIssue();
+
+      const { container } = render(<DraggableIssueCard issue={mockIssue} />);
+
+      const dragHandle = container.querySelector('svg');
+      // SVG elements use getAttribute for class, not className property
+      expect(dragHandle?.getAttribute('class')).toContain('dragHandle');
+    });
+
+    it('does NOT render in overlay mode', () => {
+      const mockIssue = createMockIssue();
+
+      const { container } = render(
+        <DraggableIssueCard issue={mockIssue} isOverlay={true} />
+      );
+
+      const dragHandle = container.querySelector('svg.dragHandle, svg[class*="dragHandle"]');
+      expect(dragHandle).not.toBeInTheDocument();
+    });
+
+    it('renders with 6 circle elements (grip dots)', () => {
+      const mockIssue = createMockIssue();
+
+      const { container } = render(<DraggableIssueCard issue={mockIssue} />);
+
+      const circles = container.querySelectorAll('svg circle');
+      expect(circles).toHaveLength(6);
+    });
+  });
+
   describe('blocked props', () => {
     it('passes blockedByCount to IssueCard', () => {
       const mockIssue = createMockIssue();
