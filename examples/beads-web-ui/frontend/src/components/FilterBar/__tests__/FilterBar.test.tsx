@@ -391,78 +391,6 @@ describe('FilterBar', () => {
       expect(screen.getByTestId('priority-filter')).toHaveValue('2');
     });
 
-    it('warns when filters provided without actions in development mode', () => {
-      const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-      process.env.NODE_ENV = 'development';
-
-      render(<FilterBar filters={createFiltersWithPriority(1)} />);
-
-      expect(consoleWarnSpy).toHaveBeenCalledWith(
-        'FilterBar: filters provided without actions. Falling back to internal state.'
-      );
-    });
-
-    it('does not warn when both filters and actions provided', () => {
-      const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-      process.env.NODE_ENV = 'development';
-
-      const actions = createMockActions();
-      render(<FilterBar filters={createEmptyFilters()} actions={actions} />);
-
-      expect(consoleWarnSpy).not.toHaveBeenCalled();
-    });
-
-    it('does not warn when no filters provided', () => {
-      const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-      process.env.NODE_ENV = 'development';
-
-      render(<FilterBar />);
-
-      expect(consoleWarnSpy).not.toHaveBeenCalled();
-    });
-  });
-
-  describe('uncontrolled mode', () => {
-    it('uses internal useFilterState when no props provided', () => {
-      // In uncontrolled mode, the component should still render
-      render(<FilterBar />);
-
-      expect(screen.getByTestId('filter-bar')).toBeInTheDocument();
-      expect(screen.getByTestId('priority-filter')).toBeInTheDocument();
-    });
-
-    it('starts with no active filters', () => {
-      render(<FilterBar />);
-
-      const select = screen.getByTestId('priority-filter');
-      expect(select).toHaveValue('');
-      expect(screen.queryByTestId('clear-filters')).not.toBeInTheDocument();
-    });
-
-    it('updates internal state when priority changes', () => {
-      render(<FilterBar />);
-
-      const select = screen.getByTestId('priority-filter');
-      fireEvent.change(select, { target: { value: '1' } });
-
-      expect(select).toHaveValue('1');
-      expect(screen.getByTestId('clear-filters')).toBeInTheDocument();
-    });
-
-    it('clears filters when clear button clicked', () => {
-      render(<FilterBar />);
-
-      const select = screen.getByTestId('priority-filter');
-      fireEvent.change(select, { target: { value: '2' } });
-
-      expect(select).toHaveValue('2');
-
-      const clearButton = screen.getByTestId('clear-filters');
-      fireEvent.click(clearButton);
-
-      expect(select).toHaveValue('');
-      expect(screen.queryByTestId('clear-filters')).not.toBeInTheDocument();
-    });
   });
 
   describe('edge cases', () => {
@@ -484,21 +412,6 @@ describe('FilterBar', () => {
 
       const select = screen.getByTestId('priority-filter');
       expect(select).toHaveValue('2');
-    });
-
-    it('handles switching from controlled to uncontrolled mode', () => {
-      const actions = createMockActions();
-      const { rerender } = render(
-        <FilterBar filters={createFiltersWithPriority(3)} actions={actions} />
-      );
-
-      expect(screen.getByTestId('priority-filter')).toHaveValue('3');
-
-      // Switch to uncontrolled
-      rerender(<FilterBar />);
-
-      // Should use internal state now
-      expect(screen.getByTestId('filter-bar')).toBeInTheDocument();
     });
 
     it('handles clearing when already empty', () => {

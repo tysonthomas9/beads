@@ -7,7 +7,6 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import type { Priority, IssueType } from '@/types';
 import {
-  useFilterState,
   type FilterState,
   type FilterActions,
   isEmptyFilter,
@@ -64,10 +63,10 @@ const TYPE_OPTIONS: TypeOption[] = [
  * Props for the FilterBar component.
  */
 export interface FilterBarProps {
-  /** Current filter state (controlled mode) */
-  filters?: FilterState;
-  /** Filter actions (controlled mode) */
-  actions?: FilterActions;
+  /** Current filter state */
+  filters: FilterState;
+  /** Filter actions */
+  actions: FilterActions;
   /** Additional CSS class name */
   className?: string;
   /** Show/hide clear button (defaults to auto-detect from filters) */
@@ -78,42 +77,20 @@ export interface FilterBarProps {
 
 /**
  * FilterBar renders a filter bar with priority and type dropdowns.
- * Supports both controlled and uncontrolled modes.
  *
  * @example
  * ```tsx
- * // Uncontrolled mode (uses internal useFilterState)
- * <FilterBar />
- *
- * // Controlled mode (external state)
  * const [filters, actions] = useFilterState();
  * <FilterBar filters={filters} actions={actions} />
  * ```
  */
 export function FilterBar({
-  filters: externalFilters,
-  actions: externalActions,
+  filters,
+  actions,
   className,
   showClear,
   availableLabels,
 }: FilterBarProps): JSX.Element {
-  // Use internal hook when not in controlled mode
-  const [internalFilters, internalActions] = useFilterState();
-
-  // Determine if controlled mode
-  const isControlled = externalFilters !== undefined && externalActions !== undefined;
-  const filters = isControlled ? externalFilters : internalFilters;
-  const actions = isControlled ? externalActions : internalActions;
-
-  // Warn in dev if filters provided without actions
-  if (process.env.NODE_ENV === 'development') {
-    if (externalFilters !== undefined && externalActions === undefined) {
-      console.warn(
-        'FilterBar: filters provided without actions. Falling back to internal state.'
-      );
-    }
-  }
-
   // Determine if clear button should be visible
   const hasActiveFilters = !isEmptyFilter(filters);
   const shouldShowClear = showClear ?? hasActiveFilters;
