@@ -181,3 +181,35 @@ jobs:
             exit 1
           fi
           echo "Help text first line is correct"
+
+  test-frontend-visual:
+    name: Visual Regression Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install dependencies
+        working-directory: examples/beads-web-ui/frontend
+        run: npm ci
+
+      - name: Install Playwright Browsers
+        working-directory: examples/beads-web-ui/frontend
+        run: npx playwright install chromium --with-deps
+
+      - name: Run visual regression tests
+        working-directory: examples/beads-web-ui/frontend
+        run: npx playwright test visual-regression
+
+      - name: Upload visual regression results on failure
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: visual-regression-report
+          path: |
+            examples/beads-web-ui/frontend/test-results/
+            examples/beads-web-ui/frontend/playwright-report/
+          retention-days: 7
