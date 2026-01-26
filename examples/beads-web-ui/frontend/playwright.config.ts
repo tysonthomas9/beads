@@ -12,7 +12,19 @@ export default defineConfig({
   timeout: 30000,
   expect: {
     timeout: 5000,
+    toHaveScreenshot: {
+      maxDiffPixels: 100, // Allow minor anti-aliasing differences
+      threshold: 0.2, // Pixel color threshold
+      animations: "disabled", // Disable CSS animations for consistency
+    },
+    toMatchSnapshot: {
+      threshold: 0.2,
+    },
   },
+
+  // Snapshot configuration - platform-agnostic paths for cross-platform CI
+  snapshotDir: "./tests/e2e/screenshots",
+  snapshotPathTemplate: "{snapshotDir}/{testFilePath}/{arg}{ext}",
 
   use: {
     baseURL: "http://localhost:3000",
