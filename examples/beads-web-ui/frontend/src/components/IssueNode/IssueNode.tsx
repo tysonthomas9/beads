@@ -90,7 +90,7 @@ function IssueNodeComponent({ data, selected }: IssueNodeProps): JSX.Element {
           </span>
         )}
         <span
-          className={styles.priorityBadge}
+          className={`${styles.priorityBadge} ${styles[`priority${priorityLevel}`]}`}
           data-priority={priorityLevel}
           aria-label={`Priority ${priorityLevel}`}
         >

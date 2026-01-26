@@ -69,26 +69,12 @@
   color: var(--color-text-inverse, #ffffff);
 }
 
-/* Priority-specific badge colors */
-.priorityBadge[data-priority='0'] {
-  background-color: var(--color-priority-0);
-}
-
-.priorityBadge[data-priority='1'] {
-  background-color: var(--color-priority-1);
-}
-
-.priorityBadge[data-priority='2'] {
-  background-color: var(--color-priority-2);
-}
-
-.priorityBadge[data-priority='3'] {
-  background-color: var(--color-priority-3);
-}
-
-.priorityBadge[data-priority='4'] {
-  background-color: var(--color-priority-4);
-}
+/* Priority-specific badge colors (class-based for CSS Modules compatibility) */
+.priority0 { background-color: var(--color-priority-0); }
+.priority1 { background-color: var(--color-priority-1); }
+.priority2 { background-color: var(--color-priority-2); }
+.priority3 { background-color: var(--color-priority-3); }
+.priority4 { background-color: var(--color-priority-4); }
 
 /* =================================
  * Priority-based card left border accents
