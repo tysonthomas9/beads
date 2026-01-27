@@ -52,6 +52,11 @@
   color: var(--color-danger);
 }
 
+.statusBadge[data-status="deferred"] {
+  background-color: var(--color-bg-tertiary);
+  color: var(--color-text-muted);
+}
+
 .closeButton {
   margin-left: auto;
   width: 28px;

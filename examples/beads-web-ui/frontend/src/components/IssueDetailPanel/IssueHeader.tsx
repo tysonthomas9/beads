@@ -4,7 +4,10 @@
  */
 
 import type { Issue, IssueDetails } from '@/types';
+import type { Status } from '@/types/status';
 import { EditableTitle } from '../EditableTitle';
+import { StatusDropdown } from '../StatusDropdown';
+import { formatStatusLabel } from '../StatusColumn/utils';
 import styles from './IssueHeader.module.css';
 
 /**
@@ -19,16 +22,20 @@ export interface IssueHeaderProps {
   onTitleSave?: (newTitle: string) => Promise<void>;
   /** Whether title is being saved */
   isSavingTitle?: boolean;
+  /** Callback when status changes (enables interactive dropdown) */
+  onStatusChange?: (status: Status) => Promise<void>;
+  /** Whether status is being saved */
+  isSavingStatus?: boolean;
   /** Additional CSS class name */
   className?: string;
 }
 
 /**
- * Format status to human-readable string.
+ * Format status with fallback to 'Open'.
  */
 function formatStatus(status?: string): string {
   if (!status) return 'Open';
-  return status.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+  return formatStatusLabel(status);
 }
 
 /**
@@ -44,6 +51,8 @@ export function IssueHeader({
   onClose,
   onTitleSave,
   isSavingTitle,
+  onStatusChange,
+  isSavingStatus,
   className,
 }: IssueHeaderProps): JSX.Element {
   const rootClassName = [styles.issueHeader, className].filter(Boolean).join(' ');
@@ -54,14 +63,22 @@ export function IssueHeader({
         <span className={styles.issueId} data-testid="issue-id">
           {issue.id}
         </span>
-        <span
-          className={styles.statusBadge}
-          data-status={issue.status ?? 'open'}
-          role="status"
-          data-testid="issue-status-badge"
-        >
-          {formatStatus(issue.status)}
-        </span>
+        {onStatusChange ? (
+          <StatusDropdown
+            status={issue.status ?? 'open'}
+            onStatusChange={onStatusChange}
+            isSaving={isSavingStatus ?? false}
+          />
+        ) : (
+          <span
+            className={styles.statusBadge}
+            data-status={issue.status ?? 'open'}
+            role="status"
+            data-testid="issue-status-badge"
+          >
+            {formatStatus(issue.status)}
+          </span>
+        )}
         <button
           className={styles.closeButton}
           onClick={onClose}

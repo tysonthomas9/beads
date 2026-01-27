@@ -48,6 +48,18 @@ export const KNOWN_STATUSES: readonly KnownStatus[] = [
 ] as const;
 
 /**
+ * Statuses that users can select in the UI.
+ * Excludes system-only statuses (tombstone, pinned, hooked).
+ */
+export const USER_SELECTABLE_STATUSES: readonly KnownStatus[] = [
+  'open',
+  'in_progress',
+  'blocked',
+  'deferred',
+  'closed',
+] as const;
+
+/**
  * Type guard to check if a status is a known built-in status.
  */
 export function isKnownStatus(status: string): status is KnownStatus {

@@ -5,9 +5,11 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react';
 import type { Issue, IssueDetails, IssueWithDependencyMetadata } from '@/types';
+import type { Status } from '@/types/status';
 import { updateIssue } from '@/api';
 import { IssueHeader } from './IssueHeader';
 import { EditableDescription } from './EditableDescription';
+import { ErrorToast } from '../ErrorToast';
 import styles from './IssueDetailPanel.module.css';
 
 /**
@@ -100,6 +102,8 @@ function DefaultContent({
   onIssueUpdate,
 }: DefaultContentProps): JSX.Element {
   const [isSavingTitle, setIsSavingTitle] = useState(false);
+  const [isSavingStatus, setIsSavingStatus] = useState(false);
+  const [statusError, setStatusError] = useState<string | null>(null);
 
   const handleTitleSave = useCallback(async (newTitle: string) => {
     if (!issue) return;
@@ -110,6 +114,22 @@ function DefaultContent({
       onIssueUpdate?.(updatedIssue);
     } finally {
       setIsSavingTitle(false);
+    }
+  }, [issue, onIssueUpdate]);
+
+  const handleStatusChange = useCallback(async (newStatus: Status) => {
+    if (!issue) return;
+
+    setIsSavingStatus(true);
+    setStatusError(null);
+    try {
+      const updatedIssue = await updateIssue(issue.id, { status: newStatus });
+      onIssueUpdate?.(updatedIssue);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to update status';
+      setStatusError(message);
+    } finally {
+      setIsSavingStatus(false);
     }
   }, [issue, onIssueUpdate]);
 
@@ -152,12 +172,14 @@ function DefaultContent({
 
   return (
     <>
-      {/* Header with ID, status badge, close button, and title */}
+      {/* Header with ID, status dropdown, close button, and title */}
       <IssueHeader
         issue={issue}
         onClose={onClose}
         onTitleSave={handleTitleSave}
         isSavingTitle={isSavingTitle}
+        onStatusChange={handleStatusChange}
+        isSavingStatus={isSavingStatus}
       />
 
       <div className={styles.detailContent}>
@@ -259,6 +281,15 @@ function DefaultContent({
           </section>
         )}
       </div>
+
+      {/* Error toast for status change failures */}
+      {statusError && (
+        <ErrorToast
+          message={statusError}
+          onDismiss={() => setStatusError(null)}
+          testId="status-error-toast"
+        />
+      )}
     </>
   );
 }
