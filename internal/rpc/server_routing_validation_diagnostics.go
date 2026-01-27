@@ -229,6 +229,8 @@ func (s *Server) handleRequest(req *Request) Response {
 		resp = s.handleGetConfig(req)
 	case OpMolStale:
 		resp = s.handleMolStale(req)
+	case OpGetParentIDs:
+		resp = s.handleGetParentIDs(req)
 	case OpShutdown:
 		resp = s.handleShutdown(req)
 	// Gate operations

@@ -479,6 +479,21 @@ func (c *Client) MolStale(args *MolStaleArgs) (*MolStaleResponse, error) {
 	return &result, nil
 }
 
+// GetParentIDs retrieves parent info for multiple issues via the daemon
+func (c *Client) GetParentIDs(args *GetParentIDsArgs) (*GetParentIDsResponse, error) {
+	resp, err := c.Execute(OpGetParentIDs, args)
+	if err != nil {
+		return nil, err
+	}
+
+	var result GetParentIDsResponse
+	if err := json.Unmarshal(resp.Data, &result); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal get_parent_ids response: %w", err)
+	}
+
+	return &result, nil
+}
+
 // cleanupStaleDaemonArtifacts removes stale daemon.pid file when socket is missing and lock is free.
 // This prevents stale artifacts from accumulating after daemon crashes.
 // Only removes pid file - lock file is managed by OS (released on process exit).

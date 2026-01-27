@@ -649,6 +649,13 @@ type DependencyCounts struct {
 	DependentCount  int `json:"dependent_count"`  // Number of issues that depend on this issue
 }
 
+// ParentInfo contains parent issue information for child issues.
+// Used by GetParentIDs to return parent info for batch lookups.
+type ParentInfo struct {
+	ParentID    string `json:"parent_id"`
+	ParentTitle string `json:"parent_title"`
+}
+
 // IssueWithDependencyMetadata extends Issue with dependency relationship type
 // Note: We explicitly include all Issue fields to ensure proper JSON marshaling
 type IssueWithDependencyMetadata struct {

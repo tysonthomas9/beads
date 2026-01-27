@@ -45,6 +45,7 @@ const (
 	OpGetWorkerStatus     = "get_worker_status"
 	OpGetConfig           = "get_config"
 	OpMolStale            = "mol_stale"
+	OpGetParentIDs        = "get_parent_ids"
 
 	// Gate operations
 	OpGateCreate = "gate_create"
@@ -637,4 +638,20 @@ type MolStaleResponse struct {
 	StaleMolecules []*StaleMolecule `json:"stale_molecules"`
 	TotalCount     int              `json:"total_count"`
 	BlockingCount  int              `json:"blocking_count"`
+}
+
+// GetParentIDsArgs represents arguments for the get_parent_ids operation
+type GetParentIDsArgs struct {
+	IssueIDs []string `json:"issue_ids"`
+}
+
+// ParentInfo contains parent issue information
+type ParentInfo struct {
+	ParentID    string `json:"parent_id"`
+	ParentTitle string `json:"parent_title"`
+}
+
+// GetParentIDsResponse represents the response from get_parent_ids operation
+type GetParentIDsResponse struct {
+	Parents map[string]*ParentInfo `json:"parents"` // childID -> ParentInfo
 }

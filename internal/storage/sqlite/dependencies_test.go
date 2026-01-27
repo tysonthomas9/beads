@@ -1781,3 +1781,204 @@ func TestCycleDetectionWithExternalRefs(t *testing.T) {
 		t.Errorf("Expected no cycles with external deps, got %d", len(cycles))
 	}
 }
+
+// TestGetParentIDs tests getting parent IDs for issues with parent-child relationships
+func TestGetParentIDs(t *testing.T) {
+	store, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	ctx := context.Background()
+
+	// Create an epic (parent) and two tasks (children)
+	epic := &types.Issue{Title: "Epic Feature", Status: types.StatusOpen, Priority: 1, IssueType: types.TypeEpic}
+	task1 := &types.Issue{Title: "Task 1", Status: types.StatusOpen, Priority: 1, IssueType: types.TypeTask}
+	task2 := &types.Issue{Title: "Task 2", Status: types.StatusOpen, Priority: 1, IssueType: types.TypeTask}
+	task3 := &types.Issue{Title: "Task 3 (no parent)", Status: types.StatusOpen, Priority: 1, IssueType: types.TypeTask}
+
+	store.CreateIssue(ctx, epic, "test-user")
+	store.CreateIssue(ctx, task1, "test-user")
+	store.CreateIssue(ctx, task2, "test-user")
+	store.CreateIssue(ctx, task3, "test-user")
+
+	// Add parent-child dependencies: task1 and task2 are children of epic
+	err := store.AddDependency(ctx, &types.Dependency{
+		IssueID:     task1.ID,
+		DependsOnID: epic.ID,
+		Type:        types.DepParentChild,
+	}, "test-user")
+	if err != nil {
+		t.Fatalf("AddDependency for task1 failed: %v", err)
+	}
+
+	err = store.AddDependency(ctx, &types.Dependency{
+		IssueID:     task2.ID,
+		DependsOnID: epic.ID,
+		Type:        types.DepParentChild,
+	}, "test-user")
+	if err != nil {
+		t.Fatalf("AddDependency for task2 failed: %v", err)
+	}
+
+	// Get parent IDs for all issues including epic and orphan
+	issueIDs := []string{task1.ID, task2.ID, task3.ID, epic.ID}
+	parentInfo, err := store.GetParentIDs(ctx, issueIDs)
+	if err != nil {
+		t.Fatalf("GetParentIDs failed: %v", err)
+	}
+
+	// Verify task1 has epic as parent
+	if info, ok := parentInfo[task1.ID]; !ok {
+		t.Errorf("Expected parent info for task1")
+	} else {
+		if info.ParentID != epic.ID {
+			t.Errorf("Expected task1 parent to be %s, got %s", epic.ID, info.ParentID)
+		}
+		if info.ParentTitle != "Epic Feature" {
+			t.Errorf("Expected parent title 'Epic Feature', got %s", info.ParentTitle)
+		}
+	}
+
+	// Verify task2 has epic as parent
+	if info, ok := parentInfo[task2.ID]; !ok {
+		t.Errorf("Expected parent info for task2")
+	} else {
+		if info.ParentID != epic.ID {
+			t.Errorf("Expected task2 parent to be %s, got %s", epic.ID, info.ParentID)
+		}
+	}
+
+	// Verify task3 has no parent
+	if _, ok := parentInfo[task3.ID]; ok {
+		t.Errorf("Expected no parent info for task3 (orphan)")
+	}
+
+	// Verify epic has no parent
+	if _, ok := parentInfo[epic.ID]; ok {
+		t.Errorf("Expected no parent info for epic")
+	}
+}
+
+// TestGetParentIDsEmptyInput tests GetParentIDs with empty input
+func TestGetParentIDsEmptyInput(t *testing.T) {
+	store, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	ctx := context.Background()
+
+	// Test with empty slice
+	parentInfo, err := store.GetParentIDs(ctx, []string{})
+	if err != nil {
+		t.Fatalf("GetParentIDs failed on empty input: %v", err)
+	}
+
+	if len(parentInfo) != 0 {
+		t.Errorf("Expected empty map for empty input, got %d entries", len(parentInfo))
+	}
+
+	// Test with nil slice
+	parentInfo, err = store.GetParentIDs(ctx, nil)
+	if err != nil {
+		t.Fatalf("GetParentIDs failed on nil input: %v", err)
+	}
+
+	if len(parentInfo) != 0 {
+		t.Errorf("Expected empty map for nil input, got %d entries", len(parentInfo))
+	}
+}
+
+// TestGetParentIDsNoParents tests GetParentIDs when no issues have parents
+func TestGetParentIDsNoParents(t *testing.T) {
+	store, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	ctx := context.Background()
+
+	// Create issues with no parent-child relationships
+	task1 := &types.Issue{Title: "Task 1", Status: types.StatusOpen, Priority: 1, IssueType: types.TypeTask}
+	task2 := &types.Issue{Title: "Task 2", Status: types.StatusOpen, Priority: 1, IssueType: types.TypeTask}
+
+	store.CreateIssue(ctx, task1, "test-user")
+	store.CreateIssue(ctx, task2, "test-user")
+
+	// Add a non-parent-child dependency (blocks)
+	err := store.AddDependency(ctx, &types.Dependency{
+		IssueID:     task1.ID,
+		DependsOnID: task2.ID,
+		Type:        types.DepBlocks,
+	}, "test-user")
+	if err != nil {
+		t.Fatalf("AddDependency failed: %v", err)
+	}
+
+	// Get parent IDs
+	parentInfo, err := store.GetParentIDs(ctx, []string{task1.ID, task2.ID})
+	if err != nil {
+		t.Fatalf("GetParentIDs failed: %v", err)
+	}
+
+	// Neither issue should have parent info (blocks dependency is not parent-child)
+	if len(parentInfo) != 0 {
+		t.Errorf("Expected 0 parent entries for issues with only blocks dependency, got %d", len(parentInfo))
+	}
+}
+
+// TestGetParentIDsNonexistentIssues tests GetParentIDs with non-existent issue IDs
+func TestGetParentIDsNonexistentIssues(t *testing.T) {
+	store, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	ctx := context.Background()
+
+	// Get parent IDs for non-existent issues
+	parentInfo, err := store.GetParentIDs(ctx, []string{"fake-1", "fake-2", "nonexistent"})
+	if err != nil {
+		t.Fatalf("GetParentIDs failed on nonexistent IDs: %v", err)
+	}
+
+	// Should return empty map
+	if len(parentInfo) != 0 {
+		t.Errorf("Expected 0 parent entries for nonexistent issues, got %d", len(parentInfo))
+	}
+}
+
+// TestGetParentIDsMixedExistence tests GetParentIDs with mix of existing and non-existing issues
+func TestGetParentIDsMixedExistence(t *testing.T) {
+	store, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	ctx := context.Background()
+
+	// Create parent and child
+	epic := &types.Issue{Title: "Epic", Status: types.StatusOpen, Priority: 1, IssueType: types.TypeEpic}
+	task := &types.Issue{Title: "Task", Status: types.StatusOpen, Priority: 1, IssueType: types.TypeTask}
+
+	store.CreateIssue(ctx, epic, "test-user")
+	store.CreateIssue(ctx, task, "test-user")
+
+	// Add parent-child relationship
+	err := store.AddDependency(ctx, &types.Dependency{
+		IssueID:     task.ID,
+		DependsOnID: epic.ID,
+		Type:        types.DepParentChild,
+	}, "test-user")
+	if err != nil {
+		t.Fatalf("AddDependency failed: %v", err)
+	}
+
+	// Query with mix of existing and non-existing IDs
+	parentInfo, err := store.GetParentIDs(ctx, []string{task.ID, "fake-1", "nonexistent"})
+	if err != nil {
+		t.Fatalf("GetParentIDs failed: %v", err)
+	}
+
+	// Only the existing issue with a parent should appear
+	if len(parentInfo) != 1 {
+		t.Errorf("Expected 1 parent entry, got %d", len(parentInfo))
+	}
+
+	if info, ok := parentInfo[task.ID]; !ok {
+		t.Errorf("Expected parent info for task")
+	} else if info.ParentID != epic.ID {
+		t.Errorf("Expected parent ID %s, got %s", epic.ID, info.ParentID)
+	}
+}
