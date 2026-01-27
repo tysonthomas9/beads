@@ -59,10 +59,11 @@ vi.mock('@xyflow/react', () => ({
 vi.mock('@/components', () => ({
   IssueNode: vi.fn(() => <div data-testid="issue-node" />),
   DependencyEdge: vi.fn(() => <div data-testid="dependency-edge" />),
-  GraphControls: vi.fn(({ highlightReady, onHighlightReadyChange, className }) => (
+  GraphControls: vi.fn(({ highlightReady, onHighlightReadyChange, showClosed, onShowClosedChange, className }) => (
     <div
       data-testid="graph-controls"
       data-highlight-ready={highlightReady}
+      data-show-closed={showClosed}
       className={className}
     >
       <input
@@ -70,6 +71,12 @@ vi.mock('@/components', () => ({
         data-testid="highlight-ready-checkbox"
         checked={highlightReady}
         onChange={(e) => onHighlightReadyChange(e.target.checked)}
+      />
+      <input
+        type="checkbox"
+        data-testid="show-closed-checkbox"
+        checked={showClosed}
+        onChange={(e) => onShowClosedChange(e.target.checked)}
       />
     </div>
   )),
@@ -305,6 +312,134 @@ describe('GraphView', () => {
       fireEvent.click(checkbox);
 
       expect(controls).toHaveAttribute('data-highlight-ready', 'true');
+    });
+  });
+
+  describe('show closed filtering', () => {
+    beforeEach(() => {
+      // Clear localStorage before each test
+      localStorage.clear();
+    });
+
+    it('passes all issues to useGraphData when showClosed is true', () => {
+      const issues = [
+        createTestIssue({ id: 'issue-open', title: 'Open Issue', status: 'open' }),
+        createTestIssue({ id: 'issue-closed', title: 'Closed Issue', status: 'closed' }),
+      ];
+      const nodes = createTestNodes(issues);
+
+      setupMocks({ nodes });
+
+      const props = createTestProps({ issues });
+      render(<GraphView {...props} />);
+
+      // showClosed defaults to true in localStorage, so all issues should be passed
+      expect(useGraphData).toHaveBeenCalledWith(
+        expect.arrayContaining([
+          expect.objectContaining({ id: 'issue-open' }),
+          expect.objectContaining({ id: 'issue-closed' }),
+        ]),
+        expect.any(Object)
+      );
+    });
+
+    it('filters out closed issues when showClosed is false', () => {
+      // Set localStorage to false before rendering
+      localStorage.setItem('graph-show-closed', 'false');
+
+      const issues = [
+        createTestIssue({ id: 'issue-open', title: 'Open Issue', status: 'open' }),
+        createTestIssue({ id: 'issue-closed', title: 'Closed Issue', status: 'closed' }),
+        createTestIssue({ id: 'issue-progress', title: 'In Progress Issue', status: 'in_progress' }),
+      ];
+      const nodes = createTestNodes(issues.filter((i) => i.status !== 'closed'));
+
+      setupMocks({ nodes });
+
+      const props = createTestProps({ issues });
+      render(<GraphView {...props} />);
+
+      // Only non-closed issues should be passed
+      expect(useGraphData).toHaveBeenCalledWith(
+        expect.arrayContaining([
+          expect.objectContaining({ id: 'issue-open' }),
+          expect.objectContaining({ id: 'issue-progress' }),
+        ]),
+        expect.any(Object)
+      );
+
+      // Verify closed issue is NOT in the array
+      const callArgs = (useGraphData as Mock).mock.calls[0][0];
+      const closedIssue = callArgs.find((issue: Issue) => issue.id === 'issue-closed');
+      expect(closedIssue).toBeUndefined();
+    });
+
+    it('passes showClosed state to GraphControls', () => {
+      const props = createTestProps();
+      render(<GraphView {...props} />);
+
+      const controls = screen.getByTestId('graph-controls');
+      // Default is true
+      expect(controls).toHaveAttribute('data-show-closed', 'true');
+    });
+
+    it('updates filtering when show closed toggle is clicked', () => {
+      const issues = [
+        createTestIssue({ id: 'issue-open', title: 'Open Issue', status: 'open' }),
+        createTestIssue({ id: 'issue-closed', title: 'Closed Issue', status: 'closed' }),
+      ];
+      const allNodes = createTestNodes(issues);
+      const openOnlyNodes = createTestNodes(issues.filter((i) => i.status !== 'closed'));
+
+      setupMocks({ nodes: allNodes });
+
+      const props = createTestProps({ issues });
+      render(<GraphView {...props} />);
+
+      // Initially showClosed is true - verify first call includes all issues
+      expect(useGraphData).toHaveBeenLastCalledWith(
+        expect.arrayContaining([
+          expect.objectContaining({ id: 'issue-closed' }),
+        ]),
+        expect.any(Object)
+      );
+
+      // Update mock for re-render
+      setupMocks({ nodes: openOnlyNodes });
+
+      // Click the checkbox to toggle showClosed to false
+      const checkbox = screen.getByTestId('show-closed-checkbox');
+      fireEvent.click(checkbox);
+
+      // After toggle, closed issues should be filtered out
+      const lastCall = (useGraphData as Mock).mock.calls[(useGraphData as Mock).mock.calls.length - 1];
+      const closedIssueInLastCall = lastCall[0].find((issue: Issue) => issue.id === 'issue-closed');
+      expect(closedIssueInLastCall).toBeUndefined();
+    });
+
+    it('persists showClosed preference to localStorage', () => {
+      const props = createTestProps();
+      render(<GraphView {...props} />);
+
+      // Default should be true
+      expect(localStorage.getItem('graph-show-closed')).toBe('true');
+
+      // Toggle to false
+      const checkbox = screen.getByTestId('show-closed-checkbox');
+      fireEvent.click(checkbox);
+
+      expect(localStorage.getItem('graph-show-closed')).toBe('false');
+    });
+
+    it('loads showClosed preference from localStorage on mount', () => {
+      // Set localStorage to false before rendering
+      localStorage.setItem('graph-show-closed', 'false');
+
+      const props = createTestProps();
+      render(<GraphView {...props} />);
+
+      const controls = screen.getByTestId('graph-controls');
+      expect(controls).toHaveAttribute('data-show-closed', 'false');
     });
   });
 

@@ -5,7 +5,7 @@
  * issues as nodes and dependencies as edges in an interactive DAG layout.
  */
 
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import {
   ReactFlow,
   Background,
@@ -21,6 +21,8 @@ import { useBlockedIssues } from '@/hooks/useBlockedIssues';
 import { IssueNode, DependencyEdge, GraphControls, GraphLegend, NodeTooltip } from '@/components';
 import type { TooltipPosition } from '@/components/NodeTooltip';
 import styles from './GraphView.module.css';
+
+const STORAGE_KEY_SHOW_CLOSED = 'graph-show-closed';
 
 // Register custom node and edge types
 const nodeTypes = {
@@ -87,6 +89,26 @@ export function GraphView({
   const [showBlockedOnly, setShowBlockedOnly] = useState(false);
   const [legendCollapsed, setLegendCollapsed] = useState(true);
 
+  // Initialize showClosed from localStorage, default to true
+  const [showClosed, setShowClosed] = useState(() => {
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY_SHOW_CLOSED);
+      return stored === null ? true : stored === 'true';
+    } catch {
+      // Silently fail if localStorage is unavailable (private browsing, quota exceeded)
+      return true;
+    }
+  });
+
+  // Persist showClosed preference to localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY_SHOW_CLOSED, String(showClosed));
+    } catch {
+      // Silently fail if localStorage is unavailable (private browsing, quota exceeded)
+    }
+  }, [showClosed]);
+
   // Tooltip state for hover preview
   const [hoveredIssue, setHoveredIssue] = useState<Issue | null>(null);
   const [tooltipPosition, setTooltipPosition] = useState<TooltipPosition | null>(null);
@@ -98,12 +120,18 @@ export function GraphView({
     return new Set(blockedIssues.map((bi) => bi.id));
   }, [blockedIssues]);
 
+  // Filter out closed issues when showClosed is false
+  const visibleIssues = useMemo(() => {
+    if (showClosed) return issues;
+    return issues.filter(issue => issue.status !== 'closed');
+  }, [issues, showClosed]);
+
   // Transform issues to nodes and edges
   const graphDataOptions: UseGraphDataOptions = useMemo(
     () => ({ blockedIssueIds }),
     [blockedIssueIds]
   );
-  const { nodes: rawNodes, edges } = useGraphData(issues, graphDataOptions);
+  const { nodes: rawNodes, edges } = useGraphData(visibleIssues, graphDataOptions);
 
   // Apply auto-layout
   const layoutOptions: UseAutoLayoutOptions = useMemo(
@@ -203,6 +231,8 @@ export function GraphView({
               onHighlightReadyChange={setHighlightReady}
               showBlockedOnly={showBlockedOnly}
               onShowBlockedOnlyChange={setShowBlockedOnly}
+              showClosed={showClosed}
+              onShowClosedChange={setShowClosed}
               {...(styles.controls ? { className: styles.controls } : {})}
             />
           </Panel>
