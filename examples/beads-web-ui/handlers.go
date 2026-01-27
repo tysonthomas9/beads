@@ -132,6 +132,34 @@ func (p *closePoolAdapter) Put(client issueCloser) {
 	}
 }
 
+// graphClient is an internal interface for testing graph operations.
+// The production code uses *rpc.Client which implements this interface.
+type graphClient interface {
+	List(args *rpc.ListArgs) (*rpc.Response, error)
+	Show(args *rpc.ShowArgs) (*rpc.Response, error)
+}
+
+// graphConnectionGetter is an internal interface for testing graph handler pool operations.
+type graphConnectionGetter interface {
+	Get(ctx context.Context) (graphClient, error)
+	Put(client graphClient)
+}
+
+// graphPoolAdapter wraps *daemon.ConnectionPool to implement graphConnectionGetter.
+type graphPoolAdapter struct {
+	pool *daemon.ConnectionPool
+}
+
+func (p *graphPoolAdapter) Get(ctx context.Context) (graphClient, error) {
+	return p.pool.Get(ctx)
+}
+
+func (p *graphPoolAdapter) Put(client graphClient) {
+	if c, ok := client.(*rpc.Client); ok {
+		p.pool.Put(c)
+	}
+}
+
 // writeErrorResponse writes a JSON error response with the given status code and message.
 func writeErrorResponse(w http.ResponseWriter, status int, message string) {
 	w.Header().Set("Content-Type", "application/json")
@@ -344,9 +372,29 @@ func handleReady(pool *daemon.ConnectionPool) http.HandlerFunc {
 
 // BlockedResponse wraps the blocked issues data for JSON response.
 type BlockedResponse struct {
-	Success bool                   `json:"success"`
-	Data    []*types.BlockedIssue  `json:"data,omitempty"`
-	Error   string                 `json:"error,omitempty"`
+	Success bool                  `json:"success"`
+	Data    []*types.BlockedIssue `json:"data,omitempty"`
+	Error   string                `json:"error,omitempty"`
+}
+
+// GraphDependency represents a dependency relationship for graph visualization.
+type GraphDependency struct {
+	DependsOnID string `json:"depends_on_id"`
+	Type        string `json:"type"`
+}
+
+// GraphIssue represents an issue with its full dependency data for graph visualization.
+type GraphIssue struct {
+	*types.Issue
+	Labels       []string           `json:"labels,omitempty"`
+	Dependencies []*GraphDependency `json:"dependencies,omitempty"`
+}
+
+// GraphResponse wraps the graph data for JSON response.
+type GraphResponse struct {
+	Success bool          `json:"success"`
+	Issues  []*GraphIssue `json:"issues,omitempty"`
+	Error   string        `json:"error,omitempty"`
 }
 
 // handleBlocked returns issues that have blocking dependencies (waiting on other issues).
@@ -436,6 +484,168 @@ func handleBlocked(pool *daemon.ConnectionPool) http.HandlerFunc {
 	}
 }
 
+// handleGraph returns issues with full dependency data for graph visualization.
+func handleGraph(pool *daemon.ConnectionPool) http.HandlerFunc {
+	if pool == nil {
+		return handleGraphWithPool(nil)
+	}
+	return handleGraphWithPool(&graphPoolAdapter{pool: pool})
+}
+
+// handleGraphWithPool is the internal implementation that accepts an interface for testing.
+func handleGraphWithPool(pool graphConnectionGetter) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+
+		if pool == nil {
+			w.WriteHeader(http.StatusServiceUnavailable)
+			if err := json.NewEncoder(w).Encode(GraphResponse{
+				Success: false,
+				Error:   "connection pool not initialized",
+			}); err != nil {
+				log.Printf("Failed to encode graph response: %v", err)
+			}
+			return
+		}
+
+		// Parse query parameters
+		status, includeClosed := parseGraphParams(r)
+
+		// Validate status parameter
+		validStatuses := map[string]bool{"all": true, "open": true, "closed": true}
+		if !validStatuses[status] {
+			w.WriteHeader(http.StatusBadRequest)
+			if err := json.NewEncoder(w).Encode(GraphResponse{
+				Success: false,
+				Error:   fmt.Sprintf("invalid status: %s (must be all, open, or closed)", status),
+			}); err != nil {
+				log.Printf("Failed to encode graph response: %v", err)
+			}
+			return
+		}
+
+		// Acquire connection with timeout
+		ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
+		defer cancel()
+
+		client, err := pool.Get(ctx)
+		if err != nil {
+			httpStatus := http.StatusServiceUnavailable
+			if errors.Is(err, context.DeadlineExceeded) {
+				httpStatus = http.StatusGatewayTimeout
+			}
+			w.WriteHeader(httpStatus)
+			if err := json.NewEncoder(w).Encode(GraphResponse{
+				Success: false,
+				Error:   err.Error(),
+			}); err != nil {
+				log.Printf("Failed to encode graph response: %v", err)
+			}
+			return
+		}
+		defer pool.Put(client)
+
+		// Build list args based on status filter
+		listArgs := &rpc.ListArgs{}
+		if status == "open" {
+			listArgs.ExcludeStatus = []string{"closed", "tombstone"}
+		} else if status == "closed" {
+			listArgs.Status = "closed"
+		} else {
+			// "all" - exclude only tombstones
+			listArgs.ExcludeStatus = []string{"tombstone"}
+		}
+		// Don't include closed if explicitly disabled
+		if !includeClosed && status == "all" {
+			listArgs.ExcludeStatus = append(listArgs.ExcludeStatus, "closed")
+		}
+
+		// Get issues via RPC
+		resp, err := client.List(listArgs)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			if err := json.NewEncoder(w).Encode(GraphResponse{
+				Success: false,
+				Error:   fmt.Sprintf("rpc error: %v", err),
+			}); err != nil {
+				log.Printf("Failed to encode graph response: %v", err)
+			}
+			return
+		}
+
+		if !resp.Success {
+			w.WriteHeader(http.StatusInternalServerError)
+			if err := json.NewEncoder(w).Encode(GraphResponse{
+				Success: false,
+				Error:   resp.Error,
+			}); err != nil {
+				log.Printf("Failed to encode graph response: %v", err)
+			}
+			return
+		}
+
+		// Parse issues from response
+		var issuesWithCounts []*types.IssueWithCounts
+		if err := json.Unmarshal(resp.Data, &issuesWithCounts); err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			if err := json.NewEncoder(w).Encode(GraphResponse{
+				Success: false,
+				Error:   fmt.Sprintf("failed to parse issues: %v", err),
+			}); err != nil {
+				log.Printf("Failed to encode graph response: %v", err)
+			}
+			return
+		}
+
+		// Build graph issues with dependencies
+		// For each issue, we need to fetch its dependencies
+		graphIssues := make([]*GraphIssue, 0, len(issuesWithCounts))
+
+		for _, iwc := range issuesWithCounts {
+			// Get dependencies for this issue using Show RPC (which returns full dependencies)
+			showResp, err := client.Show(&rpc.ShowArgs{ID: iwc.ID})
+			if err != nil {
+				// Skip issues we can't get details for
+				log.Printf("Failed to get details for issue %s: %v", iwc.ID, err)
+				continue
+			}
+			if !showResp.Success {
+				log.Printf("Show failed for issue %s: %s", iwc.ID, showResp.Error)
+				continue
+			}
+
+			var details types.IssueDetails
+			if err := json.Unmarshal(showResp.Data, &details); err != nil {
+				log.Printf("Failed to parse details for issue %s: %v", iwc.ID, err)
+				continue
+			}
+
+			// Convert dependencies to graph format
+			var graphDeps []*GraphDependency
+			for _, dep := range details.Dependencies {
+				graphDeps = append(graphDeps, &GraphDependency{
+					DependsOnID: dep.ID,
+					Type:        string(dep.DependencyType),
+				})
+			}
+
+			graphIssues = append(graphIssues, &GraphIssue{
+				Issue:        iwc.Issue,
+				Labels:       details.Labels,
+				Dependencies: graphDeps,
+			})
+		}
+
+		w.WriteHeader(http.StatusOK)
+		if err := json.NewEncoder(w).Encode(GraphResponse{
+			Success: true,
+			Issues:  graphIssues,
+		}); err != nil {
+			log.Printf("Failed to encode graph response: %v", err)
+		}
+	}
+}
+
 // parseBlockedParams parses query parameters into rpc.BlockedArgs.
 func parseBlockedParams(r *http.Request) *rpc.BlockedArgs {
 	args := &rpc.BlockedArgs{}
@@ -447,6 +657,18 @@ func parseBlockedParams(r *http.Request) *rpc.BlockedArgs {
 	}
 
 	return args
+}
+
+// parseGraphParams parses query parameters for the graph endpoint.
+func parseGraphParams(r *http.Request) (status string, includeClosed bool) {
+	q := r.URL.Query()
+	status = q.Get("status")
+	if status == "" {
+		status = "all"
+	}
+	includeClosedStr := q.Get("include_closed")
+	includeClosed = includeClosedStr != "false" // Default true
+	return status, includeClosed
 }
 
 // parseListParams extracts ListArgs from HTTP query parameters.

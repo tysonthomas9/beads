@@ -4448,3 +4448,808 @@ func TestHandleCloseIssue_ResponseError(t *testing.T) {
 		t.Errorf("error = %q, want %q", resp["error"], "internal daemon error")
 	}
 }
+
+// ===========================================================================
+// handleGraph tests
+// ===========================================================================
+
+// mockGraphClient implements graphClient for testing
+type mockGraphClient struct {
+	listFunc func(args *rpc.ListArgs) (*rpc.Response, error)
+	showFunc func(args *rpc.ShowArgs) (*rpc.Response, error)
+}
+
+func (m *mockGraphClient) List(args *rpc.ListArgs) (*rpc.Response, error) {
+	if m.listFunc != nil {
+		return m.listFunc(args)
+	}
+	return nil, errors.New("listFunc not implemented")
+}
+
+func (m *mockGraphClient) Show(args *rpc.ShowArgs) (*rpc.Response, error) {
+	if m.showFunc != nil {
+		return m.showFunc(args)
+	}
+	return nil, errors.New("showFunc not implemented")
+}
+
+// mockGraphPool implements graphConnectionGetter for testing
+type mockGraphPool struct {
+	getFunc func(ctx context.Context) (graphClient, error)
+	putFunc func(client graphClient)
+}
+
+func (m *mockGraphPool) Get(ctx context.Context) (graphClient, error) {
+	if m.getFunc != nil {
+		return m.getFunc(ctx)
+	}
+	return nil, errors.New("getFunc not implemented")
+}
+
+func (m *mockGraphPool) Put(client graphClient) {
+	if m.putFunc != nil {
+		m.putFunc(client)
+	}
+}
+
+// TestHandleGraph_NilPool tests that nil pool returns 503 Service Unavailable
+func TestHandleGraph_NilPool(t *testing.T) {
+	handler := handleGraph(nil)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/issues/graph", nil)
+	rr := httptest.NewRecorder()
+
+	handler.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusServiceUnavailable {
+		t.Errorf("status code = %d, want %d", rr.Code, http.StatusServiceUnavailable)
+	}
+
+	var resp GraphResponse
+	if err := json.NewDecoder(rr.Body).Decode(&resp); err != nil {
+		t.Errorf("failed to decode response: %v", err)
+		return
+	}
+
+	if resp.Success {
+		t.Error("Success = true, want false")
+	}
+	if resp.Error != "connection pool not initialized" {
+		t.Errorf("Error = %q, want %q", resp.Error, "connection pool not initialized")
+	}
+}
+
+// TestHandleGraph_InvalidStatus tests that invalid status parameter returns 400 Bad Request
+func TestHandleGraph_InvalidStatus(t *testing.T) {
+	pool := &mockGraphPool{
+		getFunc: func(ctx context.Context) (graphClient, error) {
+			return &mockGraphClient{}, nil
+		},
+		putFunc: func(c graphClient) {},
+	}
+
+	handler := handleGraphWithPool(pool)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/issues/graph?status=invalid", nil)
+	rr := httptest.NewRecorder()
+
+	handler.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusBadRequest {
+		t.Errorf("status code = %d, want %d", rr.Code, http.StatusBadRequest)
+	}
+
+	var resp GraphResponse
+	if err := json.NewDecoder(rr.Body).Decode(&resp); err != nil {
+		t.Errorf("failed to decode response: %v", err)
+		return
+	}
+
+	if resp.Success {
+		t.Error("Success = true, want false")
+	}
+	if !containsSubstring(resp.Error, "invalid status") {
+		t.Errorf("Error = %q, expected to contain 'invalid status'", resp.Error)
+	}
+}
+
+// TestHandleGraph_PoolClosed tests that closed pool returns 503 Service Unavailable
+func TestHandleGraph_PoolClosed(t *testing.T) {
+	pool, err := daemon.NewConnectionPool("/tmp/test.sock", 1)
+	if err != nil {
+		t.Fatalf("NewConnectionPool() error = %v", err)
+	}
+	pool.Close()
+
+	handler := handleGraph(pool)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/issues/graph", nil)
+	rr := httptest.NewRecorder()
+
+	handler.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusServiceUnavailable {
+		t.Errorf("status code = %d, want %d", rr.Code, http.StatusServiceUnavailable)
+	}
+
+	var resp GraphResponse
+	if err := json.NewDecoder(rr.Body).Decode(&resp); err != nil {
+		t.Errorf("failed to decode response: %v", err)
+		return
+	}
+
+	if resp.Success {
+		t.Error("Success = true, want false")
+	}
+}
+
+// TestHandleGraph_ConnectionTimeout tests that connection timeout returns 504 Gateway Timeout
+func TestHandleGraph_ConnectionTimeout(t *testing.T) {
+	pool := &mockGraphPool{
+		getFunc: func(ctx context.Context) (graphClient, error) {
+			return nil, context.DeadlineExceeded
+		},
+	}
+
+	handler := handleGraphWithPool(pool)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/issues/graph", nil)
+	rr := httptest.NewRecorder()
+
+	handler.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusGatewayTimeout {
+		t.Errorf("status code = %d, want %d", rr.Code, http.StatusGatewayTimeout)
+	}
+
+	var resp GraphResponse
+	if err := json.NewDecoder(rr.Body).Decode(&resp); err != nil {
+		t.Errorf("failed to decode response: %v", err)
+		return
+	}
+
+	if resp.Success {
+		t.Error("Success = true, want false")
+	}
+}
+
+// TestHandleGraph_RPCError tests that RPC error returns 500 Internal Server Error
+func TestHandleGraph_RPCError(t *testing.T) {
+	client := &mockGraphClient{
+		listFunc: func(args *rpc.ListArgs) (*rpc.Response, error) {
+			return nil, errors.New("connection reset by peer")
+		},
+	}
+
+	pool := &mockGraphPool{
+		getFunc: func(ctx context.Context) (graphClient, error) {
+			return client, nil
+		},
+		putFunc: func(c graphClient) {},
+	}
+
+	handler := handleGraphWithPool(pool)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/issues/graph", nil)
+	rr := httptest.NewRecorder()
+
+	handler.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusInternalServerError {
+		t.Errorf("status code = %d, want %d", rr.Code, http.StatusInternalServerError)
+	}
+
+	var resp GraphResponse
+	if err := json.NewDecoder(rr.Body).Decode(&resp); err != nil {
+		t.Errorf("failed to decode response: %v", err)
+		return
+	}
+
+	if resp.Success {
+		t.Error("Success = true, want false")
+	}
+	if !containsSubstring(resp.Error, "rpc error") {
+		t.Errorf("Error = %q, expected to contain 'rpc error'", resp.Error)
+	}
+}
+
+// TestHandleGraph_DaemonError tests that daemon error (Success=false) returns 500
+func TestHandleGraph_DaemonError(t *testing.T) {
+	client := &mockGraphClient{
+		listFunc: func(args *rpc.ListArgs) (*rpc.Response, error) {
+			return &rpc.Response{
+				Success: false,
+				Error:   "database locked",
+			}, nil
+		},
+	}
+
+	pool := &mockGraphPool{
+		getFunc: func(ctx context.Context) (graphClient, error) {
+			return client, nil
+		},
+		putFunc: func(c graphClient) {},
+	}
+
+	handler := handleGraphWithPool(pool)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/issues/graph", nil)
+	rr := httptest.NewRecorder()
+
+	handler.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusInternalServerError {
+		t.Errorf("status code = %d, want %d", rr.Code, http.StatusInternalServerError)
+	}
+
+	var resp GraphResponse
+	if err := json.NewDecoder(rr.Body).Decode(&resp); err != nil {
+		t.Errorf("failed to decode response: %v", err)
+		return
+	}
+
+	if resp.Success {
+		t.Error("Success = true, want false")
+	}
+	if resp.Error != "database locked" {
+		t.Errorf("Error = %q, want %q", resp.Error, "database locked")
+	}
+}
+
+// TestHandleGraph_Success tests successful response with issues and dependencies
+func TestHandleGraph_Success(t *testing.T) {
+	// Create mock issues response from List
+	issuesData := `[
+		{"id": "issue-1", "title": "First Issue", "status": "open", "priority": 1, "issue_type": "task"},
+		{"id": "issue-2", "title": "Second Issue", "status": "open", "priority": 2, "issue_type": "bug"}
+	]`
+
+	// Create mock issue details response from Show
+	issue1Details := `{
+		"id": "issue-1",
+		"title": "First Issue",
+		"status": "open",
+		"labels": ["urgent", "backend"],
+		"dependencies": [
+			{"id": "issue-2", "dependency_type": "blocks"}
+		]
+	}`
+	issue2Details := `{
+		"id": "issue-2",
+		"title": "Second Issue",
+		"status": "open",
+		"labels": ["frontend"],
+		"dependencies": []
+	}`
+
+	client := &mockGraphClient{
+		listFunc: func(args *rpc.ListArgs) (*rpc.Response, error) {
+			return &rpc.Response{
+				Success: true,
+				Data:    []byte(issuesData),
+			}, nil
+		},
+		showFunc: func(args *rpc.ShowArgs) (*rpc.Response, error) {
+			switch args.ID {
+			case "issue-1":
+				return &rpc.Response{
+					Success: true,
+					Data:    []byte(issue1Details),
+				}, nil
+			case "issue-2":
+				return &rpc.Response{
+					Success: true,
+					Data:    []byte(issue2Details),
+				}, nil
+			default:
+				return nil, errors.New("issue not found")
+			}
+		},
+	}
+
+	putCalled := false
+	pool := &mockGraphPool{
+		getFunc: func(ctx context.Context) (graphClient, error) {
+			return client, nil
+		},
+		putFunc: func(c graphClient) {
+			putCalled = true
+			if c != client {
+				t.Error("Put() called with different client than Get() returned")
+			}
+		},
+	}
+
+	handler := handleGraphWithPool(pool)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/issues/graph", nil)
+	rr := httptest.NewRecorder()
+
+	handler.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("status code = %d, want %d", rr.Code, http.StatusOK)
+	}
+
+	contentType := rr.Header().Get("Content-Type")
+	if contentType != "application/json" {
+		t.Errorf("Content-Type = %q, want %q", contentType, "application/json")
+	}
+
+	var resp GraphResponse
+	if err := json.NewDecoder(rr.Body).Decode(&resp); err != nil {
+		t.Errorf("failed to decode response: %v", err)
+		return
+	}
+
+	if !resp.Success {
+		t.Errorf("Success = false, want true")
+	}
+
+	if len(resp.Issues) != 2 {
+		t.Errorf("len(Issues) = %d, want 2", len(resp.Issues))
+		return
+	}
+
+	// Verify first issue
+	if resp.Issues[0].ID != "issue-1" {
+		t.Errorf("Issues[0].ID = %q, want %q", resp.Issues[0].ID, "issue-1")
+	}
+	if len(resp.Issues[0].Labels) != 2 {
+		t.Errorf("len(Issues[0].Labels) = %d, want 2", len(resp.Issues[0].Labels))
+	}
+	if len(resp.Issues[0].Dependencies) != 1 {
+		t.Errorf("len(Issues[0].Dependencies) = %d, want 1", len(resp.Issues[0].Dependencies))
+	} else {
+		if resp.Issues[0].Dependencies[0].DependsOnID != "issue-2" {
+			t.Errorf("Issues[0].Dependencies[0].DependsOnID = %q, want %q", resp.Issues[0].Dependencies[0].DependsOnID, "issue-2")
+		}
+		if resp.Issues[0].Dependencies[0].Type != "blocks" {
+			t.Errorf("Issues[0].Dependencies[0].Type = %q, want %q", resp.Issues[0].Dependencies[0].Type, "blocks")
+		}
+	}
+
+	// Verify second issue
+	if resp.Issues[1].ID != "issue-2" {
+		t.Errorf("Issues[1].ID = %q, want %q", resp.Issues[1].ID, "issue-2")
+	}
+	if len(resp.Issues[1].Labels) != 1 {
+		t.Errorf("len(Issues[1].Labels) = %d, want 1", len(resp.Issues[1].Labels))
+	}
+	if len(resp.Issues[1].Dependencies) != 0 {
+		t.Errorf("len(Issues[1].Dependencies) = %d, want 0", len(resp.Issues[1].Dependencies))
+	}
+
+	// Verify client was returned to pool
+	if !putCalled {
+		t.Error("Put() was not called - client not returned to pool")
+	}
+}
+
+// TestHandleGraph_StatusFilterOpen tests that status=open filters correctly
+func TestHandleGraph_StatusFilterOpen(t *testing.T) {
+	var capturedListArgs *rpc.ListArgs
+
+	client := &mockGraphClient{
+		listFunc: func(args *rpc.ListArgs) (*rpc.Response, error) {
+			capturedListArgs = args
+			return &rpc.Response{
+				Success: true,
+				Data:    []byte("[]"),
+			}, nil
+		},
+	}
+
+	pool := &mockGraphPool{
+		getFunc: func(ctx context.Context) (graphClient, error) {
+			return client, nil
+		},
+		putFunc: func(c graphClient) {},
+	}
+
+	handler := handleGraphWithPool(pool)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/issues/graph?status=open", nil)
+	rr := httptest.NewRecorder()
+
+	handler.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("status code = %d, want %d", rr.Code, http.StatusOK)
+	}
+
+	if capturedListArgs == nil {
+		t.Fatal("List was not called")
+	}
+
+	// status=open should exclude closed and tombstone
+	if len(capturedListArgs.ExcludeStatus) != 2 {
+		t.Errorf("ExcludeStatus len = %d, want 2", len(capturedListArgs.ExcludeStatus))
+	}
+	hasExcludeClosed := false
+	hasExcludeTombstone := false
+	for _, s := range capturedListArgs.ExcludeStatus {
+		if s == "closed" {
+			hasExcludeClosed = true
+		}
+		if s == "tombstone" {
+			hasExcludeTombstone = true
+		}
+	}
+	if !hasExcludeClosed {
+		t.Error("ExcludeStatus should contain 'closed'")
+	}
+	if !hasExcludeTombstone {
+		t.Error("ExcludeStatus should contain 'tombstone'")
+	}
+}
+
+// TestHandleGraph_StatusFilterClosed tests that status=closed filters correctly
+func TestHandleGraph_StatusFilterClosed(t *testing.T) {
+	var capturedListArgs *rpc.ListArgs
+
+	client := &mockGraphClient{
+		listFunc: func(args *rpc.ListArgs) (*rpc.Response, error) {
+			capturedListArgs = args
+			return &rpc.Response{
+				Success: true,
+				Data:    []byte("[]"),
+			}, nil
+		},
+	}
+
+	pool := &mockGraphPool{
+		getFunc: func(ctx context.Context) (graphClient, error) {
+			return client, nil
+		},
+		putFunc: func(c graphClient) {},
+	}
+
+	handler := handleGraphWithPool(pool)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/issues/graph?status=closed", nil)
+	rr := httptest.NewRecorder()
+
+	handler.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("status code = %d, want %d", rr.Code, http.StatusOK)
+	}
+
+	if capturedListArgs == nil {
+		t.Fatal("List was not called")
+	}
+
+	// status=closed should set Status filter
+	if capturedListArgs.Status != "closed" {
+		t.Errorf("Status = %q, want %q", capturedListArgs.Status, "closed")
+	}
+}
+
+// TestHandleGraph_StatusFilterAll tests that status=all (default) works correctly
+func TestHandleGraph_StatusFilterAll(t *testing.T) {
+	var capturedListArgs *rpc.ListArgs
+
+	client := &mockGraphClient{
+		listFunc: func(args *rpc.ListArgs) (*rpc.Response, error) {
+			capturedListArgs = args
+			return &rpc.Response{
+				Success: true,
+				Data:    []byte("[]"),
+			}, nil
+		},
+	}
+
+	pool := &mockGraphPool{
+		getFunc: func(ctx context.Context) (graphClient, error) {
+			return client, nil
+		},
+		putFunc: func(c graphClient) {},
+	}
+
+	handler := handleGraphWithPool(pool)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/issues/graph?status=all", nil)
+	rr := httptest.NewRecorder()
+
+	handler.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("status code = %d, want %d", rr.Code, http.StatusOK)
+	}
+
+	if capturedListArgs == nil {
+		t.Fatal("List was not called")
+	}
+
+	// status=all should only exclude tombstone
+	if len(capturedListArgs.ExcludeStatus) != 1 || capturedListArgs.ExcludeStatus[0] != "tombstone" {
+		t.Errorf("ExcludeStatus = %v, want [tombstone]", capturedListArgs.ExcludeStatus)
+	}
+}
+
+// TestHandleGraph_IncludeClosedFalse tests that include_closed=false parameter works
+func TestHandleGraph_IncludeClosedFalse(t *testing.T) {
+	var capturedListArgs *rpc.ListArgs
+
+	client := &mockGraphClient{
+		listFunc: func(args *rpc.ListArgs) (*rpc.Response, error) {
+			capturedListArgs = args
+			return &rpc.Response{
+				Success: true,
+				Data:    []byte("[]"),
+			}, nil
+		},
+	}
+
+	pool := &mockGraphPool{
+		getFunc: func(ctx context.Context) (graphClient, error) {
+			return client, nil
+		},
+		putFunc: func(c graphClient) {},
+	}
+
+	handler := handleGraphWithPool(pool)
+
+	// Default status is "all", with include_closed=false
+	req := httptest.NewRequest(http.MethodGet, "/api/issues/graph?include_closed=false", nil)
+	rr := httptest.NewRecorder()
+
+	handler.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("status code = %d, want %d", rr.Code, http.StatusOK)
+	}
+
+	if capturedListArgs == nil {
+		t.Fatal("List was not called")
+	}
+
+	// With status=all (default) and include_closed=false, should exclude both tombstone and closed
+	hasExcludeClosed := false
+	hasExcludeTombstone := false
+	for _, s := range capturedListArgs.ExcludeStatus {
+		if s == "closed" {
+			hasExcludeClosed = true
+		}
+		if s == "tombstone" {
+			hasExcludeTombstone = true
+		}
+	}
+	if !hasExcludeClosed {
+		t.Error("ExcludeStatus should contain 'closed' when include_closed=false")
+	}
+	if !hasExcludeTombstone {
+		t.Error("ExcludeStatus should contain 'tombstone'")
+	}
+}
+
+// TestHandleGraph_ContentType tests that Content-Type is always application/json
+func TestHandleGraph_ContentType(t *testing.T) {
+	handler := handleGraph(nil)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/issues/graph", nil)
+	rr := httptest.NewRecorder()
+
+	handler.ServeHTTP(rr, req)
+
+	contentType := rr.Header().Get("Content-Type")
+	if contentType != "application/json" {
+		t.Errorf("Content-Type = %q, want %q", contentType, "application/json")
+	}
+}
+
+// TestHandleGraph_ShowErrorSkipsIssue tests that Show errors skip individual issues without failing request
+func TestHandleGraph_ShowErrorSkipsIssue(t *testing.T) {
+	issuesData := `[
+		{"id": "issue-1", "title": "First Issue", "status": "open", "priority": 1, "issue_type": "task"},
+		{"id": "issue-2", "title": "Second Issue", "status": "open", "priority": 2, "issue_type": "bug"}
+	]`
+
+	issue1Details := `{
+		"id": "issue-1",
+		"title": "First Issue",
+		"status": "open",
+		"labels": [],
+		"dependencies": []
+	}`
+
+	client := &mockGraphClient{
+		listFunc: func(args *rpc.ListArgs) (*rpc.Response, error) {
+			return &rpc.Response{
+				Success: true,
+				Data:    []byte(issuesData),
+			}, nil
+		},
+		showFunc: func(args *rpc.ShowArgs) (*rpc.Response, error) {
+			if args.ID == "issue-1" {
+				return &rpc.Response{
+					Success: true,
+					Data:    []byte(issue1Details),
+				}, nil
+			}
+			// issue-2 fails
+			return nil, errors.New("issue not found")
+		},
+	}
+
+	pool := &mockGraphPool{
+		getFunc: func(ctx context.Context) (graphClient, error) {
+			return client, nil
+		},
+		putFunc: func(c graphClient) {},
+	}
+
+	handler := handleGraphWithPool(pool)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/issues/graph", nil)
+	rr := httptest.NewRecorder()
+
+	handler.ServeHTTP(rr, req)
+
+	// Should still succeed even though one Show failed
+	if rr.Code != http.StatusOK {
+		t.Errorf("status code = %d, want %d", rr.Code, http.StatusOK)
+	}
+
+	var resp GraphResponse
+	if err := json.NewDecoder(rr.Body).Decode(&resp); err != nil {
+		t.Errorf("failed to decode response: %v", err)
+		return
+	}
+
+	if !resp.Success {
+		t.Error("Success = false, want true")
+	}
+
+	// Should have 1 issue (issue-2 was skipped due to Show error)
+	if len(resp.Issues) != 1 {
+		t.Errorf("len(Issues) = %d, want 1", len(resp.Issues))
+	}
+
+	if resp.Issues[0].ID != "issue-1" {
+		t.Errorf("Issues[0].ID = %q, want %q", resp.Issues[0].ID, "issue-1")
+	}
+}
+
+// TestHandleGraph_ClientReturnedToPoolOnError verifies client is returned even on errors
+func TestHandleGraph_ClientReturnedToPoolOnError(t *testing.T) {
+	putCalled := false
+
+	client := &mockGraphClient{
+		listFunc: func(args *rpc.ListArgs) (*rpc.Response, error) {
+			return nil, errors.New("some error")
+		},
+	}
+
+	pool := &mockGraphPool{
+		getFunc: func(ctx context.Context) (graphClient, error) {
+			return client, nil
+		},
+		putFunc: func(c graphClient) {
+			putCalled = true
+		},
+	}
+
+	handler := handleGraphWithPool(pool)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/issues/graph", nil)
+	rr := httptest.NewRecorder()
+
+	handler.ServeHTTP(rr, req)
+
+	if !putCalled {
+		t.Error("Put() was not called on error - client not returned to pool")
+	}
+}
+
+// TestHandleGraph_EmptyIssuesList tests handling of empty issues list
+func TestHandleGraph_EmptyIssuesList(t *testing.T) {
+	client := &mockGraphClient{
+		listFunc: func(args *rpc.ListArgs) (*rpc.Response, error) {
+			return &rpc.Response{
+				Success: true,
+				Data:    []byte("[]"),
+			}, nil
+		},
+	}
+
+	pool := &mockGraphPool{
+		getFunc: func(ctx context.Context) (graphClient, error) {
+			return client, nil
+		},
+		putFunc: func(c graphClient) {},
+	}
+
+	handler := handleGraphWithPool(pool)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/issues/graph", nil)
+	rr := httptest.NewRecorder()
+
+	handler.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("status code = %d, want %d", rr.Code, http.StatusOK)
+	}
+
+	var resp GraphResponse
+	if err := json.NewDecoder(rr.Body).Decode(&resp); err != nil {
+		t.Errorf("failed to decode response: %v", err)
+		return
+	}
+
+	if !resp.Success {
+		t.Error("Success = false, want true")
+	}
+
+	if len(resp.Issues) != 0 {
+		t.Errorf("len(Issues) = %d, want 0", len(resp.Issues))
+	}
+}
+
+// TestParseGraphParams tests the parseGraphParams function
+func TestParseGraphParams(t *testing.T) {
+	tests := []struct {
+		name              string
+		url               string
+		wantStatus        string
+		wantIncludeClosed bool
+	}{
+		{
+			name:              "default values",
+			url:               "/api/issues/graph",
+			wantStatus:        "all",
+			wantIncludeClosed: true,
+		},
+		{
+			name:              "status=open",
+			url:               "/api/issues/graph?status=open",
+			wantStatus:        "open",
+			wantIncludeClosed: true,
+		},
+		{
+			name:              "status=closed",
+			url:               "/api/issues/graph?status=closed",
+			wantStatus:        "closed",
+			wantIncludeClosed: true,
+		},
+		{
+			name:              "status=all",
+			url:               "/api/issues/graph?status=all",
+			wantStatus:        "all",
+			wantIncludeClosed: true,
+		},
+		{
+			name:              "include_closed=false",
+			url:               "/api/issues/graph?include_closed=false",
+			wantStatus:        "all",
+			wantIncludeClosed: false,
+		},
+		{
+			name:              "include_closed=true",
+			url:               "/api/issues/graph?include_closed=true",
+			wantStatus:        "all",
+			wantIncludeClosed: true,
+		},
+		{
+			name:              "combined status and include_closed",
+			url:               "/api/issues/graph?status=open&include_closed=false",
+			wantStatus:        "open",
+			wantIncludeClosed: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, tt.url, nil)
+			status, includeClosed := parseGraphParams(req)
+
+			if status != tt.wantStatus {
+				t.Errorf("status = %q, want %q", status, tt.wantStatus)
+			}
+			if includeClosed != tt.wantIncludeClosed {
+				t.Errorf("includeClosed = %v, want %v", includeClosed, tt.wantIncludeClosed)
+			}
+		})
+	}
+}

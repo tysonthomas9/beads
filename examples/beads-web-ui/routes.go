@@ -37,6 +37,9 @@ func setupRoutes(mux *http.ServeMux, pool *daemon.ConnectionPool) {
 	// Blocked endpoint for issues with blocking dependencies
 	mux.HandleFunc("GET /api/blocked", handleBlocked(pool))
 
+	// Graph endpoint for dependency visualization
+	mux.HandleFunc("GET /api/issues/graph", handleGraph(pool))
+
 	// WebSocket endpoint for real-time mutation events
 	mux.HandleFunc("/ws", handleWebSocket(pool))
 
