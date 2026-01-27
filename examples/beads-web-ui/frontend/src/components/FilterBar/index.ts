@@ -3,4 +3,4 @@
  */
 
 export { FilterBar } from './FilterBar';
-export type { FilterBarProps } from './FilterBar';
+export type { FilterBarProps, GroupByOption } from './FilterBar';

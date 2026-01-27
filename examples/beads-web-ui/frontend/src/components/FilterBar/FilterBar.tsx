@@ -60,6 +60,33 @@ const TYPE_OPTIONS: TypeOption[] = [
 ];
 
 /**
+ * Group by option for swim lane grouping.
+ */
+export type GroupByOption = 'none' | 'epic' | 'assignee' | 'priority' | 'type' | 'label';
+
+/**
+ * Group by option for the dropdown.
+ */
+interface GroupByOptionItem {
+  /** Display label */
+  label: string;
+  /** Value */
+  value: GroupByOption;
+}
+
+/**
+ * Group by options for the dropdown.
+ */
+const GROUP_BY_OPTIONS: GroupByOptionItem[] = [
+  { label: 'None', value: 'none' },
+  { label: 'Epic', value: 'epic' },
+  { label: 'Assignee', value: 'assignee' },
+  { label: 'Priority', value: 'priority' },
+  { label: 'Type', value: 'type' },
+  { label: 'Label', value: 'label' },
+];
+
+/**
  * Props for the FilterBar component.
  */
 export interface FilterBarProps {
@@ -73,6 +100,10 @@ export interface FilterBarProps {
   showClear?: boolean;
   /** Available labels for the label filter dropdown */
   availableLabels?: string[];
+  /** Current group by selection */
+  groupBy?: GroupByOption;
+  /** Callback when group by changes */
+  onGroupByChange?: (value: GroupByOption) => void;
 }
 
 /**
@@ -90,6 +121,8 @@ export function FilterBar({
   className,
   showClear,
   availableLabels,
+  groupBy,
+  onGroupByChange,
 }: FilterBarProps): JSX.Element {
   // Determine if clear button should be visible
   const hasActiveFilters = !isEmptyFilter(filters);
@@ -170,6 +203,15 @@ export function FilterBar({
       actions.setShowBlocked(event.target.checked ? true : undefined);
     },
     [actions]
+  );
+
+  // Handle group by change
+  const handleGroupByChange = useCallback(
+    (event: React.ChangeEvent<HTMLSelectElement>) => {
+      const value = event.target.value as GroupByOption;
+      onGroupByChange?.(value);
+    },
+    [onGroupByChange]
   );
 
   const rootClassName = className
@@ -272,6 +314,29 @@ export function FilterBar({
                 </div>
               )}
             </div>
+          </div>
+        )}
+
+        {/* Group by dropdown */}
+        {onGroupByChange && (
+          <div className={styles.filterGroup}>
+            <label htmlFor="groupby-filter" className={styles.label}>
+              Group by
+            </label>
+            <select
+              id="groupby-filter"
+              className={styles.select}
+              value={groupBy ?? 'none'}
+              onChange={handleGroupByChange}
+              aria-label="Group issues by"
+              data-testid="groupby-filter"
+            >
+              {GROUP_BY_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
           </div>
         )}
 

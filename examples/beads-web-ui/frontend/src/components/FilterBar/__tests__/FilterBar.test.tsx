@@ -898,6 +898,222 @@ describe('FilterBar', () => {
     });
   });
 
+  describe('groupBy filter rendering', () => {
+    it('renders groupBy dropdown when onGroupByChange is provided', () => {
+      const actions = createMockActions();
+      const onGroupByChange = vi.fn();
+      render(
+        <FilterBar
+          filters={createEmptyFilters()}
+          actions={actions}
+          groupBy="none"
+          onGroupByChange={onGroupByChange}
+        />
+      );
+
+      expect(screen.getByTestId('groupby-filter')).toBeInTheDocument();
+    });
+
+    it('does not render groupBy dropdown when onGroupByChange is not provided', () => {
+      const actions = createMockActions();
+      render(
+        <FilterBar
+          filters={createEmptyFilters()}
+          actions={actions}
+        />
+      );
+
+      expect(screen.queryByTestId('groupby-filter')).not.toBeInTheDocument();
+    });
+
+    it('does not render groupBy dropdown when only groupBy prop is provided without callback', () => {
+      const actions = createMockActions();
+      render(
+        <FilterBar
+          filters={createEmptyFilters()}
+          actions={actions}
+          groupBy="epic"
+        />
+      );
+
+      expect(screen.queryByTestId('groupby-filter')).not.toBeInTheDocument();
+    });
+
+    it('renders groupBy dropdown with all 6 options', () => {
+      const actions = createMockActions();
+      const onGroupByChange = vi.fn();
+      render(
+        <FilterBar
+          filters={createEmptyFilters()}
+          actions={actions}
+          groupBy="none"
+          onGroupByChange={onGroupByChange}
+        />
+      );
+
+      const select = screen.getByTestId('groupby-filter');
+      const options = select.querySelectorAll('option');
+
+      expect(options).toHaveLength(6);
+      expect(options[0]).toHaveTextContent('None');
+      expect(options[1]).toHaveTextContent('Epic');
+      expect(options[2]).toHaveTextContent('Assignee');
+      expect(options[3]).toHaveTextContent('Priority');
+      expect(options[4]).toHaveTextContent('Type');
+      expect(options[5]).toHaveTextContent('Label');
+    });
+
+    it('shows selected groupBy value correctly', () => {
+      const actions = createMockActions();
+      const onGroupByChange = vi.fn();
+      render(
+        <FilterBar
+          filters={createEmptyFilters()}
+          actions={actions}
+          groupBy="assignee"
+          onGroupByChange={onGroupByChange}
+        />
+      );
+
+      const select = screen.getByTestId('groupby-filter');
+      expect(select).toHaveValue('assignee');
+    });
+
+    it('defaults to "none" when groupBy prop is undefined', () => {
+      const actions = createMockActions();
+      const onGroupByChange = vi.fn();
+      render(
+        <FilterBar
+          filters={createEmptyFilters()}
+          actions={actions}
+          onGroupByChange={onGroupByChange}
+        />
+      );
+
+      const select = screen.getByTestId('groupby-filter');
+      expect(select).toHaveValue('none');
+    });
+
+    it('displays all groupBy options correctly when selected', () => {
+      const actions = createMockActions();
+      const onGroupByChange = vi.fn();
+      const groupByValues = ['none', 'epic', 'assignee', 'priority', 'type', 'label'] as const;
+
+      groupByValues.forEach((groupByValue) => {
+        const { unmount } = render(
+          <FilterBar
+            filters={createEmptyFilters()}
+            actions={actions}
+            groupBy={groupByValue}
+            onGroupByChange={onGroupByChange}
+          />
+        );
+
+        const select = screen.getByTestId('groupby-filter');
+        expect(select).toHaveValue(groupByValue);
+
+        unmount();
+      });
+    });
+  });
+
+  describe('groupBy filter interactions', () => {
+    it('calls onGroupByChange with correct value when option selected', () => {
+      const actions = createMockActions();
+      const onGroupByChange = vi.fn();
+      render(
+        <FilterBar
+          filters={createEmptyFilters()}
+          actions={actions}
+          groupBy="none"
+          onGroupByChange={onGroupByChange}
+        />
+      );
+
+      const select = screen.getByTestId('groupby-filter');
+      fireEvent.change(select, { target: { value: 'epic' } });
+
+      expect(onGroupByChange).toHaveBeenCalledWith('epic');
+    });
+
+    it('calls onGroupByChange for each groupBy value correctly', () => {
+      const groupByValues = ['none', 'epic', 'assignee', 'priority', 'type', 'label'] as const;
+
+      groupByValues.forEach((groupByValue) => {
+        const actions = createMockActions();
+        const onGroupByChange = vi.fn();
+        const { unmount } = render(
+          <FilterBar
+            filters={createEmptyFilters()}
+            actions={actions}
+            groupBy="none"
+            onGroupByChange={onGroupByChange}
+          />
+        );
+
+        const select = screen.getByTestId('groupby-filter');
+        fireEvent.change(select, { target: { value: groupByValue } });
+
+        expect(onGroupByChange).toHaveBeenCalledWith(groupByValue);
+
+        unmount();
+      });
+    });
+
+    it('calls onGroupByChange with "none" when None selected', () => {
+      const actions = createMockActions();
+      const onGroupByChange = vi.fn();
+      render(
+        <FilterBar
+          filters={createEmptyFilters()}
+          actions={actions}
+          groupBy="epic"
+          onGroupByChange={onGroupByChange}
+        />
+      );
+
+      const select = screen.getByTestId('groupby-filter');
+      fireEvent.change(select, { target: { value: 'none' } });
+
+      expect(onGroupByChange).toHaveBeenCalledWith('none');
+    });
+  });
+
+  describe('groupBy filter accessibility', () => {
+    it('groupBy dropdown has accessible label', () => {
+      const actions = createMockActions();
+      const onGroupByChange = vi.fn();
+      render(
+        <FilterBar
+          filters={createEmptyFilters()}
+          actions={actions}
+          groupBy="none"
+          onGroupByChange={onGroupByChange}
+        />
+      );
+
+      const select = screen.getByRole('combobox', { name: /group issues by/i });
+      expect(select).toBeInTheDocument();
+    });
+
+    it('groupBy dropdown has associated label element', () => {
+      const actions = createMockActions();
+      const onGroupByChange = vi.fn();
+      render(
+        <FilterBar
+          filters={createEmptyFilters()}
+          actions={actions}
+          groupBy="none"
+          onGroupByChange={onGroupByChange}
+        />
+      );
+
+      const label = screen.getByText('Group by');
+      expect(label).toBeInTheDocument();
+      expect(label).toHaveAttribute('for', 'groupby-filter');
+    });
+  });
+
   describe('CSS layout behavior', () => {
     it('filterBar container has filterBar CSS module class', () => {
       const actions = createMockActions();
