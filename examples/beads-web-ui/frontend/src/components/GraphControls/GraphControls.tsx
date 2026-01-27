@@ -20,6 +20,10 @@ export interface GraphControlsProps {
   showBlockedOnly?: boolean;
   /** Callback when show blocked only mode is toggled */
   onShowBlockedOnlyChange?: (value: boolean) => void;
+  /** Whether to show closed issues (default: true) */
+  showClosed?: boolean;
+  /** Callback when show closed toggle is changed */
+  onShowClosedChange?: (value: boolean) => void;
   /** Whether the toggle should be disabled (e.g., while loading) */
   disabled?: boolean;
   /** Title for disabled state tooltip */
@@ -61,6 +65,8 @@ export function GraphControls({
   onHighlightReadyChange,
   showBlockedOnly = false,
   onShowBlockedOnlyChange,
+  showClosed,
+  onShowClosedChange,
   disabled = false,
   disabledTitle,
   showZoomControls = true,
@@ -80,6 +86,13 @@ export function GraphControls({
       onShowBlockedOnlyChange?.(event.target.checked);
     },
     [onShowBlockedOnlyChange]
+  );
+
+  const handleShowClosedChange = useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      onShowClosedChange?.(event.target.checked);
+    },
+    [onShowClosedChange]
   );
 
   const handleZoomIn = useCallback(() => {
@@ -131,6 +144,24 @@ export function GraphControls({
             data-testid="show-blocked-only-toggle"
           />
           <span className={styles.toggleText}>Show Blocked</span>
+        </label>
+      )}
+
+      {onShowClosedChange && (
+        <label
+          className={styles.toggleLabel}
+          title={disabled ? disabledTitle : undefined}
+        >
+          <input
+            type="checkbox"
+            checked={showClosed ?? true}
+            onChange={handleShowClosedChange}
+            disabled={disabled}
+            className={`${styles.checkbox} ${styles.closedCheckbox}`}
+            aria-label="Show closed issues"
+            data-testid="show-closed-toggle"
+          />
+          <span className={styles.toggleText}>Show Closed</span>
         </label>
       )}
 
