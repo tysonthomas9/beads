@@ -6,11 +6,12 @@ import {
   createIssue,
   updateIssue,
   closeIssue,
+  fetchGraphIssues,
   buildQueryString,
   unwrap,
   mapWorkFilterToQueryParams,
 } from './issues'
-import type { CreateIssueRequest, UpdateIssueRequest } from './issues'
+import type { CreateIssueRequest, UpdateIssueRequest, GraphFilter } from './issues'
 import { ApiError } from './client'
 import type { Issue, IssueDetails, Statistics, WorkFilter } from '@/types'
 
@@ -412,6 +413,336 @@ describe('issues API', () => {
     })
   })
 
+  // ============= Graph Operation Tests =============
+
+  describe('fetchGraphIssues', () => {
+    it('calls get with /api/issues/graph when no options', async () => {
+      mockGet.mockResolvedValue({ success: true, issues: [] })
+
+      await fetchGraphIssues()
+
+      expect(mockGet).toHaveBeenCalledWith('/api/issues/graph')
+    })
+
+    it('calls get with /api/issues/graph when empty options', async () => {
+      mockGet.mockResolvedValue({ success: true, issues: [] })
+
+      await fetchGraphIssues({})
+
+      expect(mockGet).toHaveBeenCalledWith('/api/issues/graph')
+    })
+
+    it('builds query string with status parameter', async () => {
+      mockGet.mockResolvedValue({ success: true, issues: [] })
+
+      await fetchGraphIssues({ status: 'open' })
+
+      expect(mockGet).toHaveBeenCalledWith('/api/issues/graph?status=open')
+    })
+
+    it('builds query string with status=closed parameter', async () => {
+      mockGet.mockResolvedValue({ success: true, issues: [] })
+
+      await fetchGraphIssues({ status: 'closed' })
+
+      expect(mockGet).toHaveBeenCalledWith('/api/issues/graph?status=closed')
+    })
+
+    it('builds query string with status=all parameter', async () => {
+      mockGet.mockResolvedValue({ success: true, issues: [] })
+
+      await fetchGraphIssues({ status: 'all' })
+
+      expect(mockGet).toHaveBeenCalledWith('/api/issues/graph?status=all')
+    })
+
+    it('builds query string with include_closed=true parameter', async () => {
+      mockGet.mockResolvedValue({ success: true, issues: [] })
+
+      await fetchGraphIssues({ includeClosed: true })
+
+      expect(mockGet).toHaveBeenCalledWith('/api/issues/graph?include_closed=true')
+    })
+
+    it('builds query string with include_closed=false parameter', async () => {
+      mockGet.mockResolvedValue({ success: true, issues: [] })
+
+      await fetchGraphIssues({ includeClosed: false })
+
+      expect(mockGet).toHaveBeenCalledWith('/api/issues/graph?include_closed=false')
+    })
+
+    it('builds query string with both status and include_closed parameters', async () => {
+      mockGet.mockResolvedValue({ success: true, issues: [] })
+
+      await fetchGraphIssues({ status: 'all', includeClosed: true })
+
+      const callArg = mockGet.mock.calls[0][0] as string
+      expect(callArg).toContain('/api/issues/graph?')
+      expect(callArg).toContain('status=all')
+      expect(callArg).toContain('include_closed=true')
+    })
+
+    it('returns empty array when issues is empty', async () => {
+      mockGet.mockResolvedValue({ success: true, issues: [] })
+
+      const result = await fetchGraphIssues()
+
+      expect(result).toEqual([])
+    })
+
+    it('returns empty array when issues is undefined in response', async () => {
+      mockGet.mockResolvedValue({ success: true })
+
+      const result = await fetchGraphIssues()
+
+      expect(result).toEqual([])
+    })
+
+    it('transforms simplified dependencies to full Dependency format', async () => {
+      const graphApiResponse = {
+        success: true,
+        issues: [
+          {
+            id: 'issue-1',
+            title: 'Issue with dependencies',
+            issue_type: 'task',
+            priority: 'high',
+            status: 'open',
+            labels: [],
+            created_at: '2024-01-01T00:00:00Z',
+            updated_at: '2024-01-01T00:00:00Z',
+            dependencies: [
+              { depends_on_id: 'issue-2', type: 'blocks' },
+              { depends_on_id: 'issue-3', type: 'related' },
+            ],
+          },
+        ],
+      }
+      mockGet.mockResolvedValue(graphApiResponse)
+
+      const result = await fetchGraphIssues()
+
+      expect(result).toHaveLength(1)
+      expect(result[0].dependencies).toHaveLength(2)
+      expect(result[0].dependencies![0]).toEqual({
+        issue_id: 'issue-1',
+        depends_on_id: 'issue-2',
+        type: 'blocks',
+        created_at: '2024-01-01T00:00:00Z',
+      })
+      expect(result[0].dependencies![1]).toEqual({
+        issue_id: 'issue-1',
+        depends_on_id: 'issue-3',
+        type: 'related',
+        created_at: '2024-01-01T00:00:00Z',
+      })
+    })
+
+    it('handles issues with no dependencies', async () => {
+      const graphApiResponse = {
+        success: true,
+        issues: [
+          {
+            id: 'issue-1',
+            title: 'Issue without dependencies',
+            issue_type: 'bug',
+            priority: 'medium',
+            status: 'open',
+            labels: ['test'],
+            created_at: '2024-01-01T00:00:00Z',
+            updated_at: '2024-01-01T00:00:00Z',
+          },
+        ],
+      }
+      mockGet.mockResolvedValue(graphApiResponse)
+
+      const result = await fetchGraphIssues()
+
+      expect(result).toHaveLength(1)
+      expect(result[0].id).toBe('issue-1')
+      expect(result[0].dependencies).toBeUndefined()
+    })
+
+    it('handles issues with empty dependencies array', async () => {
+      const graphApiResponse = {
+        success: true,
+        issues: [
+          {
+            id: 'issue-1',
+            title: 'Issue with empty dependencies',
+            issue_type: 'feature',
+            priority: 'low',
+            status: 'open',
+            labels: [],
+            created_at: '2024-01-01T00:00:00Z',
+            updated_at: '2024-01-01T00:00:00Z',
+            dependencies: [],
+          },
+        ],
+      }
+      mockGet.mockResolvedValue(graphApiResponse)
+
+      const result = await fetchGraphIssues()
+
+      expect(result).toHaveLength(1)
+      expect(result[0].dependencies).toEqual([])
+    })
+
+    it('preserves all issue fields during transformation', async () => {
+      const graphApiResponse = {
+        success: true,
+        issues: [
+          {
+            id: 'issue-123',
+            title: 'Full Issue',
+            description: 'A complete issue',
+            issue_type: 'task',
+            priority: 'high',
+            status: 'in_progress',
+            labels: ['urgent', 'frontend'],
+            assignee: 'dev1',
+            owner: 'pm1',
+            created_at: '2024-01-01T00:00:00Z',
+            updated_at: '2024-01-02T00:00:00Z',
+            due_at: '2024-02-01T00:00:00Z',
+            dependencies: [{ depends_on_id: 'issue-456', type: 'blocks' }],
+          },
+        ],
+      }
+      mockGet.mockResolvedValue(graphApiResponse)
+
+      const result = await fetchGraphIssues()
+
+      expect(result).toHaveLength(1)
+      const issue = result[0]
+      expect(issue.id).toBe('issue-123')
+      expect(issue.title).toBe('Full Issue')
+      expect(issue.description).toBe('A complete issue')
+      expect(issue.issue_type).toBe('task')
+      expect(issue.priority).toBe('high')
+      expect(issue.status).toBe('in_progress')
+      expect(issue.labels).toEqual(['urgent', 'frontend'])
+      expect(issue.assignee).toBe('dev1')
+      expect(issue.owner).toBe('pm1')
+      expect(issue.due_at).toBe('2024-02-01T00:00:00Z')
+    })
+
+    it('handles multiple issues with mixed dependency states', async () => {
+      const graphApiResponse = {
+        success: true,
+        issues: [
+          {
+            id: 'issue-1',
+            title: 'Issue 1',
+            issue_type: 'task',
+            priority: 'high',
+            status: 'open',
+            labels: [],
+            created_at: '2024-01-01T00:00:00Z',
+            updated_at: '2024-01-01T00:00:00Z',
+            dependencies: [{ depends_on_id: 'issue-2', type: 'blocks' }],
+          },
+          {
+            id: 'issue-2',
+            title: 'Issue 2',
+            issue_type: 'bug',
+            priority: 'medium',
+            status: 'open',
+            labels: [],
+            created_at: '2024-01-02T00:00:00Z',
+            updated_at: '2024-01-02T00:00:00Z',
+          },
+          {
+            id: 'issue-3',
+            title: 'Issue 3',
+            issue_type: 'feature',
+            priority: 'low',
+            status: 'closed',
+            labels: [],
+            created_at: '2024-01-03T00:00:00Z',
+            updated_at: '2024-01-03T00:00:00Z',
+            dependencies: [],
+          },
+        ],
+      }
+      mockGet.mockResolvedValue(graphApiResponse)
+
+      const result = await fetchGraphIssues()
+
+      expect(result).toHaveLength(3)
+      expect(result[0].dependencies).toHaveLength(1)
+      expect(result[1].dependencies).toBeUndefined()
+      expect(result[2].dependencies).toEqual([])
+    })
+
+    it('throws ApiError on failure response', async () => {
+      mockGet.mockResolvedValue({ success: false, error: 'Database unavailable' })
+
+      await expect(fetchGraphIssues()).rejects.toThrow(ApiError)
+    })
+
+    it('throws ApiError with error message from failure response', async () => {
+      mockGet.mockResolvedValue({ success: false, error: 'Graph query failed' })
+
+      try {
+        await fetchGraphIssues()
+        expect.fail('Expected fetchGraphIssues to throw')
+      } catch (e) {
+        expect(e).toBeInstanceOf(ApiError)
+        const apiError = e as ApiError
+        expect(apiError.statusText).toBe('Graph query failed')
+      }
+    })
+
+    it('throws ApiError with "Unknown error" when error message is missing', async () => {
+      mockGet.mockResolvedValue({ success: false })
+
+      try {
+        await fetchGraphIssues()
+        expect.fail('Expected fetchGraphIssues to throw')
+      } catch (e) {
+        expect(e).toBeInstanceOf(ApiError)
+        const apiError = e as ApiError
+        expect(apiError.statusText).toBe('Unknown error')
+      }
+    })
+
+    it('propagates ApiError from client', async () => {
+      const error = new ApiError(500, 'Internal Server Error')
+      mockGet.mockRejectedValue(error)
+
+      await expect(fetchGraphIssues()).rejects.toThrow(ApiError)
+      await expect(fetchGraphIssues()).rejects.toMatchObject({
+        status: 500,
+      })
+    })
+
+    it('handles custom dependency types', async () => {
+      const graphApiResponse = {
+        success: true,
+        issues: [
+          {
+            id: 'issue-1',
+            title: 'Issue with custom dependency',
+            issue_type: 'task',
+            priority: 'high',
+            status: 'open',
+            labels: [],
+            created_at: '2024-01-01T00:00:00Z',
+            updated_at: '2024-01-01T00:00:00Z',
+            dependencies: [{ depends_on_id: 'issue-2', type: 'custom-type' }],
+          },
+        ],
+      }
+      mockGet.mockResolvedValue(graphApiResponse)
+
+      const result = await fetchGraphIssues()
+
+      expect(result[0].dependencies![0].type).toBe('custom-type')
+    })
+  })
+
   // ============= Write Operation Tests =============
 
   describe('createIssue', () => {
@@ -641,6 +972,7 @@ describe('issues API', () => {
       await expect(getIssue('123')).rejects.toThrow(ApiError)
       await expect(getReadyIssues()).rejects.toThrow(ApiError)
       await expect(getStats()).rejects.toThrow(ApiError)
+      await expect(fetchGraphIssues()).rejects.toThrow(ApiError)
     })
 
     it('all write operations throw ApiError on network failure', async () => {

@@ -8,8 +8,8 @@
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import type { Issue, WorkFilter, Status } from '@/types'
-import type { ConnectionState } from '@/api'
-import { getReadyIssues, updateIssue as apiUpdateIssue } from '@/api'
+import type { ConnectionState, GraphFilter } from '@/api'
+import { getReadyIssues, updateIssue as apiUpdateIssue, fetchGraphIssues } from '@/api'
 import { useWebSocket } from './useWebSocket'
 import { useMutationHandler } from './useMutationHandler'
 
@@ -19,6 +19,10 @@ import { useMutationHandler } from './useMutationHandler'
 export interface UseIssuesOptions {
   /** Initial filter for fetching issues (default: all ready issues) */
   filter?: WorkFilter
+  /** Data source mode: 'ready' for ready issues, 'graph' for all issues with deps */
+  mode?: 'ready' | 'graph'
+  /** Filter options when mode is 'graph' */
+  graphFilter?: GraphFilter
   /** Auto-fetch on mount (default: true) */
   autoFetch?: boolean
   /** Auto-connect WebSocket (default: true) */
@@ -89,6 +93,8 @@ export interface UseIssuesReturn {
 export function useIssues(options: UseIssuesOptions = {}): UseIssuesReturn {
   const {
     filter,
+    mode = 'ready',
+    graphFilter,
     autoFetch = true,
     autoConnect = true,
     subscribeOnConnect = true,
@@ -145,7 +151,12 @@ export function useIssues(options: UseIssuesOptions = {}): UseIssuesReturn {
     fetchTimestampRef.current = Date.now()
 
     try {
-      const data = await getReadyIssues(filter)
+      let data: Issue[]
+      if (mode === 'graph') {
+        data = await fetchGraphIssues(graphFilter)
+      } else {
+        data = await getReadyIssues(filter)
+      }
       if (!mountedRef.current) return
 
       // Convert array to Map
@@ -163,7 +174,7 @@ export function useIssues(options: UseIssuesOptions = {}): UseIssuesReturn {
         setIsLoading(false)
       }
     }
-  }, [filter])
+  }, [filter, mode, graphFilter])
 
   // Auto-fetch on mount
   useEffect(() => {

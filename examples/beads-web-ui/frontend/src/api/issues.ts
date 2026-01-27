@@ -13,6 +13,7 @@ import type {
   Priority,
   IssueType,
   Status,
+  DependencyType,
 } from '@/types'
 
 // ============= Response Types =============
@@ -136,6 +137,81 @@ export async function getBlockedIssues(options?: BlockedFilter): Promise<Blocked
   const query = buildQueryString(params)
   const response = await get<ApiResult<BlockedIssue[]>>(`/api/blocked${query}`)
   return unwrap(response)
+}
+
+// ============= GRAPH OPERATIONS =============
+
+/**
+ * Filter options for graph issues.
+ */
+export interface GraphFilter {
+  /** Status filter: 'all', 'open', or 'closed' (default: 'all') */
+  status?: 'all' | 'open' | 'closed'
+  /** Include closed issues when status is 'all' (default: true) */
+  includeClosed?: boolean
+}
+
+/**
+ * Response structure from /api/issues/graph endpoint.
+ * Note: Uses simplified dependency format from backend.
+ */
+interface GraphApiResponse {
+  success: boolean
+  issues?: GraphApiIssue[]
+  error?: string
+}
+
+/**
+ * Issue as returned by the graph API (with simplified dependencies).
+ */
+interface GraphApiIssue extends Omit<Issue, 'dependencies'> {
+  dependencies?: { depends_on_id: string; type: string }[]
+}
+
+/**
+ * Get all issues with full dependency data for graph visualization.
+ * Transforms backend GraphDependency format to frontend Dependency format.
+ *
+ * NOTE: Dependency created_at timestamps use the parent issue's created_at
+ * as a fallback since the graph API doesn't include individual dependency
+ * creation times. Do not rely on these timestamps for precise ordering.
+ */
+export async function fetchGraphIssues(options?: GraphFilter): Promise<Issue[]> {
+  const params: Record<string, unknown> = {}
+  if (options?.status) {
+    params.status = options.status
+  }
+  if (options?.includeClosed !== undefined) {
+    params.include_closed = options.includeClosed
+  }
+  const query = buildQueryString(params)
+  const response = await get<GraphApiResponse>(`/api/issues/graph${query}`)
+
+  if (!response.success) {
+    throw new ApiError(0, response.error || 'Unknown error')
+  }
+
+  // Warn in development if backend returns success without issues field
+  if (response.issues === undefined && process.env.NODE_ENV === 'development') {
+    console.warn('[fetchGraphIssues] Backend returned success without issues field')
+  }
+
+  // Transform simplified dependencies to full Dependency format
+  const issues = response.issues ?? []
+  return issues.map((issue): Issue => {
+    // Destructure to separate dependencies from other fields
+    const { dependencies: graphDeps, ...rest } = issue
+    const result: Issue = rest as Issue
+    if (graphDeps) {
+      result.dependencies = graphDeps.map(dep => ({
+        issue_id: issue.id,
+        depends_on_id: dep.depends_on_id,
+        type: dep.type as DependencyType,
+        created_at: issue.created_at, // Use issue created_at as fallback
+      }))
+    }
+    return result
+  })
 }
 
 // ============= WRITE OPERATIONS =============

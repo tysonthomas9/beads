@@ -142,6 +142,25 @@ export interface IssueWithCounts extends Issue {
 }
 
 /**
+ * Simplified dependency for graph visualization.
+ * Maps to Go GraphDependency struct from /api/issues/graph.
+ */
+export interface GraphDependency {
+  depends_on_id: string;
+  type: DependencyType;
+}
+
+/**
+ * Issue with full dependency data for graph visualization.
+ * Maps to Go GraphIssue struct from /api/issues/graph.
+ * Uses Omit to override the dependencies field type.
+ */
+export interface GraphIssue extends Omit<Issue, 'dependencies'> {
+  // Simplified dependency format from graph API
+  dependencies?: GraphDependency[];
+}
+
+/**
  * Extended issue details with labels, dependencies, and comments.
  * Maps to Go types.IssueDetails.
  * Uses Omit to override the dependencies field type from Dependency[] to IssueWithDependencyMetadata[].

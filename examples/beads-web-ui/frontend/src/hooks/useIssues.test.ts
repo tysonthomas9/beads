@@ -13,6 +13,7 @@ import type { ConnectionState } from '../api/websocket'
 vi.mock('../api/issues', () => ({
   getReadyIssues: vi.fn(),
   updateIssue: vi.fn(),
+  fetchGraphIssues: vi.fn(),
 }))
 
 // Mock useWebSocket
@@ -684,6 +685,94 @@ describe('useIssues', () => {
       rerender()
 
       expect(result.current.retryConnection).toBe(initialRetryConnection)
+    })
+  })
+
+  describe('Graph mode', () => {
+    beforeEach(() => {
+      vi.mocked(issuesApi.fetchGraphIssues).mockResolvedValue([])
+    })
+
+    it('calls fetchGraphIssues when mode is graph', async () => {
+      const mockGraphIssues = [createTestIssue({ id: 'graph-1' })]
+      vi.mocked(issuesApi.fetchGraphIssues).mockResolvedValue(mockGraphIssues)
+
+      const { result } = renderHook(() => useIssues({ mode: 'graph' }))
+
+      await waitFor(() => expect(result.current.isLoading).toBe(false))
+
+      expect(issuesApi.fetchGraphIssues).toHaveBeenCalled()
+      expect(issuesApi.getReadyIssues).not.toHaveBeenCalled()
+      expect(result.current.issues).toEqual(mockGraphIssues)
+    })
+
+    it('passes graphFilter options to fetchGraphIssues', async () => {
+      const graphFilter = { status: 'open' as const, includeClosed: false }
+      const { result } = renderHook(() => useIssues({ mode: 'graph', graphFilter }))
+
+      await waitFor(() => expect(result.current.isLoading).toBe(false))
+
+      expect(issuesApi.fetchGraphIssues).toHaveBeenCalledWith(graphFilter)
+    })
+
+    it('uses ready mode by default', async () => {
+      const { result } = renderHook(() => useIssues())
+
+      await waitFor(() => expect(result.current.isLoading).toBe(false))
+
+      expect(issuesApi.getReadyIssues).toHaveBeenCalled()
+      expect(issuesApi.fetchGraphIssues).not.toHaveBeenCalled()
+    })
+
+    it('refetches using graph mode when mode is graph', async () => {
+      vi.mocked(issuesApi.fetchGraphIssues).mockResolvedValue([])
+
+      const { result } = renderHook(() => useIssues({ mode: 'graph', autoFetch: false }))
+
+      await act(async () => {
+        await result.current.refetch()
+      })
+
+      expect(issuesApi.fetchGraphIssues).toHaveBeenCalled()
+      expect(issuesApi.getReadyIssues).not.toHaveBeenCalled()
+    })
+
+    it('handles errors in graph mode', async () => {
+      const errorMessage = 'Graph API error'
+      vi.mocked(issuesApi.fetchGraphIssues).mockRejectedValue(new Error(errorMessage))
+
+      const { result } = renderHook(() => useIssues({ mode: 'graph' }))
+
+      await waitFor(() => expect(result.current.isLoading).toBe(false))
+
+      expect(result.current.error).toBe(errorMessage)
+      expect(result.current.issues).toHaveLength(0)
+    })
+
+    it('loads graph issues with dependencies', async () => {
+      const mockGraphIssues = [
+        createTestIssue({
+          id: 'graph-1',
+          dependencies: [
+            {
+              issue_id: 'graph-1',
+              depends_on_id: 'graph-2',
+              type: 'blocks',
+              created_at: '2025-01-23T10:00:00Z',
+            },
+          ],
+        }),
+        createTestIssue({ id: 'graph-2' }),
+      ]
+      vi.mocked(issuesApi.fetchGraphIssues).mockResolvedValue(mockGraphIssues)
+
+      const { result } = renderHook(() => useIssues({ mode: 'graph' }))
+
+      await waitFor(() => expect(result.current.isLoading).toBe(false))
+
+      expect(result.current.issues).toHaveLength(2)
+      expect(result.current.getIssue('graph-1')?.dependencies).toHaveLength(1)
+      expect(result.current.getIssue('graph-1')?.dependencies?.[0].depends_on_id).toBe('graph-2')
     })
   })
 })

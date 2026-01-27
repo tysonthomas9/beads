@@ -110,6 +110,8 @@ export type {
   BlockedIssue,
   TreeNode,
   MoleculeProgressStats,
+  GraphDependency,
+  GraphIssue,
 } from './issue';
 
 // Statistics types

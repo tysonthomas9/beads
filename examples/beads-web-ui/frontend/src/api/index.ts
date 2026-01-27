@@ -17,5 +17,6 @@ export {
   createIssue,
   updateIssue,
   closeIssue,
+  fetchGraphIssues,
 } from './issues'
-export type { CreateIssueRequest, UpdateIssueRequest } from './issues'
+export type { CreateIssueRequest, UpdateIssueRequest, GraphFilter } from './issues'
