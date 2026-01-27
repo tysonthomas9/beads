@@ -191,6 +191,80 @@ describe('GraphControls', () => {
     });
   });
 
+  describe('show closed toggle', () => {
+    it('renders show closed checkbox when onShowClosedChange is provided', () => {
+      const props = createTestProps({ onShowClosedChange: vi.fn() });
+      render(<GraphControls {...props} />);
+
+      expect(screen.getByTestId('show-closed-toggle')).toBeInTheDocument();
+      expect(screen.getByText('Show Closed')).toBeInTheDocument();
+    });
+
+    it('does not render show closed checkbox when onShowClosedChange is undefined', () => {
+      const props = createTestProps({ onShowClosedChange: undefined });
+      render(<GraphControls {...props} />);
+
+      expect(screen.queryByTestId('show-closed-toggle')).not.toBeInTheDocument();
+    });
+
+    it('checkbox reflects showClosed prop value when true', () => {
+      const props = createTestProps({ showClosed: true, onShowClosedChange: vi.fn() });
+      render(<GraphControls {...props} />);
+
+      const checkbox = screen.getByTestId('show-closed-toggle');
+      expect(checkbox).toBeChecked();
+    });
+
+    it('checkbox reflects showClosed prop value when false', () => {
+      const props = createTestProps({ showClosed: false, onShowClosedChange: vi.fn() });
+      render(<GraphControls {...props} />);
+
+      const checkbox = screen.getByTestId('show-closed-toggle');
+      expect(checkbox).not.toBeChecked();
+    });
+
+    it('calls onShowClosedChange with true when toggled on', () => {
+      const onShowClosedChange = vi.fn();
+      const props = createTestProps({ showClosed: false, onShowClosedChange });
+      render(<GraphControls {...props} />);
+
+      const checkbox = screen.getByTestId('show-closed-toggle');
+      fireEvent.click(checkbox);
+
+      expect(onShowClosedChange).toHaveBeenCalledWith(true);
+    });
+
+    it('calls onShowClosedChange with false when toggled off', () => {
+      const onShowClosedChange = vi.fn();
+      const props = createTestProps({ showClosed: true, onShowClosedChange });
+      render(<GraphControls {...props} />);
+
+      const checkbox = screen.getByTestId('show-closed-toggle');
+      fireEvent.click(checkbox);
+
+      expect(onShowClosedChange).toHaveBeenCalledWith(false);
+    });
+
+    it('checkbox is disabled when disabled prop is true', () => {
+      const props = createTestProps({
+        showClosed: true,
+        onShowClosedChange: vi.fn(),
+        disabled: true,
+      });
+      render(<GraphControls {...props} />);
+
+      const checkbox = screen.getByTestId('show-closed-toggle');
+      expect(checkbox).toBeDisabled();
+    });
+
+    it('has correct aria-label for accessibility', () => {
+      const props = createTestProps({ onShowClosedChange: vi.fn() });
+      render(<GraphControls {...props} />);
+
+      expect(screen.getByLabelText('Show closed issues')).toBeInTheDocument();
+    });
+  });
+
   describe('zoom controls', () => {
     it('renders zoom controls by default', () => {
       const props = createTestProps();

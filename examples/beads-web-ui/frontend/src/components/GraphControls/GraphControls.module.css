@@ -66,6 +66,16 @@
   color: var(--color-blocked);
 }
 
+/* Closed checkbox uses muted accent color */
+.closedCheckbox {
+  accent-color: var(--color-status-closed);
+}
+
+/* Highlight text muted when closed toggle is active */
+.toggleLabel:has(.closedCheckbox:checked) .toggleText {
+  color: var(--color-status-closed);
+}
+
 /* Divider between highlight toggle and zoom controls */
 .divider {
   width: 1px;
