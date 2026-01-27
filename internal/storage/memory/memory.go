@@ -870,6 +870,34 @@ func (m *MemoryStorage) GetDependenciesForIssues(ctx context.Context, issueIDs [
 	return result, nil
 }
 
+// GetParentIDs returns parent info for multiple issues.
+// For issues with parent-child dependencies, returns the parent ID and title.
+// Returns a map from childID to ParentInfo.
+func (m *MemoryStorage) GetParentIDs(ctx context.Context, issueIDs []string) (map[string]*types.ParentInfo, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	result := make(map[string]*types.ParentInfo)
+
+	// Search dependencies for parent-child relationships
+	for _, id := range issueIDs {
+		deps := m.dependencies[id]
+		for _, dep := range deps {
+			if dep.Type == types.DepParentChild {
+				if parent, exists := m.issues[dep.DependsOnID]; exists {
+					result[id] = &types.ParentInfo{
+						ParentID:    parent.ID,
+						ParentTitle: parent.Title,
+					}
+				}
+				break // Only one parent per issue
+			}
+		}
+	}
+
+	return result, nil
+}
+
 // GetDependencyRecords gets dependency records for an issue
 func (m *MemoryStorage) GetDependencyRecords(ctx context.Context, issueID string) ([]*types.Dependency, error) {
 	m.mu.RLock()

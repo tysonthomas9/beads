@@ -2023,6 +2023,61 @@ func (s *Server) handleMolStale(req *Request) Response {
 	}
 }
 
+// handleGetParentIDs returns parent info for multiple issues in a single query.
+// Used by the web UI to efficiently get parent info for the /api/issues endpoint.
+func (s *Server) handleGetParentIDs(req *Request) Response {
+	var args GetParentIDsArgs
+	if err := json.Unmarshal(req.Args, &args); err != nil {
+		return Response{
+			Success: false,
+			Error:   fmt.Sprintf("invalid get_parent_ids args: %v", err),
+		}
+	}
+
+	store := s.storage
+	if store == nil {
+		return Response{
+			Success: false,
+			Error:   "storage not available",
+		}
+	}
+
+	// Guard against excessive ID lists to avoid SQLite parameter limits
+	const maxIDs = 1000
+	if len(args.IssueIDs) > maxIDs {
+		return Response{
+			Success: false,
+			Error:   fmt.Sprintf("get_parent_ids supports at most %d issue IDs, got %d", maxIDs, len(args.IssueIDs)),
+		}
+	}
+
+	ctx := s.reqCtx(req)
+	parents, err := store.GetParentIDs(ctx, args.IssueIDs)
+	if err != nil {
+		return Response{
+			Success: false,
+			Error:   fmt.Sprintf("failed to get parent IDs: %v", err),
+		}
+	}
+
+	// Convert types.ParentInfo to rpc.ParentInfo
+	result := &GetParentIDsResponse{
+		Parents: make(map[string]*ParentInfo),
+	}
+	for childID, info := range parents {
+		result.Parents[childID] = &ParentInfo{
+			ParentID:    info.ParentID,
+			ParentTitle: info.ParentTitle,
+		}
+	}
+
+	data, _ := json.Marshal(result)
+	return Response{
+		Success: true,
+		Data:    data,
+	}
+}
+
 // Gate handlers
 
 func (s *Server) handleGateCreate(req *Request) Response {

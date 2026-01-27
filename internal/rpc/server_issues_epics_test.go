@@ -697,3 +697,175 @@ func compareTimePtr(t *testing.T, name string, direct, daemon *time.Time) bool {
 	}
 	return true
 }
+
+// TestGetParentIDs_RPC tests the RPC handler for getting parent IDs
+func TestGetParentIDs_RPC(t *testing.T) {
+	_, client, store, cleanup := setupTestServerWithStore(t)
+	defer cleanup()
+
+	ctx := context.Background()
+
+	// Create an epic (parent) and two tasks (children)
+	epic := &types.Issue{
+		Title:     "Epic Feature",
+		Status:    types.StatusOpen,
+		Priority:  1,
+		IssueType: types.TypeEpic,
+	}
+	task1 := &types.Issue{
+		Title:     "Task 1",
+		Status:    types.StatusOpen,
+		Priority:  1,
+		IssueType: types.TypeTask,
+	}
+	task2 := &types.Issue{
+		Title:     "Task 2",
+		Status:    types.StatusOpen,
+		Priority:  1,
+		IssueType: types.TypeTask,
+	}
+	task3 := &types.Issue{
+		Title:     "Task 3 (no parent)",
+		Status:    types.StatusOpen,
+		Priority:  1,
+		IssueType: types.TypeTask,
+	}
+
+	if err := store.CreateIssue(ctx, epic, "test-user"); err != nil {
+		t.Fatalf("CreateIssue epic failed: %v", err)
+	}
+	if err := store.CreateIssue(ctx, task1, "test-user"); err != nil {
+		t.Fatalf("CreateIssue task1 failed: %v", err)
+	}
+	if err := store.CreateIssue(ctx, task2, "test-user"); err != nil {
+		t.Fatalf("CreateIssue task2 failed: %v", err)
+	}
+	if err := store.CreateIssue(ctx, task3, "test-user"); err != nil {
+		t.Fatalf("CreateIssue task3 failed: %v", err)
+	}
+
+	// Add parent-child dependencies
+	if err := store.AddDependency(ctx, &types.Dependency{
+		IssueID:     task1.ID,
+		DependsOnID: epic.ID,
+		Type:        types.DepParentChild,
+	}, "test-user"); err != nil {
+		t.Fatalf("AddDependency for task1 failed: %v", err)
+	}
+
+	if err := store.AddDependency(ctx, &types.Dependency{
+		IssueID:     task2.ID,
+		DependsOnID: epic.ID,
+		Type:        types.DepParentChild,
+	}, "test-user"); err != nil {
+		t.Fatalf("AddDependency for task2 failed: %v", err)
+	}
+
+	// Test RPC call
+	resp, err := client.GetParentIDs(&GetParentIDsArgs{
+		IssueIDs: []string{task1.ID, task2.ID, task3.ID, epic.ID},
+	})
+	if err != nil {
+		t.Fatalf("GetParentIDs RPC failed: %v", err)
+	}
+
+	// Verify task1 has epic as parent
+	if info, ok := resp.Parents[task1.ID]; !ok {
+		t.Errorf("Expected parent info for task1")
+	} else {
+		if info.ParentID != epic.ID {
+			t.Errorf("Expected task1 parent to be %s, got %s", epic.ID, info.ParentID)
+		}
+		if info.ParentTitle != "Epic Feature" {
+			t.Errorf("Expected parent title 'Epic Feature', got %s", info.ParentTitle)
+		}
+	}
+
+	// Verify task2 has epic as parent
+	if info, ok := resp.Parents[task2.ID]; !ok {
+		t.Errorf("Expected parent info for task2")
+	} else {
+		if info.ParentID != epic.ID {
+			t.Errorf("Expected task2 parent to be %s, got %s", epic.ID, info.ParentID)
+		}
+	}
+
+	// Verify task3 has no parent
+	if _, ok := resp.Parents[task3.ID]; ok {
+		t.Errorf("Expected no parent info for task3 (orphan)")
+	}
+
+	// Verify epic has no parent
+	if _, ok := resp.Parents[epic.ID]; ok {
+		t.Errorf("Expected no parent info for epic")
+	}
+}
+
+// TestGetParentIDs_RPC_EmptyInput tests the RPC handler with empty input
+func TestGetParentIDs_RPC_EmptyInput(t *testing.T) {
+	_, client, _, cleanup := setupTestServerWithStore(t)
+	defer cleanup()
+
+	// Test with empty slice
+	resp, err := client.GetParentIDs(&GetParentIDsArgs{
+		IssueIDs: []string{},
+	})
+	if err != nil {
+		t.Fatalf("GetParentIDs RPC failed on empty input: %v", err)
+	}
+
+	if len(resp.Parents) != 0 {
+		t.Errorf("Expected empty map for empty input, got %d entries", len(resp.Parents))
+	}
+}
+
+// TestGetParentIDs_RPC_NoParents tests the RPC handler when no issues have parents
+func TestGetParentIDs_RPC_NoParents(t *testing.T) {
+	_, client, store, cleanup := setupTestServerWithStore(t)
+	defer cleanup()
+
+	ctx := context.Background()
+
+	// Create issues with no parent-child relationships
+	task1 := &types.Issue{
+		Title:     "Task 1",
+		Status:    types.StatusOpen,
+		Priority:  1,
+		IssueType: types.TypeTask,
+	}
+	task2 := &types.Issue{
+		Title:     "Task 2",
+		Status:    types.StatusOpen,
+		Priority:  1,
+		IssueType: types.TypeTask,
+	}
+
+	if err := store.CreateIssue(ctx, task1, "test-user"); err != nil {
+		t.Fatalf("CreateIssue task1 failed: %v", err)
+	}
+	if err := store.CreateIssue(ctx, task2, "test-user"); err != nil {
+		t.Fatalf("CreateIssue task2 failed: %v", err)
+	}
+
+	// Add a non-parent-child dependency (blocks)
+	if err := store.AddDependency(ctx, &types.Dependency{
+		IssueID:     task1.ID,
+		DependsOnID: task2.ID,
+		Type:        types.DepBlocks,
+	}, "test-user"); err != nil {
+		t.Fatalf("AddDependency failed: %v", err)
+	}
+
+	// Test RPC call
+	resp, err := client.GetParentIDs(&GetParentIDsArgs{
+		IssueIDs: []string{task1.ID, task2.ID},
+	})
+	if err != nil {
+		t.Fatalf("GetParentIDs RPC failed: %v", err)
+	}
+
+	// Neither issue should have parent info (blocks dependency is not parent-child)
+	if len(resp.Parents) != 0 {
+		t.Errorf("Expected 0 parent entries for issues with only blocks dependency, got %d", len(resp.Parents))
+	}
+}

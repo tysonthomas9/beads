@@ -21,6 +21,15 @@ const (
 	MaxListLimit = 1000
 )
 
+// IssueWithParent extends IssueWithCounts with parent info for the /api/issues response.
+// This enables the frontend to display parent-child relationships (swim lanes in Kanban)
+// without requiring additional API calls for each issue.
+type IssueWithParent struct {
+	*types.IssueWithCounts
+	Parent      *string `json:"parent,omitempty"`       // Parent issue ID (null for root-level issues)
+	ParentTitle *string `json:"parent_title,omitempty"` // Parent issue title for display
+}
+
 // IssuesResponse represents the response structure for the issues endpoint.
 type IssuesResponse struct {
 	Success bool            `json:"success"`
@@ -262,11 +271,59 @@ func handleListIssues(pool *daemon.ConnectionPool) http.HandlerFunc {
 			return
 		}
 
-		// Return the issues data (resp.Data contains JSON-serialized []Issue)
+		// Parse IssueWithCounts from response to extract issue IDs
+		var issuesWithCounts []*types.IssueWithCounts
+		if err := json.Unmarshal(resp.Data, &issuesWithCounts); err != nil {
+			log.Printf("Failed to parse issues: %v", err)
+			writeIssuesError(w, http.StatusInternalServerError, "failed to parse issues", "PARSE_ERROR")
+			return
+		}
+
+		// If no issues, return empty response
+		if len(issuesWithCounts) == 0 {
+			data, _ := json.Marshal([]*IssueWithParent{})
+			w.WriteHeader(http.StatusOK)
+			if err := json.NewEncoder(w).Encode(IssuesResponse{
+				Success: true,
+				Data:    data,
+			}); err != nil {
+				log.Printf("Failed to encode issues response: %v", err)
+			}
+			return
+		}
+
+		// Extract issue IDs for parent lookup
+		issueIDs := make([]string, len(issuesWithCounts))
+		for i, iwc := range issuesWithCounts {
+			issueIDs[i] = iwc.Issue.ID
+		}
+
+		// Get parent info for all issues
+		parentResp, err := client.GetParentIDs(&rpc.GetParentIDsArgs{IssueIDs: issueIDs})
+		if err != nil {
+			// Non-fatal: log and continue without parent info
+			log.Printf("Failed to get parent IDs: %v", err)
+			parentResp = &rpc.GetParentIDsResponse{Parents: make(map[string]*rpc.ParentInfo)}
+		}
+
+		// Build response with parent info
+		issuesWithParent := make([]*IssueWithParent, len(issuesWithCounts))
+		for i, iwc := range issuesWithCounts {
+			iwp := &IssueWithParent{
+				IssueWithCounts: iwc,
+			}
+			if parentInfo, ok := parentResp.Parents[iwc.Issue.ID]; ok {
+				iwp.Parent = &parentInfo.ParentID
+				iwp.ParentTitle = &parentInfo.ParentTitle
+			}
+			issuesWithParent[i] = iwp
+		}
+
+		data, _ := json.Marshal(issuesWithParent)
 		w.WriteHeader(http.StatusOK)
 		if err := json.NewEncoder(w).Encode(IssuesResponse{
 			Success: true,
-			Data:    resp.Data,
+			Data:    data,
 		}); err != nil {
 			log.Printf("Failed to encode issues response: %v", err)
 		}

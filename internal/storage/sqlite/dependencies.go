@@ -1083,6 +1083,63 @@ func (s *SQLiteStorage) scanIssues(ctx context.Context, rows *sql.Rows) ([]*type
 	return issues, nil
 }
 
+// GetParentIDs returns parent info for multiple issues in a single query.
+// For issues with parent-child dependencies, returns the parent ID and title.
+// Returns a map from childID to ParentInfo.
+func (s *SQLiteStorage) GetParentIDs(ctx context.Context, issueIDs []string) (map[string]*types.ParentInfo, error) {
+	if len(issueIDs) == 0 {
+		return make(map[string]*types.ParentInfo), nil
+	}
+
+	// Hold read lock during database operations to prevent reconnect() from
+	// closing the connection mid-query (GH#607 race condition fix)
+	s.reconnectMu.RLock()
+	defer s.reconnectMu.RUnlock()
+
+	// Build placeholders for the IN clause
+	placeholders := make([]string, len(issueIDs))
+	args := make([]interface{}, len(issueIDs))
+	for i, id := range issueIDs {
+		placeholders[i] = "?"
+		args[i] = id
+	}
+	inClause := strings.Join(placeholders, ",")
+
+	// Single query: get parent info for all issues with parent-child dependencies
+	// In parent-child relationship: child issue_id depends on parent depends_on_id
+	// nolint:gosec // G201: inClause contains only ? placeholders, actual values passed via args
+	query := fmt.Sprintf(`
+		SELECT d.issue_id, d.depends_on_id, i.title
+		FROM dependencies d
+		JOIN issues i ON d.depends_on_id = i.id
+		WHERE d.issue_id IN (%s) AND d.type = 'parent-child'
+	`, inClause)
+
+	rows, err := s.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get parent IDs: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	result := make(map[string]*types.ParentInfo)
+	for rows.Next() {
+		var childID, parentID, parentTitle string
+		if err := rows.Scan(&childID, &parentID, &parentTitle); err != nil {
+			return nil, fmt.Errorf("failed to scan parent info: %w", err)
+		}
+		result[childID] = &types.ParentInfo{
+			ParentID:    parentID,
+			ParentTitle: parentTitle,
+		}
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating parent info: %w", err)
+	}
+
+	return result, nil
+}
+
 // Helper function to scan issues with dependency type from rows
 func (s *SQLiteStorage) scanIssuesWithDependencyType(ctx context.Context, rows *sql.Rows) ([]*types.IssueWithDependencyMetadata, error) {
 	var results []*types.IssueWithDependencyMetadata
