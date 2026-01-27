@@ -219,6 +219,7 @@ export function GraphView({
       className={rootClassName}
       data-highlight-ready={highlightReady}
       data-show-blocked-only={showBlockedOnly}
+      data-show-closed={showClosed}
       data-testid="graph-view"
     >
       <ReactFlow {...(reactFlowProps as Record<string, never>)}>
