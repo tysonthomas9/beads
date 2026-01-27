@@ -10,6 +10,7 @@
   padding: var(--space-3);
   overflow-y: auto;
   overflow-x: hidden;
+  flex: 1; /* Fill available space from parent flex container */
   min-height: 0;
 }
 
