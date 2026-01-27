@@ -5,6 +5,7 @@
 
 import { useEffect, useRef } from 'react';
 import type { Issue, IssueDetails, IssueWithDependencyMetadata } from '@/types';
+import { IssueHeader } from './IssueHeader';
 import styles from './IssueDetailPanel.module.css';
 
 /**
@@ -49,14 +50,6 @@ function formatPriority(priority: number): string {
 }
 
 /**
- * Format status to human-readable string.
- */
-function formatStatus(status?: string): string {
-  if (!status) return 'Open';
-  return status.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
-}
-
-/**
  * Format issue type to human-readable string.
  */
 function formatIssueType(type?: string): string {
@@ -87,6 +80,7 @@ interface DefaultContentProps {
   issue: Issue | IssueDetails | null;
   isLoading: boolean;
   error: string | null;
+  onClose: () => void;
   onRetry?: () => void;
 }
 
@@ -97,6 +91,7 @@ function DefaultContent({
   issue,
   isLoading,
   error,
+  onClose,
   onRetry,
 }: DefaultContentProps): JSX.Element {
   // Loading state
@@ -137,109 +132,105 @@ function DefaultContent({
   const dependents = hasDetails ? issue.dependents : undefined;
 
   return (
-    <div className={styles.detailContent}>
-      {/* Header */}
-      <header className={styles.header}>
-        <h2 className={styles.title}>{issue.title}</h2>
-        <span className={styles.issueId}>{issue.id}</span>
-      </header>
+    <>
+      {/* Header with ID, status badge, close button, and title */}
+      <IssueHeader issue={issue} onClose={onClose} />
 
-      {/* Status Row */}
-      <div className={styles.statusRow}>
-        <span className={`${styles.badge} ${styles.statusBadge}`} data-status={issue.status ?? 'open'}>
-          {formatStatus(issue.status)}
-        </span>
-        <span className={`${styles.badge} ${styles.priorityBadge}`} data-priority={issue.priority}>
-          {formatPriority(issue.priority)}
-        </span>
-        <span className={`${styles.badge} ${styles.typeBadge}`}>
-          {formatIssueType(issue.issue_type)}
-        </span>
+      <div className={styles.detailContent}>
+        {/* Status Row (priority and type badges only, status moved to header) */}
+        <div className={styles.statusRow}>
+          <span className={`${styles.badge} ${styles.priorityBadge}`} data-priority={issue.priority}>
+            {formatPriority(issue.priority)}
+          </span>
+          <span className={`${styles.badge} ${styles.typeBadge}`}>
+            {formatIssueType(issue.issue_type)}
+          </span>
+        </div>
+
+        {/* Description */}
+        {issue.description && (
+          <section className={styles.section}>
+            <h3 className={styles.sectionTitle}>Description</h3>
+            <p className={styles.description}>{issue.description}</p>
+          </section>
+        )}
+
+        {/* Assignment */}
+        {(issue.assignee || issue.owner) && (
+          <section className={styles.section}>
+            <h3 className={styles.sectionTitle}>Assignment</h3>
+            <dl className={styles.metadata}>
+              {issue.assignee && (
+                <>
+                  <dt>Assignee</dt>
+                  <dd>{issue.assignee}</dd>
+                </>
+              )}
+              {issue.owner && (
+                <>
+                  <dt>Owner</dt>
+                  <dd>{issue.owner}</dd>
+                </>
+              )}
+            </dl>
+          </section>
+        )}
+
+        {/* Labels */}
+        {issue.labels && issue.labels.length > 0 && (
+          <section className={styles.section}>
+            <h3 className={styles.sectionTitle}>Labels</h3>
+            <div className={styles.labels}>
+              {issue.labels.map((label) => (
+                <span key={label} className={styles.label}>
+                  {label}
+                </span>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* Dependencies (blocking this issue) */}
+        {dependencies && dependencies.length > 0 && (
+          <section className={styles.section}>
+            <h3 className={styles.sectionTitle}>
+              Blocked By ({dependencies.length})
+            </h3>
+            <ul className={styles.dependencyList}>
+              {dependencies.map(renderDependencyItem)}
+            </ul>
+          </section>
+        )}
+
+        {/* Dependents (this issue blocks) */}
+        {dependents && dependents.length > 0 && (
+          <section className={styles.section}>
+            <h3 className={styles.sectionTitle}>
+              Blocks ({dependents.length})
+            </h3>
+            <ul className={styles.dependencyList}>
+              {dependents.map(renderDependencyItem)}
+            </ul>
+          </section>
+        )}
+
+        {/* Design (if present) */}
+        {issue.design && (
+          <section className={styles.section}>
+            <h3 className={styles.sectionTitle}>Design</h3>
+            <pre className={styles.design}>{issue.design}</pre>
+          </section>
+        )}
+
+        {/* Notes (if present) */}
+        {issue.notes && (
+          <section className={styles.section}>
+            <h3 className={styles.sectionTitle}>Notes</h3>
+            <p className={styles.notes}>{issue.notes}</p>
+          </section>
+        )}
       </div>
-
-      {/* Description */}
-      {issue.description && (
-        <section className={styles.section}>
-          <h3 className={styles.sectionTitle}>Description</h3>
-          <p className={styles.description}>{issue.description}</p>
-        </section>
-      )}
-
-      {/* Assignment */}
-      {(issue.assignee || issue.owner) && (
-        <section className={styles.section}>
-          <h3 className={styles.sectionTitle}>Assignment</h3>
-          <dl className={styles.metadata}>
-            {issue.assignee && (
-              <>
-                <dt>Assignee</dt>
-                <dd>{issue.assignee}</dd>
-              </>
-            )}
-            {issue.owner && (
-              <>
-                <dt>Owner</dt>
-                <dd>{issue.owner}</dd>
-              </>
-            )}
-          </dl>
-        </section>
-      )}
-
-      {/* Labels */}
-      {issue.labels && issue.labels.length > 0 && (
-        <section className={styles.section}>
-          <h3 className={styles.sectionTitle}>Labels</h3>
-          <div className={styles.labels}>
-            {issue.labels.map((label) => (
-              <span key={label} className={styles.label}>
-                {label}
-              </span>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {/* Dependencies (blocking this issue) */}
-      {dependencies && dependencies.length > 0 && (
-        <section className={styles.section}>
-          <h3 className={styles.sectionTitle}>
-            Blocked By ({dependencies.length})
-          </h3>
-          <ul className={styles.dependencyList}>
-            {dependencies.map(renderDependencyItem)}
-          </ul>
-        </section>
-      )}
-
-      {/* Dependents (this issue blocks) */}
-      {dependents && dependents.length > 0 && (
-        <section className={styles.section}>
-          <h3 className={styles.sectionTitle}>
-            Blocks ({dependents.length})
-          </h3>
-          <ul className={styles.dependencyList}>
-            {dependents.map(renderDependencyItem)}
-          </ul>
-        </section>
-      )}
-
-      {/* Design (if present) */}
-      {issue.design && (
-        <section className={styles.section}>
-          <h3 className={styles.sectionTitle}>Design</h3>
-          <pre className={styles.design}>{issue.design}</pre>
-        </section>
-      )}
-
-      {/* Notes (if present) */}
-      {issue.notes && (
-        <section className={styles.section}>
-          <h3 className={styles.sectionTitle}>Notes</h3>
-          <p className={styles.notes}>{issue.notes}</p>
-        </section>
-      )}
-    </div>
+    </>
   );
 }
 
@@ -316,7 +307,7 @@ export function IssueDetailPanel({
 
   // Determine content: children override default, otherwise render default content
   const content = children ?? (
-    <DefaultContent issue={issue} isLoading={isLoading ?? false} error={error ?? null} />
+    <DefaultContent issue={issue} isLoading={isLoading ?? false} error={error ?? null} onClose={onClose} />
   );
 
   return (
@@ -336,22 +327,6 @@ export function IssueDetailPanel({
         tabIndex={-1}
         data-testid="issue-detail-panel"
       >
-        {/* Close button */}
-        <button
-          className={styles.closeButton}
-          onClick={onClose}
-          aria-label="Close panel"
-          data-testid="panel-close-button"
-        >
-          <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
-            <path
-              d="M15 5L5 15M5 5l10 10"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-            />
-          </svg>
-        </button>
         <div className={styles.content}>{content}</div>
       </aside>
     </div>

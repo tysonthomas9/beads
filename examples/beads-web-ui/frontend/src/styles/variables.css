@@ -36,6 +36,13 @@
   --color-danger: #ef4444;  /* red-500 */
   --color-info: #06b6d4;    /* cyan-500 */
 
+  /* Semantic Background Colors (for badges, alerts) */
+  --color-primary-bg: #eff6ff;  /* blue-50 */
+  --color-success-bg: #dcfce7;  /* green-100 */
+  --color-warning-bg: #fef3c7;  /* amber-100 */
+  --color-danger-bg: #fee2e2;   /* red-100 */
+  --color-info-bg: #cffafe;     /* cyan-100 */
+
   /* ===========================
    * Colors - Issue Type
    * =========================== */
