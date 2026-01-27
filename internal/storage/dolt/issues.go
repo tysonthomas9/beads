@@ -227,6 +227,43 @@ func (s *DoltStore) GetIssueByExternalRef(ctx context.Context, externalRef strin
 	return s.GetIssue(ctx, id)
 }
 
+// ClaimIssue atomically claims an issue by setting assignee and status to in_progress.
+// Returns (true, nil) if claim succeeded, (false, nil) if already claimed by someone else,
+// or (false, error) if the operation failed.
+func (s *DoltStore) ClaimIssue(ctx context.Context, id string, assignee string) (bool, error) {
+	now := time.Now().UTC()
+
+	// Atomic claim: only succeeds if assignee is empty
+	result, err := s.db.ExecContext(ctx, `
+		UPDATE issues
+		SET assignee = ?, status = ?, updated_at = ?
+		WHERE id = ? AND (assignee = '' OR assignee IS NULL)
+	`, assignee, string(types.StatusInProgress), now, id)
+	if err != nil {
+		return false, fmt.Errorf("failed to claim issue: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return false, fmt.Errorf("failed to get rows affected: %w", err)
+	}
+
+	if rowsAffected == 0 {
+		// Either issue doesn't exist or is already claimed
+		issue, err := s.GetIssue(ctx, id)
+		if err != nil {
+			return false, fmt.Errorf("failed to check issue exists: %w", err)
+		}
+		if issue == nil {
+			return false, fmt.Errorf("issue %s not found", id)
+		}
+		// Issue exists but already claimed
+		return false, nil
+	}
+
+	return true, nil
+}
+
 // UpdateIssue updates fields on an issue
 func (s *DoltStore) UpdateIssue(ctx context.Context, id string, updates map[string]interface{}, actor string) error {
 	oldIssue, err := s.GetIssue(ctx, id)

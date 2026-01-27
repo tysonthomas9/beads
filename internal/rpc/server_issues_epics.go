@@ -565,24 +565,26 @@ func (s *Server) handleUpdate(req *Request) Response {
 
 	actor := s.reqActor(req)
 
-	// Handle claim operation atomically
+	// Handle claim operation atomically using ClaimIssue to prevent race conditions
+	// when multiple agents try to claim the same task simultaneously
 	if updateArgs.Claim {
-		// Check if already claimed (has non-empty assignee)
-		if issue.Assignee != "" {
-			return Response{
-				Success: false,
-				Error:   fmt.Sprintf("already claimed by %s", issue.Assignee),
-			}
-		}
-		// Atomically set assignee and status
-		claimUpdates := map[string]interface{}{
-			"assignee": actor,
-			"status":   "in_progress",
-		}
-		if err := store.UpdateIssue(ctx, updateArgs.ID, claimUpdates, actor); err != nil {
+		claimed, err := store.ClaimIssue(ctx, updateArgs.ID, actor)
+		if err != nil {
 			return Response{
 				Success: false,
 				Error:   fmt.Sprintf("failed to claim issue: %v", err),
+			}
+		}
+		if !claimed {
+			// Re-fetch issue to get current assignee for error message
+			currentIssue, _ := store.GetIssue(ctx, updateArgs.ID)
+			currentAssignee := "unknown"
+			if currentIssue != nil && currentIssue.Assignee != "" {
+				currentAssignee = currentIssue.Assignee
+			}
+			return Response{
+				Success: false,
+				Error:   fmt.Sprintf("already claimed by %s", currentAssignee),
 			}
 		}
 	}

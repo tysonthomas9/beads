@@ -380,6 +380,31 @@ func (m *MemoryStorage) GetIssueByExternalRef(ctx context.Context, externalRef s
 	return &issueCopy, nil
 }
 
+// ClaimIssue atomically claims an issue by setting assignee and status to in_progress.
+// Returns (true, nil) if claim succeeded, (false, nil) if already claimed by someone else,
+// or (false, error) if the operation failed.
+func (m *MemoryStorage) ClaimIssue(ctx context.Context, id string, assignee string) (bool, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	issue, exists := m.issues[id]
+	if !exists {
+		return false, fmt.Errorf("issue %s not found", id)
+	}
+
+	// Check if already claimed
+	if issue.Assignee != "" {
+		return false, nil
+	}
+
+	// Claim it
+	issue.Assignee = assignee
+	issue.Status = types.StatusInProgress
+	issue.UpdatedAt = time.Now()
+
+	return true, nil
+}
+
 // UpdateIssue updates fields on an issue
 func (m *MemoryStorage) UpdateIssue(ctx context.Context, id string, updates map[string]interface{}, actor string) error {
 	m.mu.Lock()

@@ -88,6 +88,10 @@ type Storage interface {
 	GetIssue(ctx context.Context, id string) (*types.Issue, error)
 	GetIssueByExternalRef(ctx context.Context, externalRef string) (*types.Issue, error)
 	UpdateIssue(ctx context.Context, id string, updates map[string]interface{}, actor string) error
+	// ClaimIssue atomically claims an issue by setting assignee and status to in_progress.
+	// Returns (true, nil) if claim succeeded, (false, nil) if already claimed by someone else,
+	// or (false, error) if the operation failed.
+	ClaimIssue(ctx context.Context, id string, assignee string) (bool, error)
 	CloseIssue(ctx context.Context, id string, reason string, actor string, session string) error
 	DeleteIssue(ctx context.Context, id string) error
 	SearchIssues(ctx context.Context, query string, filter types.IssueFilter) ([]*types.Issue, error)
