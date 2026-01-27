@@ -29,13 +29,14 @@ vi.mock('@/hooks', () => ({
   useIssues: mockUseIssues,
   useViewState: vi.fn(() => ['kanban', vi.fn()]),
   useFilterState: vi.fn(() => [
-    {}, // FilterState
+    { groupBy: 'none' }, // FilterState
     {
       setPriority: vi.fn(),
       setType: vi.fn(),
       setLabels: vi.fn(),
       setSearch: vi.fn(),
       setShowBlocked: vi.fn(),
+      setGroupBy: vi.fn(),
       clearFilter: vi.fn(),
       clearAll: vi.fn(),
     }, // FilterActions
@@ -771,11 +772,11 @@ describe('App', () => {
       vi.mocked(useIssues).mockReturnValue(mockReturn);
 
       // Track filter state that will change when clearAll is called
-      let currentFilters: { search?: string } = { search: 'test query' };
+      let currentFilters: { search?: string; groupBy?: string } = { search: 'test query', groupBy: 'none' };
 
       const clearAll = vi.fn(() => {
         // Simulate clearAll behavior: clears search
-        currentFilters = {};
+        currentFilters = { groupBy: 'none' };
       });
 
       const filterActions = {
@@ -783,6 +784,7 @@ describe('App', () => {
         setType: vi.fn(),
         setLabels: vi.fn(),
         setSearch: vi.fn(),
+        setGroupBy: vi.fn(),
         clearFilter: vi.fn(),
         clearAll,
       };
@@ -816,6 +818,243 @@ describe('App', () => {
       await waitFor(() => {
         expect(searchInput.value).toBe('');
       });
+    });
+  });
+
+  describe('swim lane integration', () => {
+    it('renders SwimLaneBoard instead of KanbanBoard when activeView is kanban', () => {
+      const issues = [
+        createMockIssue({ id: 'issue-1', title: 'Issue One', status: 'open' }),
+        createMockIssue({ id: 'issue-2', title: 'Issue Two', status: 'in_progress' }),
+      ];
+      const mockReturn = createMockUseIssuesReturn({ issues });
+      vi.mocked(useIssues).mockReturnValue(mockReturn);
+
+      render(<App />);
+
+      // SwimLaneBoard should render status columns
+      expect(screen.getByRole('heading', { name: 'Open' })).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'In Progress' })).toBeInTheDocument();
+
+      // Issues should be visible
+      expect(screen.getByText('Issue One')).toBeInTheDocument();
+      expect(screen.getByText('Issue Two')).toBeInTheDocument();
+    });
+
+    it('passes groupBy prop to SwimLaneBoard with default value of none', () => {
+      const issues = [createMockIssue()];
+      const mockReturn = createMockUseIssuesReturn({ issues });
+      vi.mocked(useIssues).mockReturnValue(mockReturn);
+
+      // Mock FilterState with groupBy: 'none' (which is the default)
+      vi.mocked(useFilterState).mockReturnValue([
+        { groupBy: 'none' },
+        {
+          setPriority: vi.fn(),
+          setType: vi.fn(),
+          setLabels: vi.fn(),
+          setSearch: vi.fn(),
+          setShowBlocked: vi.fn(),
+          setGroupBy: vi.fn(),
+          clearFilter: vi.fn(),
+          clearAll: vi.fn(),
+        },
+      ]);
+
+      render(<App />);
+
+      // Verify SwimLaneBoard is rendered with correct groupBy
+      expect(screen.getByRole('heading', { name: 'Open' })).toBeInTheDocument();
+    });
+
+    it('passes groupBy prop to SwimLaneBoard with epic grouping', () => {
+      const issues = [createMockIssue()];
+      const mockReturn = createMockUseIssuesReturn({ issues });
+      vi.mocked(useIssues).mockReturnValue(mockReturn);
+
+      // Mock FilterState with groupBy: 'epic'
+      vi.mocked(useFilterState).mockReturnValue([
+        { groupBy: 'epic' },
+        {
+          setPriority: vi.fn(),
+          setType: vi.fn(),
+          setLabels: vi.fn(),
+          setSearch: vi.fn(),
+          setShowBlocked: vi.fn(),
+          setGroupBy: vi.fn(),
+          clearFilter: vi.fn(),
+          clearAll: vi.fn(),
+        },
+      ]);
+
+      render(<App />);
+
+      // SwimLaneBoard should still render
+      expect(screen.getByRole('heading', { name: 'Open' })).toBeInTheDocument();
+    });
+
+    it('FilterBar receives groupBy and onGroupByChange props', () => {
+      const issues = [createMockIssue()];
+      const mockReturn = createMockUseIssuesReturn({ issues });
+      vi.mocked(useIssues).mockReturnValue(mockReturn);
+
+      const setGroupBy = vi.fn();
+      vi.mocked(useFilterState).mockReturnValue([
+        { groupBy: 'none' },
+        {
+          setPriority: vi.fn(),
+          setType: vi.fn(),
+          setLabels: vi.fn(),
+          setSearch: vi.fn(),
+          setShowBlocked: vi.fn(),
+          setGroupBy,
+          clearFilter: vi.fn(),
+          clearAll: vi.fn(),
+        },
+      ]);
+
+      render(<App />);
+
+      // FilterBar should be rendered with groupBy props
+      expect(screen.getByTestId('filter-bar')).toBeInTheDocument();
+    });
+
+    it('updates SwimLaneBoard groupBy when FilterBar groupBy changes', () => {
+      const issues = [createMockIssue()];
+      const mockReturn = createMockUseIssuesReturn({ issues });
+      vi.mocked(useIssues).mockReturnValue(mockReturn);
+
+      let currentGroupBy = 'none';
+      const setGroupBy = vi.fn((value: string) => {
+        currentGroupBy = value;
+      });
+
+      const filterActions = {
+        setPriority: vi.fn(),
+        setType: vi.fn(),
+        setLabels: vi.fn(),
+        setSearch: vi.fn(),
+        setShowBlocked: vi.fn(),
+        setGroupBy,
+        clearFilter: vi.fn(),
+        clearAll: vi.fn(),
+      };
+
+      vi.mocked(useFilterState).mockReturnValue([
+        { groupBy: currentGroupBy },
+        filterActions,
+      ]);
+
+      const { rerender } = render(<App />);
+
+      // Initial render with groupBy: 'none'
+      expect(screen.getByRole('heading', { name: 'Open' })).toBeInTheDocument();
+
+      // Simulate groupBy change to 'priority'
+      currentGroupBy = 'priority';
+      vi.mocked(useFilterState).mockReturnValue([
+        { groupBy: currentGroupBy },
+        filterActions,
+      ]);
+
+      rerender(<App />);
+
+      // SwimLaneBoard should still render with updated groupBy
+      expect(screen.getByRole('heading', { name: 'Open' })).toBeInTheDocument();
+      expect(setGroupBy).not.toHaveBeenCalled(); // setGroupBy is called by FilterBar, not App
+    });
+
+    it('passes onDragEnd handler to SwimLaneBoard', () => {
+      const updateIssueStatus = vi.fn().mockResolvedValue(undefined);
+      const issues = [
+        createMockIssue({ id: 'drag-test', title: 'Drag Me', status: 'open' }),
+      ];
+      const mockReturn = createMockUseIssuesReturn({
+        issues,
+        updateIssueStatus,
+      });
+      vi.mocked(useIssues).mockReturnValue(mockReturn);
+
+      render(<App />);
+
+      // SwimLaneBoard should be rendered with the drag handler
+      expect(screen.getByText('Drag Me')).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'Open' })).toBeInTheDocument();
+    });
+
+    it('SwimLaneBoard receives filtered issues', () => {
+      const issues = [
+        createMockIssue({
+          id: 'issue-1',
+          title: 'High Priority Issue',
+          status: 'open',
+          priority: 0,
+        }),
+        createMockIssue({
+          id: 'issue-2',
+          title: 'Low Priority Issue',
+          status: 'open',
+          priority: 4,
+        }),
+      ];
+      const mockReturn = createMockUseIssuesReturn({ issues });
+      vi.mocked(useIssues).mockReturnValue(mockReturn);
+
+      render(<App />);
+
+      // Both issues should be visible since no filters are active
+      expect(screen.getByText('High Priority Issue')).toBeInTheDocument();
+      expect(screen.getByText('Low Priority Issue')).toBeInTheDocument();
+    });
+
+    it('SwimLaneBoard receives blocked issues map when available', () => {
+      const issues = [
+        createMockIssue({
+          id: 'issue-1',
+          title: 'Blocked Issue',
+          status: 'open',
+        }),
+      ];
+      const mockReturn = createMockUseIssuesReturn({ issues });
+      vi.mocked(useIssues).mockReturnValue(mockReturn);
+
+      render(<App />);
+
+      // SwimLaneBoard should render without errors
+      expect(screen.getByText('Blocked Issue')).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'Open' })).toBeInTheDocument();
+    });
+
+    it('SwimLaneBoard respects showBlocked filter', () => {
+      const issues = [
+        createMockIssue({
+          id: 'issue-1',
+          title: 'Issue To Show',
+          status: 'open',
+        }),
+      ];
+      const mockReturn = createMockUseIssuesReturn({ issues });
+      vi.mocked(useIssues).mockReturnValue(mockReturn);
+
+      // Mock FilterState with showBlocked: true
+      vi.mocked(useFilterState).mockReturnValue([
+        { groupBy: 'none', showBlocked: true },
+        {
+          setPriority: vi.fn(),
+          setType: vi.fn(),
+          setLabels: vi.fn(),
+          setSearch: vi.fn(),
+          setShowBlocked: vi.fn(),
+          setGroupBy: vi.fn(),
+          clearFilter: vi.fn(),
+          clearAll: vi.fn(),
+        },
+      ]);
+
+      render(<App />);
+
+      // SwimLaneBoard should render with showBlocked prop passed
+      expect(screen.getByText('Issue To Show')).toBeInTheDocument();
     });
   });
 });

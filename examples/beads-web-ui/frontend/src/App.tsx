@@ -13,7 +13,7 @@ import type { BlockedInfo } from '@/components/KanbanBoard';
 import styles from './App.module.css';
 import {
   AppLayout,
-  KanbanBoard,
+  SwimLaneBoard,
   IssueTable,
   ViewSwitcher,
   LoadingSkeleton,
@@ -211,7 +211,12 @@ function App() {
         placeholder="Search issues..."
         size="sm"
       />
-      <FilterBar filters={filters} actions={filterActions} />
+      <FilterBar
+        filters={filters}
+        actions={filterActions}
+        groupBy={filters.groupBy ?? 'none'}
+        onGroupByChange={filterActions.setGroupBy}
+      />
     </div>
   );
 
@@ -231,8 +236,9 @@ function App() {
       }
     >
       {activeView === 'kanban' && (
-        <KanbanBoard
+        <SwimLaneBoard
           issues={filteredIssues}
+          groupBy={filters.groupBy ?? 'none'}
           onDragEnd={handleDragEnd}
           {...(blockedIssuesMap !== undefined && { blockedIssues: blockedIssuesMap })}
           {...(filters.showBlocked !== undefined && { showBlocked: filters.showBlocked })}
