@@ -1,12 +1,37 @@
 /**
  * GraphControls component for graph view toggle controls.
- * Provides a "Highlight Ready" toggle that dims blocked and closed nodes,
+ * Provides a status filter dropdown, "Highlight Ready" toggle that dims blocked and closed nodes,
  * plus zoom controls (zoom in, zoom out, fit view).
  */
 
 import { useCallback } from 'react';
 import { useReactFlow } from '@xyflow/react';
+import type { Status } from '@/types/status';
+import { formatStatusLabel } from '@/components/StatusColumn/utils';
 import styles from './GraphControls.module.css';
+
+/**
+ * Status filter option for the dropdown.
+ */
+interface StatusFilterOption {
+  /** Display label */
+  label: string;
+  /** Value ('all' or a Status value) */
+  value: Status | 'all';
+}
+
+/**
+ * Status filter options for the dropdown.
+ * Order: All, then user-selectable statuses matching USER_SELECTABLE_STATUSES order.
+ */
+const STATUS_FILTER_OPTIONS: StatusFilterOption[] = [
+  { label: 'All', value: 'all' },
+  { label: formatStatusLabel('open'), value: 'open' },
+  { label: formatStatusLabel('in_progress'), value: 'in_progress' },
+  { label: formatStatusLabel('blocked'), value: 'blocked' },
+  { label: formatStatusLabel('deferred'), value: 'deferred' },
+  { label: formatStatusLabel('closed'), value: 'closed' },
+];
 
 /**
  * Props for the GraphControls component.
@@ -24,6 +49,10 @@ export interface GraphControlsProps {
   showClosed?: boolean;
   /** Callback when show closed toggle is changed */
   onShowClosedChange?: (value: boolean) => void;
+  /** Current status filter value */
+  statusFilter?: Status | 'all';
+  /** Callback when status filter changes */
+  onStatusFilterChange?: (value: Status | 'all') => void;
   /** Whether the toggle should be disabled (e.g., while loading) */
   disabled?: boolean;
   /** Title for disabled state tooltip */
@@ -67,6 +96,8 @@ export function GraphControls({
   onShowBlockedOnlyChange,
   showClosed,
   onShowClosedChange,
+  statusFilter,
+  onStatusFilterChange,
   disabled = false,
   disabledTitle,
   showZoomControls = true,
@@ -95,6 +126,14 @@ export function GraphControls({
     [onShowClosedChange]
   );
 
+  const handleStatusFilterChange = useCallback(
+    (event: React.ChangeEvent<HTMLSelectElement>) => {
+      const value = event.target.value as Status | 'all';
+      onStatusFilterChange?.(value);
+    },
+    [onStatusFilterChange]
+  );
+
   const handleZoomIn = useCallback(() => {
     zoomIn({ duration: 200 });
   }, [zoomIn]);
@@ -113,6 +152,29 @@ export function GraphControls({
 
   return (
     <div className={rootClassName} data-testid="graph-controls">
+      {onStatusFilterChange && (
+        <div className={styles.filterGroup}>
+          <label htmlFor="status-filter" className={styles.filterLabel}>
+            Status
+          </label>
+          <select
+            id="status-filter"
+            className={styles.statusSelect}
+            value={statusFilter ?? 'all'}
+            onChange={handleStatusFilterChange}
+            disabled={disabled}
+            aria-label="Filter by status"
+            data-testid="status-filter"
+          >
+            {STATUS_FILTER_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+
       <label
         className={styles.toggleLabel}
         title={disabled ? disabledTitle : undefined}

@@ -15,6 +15,7 @@ import {
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import type { Issue, IssueNode as IssueNodeType } from '@/types';
+import type { Status } from '@/types/status';
 import { useGraphData, type UseGraphDataOptions } from '@/hooks/useGraphData';
 import { useAutoLayout, type UseAutoLayoutOptions } from '@/hooks/useAutoLayout';
 import { useBlockedIssues } from '@/hooks/useBlockedIssues';
@@ -23,6 +24,20 @@ import type { TooltipPosition } from '@/components/NodeTooltip';
 import styles from './GraphView.module.css';
 
 const STORAGE_KEY_SHOW_CLOSED = 'graph-show-closed';
+const STORAGE_KEY_STATUS_FILTER = 'graph-status-filter';
+
+/**
+ * Valid status filter values for localStorage.
+ * Order matches USER_SELECTABLE_STATUSES.
+ */
+const VALID_STATUS_FILTERS: readonly (Status | 'all')[] = [
+  'all',
+  'open',
+  'in_progress',
+  'blocked',
+  'deferred',
+  'closed',
+] as const;
 
 // Register custom node and edge types
 const nodeTypes = {
@@ -109,6 +124,30 @@ export function GraphView({
     }
   }, [showClosed]);
 
+  // Initialize statusFilter from localStorage, default to 'all'
+  const [statusFilter, setStatusFilter] = useState<Status | 'all'>(() => {
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY_STATUS_FILTER);
+      // Validate stored value is a valid status filter
+      if (stored && VALID_STATUS_FILTERS.includes(stored as Status | 'all')) {
+        return stored as Status | 'all';
+      }
+      return 'all';
+    } catch {
+      // Silently fail if localStorage is unavailable (private browsing, quota exceeded)
+      return 'all';
+    }
+  });
+
+  // Persist statusFilter preference to localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY_STATUS_FILTER, statusFilter);
+    } catch {
+      // Silently fail if localStorage is unavailable (private browsing, quota exceeded)
+    }
+  }, [statusFilter]);
+
   // Tooltip state for hover preview
   const [hoveredIssue, setHoveredIssue] = useState<Issue | null>(null);
   const [tooltipPosition, setTooltipPosition] = useState<TooltipPosition | null>(null);
@@ -120,11 +159,23 @@ export function GraphView({
     return new Set(blockedIssues.map((bi) => bi.id));
   }, [blockedIssues]);
 
-  // Filter out closed issues when showClosed is false
+  // Filter issues based on statusFilter and showClosed
+  // Status filter takes precedence: when a specific status is selected, only show that status
   const visibleIssues = useMemo(() => {
-    if (showClosed) return issues;
-    return issues.filter(issue => issue.status !== 'closed');
-  }, [issues, showClosed]);
+    let filtered = issues;
+
+    // If a specific status is selected, filter to only that status
+    if (statusFilter !== 'all') {
+      filtered = filtered.filter(issue => issue.status === statusFilter);
+    } else {
+      // When 'all' is selected, respect the showClosed toggle
+      if (!showClosed) {
+        filtered = filtered.filter(issue => issue.status !== 'closed');
+      }
+    }
+
+    return filtered;
+  }, [issues, statusFilter, showClosed]);
 
   // Transform issues to nodes and edges
   const graphDataOptions: UseGraphDataOptions = useMemo(
@@ -220,6 +271,7 @@ export function GraphView({
       data-highlight-ready={highlightReady}
       data-show-blocked-only={showBlockedOnly}
       data-show-closed={showClosed}
+      data-status-filter={statusFilter}
       data-testid="graph-view"
     >
       <ReactFlow {...(reactFlowProps as Record<string, never>)}>
@@ -234,6 +286,8 @@ export function GraphView({
               onShowBlockedOnlyChange={setShowBlockedOnly}
               showClosed={showClosed}
               onShowClosedChange={setShowClosed}
+              statusFilter={statusFilter}
+              onStatusFilterChange={setStatusFilter}
               {...(styles.controls ? { className: styles.controls } : {})}
             />
           </Panel>

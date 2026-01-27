@@ -311,6 +311,120 @@ describe('GraphControls', () => {
     });
   });
 
+  describe('status filter dropdown', () => {
+    it('renders status filter dropdown when onStatusFilterChange is provided', () => {
+      const props = createTestProps({
+        statusFilter: 'all',
+        onStatusFilterChange: vi.fn(),
+      });
+      render(<GraphControls {...props} />);
+
+      expect(screen.getByTestId('status-filter')).toBeInTheDocument();
+      expect(screen.getByText('Status')).toBeInTheDocument();
+    });
+
+    it('does not render dropdown when onStatusFilterChange is undefined', () => {
+      const props = createTestProps({
+        statusFilter: 'all',
+        // onStatusFilterChange not provided
+      });
+      render(<GraphControls {...props} />);
+
+      expect(screen.queryByTestId('status-filter')).not.toBeInTheDocument();
+    });
+
+    it('dropdown shows correct selected value', () => {
+      const props = createTestProps({
+        statusFilter: 'closed',
+        onStatusFilterChange: vi.fn(),
+      });
+      render(<GraphControls {...props} />);
+
+      const select = screen.getByTestId('status-filter') as HTMLSelectElement;
+      expect(select.value).toBe('closed');
+    });
+
+    it('defaults to "all" when statusFilter is undefined', () => {
+      const props = createTestProps({
+        // statusFilter not provided - defaults to 'all'
+        onStatusFilterChange: vi.fn(),
+      });
+      render(<GraphControls {...props} />);
+
+      const select = screen.getByTestId('status-filter') as HTMLSelectElement;
+      expect(select.value).toBe('all');
+    });
+
+    it('calls onStatusFilterChange when selection changes', () => {
+      const onStatusFilterChange = vi.fn();
+      const props = createTestProps({
+        statusFilter: 'all',
+        onStatusFilterChange,
+      });
+      render(<GraphControls {...props} />);
+
+      const select = screen.getByTestId('status-filter');
+      fireEvent.change(select, { target: { value: 'in_progress' } });
+
+      expect(onStatusFilterChange).toHaveBeenCalledWith('in_progress');
+    });
+
+    it('calls onStatusFilterChange only once per change', () => {
+      const onStatusFilterChange = vi.fn();
+      const props = createTestProps({
+        statusFilter: 'all',
+        onStatusFilterChange,
+      });
+      render(<GraphControls {...props} />);
+
+      const select = screen.getByTestId('status-filter');
+      fireEvent.change(select, { target: { value: 'open' } });
+
+      expect(onStatusFilterChange).toHaveBeenCalledTimes(1);
+    });
+
+    it('dropdown is disabled when disabled prop is true', () => {
+      const props = createTestProps({
+        statusFilter: 'all',
+        onStatusFilterChange: vi.fn(),
+        disabled: true,
+      });
+      render(<GraphControls {...props} />);
+
+      const select = screen.getByTestId('status-filter');
+      expect(select).toBeDisabled();
+    });
+
+    it('has correct aria-label for accessibility', () => {
+      const props = createTestProps({
+        statusFilter: 'all',
+        onStatusFilterChange: vi.fn(),
+      });
+      render(<GraphControls {...props} />);
+
+      expect(screen.getByLabelText('Filter by status')).toBeInTheDocument();
+    });
+
+    it('includes all expected status options', () => {
+      const props = createTestProps({
+        statusFilter: 'all',
+        onStatusFilterChange: vi.fn(),
+      });
+      render(<GraphControls {...props} />);
+
+      const select = screen.getByTestId('status-filter');
+      const options = select.querySelectorAll('option');
+      const optionValues = Array.from(options).map(o => o.value);
+
+      expect(optionValues).toContain('all');
+      expect(optionValues).toContain('open');
+      expect(optionValues).toContain('in_progress');
+      expect(optionValues).toContain('blocked');
+      expect(optionValues).toContain('deferred');
+      expect(optionValues).toContain('closed');
+    });
+  });
+
   describe('zoom controls', () => {
     it('renders zoom controls by default', () => {
       const props = createTestProps();
