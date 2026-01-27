@@ -1,6 +1,6 @@
 # Makefile for beads-web-ui
 
-.PHONY: all build dev frontend server run clean test test-e2e test-e2e-ui setup-e2e help
+.PHONY: all build dev dev-go frontend server run clean test test-e2e test-e2e-ui setup-e2e help
 
 # Binary name
 BINARY := webui
@@ -19,6 +19,19 @@ dev:
 	@echo "Starting frontend dev server..."
 	@echo "API requests will proxy to http://localhost:8080"
 	cd $(FRONTEND_DIR) && npm run dev
+
+# Run Go server with hot-reload (requires air: go install github.com/air-verse/air@latest)
+dev-go:
+	@if [ ! -d "$(FRONTEND_DIR)/dist" ]; then \
+		echo "Error: frontend/dist not found. Run 'make frontend' first."; \
+		exit 1; \
+	fi
+	@if ! command -v air > /dev/null 2>&1; then \
+		echo "Error: air not found. Install with: go install github.com/air-verse/air@latest"; \
+		exit 1; \
+	fi
+	@echo "Starting Go server with hot-reload..."
+	air
 
 # Build only the frontend
 frontend:
@@ -71,6 +84,7 @@ help:
 	@echo "beads-web-ui Makefile targets:"
 	@echo "  make build      - Build frontend and Go server for production"
 	@echo "  make dev        - Start frontend dev server with hot reload"
+	@echo "  make dev-go     - Start Go server with hot-reload (requires air)"
 	@echo "  make frontend   - Build only the frontend (npm install + build)"
 	@echo "  make server     - Build only the Go server"
 	@echo "  make run        - Build and run the server"

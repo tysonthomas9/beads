@@ -19,6 +19,8 @@ make run
 
 ## Development
 
+### Frontend Hot-Reload (Vite)
+
 For frontend development with hot reload:
 
 ```bash
@@ -32,6 +34,39 @@ make dev
 ```
 
 API requests from the frontend dev server are proxied to the Go backend.
+
+### Backend Hot-Reload (air)
+
+For Go server development with automatic restart on file changes:
+
+```bash
+# One-time: Install air
+go install github.com/air-verse/air@latest
+
+# Ensure frontend is built (required for embed)
+make frontend
+
+# Run with hot-reload
+make dev-go
+# Open http://localhost:8080
+```
+
+The server will automatically rebuild and restart when `.go` files change.
+
+**Note**: Frontend changes require rebuilding with `make frontend` since the frontend is embedded at compile time. For frontend hot-reload, use the "Full-Stack Development" workflow below.
+
+### Full-Stack Development
+
+For simultaneous frontend and backend hot-reload:
+
+```bash
+# Terminal 1: Go server with hot-reload
+make dev-go
+
+# Terminal 2: Frontend dev server
+make dev
+# Open http://localhost:3000
+```
 
 ## Project Structure
 
@@ -89,6 +124,7 @@ Command-line flags:
 |-----------|-------------|
 | `build`   | Build frontend and Go server for production |
 | `dev`     | Start frontend dev server with hot reload |
+| `dev-go`  | Start Go server with hot-reload (requires air) |
 | `frontend`| Build only the frontend |
 | `server`  | Build only the Go server |
 | `run`     | Build and run the server |

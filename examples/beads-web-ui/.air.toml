@@ -1,0 +1,41 @@
+# Air configuration for Go hot-reload
+# https://github.com/air-verse/air
+
+root = "."
+tmp_dir = "tmp"
+
+[build]
+# Build command - creates binary in tmp directory
+# NOTE: Requires frontend/dist to exist (embedded at compile time)
+# Run 'make frontend' first, or use 'make dev-go' which checks this
+cmd = "go build -o ./tmp/main ."
+# Binary to run after build
+bin = "./tmp/main"
+# Arguments passed to binary
+args_bin = ["-port", "8080"]
+
+# File extensions to watch
+include_ext = ["go"]
+# Directories to exclude from watching
+exclude_dir = ["frontend", "tmp", "vendor", "testdata", ".git"]
+# Files to exclude (use regex)
+exclude_regex = ["_test\\.go$"]
+# Delay before triggering build after change (milliseconds)
+delay = 1000
+
+[log]
+# Show timestamp in logs
+time = false
+# Only show main log (not all file change events)
+main_only = false
+
+[color]
+# Enable colored output
+main = "magenta"
+watcher = "cyan"
+build = "yellow"
+runner = "green"
+
+[misc]
+# Clean tmp directory on exit
+clean_on_exit = true
