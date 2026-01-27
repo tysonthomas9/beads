@@ -8,6 +8,19 @@ import type { Priority } from '@/types'
 import type { IssueType } from '@/types'
 
 /**
+ * Group by option for swim lane grouping.
+ * 'none' = flat view (no grouping).
+ */
+export type GroupByOption = 'none' | 'epic' | 'assignee' | 'priority' | 'type' | 'label'
+
+/**
+ * Valid group by options for URL validation.
+ */
+const VALID_GROUP_BY_OPTIONS: ReadonlySet<string> = new Set([
+  'none', 'epic', 'assignee', 'priority', 'type', 'label'
+])
+
+/**
  * Filter state for UI filtering.
  * Subset of IssueFilter relevant for client-side filtering.
  */
@@ -22,6 +35,8 @@ export interface FilterState {
   search?: string
   /** Whether to show blocked issues (default: false = hide blocked) */
   showBlocked?: boolean
+  /** Group by option for swim lanes */
+  groupBy?: GroupByOption
 }
 
 /**
@@ -38,6 +53,8 @@ export interface FilterActions {
   setSearch: (search: string | undefined) => void
   /** Set show blocked toggle */
   setShowBlocked: (showBlocked: boolean | undefined) => void
+  /** Set group by option */
+  setGroupBy: (groupBy: GroupByOption | undefined) => void
   /** Clear a specific filter */
   clearFilter: (key: keyof FilterState) => void
   /** Clear all filters */
@@ -117,6 +134,16 @@ function parseShowBlocked(value: string | null): boolean | undefined {
 }
 
 /**
+ * Parse groupBy from URL parameter.
+ * Returns undefined for invalid values (defaults to 'none' in UI).
+ */
+function parseGroupBy(value: string | null): GroupByOption | undefined {
+  if (value === null || value === '') return undefined
+  if (VALID_GROUP_BY_OPTIONS.has(value)) return value as GroupByOption
+  return undefined
+}
+
+/**
  * Build filter state from parsed values.
  * Only includes keys with defined values to satisfy exactOptionalPropertyTypes.
  */
@@ -125,7 +152,8 @@ function buildFilterState(
   type: IssueType | undefined,
   labels: string[] | undefined,
   search: string | undefined,
-  showBlocked: boolean | undefined
+  showBlocked: boolean | undefined,
+  groupBy: GroupByOption | undefined
 ): FilterState {
   const state: FilterState = {}
   if (priority !== undefined) state.priority = priority
@@ -133,6 +161,7 @@ function buildFilterState(
   if (labels !== undefined) state.labels = labels
   if (search !== undefined) state.search = search
   if (showBlocked !== undefined) state.showBlocked = showBlocked
+  if (groupBy !== undefined) state.groupBy = groupBy
   return state
 }
 
@@ -149,7 +178,8 @@ function parseFromUrl(): FilterState {
     parseType(params.get('type')),
     parseLabels(params.get('labels')),
     parseSearch(params.get('search')),
-    parseShowBlocked(params.get('showBlocked'))
+    parseShowBlocked(params.get('showBlocked')),
+    parseGroupBy(params.get('groupBy'))
   )
 }
 
@@ -174,6 +204,9 @@ function toQueryString(state: FilterState): string {
   if (state.showBlocked === true) {
     params.set('showBlocked', 'true')
   }
+  if (state.groupBy !== undefined && state.groupBy !== 'none') {
+    params.set('groupBy', state.groupBy)
+  }
 
   return params.toString()
 }
@@ -196,13 +229,15 @@ function updateUrl(state: FilterState): void {
 /**
  * Check if filter state is empty (all undefined).
  * Note: showBlocked is not considered for "empty" since it's a visibility toggle.
+ * groupBy is considered - 'none' or undefined means no active grouping.
  */
 function isEmptyFilter(state: FilterState): boolean {
   return (
     state.priority === undefined &&
     state.type === undefined &&
     (state.labels === undefined || state.labels.length === 0) &&
-    (state.search === undefined || state.search === '')
+    (state.search === undefined || state.search === '') &&
+    (state.groupBy === undefined || state.groupBy === 'none')
   )
 }
 
@@ -296,6 +331,10 @@ export function useFilterState(options: UseFilterStateOptions = {}): UseFilterSt
     setState((prev) => updateFilterState(prev, 'showBlocked', showBlocked))
   }, [])
 
+  const setGroupBy = useCallback((groupBy: GroupByOption | undefined) => {
+    setState((prev) => updateFilterState(prev, 'groupBy', groupBy))
+  }, [])
+
   const clearFilter = useCallback((key: keyof FilterState) => {
     setState((prev) => {
       const next = { ...prev }
@@ -316,10 +355,11 @@ export function useFilterState(options: UseFilterStateOptions = {}): UseFilterSt
       setLabels,
       setSearch,
       setShowBlocked,
+      setGroupBy,
       clearFilter,
       clearAll,
     }),
-    [setPriority, setType, setLabels, setSearch, setShowBlocked, clearFilter, clearAll]
+    [setPriority, setType, setLabels, setSearch, setShowBlocked, setGroupBy, clearFilter, clearAll]
   )
 
   return [state, actions]

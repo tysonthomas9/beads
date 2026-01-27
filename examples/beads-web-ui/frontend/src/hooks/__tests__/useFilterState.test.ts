@@ -9,6 +9,7 @@ import {
   parseFromUrl,
   isEmptyFilter,
   type FilterState,
+  type GroupByOption,
 } from '../useFilterState'
 import type { Priority } from '@/types'
 
@@ -386,6 +387,81 @@ describe('useFilterState', () => {
 
       expect(Object.keys(result.current[0])).toHaveLength(0)
     })
+
+    it('clears groupBy along with other filters', () => {
+      const { result } = renderHook(() => useFilterState({ syncUrl: false }))
+
+      act(() => {
+        result.current[1].setGroupBy('epic')
+        result.current[1].setPriority(2 as Priority)
+      })
+
+      expect(result.current[0].groupBy).toBe('epic')
+      expect(result.current[0].priority).toBe(2)
+
+      act(() => {
+        result.current[1].clearAll()
+      })
+
+      expect(result.current[0].groupBy).toBeUndefined()
+      expect(result.current[0].priority).toBeUndefined()
+    })
+  })
+
+  describe('setGroupBy', () => {
+    it('updates state with valid groupBy option', () => {
+      const { result } = renderHook(() => useFilterState({ syncUrl: false }))
+
+      act(() => {
+        result.current[1].setGroupBy('epic')
+      })
+
+      expect(result.current[0].groupBy).toBe('epic')
+    })
+
+    it('handles all known groupBy options', () => {
+      const options: GroupByOption[] = ['none', 'epic', 'assignee', 'priority', 'type', 'label']
+      const { result } = renderHook(() => useFilterState({ syncUrl: false }))
+
+      for (const option of options) {
+        act(() => {
+          result.current[1].setGroupBy(option)
+        })
+        expect(result.current[0].groupBy).toBe(option)
+      }
+    })
+
+    it('clears groupBy when set to undefined', () => {
+      const { result } = renderHook(() => useFilterState({ syncUrl: false }))
+
+      act(() => {
+        result.current[1].setGroupBy('epic')
+      })
+      expect(result.current[0].groupBy).toBe('epic')
+
+      act(() => {
+        result.current[1].setGroupBy(undefined)
+      })
+      expect(result.current[0].groupBy).toBeUndefined()
+    })
+  })
+
+  describe('clearFilter for groupBy', () => {
+    it('clears only groupBy when specified', () => {
+      const { result } = renderHook(() => useFilterState({ syncUrl: false }))
+
+      act(() => {
+        result.current[1].setGroupBy('assignee')
+        result.current[1].setType('bug')
+      })
+
+      act(() => {
+        result.current[1].clearFilter('groupBy')
+      })
+
+      expect(result.current[0].groupBy).toBeUndefined()
+      expect(result.current[0].type).toBe('bug')
+    })
   })
 
   describe('toggling filters', () => {
@@ -526,6 +602,24 @@ describe('toQueryString', () => {
     const result = toQueryString({ search: '' })
     expect(result).toBe('')
   })
+
+  it('serializes groupBy correctly', () => {
+    const result = toQueryString({ groupBy: 'epic' })
+    expect(result).toBe('groupBy=epic')
+  })
+
+  it('omits groupBy when value is none', () => {
+    const result = toQueryString({ groupBy: 'none' })
+    expect(result).toBe('')
+  })
+
+  it('serializes all groupBy options except none', () => {
+    const options: GroupByOption[] = ['epic', 'assignee', 'priority', 'type', 'label']
+    for (const option of options) {
+      const result = toQueryString({ groupBy: option })
+      expect(result).toBe(`groupBy=${option}`)
+    }
+  })
 })
 
 describe('parseFromUrl', () => {
@@ -641,6 +735,41 @@ describe('parseFromUrl', () => {
     expect(result.labels).toEqual(['urgent', 'frontend'])
     expect(result.search).toBe('auth')
   })
+
+  it('parses groupBy from URL', () => {
+    mockWindowLocation('?groupBy=epic')
+    const result = parseFromUrl()
+    expect(result.groupBy).toBe('epic')
+  })
+
+  it('parses all valid groupBy options from URL', () => {
+    const options: GroupByOption[] = ['none', 'epic', 'assignee', 'priority', 'type', 'label']
+    for (const option of options) {
+      mockWindowLocation(`?groupBy=${option}`)
+      const result = parseFromUrl()
+      expect(result.groupBy).toBe(option)
+    }
+  })
+
+  it('ignores invalid groupBy values', () => {
+    mockWindowLocation('?groupBy=invalid')
+    const result = parseFromUrl()
+    expect(result.groupBy).toBeUndefined()
+  })
+
+  it('ignores empty groupBy in URL', () => {
+    mockWindowLocation('?groupBy=')
+    const result = parseFromUrl()
+    expect(result.groupBy).toBeUndefined()
+  })
+
+  it('parses groupBy with other params from URL', () => {
+    mockWindowLocation('?priority=2&groupBy=assignee&type=bug')
+    const result = parseFromUrl()
+    expect(result.priority).toBe(2)
+    expect(result.groupBy).toBe('assignee')
+    expect(result.type).toBe('bug')
+  })
 })
 
 describe('isEmptyFilter', () => {
@@ -688,6 +817,22 @@ describe('isEmptyFilter', () => {
 
   it('returns false when search has text', () => {
     expect(isEmptyFilter({ search: 'test' })).toBe(false)
+  })
+
+  it('returns true when groupBy is none', () => {
+    expect(isEmptyFilter({ groupBy: 'none' })).toBe(true)
+  })
+
+  it('returns true when groupBy is undefined', () => {
+    expect(isEmptyFilter({ groupBy: undefined })).toBe(true)
+  })
+
+  it('returns false when groupBy is set to a non-default value', () => {
+    expect(isEmptyFilter({ groupBy: 'epic' })).toBe(false)
+    expect(isEmptyFilter({ groupBy: 'assignee' })).toBe(false)
+    expect(isEmptyFilter({ groupBy: 'priority' })).toBe(false)
+    expect(isEmptyFilter({ groupBy: 'type' })).toBe(false)
+    expect(isEmptyFilter({ groupBy: 'label' })).toBe(false)
   })
 
   it('returns false when any field is set', () => {
@@ -784,6 +929,40 @@ describe('URL synchronization', () => {
     const calls = historyMock.replaceState.mock.calls
     const priorityCall = calls.find((call) => call[2]?.includes('priority=2'))
     expect(priorityCall).toBeUndefined()
+  })
+
+  it('updates URL when groupBy changes', () => {
+    const { result } = renderHook(() => useFilterState())
+
+    act(() => {
+      result.current[1].setGroupBy('epic')
+    })
+
+    expect(historyMock.replaceState).toHaveBeenCalledWith(
+      null,
+      '',
+      '/issues?groupBy=epic'
+    )
+  })
+
+  it('initializes groupBy from URL params on mount', () => {
+    mockWindowLocation('?groupBy=priority')
+
+    const { result } = renderHook(() => useFilterState())
+
+    expect(result.current[0].groupBy).toBe('priority')
+  })
+
+  it('does not add groupBy=none to URL', () => {
+    const { result } = renderHook(() => useFilterState())
+
+    act(() => {
+      result.current[1].setGroupBy('none')
+    })
+
+    // When groupBy is 'none', the URL should not include it (it's the default)
+    const lastCall = historyMock.replaceState.mock.calls.at(-1)
+    expect(lastCall?.[2]).toBe('/issues')
   })
 })
 
