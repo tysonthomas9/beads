@@ -1,0 +1,19 @@
+/**
+ * SwimLaneBoard component styles.
+ * Vertical stack of swim lanes with proper spacing.
+ */
+
+.swimLaneBoard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  overflow-y: auto;
+  overflow-x: hidden;
+  min-height: 0;
+}
+
+/* Ensure lanes don't shrink below their content */
+.swimLaneBoard > * {
+  flex-shrink: 0;
+}

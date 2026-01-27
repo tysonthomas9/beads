@@ -31,3 +31,5 @@ export * from './GraphLegend';
 export * from './GraphViewContainer';
 export * from './NodeTooltip';
 export * from './ViewSwitcher';
+export * from './SwimLane';
+export * from './SwimLaneBoard';
