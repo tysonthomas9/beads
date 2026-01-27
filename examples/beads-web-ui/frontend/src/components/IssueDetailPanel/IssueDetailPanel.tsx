@@ -4,11 +4,12 @@
  */
 
 import { useEffect, useRef, useState, useCallback } from 'react';
-import type { Issue, IssueDetails, IssueWithDependencyMetadata } from '@/types';
+import type { Issue, IssueDetails, IssueWithDependencyMetadata, Priority } from '@/types';
 import type { Status } from '@/types/status';
 import { updateIssue } from '@/api';
 import { IssueHeader } from './IssueHeader';
 import { EditableDescription } from './EditableDescription';
+import { PriorityDropdown } from './PriorityDropdown';
 import { ErrorToast } from '../ErrorToast';
 import styles from './IssueDetailPanel.module.css';
 
@@ -37,20 +38,6 @@ export interface IssueDetailPanelProps {
  */
 function isIssueDetails(issue: Issue | IssueDetails): issue is IssueDetails {
   return 'dependents' in issue;
-}
-
-/**
- * Format a priority number to human-readable string.
- */
-function formatPriority(priority: number): string {
-  const labels: Record<number, string> = {
-    0: 'P0 - Critical',
-    1: 'P1 - High',
-    2: 'P2 - Medium',
-    3: 'P3 - Low',
-    4: 'P4 - Backlog',
-  };
-  return labels[priority] ?? `P${priority}`;
 }
 
 /**
@@ -103,6 +90,7 @@ function DefaultContent({
 }: DefaultContentProps): JSX.Element {
   const [isSavingTitle, setIsSavingTitle] = useState(false);
   const [isSavingStatus, setIsSavingStatus] = useState(false);
+  const [isSavingPriority, setIsSavingPriority] = useState(false);
   const [statusError, setStatusError] = useState<string | null>(null);
 
   const handleTitleSave = useCallback(async (newTitle: string) => {
@@ -130,6 +118,21 @@ function DefaultContent({
       setStatusError(message);
     } finally {
       setIsSavingStatus(false);
+    }
+  }, [issue, onIssueUpdate]);
+
+  const handlePrioritySave = useCallback(async (newPriority: Priority) => {
+    if (!issue) return;
+
+    setIsSavingPriority(true);
+    try {
+      const updatedIssue = await updateIssue(issue.id, { priority: newPriority });
+      onIssueUpdate?.(updatedIssue);
+    } catch (err) {
+      // Re-throw to let PriorityDropdown handle error display and rollback
+      throw err;
+    } finally {
+      setIsSavingPriority(false);
     }
   }, [issue, onIssueUpdate]);
 
@@ -185,9 +188,11 @@ function DefaultContent({
       <div className={styles.detailContent}>
         {/* Status Row (priority and type badges only, status moved to header) */}
         <div className={styles.statusRow}>
-          <span className={`${styles.badge} ${styles.priorityBadge}`} data-priority={issue.priority}>
-            {formatPriority(issue.priority)}
-          </span>
+          <PriorityDropdown
+            priority={issue.priority as Priority}
+            onSave={handlePrioritySave}
+            isSaving={isSavingPriority}
+          />
           <span className={`${styles.badge} ${styles.typeBadge}`}>
             {formatIssueType(issue.issue_type)}
           </span>
