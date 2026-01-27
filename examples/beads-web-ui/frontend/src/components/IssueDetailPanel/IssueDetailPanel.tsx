@@ -3,8 +3,9 @@
  * Slide-out side panel that displays detailed information about a selected issue.
  */
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import type { Issue, IssueDetails, IssueWithDependencyMetadata } from '@/types';
+import { updateIssue } from '@/api';
 import { IssueHeader } from './IssueHeader';
 import styles from './IssueDetailPanel.module.css';
 
@@ -82,6 +83,8 @@ interface DefaultContentProps {
   error: string | null;
   onClose: () => void;
   onRetry?: () => void;
+  /** Callback when issue is updated (e.g., title changed) */
+  onIssueUpdate?: (issue: Issue) => void;
 }
 
 /**
@@ -93,7 +96,22 @@ function DefaultContent({
   error,
   onClose,
   onRetry,
+  onIssueUpdate,
 }: DefaultContentProps): JSX.Element {
+  const [isSavingTitle, setIsSavingTitle] = useState(false);
+
+  const handleTitleSave = useCallback(async (newTitle: string) => {
+    if (!issue) return;
+
+    setIsSavingTitle(true);
+    try {
+      const updatedIssue = await updateIssue(issue.id, { title: newTitle });
+      onIssueUpdate?.(updatedIssue);
+    } finally {
+      setIsSavingTitle(false);
+    }
+  }, [issue, onIssueUpdate]);
+
   // Loading state
   if (isLoading) {
     return (
@@ -134,7 +152,12 @@ function DefaultContent({
   return (
     <>
       {/* Header with ID, status badge, close button, and title */}
-      <IssueHeader issue={issue} onClose={onClose} />
+      <IssueHeader
+        issue={issue}
+        onClose={onClose}
+        onTitleSave={handleTitleSave}
+        isSavingTitle={isSavingTitle}
+      />
 
       <div className={styles.detailContent}>
         {/* Status Row (priority and type badges only, status moved to header) */}

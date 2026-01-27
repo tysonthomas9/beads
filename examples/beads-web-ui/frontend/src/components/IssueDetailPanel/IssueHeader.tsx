@@ -4,6 +4,7 @@
  */
 
 import type { Issue, IssueDetails } from '@/types';
+import { EditableTitle } from '../EditableTitle';
 import styles from './IssueHeader.module.css';
 
 /**
@@ -14,6 +15,10 @@ export interface IssueHeaderProps {
   issue: Issue | IssueDetails;
   /** Callback when close button is clicked */
   onClose: () => void;
+  /** Callback when title is saved */
+  onTitleSave?: (newTitle: string) => Promise<void>;
+  /** Whether title is being saved */
+  isSavingTitle?: boolean;
   /** Additional CSS class name */
   className?: string;
 }
@@ -32,9 +37,15 @@ function formatStatus(status?: string): string {
  * - Issue ID
  * - Status badge with semantic colors
  * - Close button
- * - Title
+ * - Title (editable when onTitleSave provided)
  */
-export function IssueHeader({ issue, onClose, className }: IssueHeaderProps): JSX.Element {
+export function IssueHeader({
+  issue,
+  onClose,
+  onTitleSave,
+  isSavingTitle,
+  className,
+}: IssueHeaderProps): JSX.Element {
   const rootClassName = [styles.issueHeader, className].filter(Boolean).join(' ');
 
   return (
@@ -67,9 +78,17 @@ export function IssueHeader({ issue, onClose, className }: IssueHeaderProps): JS
           </svg>
         </button>
       </div>
-      <h2 className={styles.title} data-testid="issue-title">
-        {issue.title}
-      </h2>
+      {onTitleSave ? (
+        <EditableTitle
+          title={issue.title}
+          onSave={onTitleSave}
+          isSaving={isSavingTitle ?? false}
+        />
+      ) : (
+        <h2 className={styles.title} data-testid="issue-title">
+          {issue.title}
+        </h2>
+      )}
     </header>
   );
 }
