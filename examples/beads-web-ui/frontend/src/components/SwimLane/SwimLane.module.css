@@ -10,6 +10,8 @@
   border-radius: var(--radius-lg);
   overflow: hidden;
   border: 1px solid var(--color-border-light);
+  flex: 1 0 auto; /* Grow to fill space, don't shrink, auto content basis */
+  min-height: 250px; /* Ensure reasonable minimum height for cards */
 }
 
 .swimLane + .swimLane {
@@ -90,9 +92,10 @@
   padding: var(--space-3);
   overflow-x: auto;
   overflow-y: hidden;
-  max-height: 600px;
+  flex: 1; /* Fill available space from swimLane */
+  min-height: 0; /* Allow flex calculations to work */
   opacity: 1;
-  transition: max-height 0.2s ease-out, opacity 0.15s ease-out, padding 0.2s ease-out;
+  transition: opacity 0.15s ease-out, padding 0.2s ease-out;
 }
 
 .laneContent > * {
