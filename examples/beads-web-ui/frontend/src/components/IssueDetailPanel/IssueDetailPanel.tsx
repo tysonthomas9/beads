@@ -7,6 +7,7 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import type { Issue, IssueDetails, IssueWithDependencyMetadata } from '@/types';
 import { updateIssue } from '@/api';
 import { IssueHeader } from './IssueHeader';
+import { EditableDescription } from './EditableDescription';
 import styles from './IssueDetailPanel.module.css';
 
 /**
@@ -171,12 +172,17 @@ function DefaultContent({
         </div>
 
         {/* Description */}
-        {issue.description && (
-          <section className={styles.section}>
-            <h3 className={styles.sectionTitle}>Description</h3>
-            <p className={styles.description}>{issue.description}</p>
-          </section>
-        )}
+        <section className={styles.section}>
+          <h3 className={styles.sectionTitle}>Description</h3>
+          <EditableDescription
+            description={issue.description}
+            isEditable={true}
+            onSave={async (newDescription) => {
+              const updatedIssue = await updateIssue(issue.id, { description: newDescription });
+              onIssueUpdate?.(updatedIssue);
+            }}
+          />
+        </section>
 
         {/* Assignment */}
         {(issue.assignee || issue.owner) && (
