@@ -2,14 +2,28 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import '@/styles/index.css'
 import App from '@/App'
+import { IssueDetailPanelFixture } from '@/TestFixtures'
 
 const rootElement = document.getElementById('root')
 if (!rootElement) {
   throw new Error('Failed to find root element')
 }
 
+// Simple path-based routing for test fixtures (development only)
+function getComponent() {
+  const path = window.location.pathname
+
+  // Test fixture routes - only available in development
+  if (import.meta.env.DEV && path === '/test/issue-detail-panel') {
+    return <IssueDetailPanelFixture />
+  }
+
+  // Default: render main app
+  return <App />
+}
+
 createRoot(rootElement).render(
   <StrictMode>
-    <App />
+    {getComponent()}
   </StrictMode>,
 )
