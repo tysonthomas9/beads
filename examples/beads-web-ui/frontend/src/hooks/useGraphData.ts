@@ -43,6 +43,8 @@ export interface UseGraphDataOptions {
   includeDependencyTypes?: DependencyType[]
   /** Set of issue IDs that are blocked by open dependencies */
   blockedIssueIds?: Set<string>
+  /** Include edges to issues not in the input set as orphan edges (default: false) */
+  includeOrphanEdges?: boolean
 }
 
 /**
@@ -59,6 +61,10 @@ export interface UseGraphDataReturn {
   totalDependencies: number
   /** Number of blocking dependencies */
   blockingDependencies: number
+  /** Number of orphan edges (edges to non-existent nodes) */
+  orphanEdgeCount: number
+  /** IDs of issues that are targets of orphan edges (missing from input) */
+  missingTargetIds: Set<string>
 }
 
 /**
@@ -81,29 +87,60 @@ function createEdgeId(
 }
 
 /**
+ * Timestamp for ghost issues - created once to avoid repeated Date operations.
+ */
+const GHOST_TIMESTAMP = '1970-01-01T00:00:00.000Z'
+
+/**
+ * Create a minimal ghost issue for orphan edge targets.
+ */
+function createGhostIssue(id: string): Issue {
+  return {
+    id,
+    title: `Missing: ${id}`,
+    priority: 4,
+    created_at: GHOST_TIMESTAMP,
+    updated_at: GHOST_TIMESTAMP,
+  }
+}
+
+/**
+ * Result type for shouldIncludeDependency function.
+ */
+interface DependencyInclusionResult {
+  include: boolean
+  isOrphan: boolean
+}
+
+/**
  * Check if a dependency should be included based on existence and type filtering.
  * Consolidates filter logic to ensure consistent behavior across passes.
+ * Returns both inclusion decision and orphan status.
  */
 function shouldIncludeDependency(
   dep: Dependency,
   issueIdSet: Set<string>,
-  includeDependencyTypes?: DependencyType[]
-): boolean {
-  // Skip if target doesn't exist in our issue set
-  if (!issueIdSet.has(dep.depends_on_id)) {
-    return false
-  }
-  // If filter is specified, check if type is included
-  // Empty array means "include nothing"
+  includeDependencyTypes?: DependencyType[],
+  allowOrphan?: boolean
+): DependencyInclusionResult {
+  const targetExists = issueIdSet.has(dep.depends_on_id)
+
+  // Check type filter first
   if (includeDependencyTypes) {
     if (includeDependencyTypes.length === 0) {
-      return false
+      return { include: false, isOrphan: false }
     }
     if (!includeDependencyTypes.includes(dep.type)) {
-      return false
+      return { include: false, isOrphan: false }
     }
   }
-  return true
+
+  // If target doesn't exist
+  if (!targetExists) {
+    return { include: allowOrphan ?? false, isOrphan: true }
+  }
+
+  return { include: true, isOrphan: false }
 }
 
 /**
@@ -156,7 +193,7 @@ export function useGraphData(
   issues: Issue[],
   options: UseGraphDataOptions = {}
 ): UseGraphDataReturn {
-  const { includeDependencyTypes, blockedIssueIds } = options
+  const { includeDependencyTypes, blockedIssueIds, includeOrphanEdges } = options
 
   return useMemo(() => {
     // Handle empty input
@@ -167,6 +204,8 @@ export function useGraphData(
         issueIdToNodeId: new Map(),
         totalDependencies: 0,
         blockingDependencies: 0,
+        orphanEdgeCount: 0,
+        missingTargetIds: new Set<string>(),
       }
     }
 
@@ -177,6 +216,9 @@ export function useGraphData(
     const issueIdToNodeId = new Map<string, string>()
     const outgoingCounts = new Map<string, number>()
     const incomingCounts = new Map<string, number>()
+
+    // Track missing targets for orphan edges
+    const missingTargetIds = new Set<string>()
 
     // Initialize counts
     for (const issue of issues) {
@@ -190,8 +232,19 @@ export function useGraphData(
     for (const issue of issues) {
       const deps = issue.dependencies ?? []
       for (const dep of deps) {
-        if (!shouldIncludeDependency(dep, issueIdSet, includeDependencyTypes)) {
+        const result = shouldIncludeDependency(
+          dep,
+          issueIdSet,
+          includeDependencyTypes,
+          includeOrphanEdges
+        )
+        if (!result.include) {
           continue
+        }
+
+        // Track orphan targets
+        if (result.isOrphan) {
+          missingTargetIds.add(dep.depends_on_id)
         }
 
         // dep.issue_id is the source (has dependency)
@@ -211,11 +264,18 @@ export function useGraphData(
     const edges: DependencyEdge[] = []
     let totalDependencies = 0
     let blockingDependencies = 0
+    let orphanEdgeCount = 0
 
     for (const issue of issues) {
       const deps = issue.dependencies ?? []
       for (const dep of deps) {
-        if (!shouldIncludeDependency(dep, issueIdSet, includeDependencyTypes)) {
+        const result = shouldIncludeDependency(
+          dep,
+          issueIdSet,
+          includeDependencyTypes,
+          includeOrphanEdges
+        )
+        if (!result.include) {
           continue
         }
 
@@ -238,10 +298,26 @@ export function useGraphData(
         if (isBlocking) {
           blockingDependencies++
         }
+        if (result.isOrphan) {
+          orphanEdgeCount++
+        }
+      }
+    }
+
+    // Create ghost nodes for missing targets
+    if (includeOrphanEdges) {
+      for (const missingId of missingTargetIds) {
+        const nodeId = createNodeId(missingId)
+        issueIdToNodeId.set(missingId, nodeId)
+        // Initialize counts for ghost nodes (outgoing is 0, incoming was already counted)
+        outgoingCounts.set(missingId, 0)
+        // incomingCounts was already set during first pass
       }
     }
 
     // Compute transitive blocked counts using the edges
+    // Ghost nodes are excluded from computation as they represent external
+    // dependencies with unknown blocking relationships (per design doc)
     const transitiveBlockedCounts = computeAllBlockedCounts(
       issues.map((issue) => issue.id),
       edges
@@ -249,9 +325,9 @@ export function useGraphData(
 
     // Create nodes with blocked count and root blocker flag
     const nodes: IssueNode[] = issues.map((issue) => {
-      const isBlocked = blockedIssueIds?.has(issue.id) ?? false;
-      const blockedCount = transitiveBlockedCounts.get(issue.id) ?? 0;
-      const isRootBlocker = blockedCount > 0 && !isBlocked;
+      const isBlocked = blockedIssueIds?.has(issue.id) ?? false
+      const blockedCount = transitiveBlockedCounts.get(issue.id) ?? 0
+      const isRootBlocker = blockedCount > 0 && !isBlocked
 
       return {
         id: createNodeId(issue.id),
@@ -268,9 +344,36 @@ export function useGraphData(
           isReady: computeIsReady(issue.id, issue.status, blockedIssueIds),
           blockedCount,
           isRootBlocker,
+          isClosed: issue.status === 'closed',
         },
-      };
+      }
     })
+
+    // Create ghost nodes for orphan targets
+    if (includeOrphanEdges) {
+      for (const missingId of missingTargetIds) {
+        const ghostIssue = createGhostIssue(missingId)
+        nodes.push({
+          id: createNodeId(missingId),
+          type: 'issue',
+          position: { x: 0, y: 0 },
+          data: {
+            issue: ghostIssue,
+            title: ghostIssue.title,
+            status: undefined,
+            priority: 4,
+            issueType: undefined,
+            dependencyCount: 0,
+            dependentCount: incomingCounts.get(missingId) ?? 0,
+            isReady: false,
+            blockedCount: 0,
+            isRootBlocker: false,
+            isClosed: false,
+            isGhostNode: true,
+          },
+        })
+      }
+    }
 
     return {
       nodes,
@@ -278,6 +381,8 @@ export function useGraphData(
       issueIdToNodeId,
       totalDependencies,
       blockingDependencies,
+      orphanEdgeCount,
+      missingTargetIds,
     }
-  }, [issues, includeDependencyTypes, blockedIssueIds])
+  }, [issues, includeDependencyTypes, blockedIssueIds, includeOrphanEdges])
 }

@@ -870,4 +870,285 @@ describe('useGraphData', () => {
       expect(result.current.nodes[0].data.isReady).toBe(false)
     })
   })
+
+  describe('isClosed flag', () => {
+    it('sets isClosed: true for closed issues', () => {
+      const issue = createTestIssue({ id: 'A', status: 'closed' })
+      const { result } = renderHook(() => useGraphData([issue]))
+
+      const node = result.current.nodes[0]
+      expect(node.data.isClosed).toBe(true)
+    })
+
+    it('sets isClosed: false for open issues', () => {
+      const issue = createTestIssue({ id: 'A', status: 'open' })
+      const { result } = renderHook(() => useGraphData([issue]))
+
+      const node = result.current.nodes[0]
+      expect(node.data.isClosed).toBe(false)
+    })
+
+    it('sets isClosed: false for deferred issues', () => {
+      const issue = createTestIssue({ id: 'A', status: 'deferred' })
+      const { result } = renderHook(() => useGraphData([issue]))
+
+      const node = result.current.nodes[0]
+      expect(node.data.isClosed).toBe(false)
+    })
+
+    it('sets isClosed: false for in_progress issues', () => {
+      const issue = createTestIssue({ id: 'A', status: 'in_progress' })
+      const { result } = renderHook(() => useGraphData([issue]))
+
+      const node = result.current.nodes[0]
+      expect(node.data.isClosed).toBe(false)
+    })
+
+    it('sets isClosed: false for issues without status', () => {
+      const issue = createTestIssue({ id: 'A' }) // No status
+      const { result } = renderHook(() => useGraphData([issue]))
+
+      const node = result.current.nodes[0]
+      expect(node.data.isClosed).toBe(false)
+    })
+
+    it('correctly sets isClosed for multiple issues with mixed statuses', () => {
+      const openIssue = createTestIssue({ id: 'A', status: 'open' })
+      const closedIssue = createTestIssue({ id: 'B', status: 'closed' })
+      const inProgressIssue = createTestIssue({ id: 'C', status: 'in_progress' })
+
+      const { result } = renderHook(() =>
+        useGraphData([openIssue, closedIssue, inProgressIssue])
+      )
+
+      const nodeA = result.current.nodes.find((n) => n.id === 'node-A')
+      const nodeB = result.current.nodes.find((n) => n.id === 'node-B')
+      const nodeC = result.current.nodes.find((n) => n.id === 'node-C')
+
+      expect(nodeA?.data.isClosed).toBe(false)
+      expect(nodeB?.data.isClosed).toBe(true)
+      expect(nodeC?.data.isClosed).toBe(false)
+    })
+  })
+
+  describe('Orphan edges', () => {
+    it('skips orphan edges by default', () => {
+      const issueA = createIssueWithDependencies('A', [
+        createDependency('A', 'B'),
+        createDependency('A', 'non-existent'),
+      ])
+      const issueB = createTestIssue({ id: 'B' })
+
+      const { result } = renderHook(() => useGraphData([issueA, issueB]))
+
+      expect(result.current.edges).toHaveLength(1)
+      expect(result.current.orphanEdgeCount).toBe(0)
+      expect(result.current.missingTargetIds.size).toBe(0)
+    })
+
+    it('includes orphan edges when includeOrphanEdges: true', () => {
+      const issueA = createIssueWithDependencies('A', [
+        createDependency('A', 'B'),
+        createDependency('A', 'non-existent'),
+      ])
+      const issueB = createTestIssue({ id: 'B' })
+
+      const { result } = renderHook(() =>
+        useGraphData([issueA, issueB], { includeOrphanEdges: true })
+      )
+
+      expect(result.current.edges).toHaveLength(2)
+      expect(result.current.orphanEdgeCount).toBe(1)
+      expect(result.current.totalDependencies).toBe(2)
+    })
+
+    it('creates ghost nodes for orphan targets', () => {
+      const issueA = createIssueWithDependencies('A', [
+        createDependency('A', 'non-existent'),
+      ])
+
+      const { result } = renderHook(() =>
+        useGraphData([issueA], { includeOrphanEdges: true })
+      )
+
+      // Should have 2 nodes: A and ghost node for 'non-existent'
+      expect(result.current.nodes).toHaveLength(2)
+
+      const ghostNode = result.current.nodes.find((n) => n.id === 'node-non-existent')
+      expect(ghostNode).toBeDefined()
+      expect(ghostNode?.data.title).toBe('Missing: non-existent')
+    })
+
+    it('ghost nodes have isGhostNode: true', () => {
+      const issueA = createIssueWithDependencies('A', [
+        createDependency('A', 'ghost-target'),
+      ])
+
+      const { result } = renderHook(() =>
+        useGraphData([issueA], { includeOrphanEdges: true })
+      )
+
+      const ghostNode = result.current.nodes.find((n) => n.id === 'node-ghost-target')
+      expect(ghostNode?.data.isGhostNode).toBe(true)
+
+      // Regular nodes should not have isGhostNode set (or it should be undefined)
+      const regularNode = result.current.nodes.find((n) => n.id === 'node-A')
+      expect(regularNode?.data.isGhostNode).toBeUndefined()
+    })
+
+    it('tracks missingTargetIds correctly', () => {
+      const issueA = createIssueWithDependencies('A', [
+        createDependency('A', 'B'),
+        createDependency('A', 'missing-1'),
+        createDependency('A', 'missing-2'),
+      ])
+      const issueB = createTestIssue({ id: 'B' })
+
+      const { result } = renderHook(() =>
+        useGraphData([issueA, issueB], { includeOrphanEdges: true })
+      )
+
+      expect(result.current.missingTargetIds.size).toBe(2)
+      expect(result.current.missingTargetIds.has('missing-1')).toBe(true)
+      expect(result.current.missingTargetIds.has('missing-2')).toBe(true)
+      expect(result.current.missingTargetIds.has('B')).toBe(false)
+    })
+
+    it('orphanEdgeCount matches number of edges to ghost nodes', () => {
+      const issueA = createIssueWithDependencies('A', [
+        createDependency('A', 'B'),
+        createDependency('A', 'ghost-1'),
+        createDependency('A', 'ghost-2'),
+        createDependency('A', 'ghost-3'),
+      ])
+      const issueB = createTestIssue({ id: 'B' })
+
+      const { result } = renderHook(() =>
+        useGraphData([issueA, issueB], { includeOrphanEdges: true })
+      )
+
+      expect(result.current.orphanEdgeCount).toBe(3)
+      expect(result.current.totalDependencies).toBe(4)
+    })
+
+    it('ghost nodes have correct default values', () => {
+      const issueA = createIssueWithDependencies('A', [
+        createDependency('A', 'ghost-target'),
+      ])
+
+      const { result } = renderHook(() =>
+        useGraphData([issueA], { includeOrphanEdges: true })
+      )
+
+      const ghostNode = result.current.nodes.find((n) => n.id === 'node-ghost-target')
+      expect(ghostNode?.data.priority).toBe(4)
+      expect(ghostNode?.data.status).toBeUndefined()
+      expect(ghostNode?.data.issueType).toBeUndefined()
+      expect(ghostNode?.data.dependencyCount).toBe(0)
+      expect(ghostNode?.data.isReady).toBe(false)
+      expect(ghostNode?.data.blockedCount).toBe(0)
+      expect(ghostNode?.data.isRootBlocker).toBe(false)
+      expect(ghostNode?.data.isClosed).toBe(false)
+    })
+
+    it('ghost nodes have correct dependentCount', () => {
+      // Multiple issues depend on the same ghost target
+      const issueA = createIssueWithDependencies('A', [
+        createDependency('A', 'ghost-target'),
+      ])
+      const issueB = createIssueWithDependencies('B', [
+        createDependency('B', 'ghost-target'),
+      ])
+      const issueC = createIssueWithDependencies('C', [
+        createDependency('C', 'ghost-target'),
+      ])
+
+      const { result } = renderHook(() =>
+        useGraphData([issueA, issueB, issueC], { includeOrphanEdges: true })
+      )
+
+      const ghostNode = result.current.nodes.find((n) => n.id === 'node-ghost-target')
+      expect(ghostNode?.data.dependentCount).toBe(3)
+    })
+
+    it('updates issueIdToNodeId map with ghost node IDs', () => {
+      const issueA = createIssueWithDependencies('A', [
+        createDependency('A', 'ghost-target'),
+      ])
+
+      const { result } = renderHook(() =>
+        useGraphData([issueA], { includeOrphanEdges: true })
+      )
+
+      expect(result.current.issueIdToNodeId.get('ghost-target')).toBe('node-ghost-target')
+    })
+
+    it('works with all orphan dependencies (no real targets)', () => {
+      const issueA = createIssueWithDependencies('A', [
+        createDependency('A', 'ghost-1'),
+        createDependency('A', 'ghost-2'),
+      ])
+
+      const { result } = renderHook(() =>
+        useGraphData([issueA], { includeOrphanEdges: true })
+      )
+
+      // 1 real node + 2 ghost nodes
+      expect(result.current.nodes).toHaveLength(3)
+      expect(result.current.edges).toHaveLength(2)
+      expect(result.current.orphanEdgeCount).toBe(2)
+    })
+
+    it('ghost nodes break cycles naturally (no outgoing edges)', () => {
+      // A depends on ghost, ghost would depend on A if it were real
+      // But ghost nodes have no outgoing edges, so no cycle
+      const issueA = createIssueWithDependencies('A', [
+        createDependency('A', 'ghost'),
+      ])
+
+      const { result } = renderHook(() =>
+        useGraphData([issueA], { includeOrphanEdges: true })
+      )
+
+      const ghostNode = result.current.nodes.find((n) => n.id === 'node-ghost')
+      expect(ghostNode?.data.dependencyCount).toBe(0)
+
+      // Only one edge: A -> ghost
+      const edgesFromGhost = result.current.edges.filter((e) => e.source === 'node-ghost')
+      expect(edgesFromGhost).toHaveLength(0)
+    })
+
+    it('combines with type filtering correctly', () => {
+      const issueA = createIssueWithDependencies('A', [
+        createDependency('A', 'B', 'blocks'),
+        createDependency('A', 'ghost-1', 'blocks'),
+        createDependency('A', 'ghost-2', 'related'), // Should be filtered out
+      ])
+      const issueB = createTestIssue({ id: 'B' })
+
+      const { result } = renderHook(() =>
+        useGraphData([issueA, issueB], {
+          includeOrphanEdges: true,
+          includeDependencyTypes: ['blocks'],
+        })
+      )
+
+      // Only blocks edges: A->B and A->ghost-1
+      expect(result.current.edges).toHaveLength(2)
+      expect(result.current.orphanEdgeCount).toBe(1)
+      expect(result.current.missingTargetIds.has('ghost-1')).toBe(true)
+      expect(result.current.missingTargetIds.has('ghost-2')).toBe(false)
+    })
+  })
+
+  describe('Return type includes new fields', () => {
+    it('returns orphanEdgeCount and missingTargetIds', () => {
+      const { result } = renderHook(() => useGraphData([]))
+
+      expect(result.current).toHaveProperty('orphanEdgeCount')
+      expect(result.current).toHaveProperty('missingTargetIds')
+      expect(result.current.orphanEdgeCount).toBe(0)
+      expect(result.current.missingTargetIds).toBeInstanceOf(Set)
+    })
+  })
 })

@@ -30,6 +30,10 @@ export interface IssueNodeData extends Record<string, unknown> {
   blockedCount: number;
   /** Whether this is a root blocker (blocks others but not blocked itself) */
   isRootBlocker: boolean;
+  /** Whether this issue is closed */
+  isClosed: boolean;
+  /** Whether this is a ghost/placeholder node for an orphan target */
+  isGhostNode?: boolean;
 }
 
 /**
