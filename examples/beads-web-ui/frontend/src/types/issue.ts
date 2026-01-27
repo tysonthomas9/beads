@@ -63,6 +63,10 @@ export interface Issue {
   dependencies?: Dependency[];
   comments?: Comment[];
 
+  // Parent-child hierarchy
+  parent?: string;        // Parent issue ID
+  parent_title?: string;  // Parent title for display
+
   // Tombstone Fields
   deleted_at?: ISODateString | null;
   deleted_by?: string;
@@ -142,7 +146,7 @@ export interface IssueWithCounts extends Issue {
  * Maps to Go types.IssueDetails.
  * Uses Omit to override the dependencies field type from Dependency[] to IssueWithDependencyMetadata[].
  */
-export interface IssueDetails extends Omit<Issue, 'dependencies' | 'labels' | 'comments'> {
+export interface IssueDetails extends Omit<Issue, 'dependencies' | 'labels' | 'comments' | 'parent'> {
   labels?: string[];
   dependencies?: IssueWithDependencyMetadata[];
   dependents?: IssueWithDependencyMetadata[];
