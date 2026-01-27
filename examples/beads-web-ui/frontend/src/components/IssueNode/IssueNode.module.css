@@ -161,16 +161,17 @@
 
 /* Closed: Muted appearance to de-emphasize completed items */
 .issueNode[data-status='closed'] {
-  opacity: 0.7;
+  opacity: 0.6;
+  filter: grayscale(30%);
   background-color: color-mix(in srgb, var(--color-status-closed) 5%, var(--color-bg));
   border-top: 2px solid var(--color-status-closed);
 }
 
-/* Deferred: Grayed out to indicate paused/low priority */
+/* Deferred: Dashed border to indicate paused/low priority */
 .issueNode[data-status='deferred'] {
-  opacity: 0.6;
+  opacity: 0.7;
   background-color: var(--color-bg-tertiary);
-  border-top: 2px solid var(--color-text-muted);
+  border-top: 2px dashed var(--color-text-muted);
 }
 
 /* Selected state should override status opacity */
