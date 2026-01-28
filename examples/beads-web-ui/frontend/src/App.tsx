@@ -8,7 +8,7 @@
 
 import { useState, useCallback, useEffect, useRef, useMemo, lazy, Suspense } from 'react';
 import type { Issue, Status } from '@/types';
-import { useIssues, useViewState, useFilterState, useIssueFilter, useDebounce, useBlockedIssues, useIssueDetail, useToast } from '@/hooks';
+import { useIssues, useViewState, useFilterState, useIssueFilter, useDebounce, useBlockedIssues, useIssueDetail, useToast, useStats } from '@/hooks';
 import type { BlockedInfo } from '@/components/KanbanBoard';
 import styles from './App.module.css';
 import {
@@ -25,6 +25,7 @@ import {
   SearchInput,
   IssueDetailPanel,
   AgentsSidebar,
+  StatsHeader,
 } from '@/components';
 
 // Lazy load GraphView (React Flow ~100KB)
@@ -95,6 +96,9 @@ function App() {
   }, [blockedIssuesData]);
 
   const { toasts, showToast, dismissToast } = useToast();
+  const { data: stats, loading: statsLoading, error: statsError, refetch: refetchStats } = useStats({
+    pollInterval: 30000,
+  });
   const mountedRef = useRef(true);
 
   // Issue detail panel state
@@ -182,6 +186,12 @@ function App() {
         }
         actions={
           <div className={styles.actionsContainer}>
+            <StatsHeader
+              stats={stats}
+              loading={statsLoading}
+              error={statsError}
+              onRetry={refetchStats}
+            />
             <BlockedSummary onIssueClick={handleBlockedIssueClick} />
             <ConnectionStatus state={connectionState} />
           </div>
@@ -210,6 +220,12 @@ function App() {
         }
         actions={
           <div className={styles.actionsContainer}>
+            <StatsHeader
+              stats={stats}
+              loading={statsLoading}
+              error={statsError}
+              onRetry={refetchStats}
+            />
             <BlockedSummary onIssueClick={handleBlockedIssueClick} />
             <ConnectionStatus
               state={connectionState}
@@ -259,6 +275,12 @@ function App() {
       navigation={navigation}
       actions={
         <div className={styles.actionsContainer}>
+          <StatsHeader
+            stats={stats}
+            loading={statsLoading}
+            error={statsError}
+            onRetry={refetchStats}
+          />
           <BlockedSummary onIssueClick={handleBlockedIssueClick} />
           <ConnectionStatus
             state={connectionState}
