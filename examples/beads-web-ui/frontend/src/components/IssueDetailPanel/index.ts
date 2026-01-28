@@ -16,3 +16,5 @@ export { TypeDropdown } from './TypeDropdown';
 export type { TypeDropdownProps } from './TypeDropdown';
 export { CommentsSection } from './CommentsSection';
 export type { CommentsSectionProps } from './CommentsSection';
+export { CommentForm } from './CommentForm';
+export type { CommentFormProps } from './CommentForm';

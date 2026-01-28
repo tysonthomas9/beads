@@ -14,6 +14,7 @@ import type {
   IssueType,
   Status,
   DependencyType,
+  Comment,
 } from '@/types'
 
 // ============= Response Types =============
@@ -290,6 +291,29 @@ export async function closeIssue(id: string, reason?: string): Promise<void> {
     reason ? { reason } : {}
   )
   unwrap(response)
+}
+
+// ============= COMMENT OPERATIONS =============
+
+/**
+ * Request body for adding a comment.
+ */
+export interface AddCommentRequest {
+  text: string
+}
+
+/**
+ * Add a comment to an issue.
+ */
+export async function addComment(
+  issueId: string,
+  text: string
+): Promise<Comment> {
+  const response = await post<ApiResult<Comment>>(
+    `/api/issues/${encodeURIComponent(issueId)}/comments`,
+    { text }
+  )
+  return unwrap(response)
 }
 
 // ============= EXPORTS FOR TESTING =============

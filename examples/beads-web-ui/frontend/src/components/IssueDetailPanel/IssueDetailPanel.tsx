@@ -4,7 +4,7 @@
  */
 
 import { useEffect, useRef, useState, useCallback } from 'react';
-import type { Issue, IssueDetails, IssueWithDependencyMetadata, Priority, IssueType } from '@/types';
+import type { Issue, IssueDetails, IssueWithDependencyMetadata, Priority, IssueType, Comment } from '@/types';
 import type { Status } from '@/types/status';
 import { updateIssue } from '@/api';
 import { IssueHeader } from './IssueHeader';
@@ -12,6 +12,7 @@ import { EditableDescription } from './EditableDescription';
 import { PriorityDropdown } from './PriorityDropdown';
 import { TypeDropdown } from './TypeDropdown';
 import { CommentsSection } from './CommentsSection';
+import { CommentForm } from './CommentForm';
 import { ErrorToast } from '../ErrorToast';
 import styles from './IssueDetailPanel.module.css';
 
@@ -87,6 +88,28 @@ function DefaultContent({
   const [isSavingPriority, setIsSavingPriority] = useState(false);
   const [isSavingType, setIsSavingType] = useState(false);
   const [statusError, setStatusError] = useState<string | null>(null);
+
+  // Local state for comments to enable optimistic updates
+  const hasDetails = issue && isIssueDetails(issue);
+  const initialComments = hasDetails ? issue.comments : undefined;
+  const [localComments, setLocalComments] = useState<Comment[] | undefined>(initialComments);
+
+  // Sync local comments when issue changes (e.g., different issue selected)
+  useEffect(() => {
+    if (issue && isIssueDetails(issue)) {
+      setLocalComments(issue.comments);
+    } else {
+      setLocalComments(undefined);
+    }
+  }, [issue]);
+
+  // Handler for when a new comment is added
+  const handleCommentAdded = useCallback((newComment: Comment) => {
+    setLocalComments((prev) => {
+      if (!prev) return [newComment];
+      return [...prev, newComment];
+    });
+  }, []);
 
   const handleTitleSave = useCallback(async (newTitle: string) => {
     if (!issue) return;
@@ -179,10 +202,9 @@ function DefaultContent({
     );
   }
 
-  const hasDetails = isIssueDetails(issue);
-  const dependencies = hasDetails ? issue.dependencies : undefined;
-  const dependents = hasDetails ? issue.dependents : undefined;
-  const comments = hasDetails ? issue.comments : undefined;
+  const issueHasDetails = isIssueDetails(issue);
+  const dependencies = issueHasDetails ? issue.dependencies : undefined;
+  const dependents = issueHasDetails ? issue.dependents : undefined;
 
   return (
     <>
@@ -225,7 +247,11 @@ function DefaultContent({
         </section>
 
         {/* Comments */}
-        <CommentsSection comments={comments} />
+        <CommentsSection comments={localComments} />
+        <CommentForm
+          issueId={issue.id}
+          onCommentAdded={handleCommentAdded}
+        />
 
         {/* Assignment */}
         {(issue.assignee || issue.owner) && (
