@@ -36,3 +36,4 @@ export * from './SwimLane';
 export * from './SwimLaneBoard';
 export * from './AgentCard';
 export * from './AgentsSidebar';
+export * from './TaskDrawer';

@@ -97,6 +97,8 @@ export type {
   LoomStats,
   LoomStatusResponse,
   LoomAgentTasks,
+  LoomTasksResponse,
+  LoomTaskLists,
 } from './agent';
 export {
   StateIdle,

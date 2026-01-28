@@ -191,9 +191,27 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0.125rem 0.25rem;
+  padding: 0.25rem 0.375rem;
   background: var(--color-bg);
-  border-radius: 3px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.queueItem:hover:not(:disabled) {
+  background: var(--color-bg-hover);
+  border-color: var(--color-border);
+}
+
+.queueItem:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 1px;
+}
+
+.queueItem:disabled {
+  cursor: default;
+  opacity: 0.6;
 }
 
 .queueLabel {

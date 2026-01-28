@@ -158,6 +158,29 @@ export interface LoomStatusResponse {
 export type LoomAgentTasks = Record<string, LoomTaskInfo>;
 
 /**
+ * Response from GET /api/tasks on loom server.
+ * Contains task lists organized by status category.
+ */
+export interface LoomTasksResponse {
+  summary: LoomTaskSummary;
+  needs_planning: LoomTaskInfo[] | null;
+  ready_to_implement: LoomTaskInfo[] | null;
+  needs_review: LoomTaskInfo[] | null;
+  in_progress: LoomTaskInfo[] | null;
+  timestamp: string;
+}
+
+/**
+ * Task lists organized by category for UI display.
+ */
+export interface LoomTaskLists {
+  needsPlanning: LoomTaskInfo[];
+  readyToImplement: LoomTaskInfo[];
+  needsReview: LoomTaskInfo[];
+  inProgress: LoomTaskInfo[];
+}
+
+/**
  * Parse loom status string into structured data.
  * Examples:
  * - "ready" -> { type: "ready" }

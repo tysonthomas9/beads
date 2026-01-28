@@ -4,9 +4,8 @@
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { fetchStatus } from '@/api';
-import type { FetchStatusResult } from '@/api';
-import type { LoomAgentStatus, LoomTaskSummary, LoomTaskInfo, LoomSyncInfo, LoomStats } from '@/types';
+import { fetchStatus, fetchTasks } from '@/api';
+import type { LoomAgentStatus, LoomTaskSummary, LoomTaskInfo, LoomTaskLists, LoomSyncInfo, LoomStats } from '@/types';
 
 /**
  * Options for the useAgents hook.
@@ -26,6 +25,8 @@ export interface UseAgentsResult {
   agents: LoomAgentStatus[];
   /** Task queue summary counts */
   tasks: LoomTaskSummary;
+  /** Task lists organized by category */
+  taskLists: LoomTaskLists;
   /** Map of agent name to current task info (for task titles) */
   agentTasks: Record<string, LoomTaskInfo>;
   /** Sync status (DB and Git) */
@@ -94,11 +95,19 @@ const DEFAULT_STATS: LoomStats = {
   completion: 0,
 };
 
+const DEFAULT_TASK_LISTS: LoomTaskLists = {
+  needsPlanning: [],
+  readyToImplement: [],
+  needsReview: [],
+  inProgress: [],
+};
+
 export function useAgents(options?: UseAgentsOptions): UseAgentsResult {
   const { pollInterval = 5000, enabled = true } = options ?? {};
 
   const [agents, setAgents] = useState<LoomAgentStatus[]>([]);
   const [tasks, setTasks] = useState<LoomTaskSummary>(DEFAULT_TASKS);
+  const [taskLists, setTaskLists] = useState<LoomTaskLists>(DEFAULT_TASK_LISTS);
   const [agentTasks, setAgentTasks] = useState<Record<string, LoomTaskInfo>>({});
   const [sync, setSync] = useState<LoomSyncInfo>(DEFAULT_SYNC);
   const [stats, setStats] = useState<LoomStats>(DEFAULT_STATS);
@@ -124,17 +133,22 @@ export function useAgents(options?: UseAgentsOptions): UseAgentsResult {
     setIsLoading(true);
 
     try {
-      const result: FetchStatusResult = await fetchStatus();
+      // Fetch status and task lists in parallel
+      const [statusResult, tasksResult] = await Promise.all([
+        fetchStatus(),
+        fetchTasks(),
+      ]);
 
       // Only update state if still mounted
       if (mountedRef.current) {
-        setAgents(result.agents);
-        setTasks(result.tasks);
-        setAgentTasks(result.agentTasks);
-        setSync(result.sync);
-        setStats(result.stats);
+        setAgents(statusResult.agents);
+        setTasks(statusResult.tasks);
+        setTaskLists(tasksResult);
+        setAgentTasks(statusResult.agentTasks);
+        setSync(statusResult.sync);
+        setStats(statusResult.stats);
         // Consider connected if we got any agents or valid stats
-        setIsConnected(result.agents.length > 0 || result.stats.total > 0);
+        setIsConnected(statusResult.agents.length > 0 || statusResult.stats.total > 0);
         setError(null);
         setLastUpdated(new Date());
       }
@@ -190,6 +204,7 @@ export function useAgents(options?: UseAgentsOptions): UseAgentsResult {
   return {
     agents,
     tasks,
+    taskLists,
     agentTasks,
     sync,
     stats,

@@ -7,8 +7,10 @@ import type {
   LoomAgentStatus,
   LoomAgentsResponse,
   LoomStatusResponse,
+  LoomTasksResponse,
   LoomTaskSummary,
   LoomTaskInfo,
+  LoomTaskLists,
   LoomSyncInfo,
   LoomStats,
 } from '@/types';
@@ -145,5 +147,46 @@ export async function fetchStatus(): Promise<FetchStatusResult> {
       stats: DEFAULT_STATS,
       timestamp: new Date().toISOString(),
     };
+  }
+}
+
+/**
+ * Default empty task lists.
+ */
+const DEFAULT_TASK_LISTS: LoomTaskLists = {
+  needsPlanning: [],
+  readyToImplement: [],
+  needsReview: [],
+  inProgress: [],
+};
+
+/**
+ * Fetch task lists from the loom server.
+ * Returns empty lists if the server is unavailable.
+ */
+export async function fetchTasks(): Promise<LoomTaskLists> {
+  try {
+    const response = await fetch(`${LOOM_SERVER_URL}/api/tasks`, {
+      method: 'GET',
+      headers: {
+        Accept: 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      console.warn(`Loom server returned ${response.status}: ${response.statusText}`);
+      return DEFAULT_TASK_LISTS;
+    }
+
+    const data: LoomTasksResponse = await response.json();
+    return {
+      needsPlanning: data.needs_planning ?? [],
+      readyToImplement: data.ready_to_implement ?? [],
+      needsReview: data.needs_review ?? [],
+      inProgress: data.in_progress ?? [],
+    };
+  } catch (error) {
+    console.warn('Failed to fetch tasks:', error instanceof Error ? error.message : 'Unknown error');
+    return DEFAULT_TASK_LISTS;
   }
 }

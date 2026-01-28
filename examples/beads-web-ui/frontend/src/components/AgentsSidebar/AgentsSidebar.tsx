@@ -7,6 +7,9 @@
 import { useState, useCallback, useEffect } from 'react';
 import { useAgents } from '@/hooks';
 import { AgentCard } from '../AgentCard';
+import { TaskDrawer } from '../TaskDrawer';
+import type { TaskCategory } from '../TaskDrawer';
+import type { LoomTaskInfo } from '@/types';
 import styles from './AgentsSidebar.module.css';
 
 /**
@@ -49,7 +52,10 @@ export function AgentsSidebar({
     }
   });
 
-  const { agents, tasks, agentTasks, sync, stats, isLoading, isConnected, lastUpdated } = useAgents({
+  // Track which category drawer is open
+  const [selectedCategory, setSelectedCategory] = useState<TaskCategory | null>(null);
+
+  const { agents, tasks, taskLists, agentTasks, sync, stats, isLoading, isConnected, lastUpdated } = useAgents({
     pollInterval: 5000,
   });
 
@@ -78,6 +84,35 @@ export function AgentsSidebar({
   const handleWorkQueueToggle = useCallback(() => {
     setIsWorkQueueExpanded((prev) => !prev);
   }, []);
+
+  const handleCategoryClick = useCallback((category: TaskCategory) => {
+    setSelectedCategory(category);
+  }, []);
+
+  const handleDrawerClose = useCallback(() => {
+    setSelectedCategory(null);
+  }, []);
+
+  // Get tasks and title for the selected category
+  const getDrawerData = useCallback((): { title: string; tasks: LoomTaskInfo[] } => {
+    switch (selectedCategory) {
+      case 'plan':
+        return { title: 'Needs Planning', tasks: taskLists.needsPlanning };
+      case 'impl':
+        return { title: 'Ready to Implement', tasks: taskLists.readyToImplement };
+      case 'review':
+        return { title: 'Needs Review', tasks: taskLists.needsReview };
+      case 'inProgress':
+        return { title: 'In Progress', tasks: taskLists.inProgress };
+      case 'blocked':
+        // Note: blocked tasks list is not available from API, show empty for now
+        return { title: 'Blocked', tasks: [] };
+      default:
+        return { title: '', tasks: [] };
+    }
+  }, [selectedCategory, taskLists]);
+
+  const drawerData = getDrawerData();
 
   const rootClassName = [
     styles.sidebar,
@@ -162,7 +197,12 @@ export function AgentsSidebar({
               {isWorkQueueExpanded && (
                 <div className={styles.workQueueContent}>
                   <div className={styles.queueGrid}>
-                    <div className={styles.queueItem}>
+                    <button
+                      type="button"
+                      className={styles.queueItem}
+                      onClick={() => handleCategoryClick('plan')}
+                      disabled={tasks.needs_planning === 0}
+                    >
                       <span className={styles.queueLabel}>Plan</span>
                       <span
                         className={styles.queueCount}
@@ -170,8 +210,13 @@ export function AgentsSidebar({
                       >
                         {tasks.needs_planning}
                       </span>
-                    </div>
-                    <div className={styles.queueItem}>
+                    </button>
+                    <button
+                      type="button"
+                      className={styles.queueItem}
+                      onClick={() => handleCategoryClick('impl')}
+                      disabled={tasks.ready_to_implement === 0}
+                    >
                       <span className={styles.queueLabel}>Impl</span>
                       <span
                         className={styles.queueCount}
@@ -179,8 +224,13 @@ export function AgentsSidebar({
                       >
                         {tasks.ready_to_implement}
                       </span>
-                    </div>
-                    <div className={styles.queueItem}>
+                    </button>
+                    <button
+                      type="button"
+                      className={styles.queueItem}
+                      onClick={() => handleCategoryClick('review')}
+                      disabled={tasks.need_review === 0}
+                    >
                       <span className={styles.queueLabel}>Review</span>
                       <span
                         className={styles.queueCount}
@@ -188,13 +238,19 @@ export function AgentsSidebar({
                       >
                         {tasks.need_review}
                       </span>
-                    </div>
-                    <div className={styles.queueItem}>
+                    </button>
+                    <button
+                      type="button"
+                      className={styles.queueItem}
+                      onClick={() => handleCategoryClick('blocked')}
+                      disabled={tasks.blocked === 0}
+                      title="Blocked task list not available"
+                    >
                       <span className={styles.queueLabel}>Blocked</span>
                       <span className={styles.queueCount}>
                         {tasks.blocked}
                       </span>
-                    </div>
+                    </button>
                   </div>
                 </div>
               )}
@@ -262,6 +318,15 @@ export function AgentsSidebar({
           {activeCount}
         </div>
       )}
+
+      {/* Task Drawer */}
+      <TaskDrawer
+        isOpen={selectedCategory !== null}
+        category={selectedCategory}
+        title={drawerData.title}
+        tasks={drawerData.tasks}
+        onClose={handleDrawerClose}
+      />
     </aside>
   );
 }
