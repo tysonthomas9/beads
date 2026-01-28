@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client'
 import '@/styles/index.css'
 import App from '@/App'
 import { IssueDetailPanelFixture } from '@/TestFixtures'
+import { ErrorBoundary } from '@/components/ErrorBoundary'
 
 const rootElement = document.getElementById('root')
 if (!rootElement) {
@@ -24,6 +25,8 @@ function getComponent() {
 
 createRoot(rootElement).render(
   <StrictMode>
-    {getComponent()}
+    <ErrorBoundary>
+      {getComponent()}
+    </ErrorBoundary>
   </StrictMode>,
 )
