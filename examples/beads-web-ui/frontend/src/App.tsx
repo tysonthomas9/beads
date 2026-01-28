@@ -33,6 +33,9 @@ const GraphView = lazy(() =>
 );
 
 function App() {
+  // View state must be read before useIssues to determine fetch mode
+  const [activeView, setActiveView] = useViewState();
+
   const {
     issues,
     isLoading,
@@ -42,9 +45,7 @@ function App() {
     refetch,
     updateIssueStatus,
     retryConnection,
-  } = useIssues();
-
-  const [activeView, setActiveView] = useViewState();
+  } = useIssues({ mode: activeView === 'graph' ? 'graph' : 'ready' });
 
   // Filter state with URL synchronization
   const [filters, filterActions] = useFilterState();
