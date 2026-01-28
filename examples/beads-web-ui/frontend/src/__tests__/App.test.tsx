@@ -25,11 +25,24 @@ vi.mock('@/hooks/useIssues', () => ({
   useIssues: mockUseIssues,
 }));
 
+// Mock GraphView to avoid ResizeObserver issues in jsdom
+vi.mock('@/components/GraphView', () => ({
+  GraphView: ({ issues }: { issues: unknown[] }) => (
+    <div data-testid="mock-graph-view">Graph View ({Array.isArray(issues) ? issues.length : 0} issues)</div>
+  ),
+}));
+
+// Create hoisted mock for useViewState to allow per-test control
+const { mockUseViewState, mockSetActiveView } = vi.hoisted(() => ({
+  mockUseViewState: vi.fn(),
+  mockSetActiveView: vi.fn(),
+}));
+
 // Mock the hooks barrel file that App.tsx imports from
 vi.mock('@/hooks', () => ({
   useIssues: mockUseIssues,
   useIssueDetail: mockUseIssueDetail,
-  useViewState: vi.fn(() => ['kanban', vi.fn()]),
+  useViewState: mockUseViewState,
   useFilterState: vi.fn(() => [
     { groupBy: 'none' }, // FilterState
     {
@@ -57,15 +70,85 @@ vi.mock('@/hooks', () => ({
     error: null,
     refetch: vi.fn(),
   })),
-  useIssueDetail: mockUseIssueDetail,
+  useSort: vi.fn((options: { data: unknown[] }) => ({
+    sortedData: options.data,
+    sortState: { key: null, direction: 'asc' },
+    handleSort: vi.fn(),
+    clearSort: vi.fn(),
+  })),
+  useSelection: vi.fn(() => ({
+    selectedIds: new Set<string>(),
+    isSelected: vi.fn(() => false),
+    toggle: vi.fn(),
+    selectAll: vi.fn(),
+    deselectAll: vi.fn(),
+    clear: vi.fn(),
+    count: 0,
+    hasSelection: false,
+  })),
+  useFilteredSelection: vi.fn(() => ({
+    selectedIds: new Set<string>(),
+    isSelected: vi.fn(() => false),
+    toggle: vi.fn(),
+    selectAll: vi.fn(),
+    deselectAll: vi.fn(),
+    clear: vi.fn(),
+    count: 0,
+    hasSelection: false,
+    isAllSelected: false,
+    isIndeterminate: false,
+    selectFiltered: vi.fn(),
+  })),
+  useBulkClose: vi.fn(() => ({
+    closeSelected: vi.fn(),
+    isClosing: false,
+    error: null,
+  })),
+  useBulkPriority: vi.fn(() => ({
+    setPriority: vi.fn(),
+    isUpdating: false,
+    error: null,
+  })),
+  PRIORITY_OPTIONS: [
+    { value: 0, label: 'Critical', icon: '!!!' },
+    { value: 1, label: 'High', icon: '!!' },
+    { value: 2, label: 'Medium', icon: '!' },
+    { value: 3, label: 'Low', icon: '' },
+    { value: 4, label: 'None', icon: '' },
+  ],
+  useGraphData: vi.fn(() => ({
+    nodes: [],
+    edges: [],
+    isLoading: false,
+  })),
+  useAutoLayout: vi.fn(() => ({
+    nodes: [],
+    edges: [],
+    isLayouting: false,
+    triggerLayout: vi.fn(),
+  })),
+  useAgents: vi.fn(() => ({
+    agents: [],
+    tasks: { needs_planning: 0, ready_to_implement: 0, in_progress: 0, need_review: 0, blocked: 0 },
+    taskLists: { needsPlanning: [], readyToImplement: [], needsReview: [], inProgress: [], blocked: [] },
+    agentTasks: {},
+    sync: { db_synced: true, db_last_sync: '', git_needs_push: 0, git_needs_pull: 0 },
+    stats: { open: 0, closed: 0, total: 0, completion: 0 },
+    isLoading: false,
+    isConnected: false,
+    error: null,
+    lastUpdated: null,
+    refetch: vi.fn(),
+  })),
 }));
 
 // Import the mocked module
 import { useIssues } from '@/hooks/useIssues';
-import { useFilterState, useIssueDetail } from '@/hooks';
+import { useFilterState, useIssueDetail, useViewState } from '@/hooks';
 
 // Alias for convenience in tests
 const useIssuesMock = mockUseIssues;
+const useViewStateMock = mockUseViewState;
 
 /**
  * Create a mock issue for testing.
@@ -148,6 +231,8 @@ function createMockUseIssueDetailReturn(overrides: Partial<{
 describe('App', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // Set up default useViewState mock (kanban is the default view)
+    mockUseViewState.mockReturnValue(['kanban', mockSetActiveView]);
     // Set up default useIssueDetail mock
     mockUseIssueDetail.mockReturnValue(createMockUseIssueDetailReturn());
   });
@@ -1344,6 +1429,163 @@ describe('App', () => {
       // fetchIssue should be called again with the new ID
       expect(fetchIssue).toHaveBeenCalledTimes(2);
       expect(fetchIssue).toHaveBeenCalledWith('issue-2');
+    });
+  });
+
+  describe('useIssues mode parameter based on activeView', () => {
+    it('calls useIssues with mode: "ready" when activeView is "kanban"', () => {
+      const mockReturn = createMockUseIssuesReturn({});
+      vi.mocked(useIssues).mockReturnValue(mockReturn);
+      vi.mocked(useViewState).mockReturnValue(['kanban', mockSetActiveView]);
+
+      render(<App />);
+
+      expect(useIssues).toHaveBeenCalledWith({ mode: 'ready' });
+    });
+
+    it('calls useIssues with mode: "ready" when activeView is "table"', () => {
+      const mockReturn = createMockUseIssuesReturn({});
+      vi.mocked(useIssues).mockReturnValue(mockReturn);
+      vi.mocked(useViewState).mockReturnValue(['table', mockSetActiveView]);
+
+      render(<App />);
+
+      expect(useIssues).toHaveBeenCalledWith({ mode: 'ready' });
+    });
+
+    it('calls useIssues with mode: "graph" when activeView is "graph"', () => {
+      const mockReturn = createMockUseIssuesReturn({});
+      vi.mocked(useIssues).mockReturnValue(mockReturn);
+      vi.mocked(useViewState).mockReturnValue(['graph', mockSetActiveView]);
+
+      render(<App />);
+
+      expect(useIssues).toHaveBeenCalledWith({ mode: 'graph' });
+    });
+
+    it('refetches issues when view changes from kanban to graph', () => {
+      const refetch = vi.fn().mockResolvedValue(undefined);
+      const mockReturn = createMockUseIssuesReturn({ refetch });
+      vi.mocked(useIssues).mockReturnValue(mockReturn);
+
+      // Start with kanban view
+      vi.mocked(useViewState).mockReturnValue(['kanban', mockSetActiveView]);
+
+      const { rerender } = render(<App />);
+
+      // Verify initial call with mode: 'ready'
+      expect(useIssues).toHaveBeenLastCalledWith({ mode: 'ready' });
+
+      // Clear mock to track the next call
+      vi.mocked(useIssues).mockClear();
+
+      // Switch to graph view
+      vi.mocked(useViewState).mockReturnValue(['graph', mockSetActiveView]);
+
+      rerender(<App />);
+
+      // Verify useIssues is called with mode: 'graph' after view change
+      expect(useIssues).toHaveBeenLastCalledWith({ mode: 'graph' });
+    });
+
+    it('refetches issues when view changes from graph to kanban', () => {
+      const refetch = vi.fn().mockResolvedValue(undefined);
+      const mockReturn = createMockUseIssuesReturn({ refetch });
+      vi.mocked(useIssues).mockReturnValue(mockReturn);
+
+      // Start with graph view
+      vi.mocked(useViewState).mockReturnValue(['graph', mockSetActiveView]);
+
+      const { rerender } = render(<App />);
+
+      // Verify initial call with mode: 'graph'
+      expect(useIssues).toHaveBeenLastCalledWith({ mode: 'graph' });
+
+      // Clear mock to track the next call
+      vi.mocked(useIssues).mockClear();
+
+      // Switch to kanban view
+      vi.mocked(useViewState).mockReturnValue(['kanban', mockSetActiveView]);
+
+      rerender(<App />);
+
+      // Verify useIssues is called with mode: 'ready' after view change
+      expect(useIssues).toHaveBeenLastCalledWith({ mode: 'ready' });
+    });
+
+    it('refetches issues when view changes from graph to table', () => {
+      const refetch = vi.fn().mockResolvedValue(undefined);
+      const mockReturn = createMockUseIssuesReturn({ refetch });
+      vi.mocked(useIssues).mockReturnValue(mockReturn);
+
+      // Start with graph view
+      vi.mocked(useViewState).mockReturnValue(['graph', mockSetActiveView]);
+
+      const { rerender } = render(<App />);
+
+      // Verify initial call with mode: 'graph'
+      expect(useIssues).toHaveBeenLastCalledWith({ mode: 'graph' });
+
+      // Clear mock to track the next call
+      vi.mocked(useIssues).mockClear();
+
+      // Switch to table view
+      vi.mocked(useViewState).mockReturnValue(['table', mockSetActiveView]);
+
+      rerender(<App />);
+
+      // Verify useIssues is called with mode: 'ready' after view change
+      expect(useIssues).toHaveBeenLastCalledWith({ mode: 'ready' });
+    });
+
+    it('does not change mode when switching between kanban and table', () => {
+      const refetch = vi.fn().mockResolvedValue(undefined);
+      const mockReturn = createMockUseIssuesReturn({ refetch });
+      vi.mocked(useIssues).mockReturnValue(mockReturn);
+
+      // Start with kanban view
+      vi.mocked(useViewState).mockReturnValue(['kanban', mockSetActiveView]);
+
+      const { rerender } = render(<App />);
+
+      // Verify initial call with mode: 'ready'
+      expect(useIssues).toHaveBeenLastCalledWith({ mode: 'ready' });
+
+      // Clear mock to track the next call
+      vi.mocked(useIssues).mockClear();
+
+      // Switch to table view
+      vi.mocked(useViewState).mockReturnValue(['table', mockSetActiveView]);
+
+      rerender(<App />);
+
+      // Verify useIssues is still called with mode: 'ready'
+      expect(useIssues).toHaveBeenLastCalledWith({ mode: 'ready' });
+    });
+
+    it('useViewState is called before useIssues to determine fetch mode', () => {
+      const mockReturn = createMockUseIssuesReturn({});
+      vi.mocked(useIssues).mockReturnValue(mockReturn);
+
+      // Track call order
+      const callOrder: string[] = [];
+      vi.mocked(useViewState).mockImplementation(() => {
+        callOrder.push('useViewState');
+        return ['graph', mockSetActiveView];
+      });
+      vi.mocked(useIssues).mockImplementation(() => {
+        callOrder.push('useIssues');
+        return mockReturn;
+      });
+
+      render(<App />);
+
+      // Verify useViewState is called before useIssues
+      const viewStateIndex = callOrder.indexOf('useViewState');
+      const issuesIndex = callOrder.indexOf('useIssues');
+      expect(viewStateIndex).toBeLessThan(issuesIndex);
+      expect(viewStateIndex).toBeGreaterThanOrEqual(0);
+      expect(issuesIndex).toBeGreaterThanOrEqual(0);
     });
   });
 });
