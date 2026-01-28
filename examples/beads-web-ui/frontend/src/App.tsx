@@ -131,20 +131,7 @@ function App() {
     filterActions.setSearch(undefined);
   }, [filterActions]);
 
-  // Handle blocked issue click from BlockedSummary dropdown
-  const handleBlockedIssueClick = useCallback(
-    (issueId: string) => {
-      if (issueId === '__show_all_blocked__') {
-        // Toggle showBlocked filter to true
-        filterActions.setShowBlocked(true);
-      }
-      // Individual issue clicks could navigate to issue detail in the future
-      // For now, just show all blocked issues
-    },
-    [filterActions]
-  );
-
-  // Handle issue click from KanbanBoard/SwimLaneBoard/IssueTable
+  // Handle issue click from SwimLaneBoard/IssueTable
   const handleIssueClick = useCallback(
     (issue: Issue) => {
       // If clicking the same issue that's already selected, just ensure panel is open
@@ -164,10 +151,24 @@ function App() {
     setIsPanelOpen(false);
     // Clear issue details after animation completes
     setTimeout(() => {
+      if (!mountedRef.current) return;
       clearIssue();
       setSelectedIssueId(null);
     }, 300); // Match CSS transition duration
   }, [clearIssue]);
+
+  // Handle blocked issue click from BlockedSummary dropdown
+  const handleBlockedIssueClick = useCallback(
+    (issueId: string) => {
+      if (issueId === '__show_all_blocked__') {
+        // Toggle showBlocked filter to true
+        filterActions.setShowBlocked(true);
+      }
+      // Individual issue clicks could navigate to issue detail in the future
+      // For now, just show all blocked issues
+    },
+    [filterActions]
+  );
 
   // Loading state: show skeleton columns (ViewSwitcher disabled, no filters)
   if (isLoading) {

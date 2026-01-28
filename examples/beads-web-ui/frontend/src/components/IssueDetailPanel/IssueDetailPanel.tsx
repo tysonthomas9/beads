@@ -402,6 +402,9 @@ export function IssueDetailPanel({
         aria-label={issue ? `Details for ${issue.title}` : 'Issue details'}
         tabIndex={-1}
         data-testid="issue-detail-panel"
+        data-state={isOpen ? 'open' : 'closed'}
+        data-loading={isLoading ? 'true' : 'false'}
+        data-error={error ? 'true' : 'false'}
       >
         <div className={styles.content}>{content}</div>
       </aside>

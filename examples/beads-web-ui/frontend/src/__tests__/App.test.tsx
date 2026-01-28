@@ -57,11 +57,12 @@ vi.mock('@/hooks', () => ({
     error: null,
     refetch: vi.fn(),
   })),
+  useIssueDetail: mockUseIssueDetail,
 }));
 
 // Import the mocked module
 import { useIssues } from '@/hooks/useIssues';
-import { useFilterState } from '@/hooks';
+import { useFilterState, useIssueDetail } from '@/hooks';
 
 // Alias for convenience in tests
 const useIssuesMock = mockUseIssues;
@@ -124,17 +125,31 @@ function createMockUseIssuesReturn(
   };
 }
 
+/**
+ * Create default mock return value for useIssueDetail.
+ */
+function createMockUseIssueDetailReturn(overrides: Partial<{
+  issueDetails: unknown;
+  isLoading: boolean;
+  error: string | null;
+  fetchIssue: ReturnType<typeof vi.fn>;
+  clearIssue: ReturnType<typeof vi.fn>;
+}> = {}) {
+  return {
+    issueDetails: null,
+    isLoading: false,
+    error: null,
+    fetchIssue: vi.fn(),
+    clearIssue: vi.fn(),
+    ...overrides,
+  };
+}
+
 describe('App', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    // Set up default mock returns for useIssueDetail
-    mockUseIssueDetail.mockReturnValue({
-      issueDetails: null,
-      isLoading: false,
-      error: null,
-      fetchIssue: vi.fn(),
-      clearIssue: vi.fn(),
-    });
+    // Set up default useIssueDetail mock
+    mockUseIssueDetail.mockReturnValue(createMockUseIssueDetailReturn());
   });
 
   describe('loading state', () => {
@@ -1065,6 +1080,270 @@ describe('App', () => {
 
       // SwimLaneBoard should render with showBlocked prop passed
       expect(screen.getByText('Issue To Show')).toBeInTheDocument();
+    });
+  });
+
+  describe('IssueDetailPanel integration', () => {
+    it('renders IssueDetailPanel in closed state by default', () => {
+      const mockReturn = createMockUseIssuesReturn({});
+      vi.mocked(useIssues).mockReturnValue(mockReturn);
+
+      const { container } = render(<App />);
+
+      // Panel should be rendered but closed (isOpen=false)
+      const panel = container.querySelector('[data-testid="issue-detail-panel"]');
+      expect(panel).toBeInTheDocument();
+      expect(panel).toHaveAttribute('data-state', 'closed');
+    });
+
+    it('opens panel when issue is clicked in SwimLaneBoard', () => {
+      const fetchIssue = vi.fn();
+      const issues = [
+        createMockIssue({
+          id: 'issue-1',
+          title: 'Test Issue',
+          status: 'open',
+        }),
+      ];
+      const mockReturn = createMockUseIssuesReturn({ issues });
+      vi.mocked(useIssues).mockReturnValue(mockReturn);
+      vi.mocked(useIssueDetail).mockReturnValue(createMockUseIssueDetailReturn({
+        fetchIssue,
+      }));
+
+      const { container } = render(<App />);
+
+      // Click on the issue card
+      const issueCard = screen.getByText('Test Issue');
+      fireEvent.click(issueCard);
+
+      // Panel should now be open
+      const panel = container.querySelector('[data-testid="issue-detail-panel"]');
+      expect(panel).toHaveAttribute('data-state', 'open');
+    });
+
+    it('calls fetchIssue with correct ID when issue is clicked', () => {
+      const fetchIssue = vi.fn();
+      const issues = [
+        createMockIssue({
+          id: 'issue-123',
+          title: 'Clickable Issue',
+          status: 'open',
+        }),
+      ];
+      const mockReturn = createMockUseIssuesReturn({ issues });
+      vi.mocked(useIssues).mockReturnValue(mockReturn);
+      vi.mocked(useIssueDetail).mockReturnValue(createMockUseIssueDetailReturn({
+        fetchIssue,
+      }));
+
+      render(<App />);
+
+      // Click on the issue card
+      const issueCard = screen.getByText('Clickable Issue');
+      fireEvent.click(issueCard);
+
+      // fetchIssue should be called with the correct ID
+      expect(fetchIssue).toHaveBeenCalledTimes(1);
+      expect(fetchIssue).toHaveBeenCalledWith('issue-123');
+    });
+
+    it('closes panel when onClose is called', () => {
+      const clearIssue = vi.fn();
+      const issues = [
+        createMockIssue({
+          id: 'issue-1',
+          title: 'Closeable Issue',
+          status: 'open',
+        }),
+      ];
+      const mockReturn = createMockUseIssuesReturn({ issues });
+      vi.mocked(useIssues).mockReturnValue(mockReturn);
+      // Provide issueDetails so that IssueHeader renders with the close button
+      vi.mocked(useIssueDetail).mockReturnValue(createMockUseIssueDetailReturn({
+        issueDetails: {
+          id: 'issue-1',
+          title: 'Closeable Issue Details',
+          priority: 2,
+          status: 'open',
+          issue_type: 'task',
+          created_at: '2024-01-01T00:00:00Z',
+          updated_at: '2024-01-01T00:00:00Z',
+        },
+        clearIssue,
+      }));
+
+      const { container } = render(<App />);
+
+      // Click on the issue card (uses aria-label "Issue: {title}")
+      const issueCard = screen.getByRole('button', { name: /Issue: Closeable Issue/ });
+      fireEvent.click(issueCard);
+
+      // Panel should be open
+      const panel = container.querySelector('[data-testid="issue-detail-panel"]');
+      expect(panel).toHaveAttribute('data-state', 'open');
+
+      // Click the close button (rendered by IssueHeader inside DefaultContent)
+      const closeButton = screen.getByTestId('header-close-button');
+      fireEvent.click(closeButton);
+
+      // Panel should close immediately
+      expect(panel).toHaveAttribute('data-state', 'closed');
+    });
+
+    it('does not re-fetch when clicking the same issue that is already selected and open', () => {
+      const fetchIssue = vi.fn();
+      const issues = [
+        createMockIssue({
+          id: 'issue-1',
+          title: 'Same Issue',
+          status: 'open',
+        }),
+      ];
+      const mockReturn = createMockUseIssuesReturn({ issues });
+      vi.mocked(useIssues).mockReturnValue(mockReturn);
+      vi.mocked(useIssueDetail).mockReturnValue(createMockUseIssueDetailReturn({
+        fetchIssue,
+      }));
+
+      render(<App />);
+
+      // Click on the issue card twice
+      const issueCard = screen.getByText('Same Issue');
+      fireEvent.click(issueCard);
+
+      expect(fetchIssue).toHaveBeenCalledTimes(1);
+
+      // Click again on the same issue
+      fireEvent.click(issueCard);
+
+      // fetchIssue should NOT be called again
+      expect(fetchIssue).toHaveBeenCalledTimes(1);
+    });
+
+    it('passes loading state to IssueDetailPanel during fetch', () => {
+      const fetchIssue = vi.fn();
+      const issues = [
+        createMockIssue({
+          id: 'issue-1',
+          title: 'Loading Issue',
+          status: 'open',
+        }),
+      ];
+      const mockReturn = createMockUseIssuesReturn({ issues });
+      vi.mocked(useIssues).mockReturnValue(mockReturn);
+      vi.mocked(useIssueDetail).mockReturnValue(createMockUseIssueDetailReturn({
+        isLoading: true,
+        fetchIssue,
+      }));
+
+      const { container } = render(<App />);
+
+      // Click on the issue to open the panel
+      const issueCard = screen.getByText('Loading Issue');
+      fireEvent.click(issueCard);
+
+      // Panel should show loading state
+      const panel = container.querySelector('[data-testid="issue-detail-panel"]');
+      expect(panel).toHaveAttribute('data-loading', 'true');
+    });
+
+    it('passes issue details to IssueDetailPanel when loaded', () => {
+      const issues = [
+        createMockIssue({
+          id: 'issue-1',
+          title: 'Detail Issue',
+          status: 'open',
+        }),
+      ];
+      const mockReturn = createMockUseIssuesReturn({ issues });
+      vi.mocked(useIssues).mockReturnValue(mockReturn);
+      vi.mocked(useIssueDetail).mockReturnValue(createMockUseIssueDetailReturn({
+        issueDetails: {
+          id: 'issue-1',
+          title: 'Detail Issue Title',
+          description: 'Issue description',
+          priority: 2,
+          status: 'open',
+          issue_type: 'task',
+          created_at: '2024-01-01T00:00:00Z',
+          updated_at: '2024-01-01T00:00:00Z',
+        },
+        isLoading: false,
+      }));
+
+      render(<App />);
+
+      // Click on the issue to open the panel
+      const issueCard = screen.getByText('Detail Issue');
+      fireEvent.click(issueCard);
+
+      // Panel should show the issue title
+      expect(screen.getByText('Detail Issue Title')).toBeInTheDocument();
+    });
+
+    it('passes error state to IssueDetailPanel when fetch fails', () => {
+      const issues = [
+        createMockIssue({
+          id: 'issue-1',
+          title: 'Error Issue',
+          status: 'open',
+        }),
+      ];
+      const mockReturn = createMockUseIssuesReturn({ issues });
+      vi.mocked(useIssues).mockReturnValue(mockReturn);
+      vi.mocked(useIssueDetail).mockReturnValue(createMockUseIssueDetailReturn({
+        error: 'Failed to fetch issue details',
+        isLoading: false,
+      }));
+
+      const { container } = render(<App />);
+
+      // Click on the issue to open the panel
+      const issueCard = screen.getByText('Error Issue');
+      fireEvent.click(issueCard);
+
+      // Panel should show the error state
+      const panel = container.querySelector('[data-testid="issue-detail-panel"]');
+      expect(panel).toHaveAttribute('data-error', 'true');
+    });
+
+    it('fetches new issue when clicking a different issue while panel is open', () => {
+      const fetchIssue = vi.fn();
+      const issues = [
+        createMockIssue({
+          id: 'issue-1',
+          title: 'First Issue',
+          status: 'open',
+        }),
+        createMockIssue({
+          id: 'issue-2',
+          title: 'Second Issue',
+          status: 'open',
+        }),
+      ];
+      const mockReturn = createMockUseIssuesReturn({ issues });
+      vi.mocked(useIssues).mockReturnValue(mockReturn);
+      vi.mocked(useIssueDetail).mockReturnValue(createMockUseIssueDetailReturn({
+        fetchIssue,
+      }));
+
+      render(<App />);
+
+      // Click on the first issue
+      const firstIssue = screen.getByText('First Issue');
+      fireEvent.click(firstIssue);
+
+      expect(fetchIssue).toHaveBeenCalledTimes(1);
+      expect(fetchIssue).toHaveBeenCalledWith('issue-1');
+
+      // Click on the second issue
+      const secondIssue = screen.getByText('Second Issue');
+      fireEvent.click(secondIssue);
+
+      // fetchIssue should be called again with the new ID
+      expect(fetchIssue).toHaveBeenCalledTimes(2);
+      expect(fetchIssue).toHaveBeenCalledWith('issue-2');
     });
   });
 });
