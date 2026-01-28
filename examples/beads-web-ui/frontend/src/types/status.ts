@@ -11,6 +11,7 @@ export type KnownStatus =
   | 'blocked'
   | 'deferred'
   | 'closed'
+  | 'review'
   | 'tombstone'
   | 'pinned'
   | 'hooked';
@@ -29,6 +30,7 @@ export const StatusInProgress: Status = 'in_progress';
 export const StatusBlocked: Status = 'blocked';
 export const StatusDeferred: Status = 'deferred';
 export const StatusClosed: Status = 'closed';
+export const StatusReview: Status = 'review';
 export const StatusTombstone: Status = 'tombstone';
 export const StatusPinned: Status = 'pinned';
 export const StatusHooked: Status = 'hooked';
@@ -42,6 +44,7 @@ export const KNOWN_STATUSES: readonly KnownStatus[] = [
   'blocked',
   'deferred',
   'closed',
+  'review',
   'tombstone',
   'pinned',
   'hooked',
@@ -56,6 +59,7 @@ export const USER_SELECTABLE_STATUSES: readonly KnownStatus[] = [
   'in_progress',
   'blocked',
   'deferred',
+  'review',
   'closed',
 ] as const;
 

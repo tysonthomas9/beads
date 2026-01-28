@@ -18,10 +18,12 @@ export {
   StatusBlocked,
   StatusDeferred,
   StatusClosed,
+  StatusReview,
   StatusTombstone,
   StatusPinned,
   StatusHooked,
   KNOWN_STATUSES,
+  USER_SELECTABLE_STATUSES,
   isKnownStatus,
   isValidStatus,
 } from './status';

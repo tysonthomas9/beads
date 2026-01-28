@@ -28,6 +28,7 @@ export const StateColors = {
 export const StatusColors = {
   open: '#3b82f6', // blue-500
   in_progress: '#f59e0b', // amber-500
+  review: '#8b5cf6', // purple-500
   closed: '#10b981', // emerald-500
 } as const;
 

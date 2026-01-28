@@ -33,7 +33,7 @@ describe('StatusDropdown', () => {
       expect(select).toHaveValue('in_progress');
     });
 
-    it('renders all 5 user-selectable options', () => {
+    it('renders all 6 user-selectable options', () => {
       render(
         <StatusDropdown status="open" onStatusChange={() => {}} />
       );
@@ -41,7 +41,7 @@ describe('StatusDropdown', () => {
       const select = screen.getByTestId('status-dropdown');
       const options = select.querySelectorAll('option');
 
-      expect(options).toHaveLength(5);
+      expect(options).toHaveLength(6);
       expect(options[0]).toHaveValue('open');
       expect(options[0]).toHaveTextContent('Open');
       expect(options[1]).toHaveValue('in_progress');
@@ -50,8 +50,10 @@ describe('StatusDropdown', () => {
       expect(options[2]).toHaveTextContent('Blocked');
       expect(options[3]).toHaveValue('deferred');
       expect(options[3]).toHaveTextContent('Deferred');
-      expect(options[4]).toHaveValue('closed');
-      expect(options[4]).toHaveTextContent('Closed');
+      expect(options[4]).toHaveValue('review');
+      expect(options[4]).toHaveTextContent('Review');
+      expect(options[5]).toHaveValue('closed');
+      expect(options[5]).toHaveTextContent('Closed');
     });
 
     it('does not include system statuses (tombstone, pinned, hooked)', () => {
@@ -83,7 +85,7 @@ describe('StatusDropdown', () => {
     });
 
     it('displays each status value correctly when selected', () => {
-      const statuses: Status[] = ['open', 'in_progress', 'blocked', 'deferred', 'closed'];
+      const statuses: Status[] = ['open', 'in_progress', 'blocked', 'deferred', 'review', 'closed'];
 
       statuses.forEach((status) => {
         const { unmount } = render(
@@ -133,6 +135,15 @@ describe('StatusDropdown', () => {
 
       const select = screen.getByTestId('status-dropdown');
       expect(select).toHaveAttribute('data-status', 'deferred');
+    });
+
+    it('applies correct data-status attribute for review', () => {
+      render(
+        <StatusDropdown status="review" onStatusChange={() => {}} />
+      );
+
+      const select = screen.getByTestId('status-dropdown');
+      expect(select).toHaveAttribute('data-status', 'review');
     });
 
     it('applies correct data-status attribute for closed', () => {
@@ -187,7 +198,7 @@ describe('StatusDropdown', () => {
     });
 
     it('calls onStatusChange for each different status value', () => {
-      const targetStatuses: Status[] = ['in_progress', 'blocked', 'deferred', 'closed'];
+      const targetStatuses: Status[] = ['in_progress', 'blocked', 'deferred', 'review', 'closed'];
 
       targetStatuses.forEach((targetStatus) => {
         const onStatusChange = vi.fn();
@@ -217,7 +228,7 @@ describe('StatusDropdown', () => {
     });
 
     it('does not fire onStatusChange when same status selected for all statuses', () => {
-      const statuses: Status[] = ['open', 'in_progress', 'blocked', 'deferred', 'closed'];
+      const statuses: Status[] = ['open', 'in_progress', 'blocked', 'deferred', 'review', 'closed'];
 
       statuses.forEach((status) => {
         const onStatusChange = vi.fn();
