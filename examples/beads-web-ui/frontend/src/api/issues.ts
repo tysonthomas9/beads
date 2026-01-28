@@ -256,6 +256,7 @@ export interface UpdateIssueRequest {
   status?: Status
   assignee?: string
   labels?: string[]
+  issue_type?: IssueType
 }
 
 /**

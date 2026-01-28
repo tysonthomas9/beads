@@ -4,12 +4,13 @@
  */
 
 import { useEffect, useRef, useState, useCallback } from 'react';
-import type { Issue, IssueDetails, IssueWithDependencyMetadata, Priority } from '@/types';
+import type { Issue, IssueDetails, IssueWithDependencyMetadata, Priority, IssueType } from '@/types';
 import type { Status } from '@/types/status';
 import { updateIssue } from '@/api';
 import { IssueHeader } from './IssueHeader';
 import { EditableDescription } from './EditableDescription';
 import { PriorityDropdown } from './PriorityDropdown';
+import { TypeDropdown } from './TypeDropdown';
 import { ErrorToast } from '../ErrorToast';
 import styles from './IssueDetailPanel.module.css';
 
@@ -38,14 +39,6 @@ export interface IssueDetailPanelProps {
  */
 function isIssueDetails(issue: Issue | IssueDetails): issue is IssueDetails {
   return 'dependents' in issue;
-}
-
-/**
- * Format issue type to human-readable string.
- */
-function formatIssueType(type?: string): string {
-  if (!type) return 'Task';
-  return type.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
 /**
@@ -91,6 +84,7 @@ function DefaultContent({
   const [isSavingTitle, setIsSavingTitle] = useState(false);
   const [isSavingStatus, setIsSavingStatus] = useState(false);
   const [isSavingPriority, setIsSavingPriority] = useState(false);
+  const [isSavingType, setIsSavingType] = useState(false);
   const [statusError, setStatusError] = useState<string | null>(null);
 
   const handleTitleSave = useCallback(async (newTitle: string) => {
@@ -133,6 +127,21 @@ function DefaultContent({
       throw err;
     } finally {
       setIsSavingPriority(false);
+    }
+  }, [issue, onIssueUpdate]);
+
+  const handleTypeSave = useCallback(async (newType: IssueType) => {
+    if (!issue) return;
+
+    setIsSavingType(true);
+    try {
+      const updatedIssue = await updateIssue(issue.id, { issue_type: newType });
+      onIssueUpdate?.(updatedIssue);
+    } catch (err) {
+      // Re-throw to let TypeDropdown handle error display and rollback
+      throw err;
+    } finally {
+      setIsSavingType(false);
     }
   }, [issue, onIssueUpdate]);
 
@@ -186,16 +195,18 @@ function DefaultContent({
       />
 
       <div className={styles.detailContent}>
-        {/* Status Row (priority and type badges only, status moved to header) */}
+        {/* Status Row (priority and type dropdowns, status moved to header) */}
         <div className={styles.statusRow}>
           <PriorityDropdown
             priority={issue.priority as Priority}
             onSave={handlePrioritySave}
             isSaving={isSavingPriority}
           />
-          <span className={`${styles.badge} ${styles.typeBadge}`}>
-            {formatIssueType(issue.issue_type)}
-          </span>
+          <TypeDropdown
+            type={issue.issue_type}
+            onSave={handleTypeSave}
+            isSaving={isSavingType}
+          />
         </div>
 
         {/* Description */}
