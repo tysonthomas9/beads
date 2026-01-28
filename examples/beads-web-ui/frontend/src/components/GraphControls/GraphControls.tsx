@@ -1,7 +1,7 @@
 /**
  * GraphControls component for graph view toggle controls.
- * Provides a status filter dropdown, "Highlight Ready" toggle that dims blocked and closed nodes,
- * plus zoom controls (zoom in, zoom out, fit view).
+ * Provides a status filter dropdown, dependency type filter, "Highlight Ready" toggle
+ * that dims blocked and closed nodes, plus zoom controls (zoom in, zoom out, fit view).
  */
 
 import { useCallback } from 'react';
@@ -9,6 +9,12 @@ import { useReactFlow } from '@xyflow/react';
 import type { Status } from '@/types/status';
 import { formatStatusLabel } from '@/components/StatusColumn/utils';
 import styles from './GraphControls.module.css';
+
+/**
+ * Dependency type filter groups.
+ * Groups multiple dependency types into user-friendly categories.
+ */
+export type DependencyTypeGroup = 'blocking' | 'parent-child' | 'non-blocking';
 
 /**
  * Status filter option for the dropdown.
@@ -53,6 +59,10 @@ export interface GraphControlsProps {
   statusFilter?: Status | 'all';
   /** Callback when status filter changes */
   onStatusFilterChange?: (value: Status | 'all') => void;
+  /** Current dependency type filter (set of enabled groups) */
+  dependencyTypeFilter?: Set<DependencyTypeGroup>;
+  /** Callback when dependency type filter changes */
+  onDependencyTypeFilterChange?: (value: Set<DependencyTypeGroup>) => void;
   /** Whether the toggle should be disabled (e.g., while loading) */
   disabled?: boolean;
   /** Title for disabled state tooltip */
@@ -98,6 +108,8 @@ export function GraphControls({
   onShowClosedChange,
   statusFilter,
   onStatusFilterChange,
+  dependencyTypeFilter,
+  onDependencyTypeFilterChange,
   disabled = false,
   disabledTitle,
   showZoomControls = true,
@@ -132,6 +144,20 @@ export function GraphControls({
       onStatusFilterChange?.(value);
     },
     [onStatusFilterChange]
+  );
+
+  const handleDependencyTypeChange = useCallback(
+    (group: DependencyTypeGroup, checked: boolean) => {
+      if (!onDependencyTypeFilterChange || !dependencyTypeFilter) return;
+      const newFilter = new Set(dependencyTypeFilter);
+      if (checked) {
+        newFilter.add(group);
+      } else {
+        newFilter.delete(group);
+      }
+      onDependencyTypeFilterChange(newFilter);
+    },
+    [onDependencyTypeFilterChange, dependencyTypeFilter]
   );
 
   const handleZoomIn = useCallback(() => {
@@ -172,6 +198,47 @@ export function GraphControls({
               </option>
             ))}
           </select>
+        </div>
+      )}
+
+      {onDependencyTypeFilterChange && dependencyTypeFilter && (
+        <div className={styles.depTypeGroup} data-testid="dep-type-filter">
+          <span className={styles.filterLabel}>Edges</span>
+          <div className={styles.depTypeCheckboxGroup}>
+            <label className={styles.depTypeLabel}>
+              <input
+                type="checkbox"
+                checked={dependencyTypeFilter.has('blocking')}
+                onChange={(e) => handleDependencyTypeChange('blocking', e.target.checked)}
+                disabled={disabled}
+                className={styles.depTypeCheckbox}
+                data-testid="dep-type-blocking"
+              />
+              <span>Blocking</span>
+            </label>
+            <label className={styles.depTypeLabel}>
+              <input
+                type="checkbox"
+                checked={dependencyTypeFilter.has('parent-child')}
+                onChange={(e) => handleDependencyTypeChange('parent-child', e.target.checked)}
+                disabled={disabled}
+                className={styles.depTypeCheckbox}
+                data-testid="dep-type-parent-child"
+              />
+              <span>Parent-Child</span>
+            </label>
+            <label className={styles.depTypeLabel}>
+              <input
+                type="checkbox"
+                checked={dependencyTypeFilter.has('non-blocking')}
+                onChange={(e) => handleDependencyTypeChange('non-blocking', e.target.checked)}
+                disabled={disabled}
+                className={styles.depTypeCheckbox}
+                data-testid="dep-type-non-blocking"
+              />
+              <span>Non-blocking</span>
+            </label>
+          </div>
         </div>
       )}
 

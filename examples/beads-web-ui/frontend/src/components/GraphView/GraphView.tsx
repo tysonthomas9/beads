@@ -14,17 +14,75 @@ import {
   type NodeMouseHandler,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import type { Issue, IssueNode as IssueNodeType } from '@/types';
+import type { Issue, IssueNode as IssueNodeType, DependencyType } from '@/types';
 import type { Status } from '@/types/status';
 import { useGraphData, type UseGraphDataOptions } from '@/hooks/useGraphData';
 import { useAutoLayout, type UseAutoLayoutOptions } from '@/hooks/useAutoLayout';
 import { useBlockedIssues } from '@/hooks/useBlockedIssues';
 import { IssueNode, DependencyEdge, GraphControls, GraphLegend, NodeTooltip } from '@/components';
+import type { DependencyTypeGroup } from '@/components/GraphControls';
 import type { TooltipPosition } from '@/components/NodeTooltip';
 import styles from './GraphView.module.css';
 
 const STORAGE_KEY_SHOW_CLOSED = 'graph-show-closed';
 const STORAGE_KEY_STATUS_FILTER = 'graph-status-filter';
+const STORAGE_KEY_DEP_TYPE_FILTER = 'graph-dep-type-filter';
+
+/**
+ * Dependency types for each filter group.
+ */
+const BLOCKING_DEP_TYPES: DependencyType[] = ['blocks', 'conditional-blocks', 'waits-for'];
+const PARENT_CHILD_DEP_TYPES: DependencyType[] = ['parent-child'];
+const NON_BLOCKING_DEP_TYPES: DependencyType[] = [
+  'related',
+  'discovered-from',
+  'replies-to',
+  'relates-to',
+  'duplicates',
+  'supersedes',
+  'authored-by',
+  'assigned-to',
+  'approved-by',
+  'attests',
+  'tracks',
+  'until',
+  'caused-by',
+  'validates',
+  'delegated-from',
+];
+
+/**
+ * Valid dependency type groups for localStorage validation.
+ */
+const VALID_DEP_TYPE_GROUPS: DependencyTypeGroup[] = ['blocking', 'parent-child', 'non-blocking'];
+
+/**
+ * Default dependency type filter (blocking + parent-child enabled).
+ */
+const DEFAULT_DEP_TYPE_FILTER = new Set<DependencyTypeGroup>(['blocking', 'parent-child']);
+
+/**
+ * Convert a Set of dependency type groups to an array of DependencyType values.
+ * If all groups are unchecked, returns undefined to show all edges.
+ */
+function depTypeGroupsToTypes(groups: Set<DependencyTypeGroup>): DependencyType[] | undefined {
+  // If no groups selected, show all edges (no filter)
+  if (groups.size === 0) {
+    return undefined;
+  }
+
+  const types: DependencyType[] = [];
+  if (groups.has('blocking')) {
+    types.push(...BLOCKING_DEP_TYPES);
+  }
+  if (groups.has('parent-child')) {
+    types.push(...PARENT_CHILD_DEP_TYPES);
+  }
+  if (groups.has('non-blocking')) {
+    types.push(...NON_BLOCKING_DEP_TYPES);
+  }
+  return types;
+}
 
 /**
  * Valid status filter values for localStorage.
@@ -148,6 +206,44 @@ export function GraphView({
     }
   }, [statusFilter]);
 
+  // Initialize dependencyTypeFilter from localStorage, default to blocking + parent-child
+  const [dependencyTypeFilter, setDependencyTypeFilter] = useState<Set<DependencyTypeGroup>>(() => {
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY_DEP_TYPE_FILTER);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        // Validate parsed is an array
+        if (!Array.isArray(parsed)) {
+          return DEFAULT_DEP_TYPE_FILTER;
+        }
+        // Validate all values are strings and valid groups
+        const validGroups = parsed.filter((g): g is DependencyTypeGroup =>
+          typeof g === 'string' && VALID_DEP_TYPE_GROUPS.includes(g as DependencyTypeGroup)
+        );
+        return new Set(validGroups);
+      }
+      return DEFAULT_DEP_TYPE_FILTER;
+    } catch {
+      // Silently fail if localStorage is unavailable or invalid JSON
+      return DEFAULT_DEP_TYPE_FILTER;
+    }
+  });
+
+  // Persist dependencyTypeFilter preference to localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY_DEP_TYPE_FILTER, JSON.stringify([...dependencyTypeFilter]));
+    } catch {
+      // Silently fail if localStorage is unavailable (private browsing, quota exceeded)
+    }
+  }, [dependencyTypeFilter]);
+
+  // Convert dependency type filter groups to DependencyType array for useGraphData
+  const includeDependencyTypes = useMemo(
+    () => depTypeGroupsToTypes(dependencyTypeFilter),
+    [dependencyTypeFilter]
+  );
+
   // Tooltip state for hover preview
   const [hoveredIssue, setHoveredIssue] = useState<Issue | null>(null);
   const [tooltipPosition, setTooltipPosition] = useState<TooltipPosition | null>(null);
@@ -179,8 +275,14 @@ export function GraphView({
 
   // Transform issues to nodes and edges
   const graphDataOptions: UseGraphDataOptions = useMemo(
-    () => ({ blockedIssueIds }),
-    [blockedIssueIds]
+    () => {
+      const opts: UseGraphDataOptions = { blockedIssueIds };
+      if (includeDependencyTypes) {
+        opts.includeDependencyTypes = includeDependencyTypes;
+      }
+      return opts;
+    },
+    [blockedIssueIds, includeDependencyTypes]
   );
   const { nodes: rawNodes, edges } = useGraphData(visibleIssues, graphDataOptions);
 
@@ -288,6 +390,8 @@ export function GraphView({
               onShowClosedChange={setShowClosed}
               statusFilter={statusFilter}
               onStatusFilterChange={setStatusFilter}
+              dependencyTypeFilter={dependencyTypeFilter}
+              onDependencyTypeFilterChange={setDependencyTypeFilter}
               {...(styles.controls ? { className: styles.controls } : {})}
             />
           </Panel>

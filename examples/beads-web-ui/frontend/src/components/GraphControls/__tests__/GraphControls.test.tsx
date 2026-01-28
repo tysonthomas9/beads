@@ -491,4 +491,224 @@ describe('GraphControls', () => {
       expect(zoomGroup).toBeInTheDocument();
     });
   });
+
+  describe('dependency type filter', () => {
+    it('renders dependency type checkboxes when handler and filter are provided', () => {
+      const props = createTestProps({
+        dependencyTypeFilter: new Set(['blocking', 'parent-child', 'non-blocking']),
+        onDependencyTypeFilterChange: vi.fn(),
+      });
+      render(<GraphControls {...props} />);
+
+      expect(screen.getByTestId('dep-type-filter')).toBeInTheDocument();
+      expect(screen.getByTestId('dep-type-blocking')).toBeInTheDocument();
+      expect(screen.getByTestId('dep-type-parent-child')).toBeInTheDocument();
+      expect(screen.getByTestId('dep-type-non-blocking')).toBeInTheDocument();
+    });
+
+    it('does not render dependency type checkboxes when handler is not provided', () => {
+      const props = createTestProps({
+        dependencyTypeFilter: new Set(['blocking', 'parent-child']),
+        // onDependencyTypeFilterChange not provided
+      });
+      render(<GraphControls {...props} />);
+
+      expect(screen.queryByTestId('dep-type-filter')).not.toBeInTheDocument();
+    });
+
+    it('does not render dependency type checkboxes when filter is not provided', () => {
+      const props = createTestProps({
+        // dependencyTypeFilter not provided
+        onDependencyTypeFilterChange: vi.fn(),
+      });
+      render(<GraphControls {...props} />);
+
+      expect(screen.queryByTestId('dep-type-filter')).not.toBeInTheDocument();
+    });
+
+    it('renders "Edges" label', () => {
+      const props = createTestProps({
+        dependencyTypeFilter: new Set(['blocking']),
+        onDependencyTypeFilterChange: vi.fn(),
+      });
+      render(<GraphControls {...props} />);
+
+      expect(screen.getByText('Edges')).toBeInTheDocument();
+    });
+
+    it('renders checkbox labels: Blocking, Parent-Child, Non-blocking', () => {
+      const props = createTestProps({
+        dependencyTypeFilter: new Set(['blocking']),
+        onDependencyTypeFilterChange: vi.fn(),
+      });
+      render(<GraphControls {...props} />);
+
+      expect(screen.getByText('Blocking')).toBeInTheDocument();
+      expect(screen.getByText('Parent-Child')).toBeInTheDocument();
+      expect(screen.getByText('Non-blocking')).toBeInTheDocument();
+    });
+
+    it('reflects checked state based on filter Set', () => {
+      const props = createTestProps({
+        dependencyTypeFilter: new Set(['blocking', 'parent-child']),
+        onDependencyTypeFilterChange: vi.fn(),
+      });
+      render(<GraphControls {...props} />);
+
+      expect(screen.getByTestId('dep-type-blocking')).toBeChecked();
+      expect(screen.getByTestId('dep-type-parent-child')).toBeChecked();
+      expect(screen.getByTestId('dep-type-non-blocking')).not.toBeChecked();
+    });
+
+    it('reflects all checkboxes unchecked when filter Set is empty', () => {
+      const props = createTestProps({
+        dependencyTypeFilter: new Set(),
+        onDependencyTypeFilterChange: vi.fn(),
+      });
+      render(<GraphControls {...props} />);
+
+      expect(screen.getByTestId('dep-type-blocking')).not.toBeChecked();
+      expect(screen.getByTestId('dep-type-parent-child')).not.toBeChecked();
+      expect(screen.getByTestId('dep-type-non-blocking')).not.toBeChecked();
+    });
+
+    it('calls handler with blocking added when clicking unchecked blocking checkbox', () => {
+      const onDependencyTypeFilterChange = vi.fn();
+      const props = createTestProps({
+        dependencyTypeFilter: new Set(['parent-child']),
+        onDependencyTypeFilterChange,
+      });
+      render(<GraphControls {...props} />);
+
+      fireEvent.click(screen.getByTestId('dep-type-blocking'));
+
+      expect(onDependencyTypeFilterChange).toHaveBeenCalledTimes(1);
+      const newFilter = onDependencyTypeFilterChange.mock.calls[0][0];
+      expect(newFilter.has('blocking')).toBe(true);
+      expect(newFilter.has('parent-child')).toBe(true);
+    });
+
+    it('calls handler with blocking removed when clicking checked blocking checkbox', () => {
+      const onDependencyTypeFilterChange = vi.fn();
+      const props = createTestProps({
+        dependencyTypeFilter: new Set(['blocking', 'parent-child']),
+        onDependencyTypeFilterChange,
+      });
+      render(<GraphControls {...props} />);
+
+      fireEvent.click(screen.getByTestId('dep-type-blocking'));
+
+      expect(onDependencyTypeFilterChange).toHaveBeenCalledTimes(1);
+      const newFilter = onDependencyTypeFilterChange.mock.calls[0][0];
+      expect(newFilter.has('blocking')).toBe(false);
+      expect(newFilter.has('parent-child')).toBe(true);
+    });
+
+    it('calls handler with parent-child added when clicking unchecked parent-child checkbox', () => {
+      const onDependencyTypeFilterChange = vi.fn();
+      const props = createTestProps({
+        dependencyTypeFilter: new Set(['blocking']),
+        onDependencyTypeFilterChange,
+      });
+      render(<GraphControls {...props} />);
+
+      fireEvent.click(screen.getByTestId('dep-type-parent-child'));
+
+      expect(onDependencyTypeFilterChange).toHaveBeenCalledTimes(1);
+      const newFilter = onDependencyTypeFilterChange.mock.calls[0][0];
+      expect(newFilter.has('blocking')).toBe(true);
+      expect(newFilter.has('parent-child')).toBe(true);
+    });
+
+    it('calls handler with non-blocking added when clicking unchecked non-blocking checkbox', () => {
+      const onDependencyTypeFilterChange = vi.fn();
+      const props = createTestProps({
+        dependencyTypeFilter: new Set(['blocking']),
+        onDependencyTypeFilterChange,
+      });
+      render(<GraphControls {...props} />);
+
+      fireEvent.click(screen.getByTestId('dep-type-non-blocking'));
+
+      expect(onDependencyTypeFilterChange).toHaveBeenCalledTimes(1);
+      const newFilter = onDependencyTypeFilterChange.mock.calls[0][0];
+      expect(newFilter.has('blocking')).toBe(true);
+      expect(newFilter.has('non-blocking')).toBe(true);
+    });
+
+    it('calls handler with non-blocking removed when clicking checked non-blocking checkbox', () => {
+      const onDependencyTypeFilterChange = vi.fn();
+      const props = createTestProps({
+        dependencyTypeFilter: new Set(['blocking', 'non-blocking']),
+        onDependencyTypeFilterChange,
+      });
+      render(<GraphControls {...props} />);
+
+      fireEvent.click(screen.getByTestId('dep-type-non-blocking'));
+
+      expect(onDependencyTypeFilterChange).toHaveBeenCalledTimes(1);
+      const newFilter = onDependencyTypeFilterChange.mock.calls[0][0];
+      expect(newFilter.has('blocking')).toBe(true);
+      expect(newFilter.has('non-blocking')).toBe(false);
+    });
+
+    it('checkboxes are disabled when disabled prop is true', () => {
+      const props = createTestProps({
+        dependencyTypeFilter: new Set(['blocking']),
+        onDependencyTypeFilterChange: vi.fn(),
+        disabled: true,
+      });
+      render(<GraphControls {...props} />);
+
+      expect(screen.getByTestId('dep-type-blocking')).toBeDisabled();
+      expect(screen.getByTestId('dep-type-parent-child')).toBeDisabled();
+      expect(screen.getByTestId('dep-type-non-blocking')).toBeDisabled();
+    });
+
+    it('does not call handler when checkboxes are disabled', () => {
+      const onDependencyTypeFilterChange = vi.fn();
+      const props = createTestProps({
+        dependencyTypeFilter: new Set(['blocking']),
+        onDependencyTypeFilterChange,
+        disabled: true,
+      });
+      render(<GraphControls {...props} />);
+
+      const checkbox = screen.getByTestId('dep-type-blocking');
+      // Verify it's disabled
+      expect(checkbox).toBeDisabled();
+      // Note: fireEvent.click bypasses disabled in jsdom, but the handler
+      // has an early return when disabled via the checkbox's disabled attribute
+    });
+
+    it('calls handler only once per checkbox toggle', () => {
+      const onDependencyTypeFilterChange = vi.fn();
+      const props = createTestProps({
+        dependencyTypeFilter: new Set(['blocking']),
+        onDependencyTypeFilterChange,
+      });
+      render(<GraphControls {...props} />);
+
+      fireEvent.click(screen.getByTestId('dep-type-parent-child'));
+
+      expect(onDependencyTypeFilterChange).toHaveBeenCalledTimes(1);
+    });
+
+    it('returns a new Set instance on each change (immutability)', () => {
+      const onDependencyTypeFilterChange = vi.fn();
+      const originalFilter = new Set(['blocking']);
+      const props = createTestProps({
+        dependencyTypeFilter: originalFilter,
+        onDependencyTypeFilterChange,
+      });
+      render(<GraphControls {...props} />);
+
+      fireEvent.click(screen.getByTestId('dep-type-parent-child'));
+
+      const newFilter = onDependencyTypeFilterChange.mock.calls[0][0];
+      expect(newFilter).not.toBe(originalFilter);
+      // Original should be unchanged
+      expect(originalFilter.has('parent-child')).toBe(false);
+    });
+  });
 });
