@@ -23,3 +23,7 @@ export {
   addComment,
 } from './issues'
 export type { CreateIssueRequest, UpdateIssueRequest, GraphFilter, AddCommentRequest } from './issues'
+
+// Agent API functions (loom server)
+export { fetchAgents, checkLoomHealth, fetchStatus, fetchTasks } from './agents'
+export type { FetchStatusResult } from './agents'

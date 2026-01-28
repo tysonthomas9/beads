@@ -24,6 +24,7 @@ import {
   FilterBar,
   SearchInput,
   IssueDetailPanel,
+  AgentsSidebar,
 } from '@/components';
 
 // Lazy load GraphView (React Flow ~100KB)
@@ -187,6 +188,7 @@ function App() {
             <ConnectionStatus state={connectionState} />
           </div>
         }
+        sidebar={<AgentsSidebar />}
       >
         <div className={styles.loadingContainer} data-testid="loading-container">
           <LoadingSkeleton.Column />
@@ -218,6 +220,7 @@ function App() {
             />
           </div>
         }
+        sidebar={<AgentsSidebar />}
       >
         <ErrorDisplay
           variant="fetch-error"
@@ -266,6 +269,7 @@ function App() {
           />
         </div>
       }
+      sidebar={<AgentsSidebar />}
     >
       {activeView === 'kanban' && (
         <SwimLaneBoard
