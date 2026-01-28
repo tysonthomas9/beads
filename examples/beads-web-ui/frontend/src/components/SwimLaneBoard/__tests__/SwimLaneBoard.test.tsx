@@ -6,8 +6,8 @@
  * Unit tests for SwimLaneBoard component.
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import '@testing-library/jest-dom';
 
 import { SwimLaneBoard } from '../SwimLaneBoard';
@@ -49,6 +49,13 @@ const defaultStatuses: Status[] = ['open', 'in_progress', 'closed'];
 describe('SwimLaneBoard', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // Clear localStorage to prevent state persistence between tests
+    localStorage.clear();
+  });
+
+  afterEach(() => {
+    cleanup();
+    localStorage.clear();
   });
 
   describe('groupBy=none fallback to KanbanBoard', () => {

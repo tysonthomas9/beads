@@ -5,7 +5,7 @@
  * When groupBy='none', delegates to KanbanBoard for a flat view.
  */
 
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import {
   DndContext,
   DragOverlay,
@@ -25,6 +25,50 @@ import { SwimLane } from '@/components/SwimLane';
 import { DraggableIssueCard } from '@/components/DraggableIssueCard';
 import { groupIssuesByField, sortLanes, type GroupByField, type LaneGroup } from './groupingUtils';
 import styles from './SwimLaneBoard.module.css';
+
+/**
+ * Storage key prefix for collapsed lanes state.
+ * Combined with groupBy for unique key per grouping mode.
+ */
+const STORAGE_KEY_PREFIX = 'swimlane-collapsed-';
+
+/**
+ * Helper to get storage key for a groupBy mode.
+ */
+function getStorageKey(groupBy: GroupByField): string {
+  return `${STORAGE_KEY_PREFIX}${groupBy}`;
+}
+
+/**
+ * Helper to load collapsed lanes from localStorage.
+ */
+function loadCollapsedLanes(groupBy: GroupByField): Set<string> {
+  if (groupBy === 'none') return new Set();
+  try {
+    const stored = localStorage.getItem(getStorageKey(groupBy));
+    if (stored) {
+      const parsed: unknown = JSON.parse(stored);
+      if (Array.isArray(parsed) && parsed.every((item): item is string => typeof item === 'string')) {
+        return new Set(parsed);
+      }
+    }
+  } catch {
+    // Silently fail if localStorage unavailable or invalid JSON
+  }
+  return new Set();
+}
+
+/**
+ * Helper to save collapsed lanes to localStorage.
+ */
+function saveCollapsedLanes(groupBy: GroupByField, lanes: Set<string>): void {
+  if (groupBy === 'none') return;
+  try {
+    localStorage.setItem(getStorageKey(groupBy), JSON.stringify([...lanes]));
+  } catch {
+    // Silently fail if localStorage unavailable
+  }
+}
 
 /**
  * Props for the SwimLaneBoard component.
@@ -128,7 +172,20 @@ function SwimLaneBoardContent({
   // Track lanes that have been toggled from their default state.
   // When defaultCollapsed=true, this tracks lanes that were EXPANDED (toggled to open).
   // When defaultCollapsed=false, this tracks lanes that were COLLAPSED (toggled to closed).
-  const [toggledLanes, setToggledLanes] = useState<Set<string>>(new Set());
+  // Initialize from localStorage for persistence across page refreshes.
+  const [toggledLanes, setToggledLanes] = useState<Set<string>>(() =>
+    loadCollapsedLanes(groupBy)
+  );
+
+  // Persist toggledLanes to localStorage when it changes
+  useEffect(() => {
+    saveCollapsedLanes(groupBy, toggledLanes);
+  }, [toggledLanes, groupBy]);
+
+  // When groupBy changes, reset toggledLanes from localStorage for the new groupBy mode
+  useEffect(() => {
+    setToggledLanes(loadCollapsedLanes(groupBy));
+  }, [groupBy]);
 
   // Configure drag sensors with activation constraints
   const sensors = useSensors(
@@ -174,6 +231,30 @@ function SwimLaneBoardContent({
     [toggledLanes, defaultCollapsed]
   );
 
+  // Expand all lanes
+  const expandAll = useCallback(() => {
+    if (defaultCollapsed) {
+      // When defaultCollapsed=true, all lanes need to be in toggled set to be expanded
+      const allLaneIds = new Set(lanes.map((lane) => lane.id));
+      setToggledLanes(allLaneIds);
+    } else {
+      // When defaultCollapsed=false, clear toggled set to expand all
+      setToggledLanes(new Set());
+    }
+  }, [lanes, defaultCollapsed]);
+
+  // Collapse all lanes
+  const collapseAll = useCallback(() => {
+    if (defaultCollapsed) {
+      // When defaultCollapsed=true, clear toggled set to collapse all
+      setToggledLanes(new Set());
+    } else {
+      // When defaultCollapsed=false, add all lanes to toggled set to collapse them
+      const allLaneIds = new Set(lanes.map((lane) => lane.id));
+      setToggledLanes(allLaneIds);
+    }
+  }, [lanes, defaultCollapsed]);
+
   // Handle drag start - store the dragged issue for DragOverlay
   const handleDragStart = useCallback((event: DragStartEvent) => {
     const issue = event.active.data.current?.issue as Issue | undefined;
@@ -214,6 +295,29 @@ function SwimLaneBoardContent({
       onDragEnd={handleDragEnd}
     >
       <div className={rootClassName} data-testid="swim-lane-board">
+        {/* Expand/Collapse All toolbar - only show when there are multiple lanes */}
+        {lanes.length > 1 && (
+          <div className={styles.toolbar} role="toolbar" aria-label="Lane controls">
+            <button
+              type="button"
+              className={styles.toolbarButton}
+              onClick={expandAll}
+              aria-label="Expand all lanes"
+              data-testid="expand-all-lanes"
+            >
+              Expand All
+            </button>
+            <button
+              type="button"
+              className={styles.toolbarButton}
+              onClick={collapseAll}
+              aria-label="Collapse all lanes"
+              data-testid="collapse-all-lanes"
+            >
+              Collapse All
+            </button>
+          </div>
+        )}
         {lanes.map((lane) => {
           // Build props conditionally to satisfy exactOptionalPropertyTypes
           const laneProps = {
