@@ -48,6 +48,10 @@
   border-bottom-color: var(--color-text-muted);
 }
 
+.statusColumn[data-status='review'] .header {
+  border-bottom-color: var(--color-status-review);
+}
+
 .title {
   margin: 0;
   font-size: var(--font-size-sm);

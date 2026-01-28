@@ -49,8 +49,12 @@ describe('StatusColors', () => {
     expect(StatusColors.closed).toBe('#10b981'); // green-500
   });
 
-  it('contains exactly 3 status colors', () => {
-    expect(Object.keys(StatusColors)).toHaveLength(3);
+  it('has correct color for review status', () => {
+    expect(StatusColors.review).toBe('#8b5cf6'); // purple-500
+  });
+
+  it('contains exactly 4 status colors', () => {
+    expect(Object.keys(StatusColors)).toHaveLength(4);
   });
 });
 

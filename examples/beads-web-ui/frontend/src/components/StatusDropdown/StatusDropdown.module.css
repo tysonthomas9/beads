@@ -59,6 +59,11 @@
   color: var(--color-text-muted);
 }
 
+.statusDropdown[data-status="review"] {
+  background-color: #f3e8ff; /* purple-100 */
+  color: var(--color-status-review);
+}
+
 /* Hover state */
 .statusDropdown:hover:not(:disabled) {
   filter: brightness(0.95);

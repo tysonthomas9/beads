@@ -16,6 +16,7 @@ import {
   StatusBlocked,
   StatusDeferred,
   StatusClosed,
+  StatusReview,
   StatusTombstone,
   StatusPinned,
   StatusHooked,
@@ -61,6 +62,7 @@ describe('Status type guards', () => {
       expect(isKnownStatus('blocked')).toBe(true);
       expect(isKnownStatus('deferred')).toBe(true);
       expect(isKnownStatus('closed')).toBe(true);
+      expect(isKnownStatus('review')).toBe(true);
       expect(isKnownStatus('tombstone')).toBe(true);
       expect(isKnownStatus('pinned')).toBe(true);
       expect(isKnownStatus('hooked')).toBe(true);
@@ -104,14 +106,15 @@ describe('Status constants', () => {
       'blocked',
       'deferred',
       'closed',
+      'review',
       'tombstone',
       'pinned',
       'hooked',
     ]);
   });
 
-  it('KNOWN_STATUSES is readonly (has 8 items)', () => {
-    expect(KNOWN_STATUSES.length).toBe(8);
+  it('KNOWN_STATUSES is readonly (has 9 items)', () => {
+    expect(KNOWN_STATUSES.length).toBe(9);
   });
 
   it('status constants have correct values', () => {
@@ -120,6 +123,7 @@ describe('Status constants', () => {
     expect(StatusBlocked).toBe('blocked');
     expect(StatusDeferred).toBe('deferred');
     expect(StatusClosed).toBe('closed');
+    expect(StatusReview).toBe('review');
     expect(StatusTombstone).toBe('tombstone');
     expect(StatusPinned).toBe('pinned');
     expect(StatusHooked).toBe('hooked');

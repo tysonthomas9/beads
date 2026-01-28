@@ -6,7 +6,8 @@
 
 import type { IssueDetails, Priority } from '@/types';
 import type { Status } from '@/types/status';
-import { IssueDetailPanel } from '@/components/IssueDetailPanel';
+import { IssueDetailPanel, ToastContainer } from '@/components';
+import { useToast } from '@/hooks';
 
 /**
  * Valid priority values.
@@ -123,6 +124,96 @@ export function IssueDetailPanelFixture(): JSX.Element {
         issue={issue}
         onClose={() => window.history.back()}
       />
+    </div>
+  );
+}
+
+/**
+ * Test fixture for Toast e2e tests.
+ * Provides buttons to trigger each toast type for testing.
+ *
+ * URL: /test/toast
+ */
+export function ToastTestFixture(): JSX.Element {
+  const { showToast, dismissAll, dismissToast, toasts } = useToast();
+
+  return (
+    <div
+      data-testid="toast-test-fixture"
+      style={{
+        padding: '2rem',
+        background: 'var(--bg-primary, #1a1a1a)',
+        color: 'var(--text-primary, #fff)',
+        minHeight: '100vh',
+      }}
+    >
+      <ToastContainer toasts={toasts} onDismiss={dismissToast} />
+      <h1>Toast Test Fixture</h1>
+      <p style={{ marginBottom: '1rem' }}>
+        Active toasts: <span data-testid="toast-count">{toasts.length}</span>
+      </p>
+
+      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '1rem' }}>
+        <button
+          data-testid="trigger-success-toast"
+          onClick={() => showToast('Success message', { type: 'success' })}
+          style={{ padding: '8px 16px', cursor: 'pointer' }}
+        >
+          Success Toast
+        </button>
+
+        <button
+          data-testid="trigger-error-toast"
+          onClick={() => showToast('Error message', { type: 'error' })}
+          style={{ padding: '8px 16px', cursor: 'pointer' }}
+        >
+          Error Toast
+        </button>
+
+        <button
+          data-testid="trigger-warning-toast"
+          onClick={() => showToast('Warning message', { type: 'warning' })}
+          style={{ padding: '8px 16px', cursor: 'pointer' }}
+        >
+          Warning Toast
+        </button>
+
+        <button
+          data-testid="trigger-info-toast"
+          onClick={() => showToast('Info message', { type: 'info' })}
+          style={{ padding: '8px 16px', cursor: 'pointer' }}
+        >
+          Info Toast
+        </button>
+      </div>
+
+      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '1rem' }}>
+        <button
+          data-testid="trigger-short-toast"
+          onClick={() => showToast('Short duration toast', { type: 'info', duration: 2000 })}
+          style={{ padding: '8px 16px', cursor: 'pointer' }}
+        >
+          Short Toast (2s)
+        </button>
+
+        <button
+          data-testid="trigger-persistent-toast"
+          onClick={() => showToast('Persistent toast (no auto-dismiss)', { type: 'info', duration: 0 })}
+          style={{ padding: '8px 16px', cursor: 'pointer' }}
+        >
+          Persistent Toast
+        </button>
+      </div>
+
+      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+        <button
+          data-testid="dismiss-all"
+          onClick={dismissAll}
+          style={{ padding: '8px 16px', cursor: 'pointer' }}
+        >
+          Dismiss All
+        </button>
+      </div>
     </div>
   );
 }

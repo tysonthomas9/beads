@@ -87,3 +87,6 @@ export type { UseAgentsOptions, UseAgentsResult } from './useAgents'
 
 export { useToast, ToastProvider } from './useToast'
 export type { ToastType, ToastOptions, Toast, ToastContextValue, ToastProviderProps } from './useToast'
+
+export { useStats } from './useStats'
+export type { UseStatsOptions, UseStatsResult } from './useStats'

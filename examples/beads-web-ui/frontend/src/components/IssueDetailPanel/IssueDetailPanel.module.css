@@ -27,7 +27,7 @@
   top: 0;
   right: 0;
   bottom: 0;
-  width: 400px;
+  width: clamp(400px, 40vw, 800px);
   max-width: 100%;
   background-color: var(--color-bg);
   box-shadow: var(--shadow-lg);
