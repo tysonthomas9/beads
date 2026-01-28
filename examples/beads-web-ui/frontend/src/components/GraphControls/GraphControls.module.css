@@ -14,6 +14,56 @@
   box-shadow: var(--shadow-sm);
 }
 
+/* Status filter group */
+.filterGroup {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.filterLabel {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-secondary);
+}
+
+/* Status filter select - matches FilterBar pattern */
+.statusSelect {
+  height: 28px;
+  padding: var(--space-1) var(--space-2);
+  padding-right: var(--space-6);
+  font-family: var(--font-family-base);
+  font-size: var(--font-size-sm);
+  color: var(--color-text);
+  background-color: var(--color-bg);
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+  background-position: right var(--space-1) center;
+  background-repeat: no-repeat;
+  background-size: 14px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  appearance: none;
+  transition: border-color var(--transition-fast),
+    background-color var(--transition-fast),
+    box-shadow var(--transition-fast);
+}
+
+.statusSelect:hover {
+  border-color: var(--color-text-muted);
+}
+
+.statusSelect:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-primary) 20%, transparent);
+}
+
+.statusSelect:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .toggleLabel {
   display: flex;
   align-items: center;
