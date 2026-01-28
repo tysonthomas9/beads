@@ -28,6 +28,17 @@
   --color-closed: #10b981;  /* emerald-500, same as status-closed */
 
   /* ===========================
+   * Colors - Agent Status (Loom)
+   * =========================== */
+  --color-status-working: #3b82f6; /* blue-500, actively working */
+  --color-status-done: #10b981;    /* emerald-500, completed */
+  --color-status-review: #8b5cf6;  /* purple-500, awaiting review */
+  --color-status-idle: #9ca3af;    /* gray-400, idle/waiting */
+  --color-status-error: #ef4444;   /* red-500, error state */
+  --color-status-dirty: #f59e0b;   /* amber-500, uncommitted changes */
+  --color-status-ready: #6b7280;   /* gray-500, ready/available */
+
+  /* ===========================
    * Colors - Semantic
    * =========================== */
   --color-primary: #3b82f6; /* blue-500 */
@@ -42,6 +53,7 @@
   --color-warning-bg: #fef3c7;  /* amber-100 */
   --color-danger-bg: #fee2e2;   /* red-100 */
   --color-info-bg: #cffafe;     /* cyan-100 */
+  --color-bg-warning: #fef3c7;  /* amber-100, alias for warning bg */
 
   /* ===========================
    * Colors - Issue Type
@@ -60,10 +72,14 @@
   --color-border-light: #f3f4f6;
   --color-border-hover: #d1d5db; /* gray-300, for hover states */
   --color-text: #111827;
+  --color-text-primary: #111827;   /* alias for --color-text */
   --color-text-secondary: #6b7280;
+  --color-text-tertiary: #9ca3af;  /* alias for --color-text-muted */
   --color-text-muted: #9ca3af;
   --color-text-inverse: #ffffff;
   --color-highlight: #fef08a; /* yellow-200 */
+  --color-focus: #3b82f6;     /* blue-500, focus ring color */
+  --color-bg-primary: #ffffff; /* alias for --color-bg */
 
   /* ===========================
    * Colors - Skeleton Loading

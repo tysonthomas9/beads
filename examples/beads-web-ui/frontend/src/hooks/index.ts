@@ -81,3 +81,6 @@ export type { UseViewStateOptions, UseViewStateReturn } from './useViewState'
 
 export { useIssueDetail } from './useIssueDetail'
 export type { UseIssueDetailReturn } from './useIssueDetail'
+
+export { useAgents } from './useAgents'
+export type { UseAgentsOptions, UseAgentsResult } from './useAgents'

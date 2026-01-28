@@ -20,3 +20,7 @@ export {
   fetchGraphIssues,
 } from './issues'
 export type { CreateIssueRequest, UpdateIssueRequest, GraphFilter } from './issues'
+
+// Agent API functions (loom server)
+export { fetchAgents, checkLoomHealth, fetchStatus } from './agents'
+export type { FetchStatusResult } from './agents'

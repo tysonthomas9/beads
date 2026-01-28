@@ -84,7 +84,20 @@ export {
 } from './entity';
 
 // Agent types
-export type { AgentState, MolType, WorkType } from './agent';
+export type {
+  AgentState,
+  MolType,
+  WorkType,
+  LoomAgentStatus,
+  ParsedLoomStatus,
+  LoomAgentsResponse,
+  LoomTaskInfo,
+  LoomTaskSummary,
+  LoomSyncInfo,
+  LoomStats,
+  LoomStatusResponse,
+  LoomAgentTasks,
+} from './agent';
 export {
   StateIdle,
   StateSpawning,
@@ -99,6 +112,7 @@ export {
   MolTypeWork,
   WorkTypeMutex,
   WorkTypeOpenCompetition,
+  parseLoomStatus,
 } from './agent';
 
 // Issue types

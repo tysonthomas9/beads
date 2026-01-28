@@ -54,9 +54,15 @@
   gap: var(--space-3);
 }
 
+.contentWrapper {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+}
+
 .main {
   flex: 1;
-  height: 0; /* Enables percentage heights in children - standard flexbox pattern */
+  min-width: 0; /* Prevents flex item from overflowing */
   display: flex;
   flex-direction: column;
   overflow: auto;
