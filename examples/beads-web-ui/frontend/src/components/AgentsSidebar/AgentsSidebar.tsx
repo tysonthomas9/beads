@@ -105,8 +105,7 @@ export function AgentsSidebar({
       case 'inProgress':
         return { title: 'In Progress', tasks: taskLists.inProgress };
       case 'blocked':
-        // Note: blocked tasks list is not available from API, show empty for now
-        return { title: 'Blocked', tasks: [] };
+        return { title: 'Blocked', tasks: taskLists.blocked };
       default:
         return { title: '', tasks: [] };
     }
@@ -244,7 +243,6 @@ export function AgentsSidebar({
                       className={styles.queueItem}
                       onClick={() => handleCategoryClick('blocked')}
                       disabled={tasks.blocked === 0}
-                      title="Blocked task list not available"
                     >
                       <span className={styles.queueLabel}>Blocked</span>
                       <span className={styles.queueCount}>

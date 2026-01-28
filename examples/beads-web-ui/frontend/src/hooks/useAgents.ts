@@ -100,6 +100,7 @@ const DEFAULT_TASK_LISTS: LoomTaskLists = {
   readyToImplement: [],
   needsReview: [],
   inProgress: [],
+  blocked: [],
 };
 
 export function useAgents(options?: UseAgentsOptions): UseAgentsResult {

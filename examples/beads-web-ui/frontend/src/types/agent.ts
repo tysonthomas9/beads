@@ -167,6 +167,7 @@ export interface LoomTasksResponse {
   ready_to_implement: LoomTaskInfo[] | null;
   needs_review: LoomTaskInfo[] | null;
   in_progress: LoomTaskInfo[] | null;
+  blocked: LoomTaskInfo[] | null;
   timestamp: string;
 }
 
@@ -178,6 +179,7 @@ export interface LoomTaskLists {
   readyToImplement: LoomTaskInfo[];
   needsReview: LoomTaskInfo[];
   inProgress: LoomTaskInfo[];
+  blocked: LoomTaskInfo[];
 }
 
 /**

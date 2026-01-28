@@ -158,6 +158,7 @@ const DEFAULT_TASK_LISTS: LoomTaskLists = {
   readyToImplement: [],
   needsReview: [],
   inProgress: [],
+  blocked: [],
 };
 
 /**
@@ -184,6 +185,7 @@ export async function fetchTasks(): Promise<LoomTaskLists> {
       readyToImplement: data.ready_to_implement ?? [],
       needsReview: data.needs_review ?? [],
       inProgress: data.in_progress ?? [],
+      blocked: data.blocked ?? [],
     };
   } catch (error) {
     console.warn('Failed to fetch tasks:', error instanceof Error ? error.message : 'Unknown error');
