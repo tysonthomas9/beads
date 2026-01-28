@@ -16,10 +16,16 @@ import type { ConnectionState } from '@/api/websocket';
 import type { UseIssuesReturn } from '@/hooks/useIssues';
 
 // Create hoisted mocks that can be shared across mock definitions
-const { mockUseIssues, mockUseIssueDetail, mockUseViewState } = vi.hoisted(() => ({
+const { mockUseIssues, mockUseIssueDetail, mockUseViewState, mockUseToast } = vi.hoisted(() => ({
   mockUseIssues: vi.fn(),
   mockUseIssueDetail: vi.fn(),
   mockUseViewState: vi.fn(),
+  mockUseToast: vi.fn(() => ({
+    toasts: [],
+    showToast: vi.fn(),
+    dismissToast: vi.fn(),
+    dismissAll: vi.fn(),
+  })),
 }));
 
 // Mock the hooks barrel file - includes useIssues, useViewState, useIssueDetail, and filter hooks
@@ -27,6 +33,7 @@ vi.mock('@/hooks', () => ({
   useIssues: mockUseIssues,
   useViewState: mockUseViewState,
   useIssueDetail: mockUseIssueDetail,
+  useToast: mockUseToast,
   useFilterState: vi.fn(() => [
     {}, // FilterState
     {
@@ -59,6 +66,19 @@ vi.mock('@/hooks', () => ({
     sortState: { key: null, direction: 'asc' },
     handleSort: vi.fn(),
     clearSort: vi.fn(),
+  })),
+  useAgents: vi.fn(() => ({
+    agents: [],
+    tasks: { needs_planning: 0, ready_to_implement: 0, in_progress: 0, need_review: 0, blocked: 0 },
+    taskLists: { needsPlanning: [], readyToImplement: [], needsReview: [], inProgress: [], blocked: [] },
+    agentTasks: {},
+    sync: { db_synced: true, db_last_sync: '', git_needs_push: 0, git_needs_pull: 0 },
+    stats: { open: 0, closed: 0, total: 0, completion: 0 },
+    isLoading: false,
+    isConnected: true,
+    error: null,
+    lastUpdated: null,
+    refetch: vi.fn(),
   })),
 }));
 

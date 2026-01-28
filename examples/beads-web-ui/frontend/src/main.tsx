@@ -4,6 +4,7 @@ import '@/styles/index.css'
 import App from '@/App'
 import { IssueDetailPanelFixture, ErrorTriggerFixture } from '@/TestFixtures'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
+import { ToastProvider } from '@/hooks'
 
 const rootElement = document.getElementById('root')
 if (!rootElement) {
@@ -30,7 +31,9 @@ function getComponent() {
 createRoot(rootElement).render(
   <StrictMode>
     <ErrorBoundary>
-      {getComponent()}
+      <ToastProvider>
+        {getComponent()}
+      </ToastProvider>
     </ErrorBoundary>
   </StrictMode>,
 )

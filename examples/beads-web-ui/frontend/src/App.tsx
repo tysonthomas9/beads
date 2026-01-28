@@ -8,7 +8,7 @@
 
 import { useState, useCallback, useEffect, useRef, useMemo, lazy, Suspense } from 'react';
 import type { Issue, Status } from '@/types';
-import { useIssues, useViewState, useFilterState, useIssueFilter, useDebounce, useBlockedIssues, useIssueDetail } from '@/hooks';
+import { useIssues, useViewState, useFilterState, useIssueFilter, useDebounce, useBlockedIssues, useIssueDetail, useToast } from '@/hooks';
 import type { BlockedInfo } from '@/components/KanbanBoard';
 import styles from './App.module.css';
 import {
@@ -20,7 +20,7 @@ import {
   ErrorDisplay,
   ConnectionStatus,
   BlockedSummary,
-  ErrorToast,
+  ToastContainer,
   FilterBar,
   SearchInput,
   IssueDetailPanel,
@@ -93,7 +93,7 @@ function App() {
     return map;
   }, [blockedIssuesData]);
 
-  const [toastError, setToastError] = useState<string | null>(null);
+  const { toasts, showToast, dismissToast } = useToast();
   const mountedRef = useRef(true);
 
   // Issue detail panel state
@@ -117,14 +117,11 @@ function App() {
         if (!mountedRef.current) return;
         const message =
           err instanceof Error ? err.message : 'Failed to update status';
-        setToastError(message);
+        showToast(message, { type: 'error' });
       }
     },
-    [updateIssueStatus]
+    [updateIssueStatus, showToast]
   );
-
-  // Stable callback for ErrorToast to avoid timer resets
-  const handleToastDismiss = useCallback(() => setToastError(null), []);
 
   // Handle search clear to sync both local and filter state
   const handleSearchClear = useCallback(() => {
@@ -296,9 +293,7 @@ function App() {
           <GraphView issues={filteredIssues} onNodeClick={handleIssueClick} />
         </Suspense>
       )}
-      {toastError && (
-        <ErrorToast message={toastError} onDismiss={handleToastDismiss} />
-      )}
+      <ToastContainer toasts={toasts} onDismiss={dismissToast} />
       <IssueDetailPanel
         isOpen={isPanelOpen}
         issue={issueDetails}
