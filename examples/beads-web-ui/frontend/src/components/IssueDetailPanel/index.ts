@@ -14,3 +14,5 @@ export { PriorityDropdown } from './PriorityDropdown';
 export type { PriorityDropdownProps } from './PriorityDropdown';
 export { TypeDropdown } from './TypeDropdown';
 export type { TypeDropdownProps } from './TypeDropdown';
+export { CommentsSection } from './CommentsSection';
+export type { CommentsSectionProps } from './CommentsSection';

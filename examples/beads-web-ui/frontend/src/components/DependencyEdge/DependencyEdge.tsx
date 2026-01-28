@@ -1,6 +1,6 @@
 /**
  * DependencyEdge component for React Flow dependency graph.
- * Renders edges between issue nodes with visual styles based on blocking status.
+ * Renders edges between issue nodes with visual styles based on dependency type.
  */
 
 import { memo } from 'react';
@@ -10,7 +10,7 @@ import {
   getSmoothStepPath,
   type EdgeProps,
 } from '@xyflow/react';
-import type { DependencyEdge as DependencyEdgeType } from '@/types';
+import type { DependencyEdge as DependencyEdgeType, DependencyType } from '@/types';
 import styles from './DependencyEdge.module.css';
 
 /**
@@ -20,9 +20,33 @@ import styles from './DependencyEdge.module.css';
 export type DependencyEdgeProps = EdgeProps<DependencyEdgeType>;
 
 /**
+ * Map dependency type to CSS class name.
+ * Returns the appropriate style class for visual distinction.
+ */
+function getTypeClassName(
+  dependencyType: DependencyType | undefined,
+  styleModule: Record<string, string>
+): string {
+  switch (dependencyType) {
+    case 'blocks':
+      return styleModule.typeBlocks ?? '';
+    case 'parent-child':
+      return styleModule.typeParentChild ?? '';
+    case 'conditional-blocks':
+      return styleModule.typeConditionalBlocks ?? '';
+    case 'waits-for':
+      return styleModule.typeWaitsFor ?? '';
+    case 'related':
+      return styleModule.typeRelated ?? '';
+    default:
+      return styleModule.typeDefault ?? '';
+  }
+}
+
+/**
  * DependencyEdge renders a dependency relationship between two issue nodes.
  * Uses smooth step paths for a clean graph appearance.
- * Blocking edges are rendered with animated dashed red lines.
+ * Edges are styled based on their dependency type.
  */
 function DependencyEdgeComponent({
   id,
@@ -45,15 +69,14 @@ function DependencyEdgeComponent({
     targetPosition,
   });
 
-  const isBlocking = data?.isBlocking ?? false;
   const isHighlighted = data?.isHighlighted ?? false;
   const dependencyType = data?.dependencyType ?? 'blocks';
 
   // Format label text (display as-is)
   const labelText = dependencyType;
 
-  // Determine edge class based on blocking and highlight state
-  let edgeClassName = isBlocking ? styles.blockingEdge : styles.normalEdge;
+  // Build class names: type-specific + optional highlighted
+  let edgeClassName = getTypeClassName(dependencyType, styles);
   if (isHighlighted) {
     edgeClassName = `${edgeClassName} ${styles.highlighted}`;
   }
@@ -68,9 +91,6 @@ function DependencyEdgeComponent({
         id={id}
         path={edgePath}
         className={edgeClassName}
-        style={{
-          strokeWidth: isBlocking ? 2 : 1.5,
-        }}
         markerEnd="url(#arrow)"
       />
       <EdgeLabelRenderer>
@@ -81,6 +101,7 @@ function DependencyEdgeComponent({
             pointerEvents: 'all',
           }}
           className={labelClassName}
+          data-type={dependencyType}
         >
           {labelText}
         </div>

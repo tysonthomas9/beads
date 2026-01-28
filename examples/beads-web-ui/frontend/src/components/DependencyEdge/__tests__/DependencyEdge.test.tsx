@@ -6,14 +6,25 @@
  * Unit tests for DependencyEdge component.
  */
 
-import { describe, it, expect } from 'vitest';
-import { render } from '@testing-library/react';
+import { describe, it, expect, vi } from 'vitest';
+import { render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { ReactFlowProvider } from '@xyflow/react';
 import { Position } from '@xyflow/react';
 
 import { DependencyEdge } from '../DependencyEdge';
 import type { DependencyEdgeData, DependencyType } from '@/types';
+
+// Mock EdgeLabelRenderer to render children inline (it normally uses a portal)
+vi.mock('@xyflow/react', async () => {
+  const actual = await vi.importActual('@xyflow/react');
+  return {
+    ...actual,
+    EdgeLabelRenderer: ({ children }: { children: React.ReactNode }) => (
+      <foreignObject data-testid="edge-label-renderer">{children}</foreignObject>
+    ),
+  };
+});
 
 /**
  * Create test props for DependencyEdge component.
@@ -68,40 +79,108 @@ describe('DependencyEdge', () => {
     });
   });
 
-  describe('blocking vs non-blocking styles', () => {
-    it('applies blocking class when isBlocking is true', () => {
-      const props = createTestProps({ isBlocking: true });
-      const { container } = renderWithProvider(<DependencyEdge {...props} />);
-
-      const path = container.querySelector('path.react-flow__edge-path');
-      // SVG elements use getAttribute('class') instead of className
-      const classAttr = path?.getAttribute('class') ?? '';
-      expect(classAttr).toContain('blockingEdge');
-    });
-
-    it('applies normal class when isBlocking is false', () => {
-      const props = createTestProps({ isBlocking: false });
+  describe('type-based styling', () => {
+    it('applies typeBlocks class for blocks dependency', () => {
+      const props = createTestProps({ dependencyType: 'blocks' });
       const { container } = renderWithProvider(<DependencyEdge {...props} />);
 
       const path = container.querySelector('path.react-flow__edge-path');
       const classAttr = path?.getAttribute('class') ?? '';
-      expect(classAttr).toContain('normalEdge');
+      expect(classAttr).toContain('typeBlocks');
     });
 
-    it('blocking edge has thicker stroke', () => {
-      const props = createTestProps({ isBlocking: true });
+    it('applies typeParentChild class for parent-child dependency', () => {
+      const props = createTestProps({ dependencyType: 'parent-child' });
       const { container } = renderWithProvider(<DependencyEdge {...props} />);
 
       const path = container.querySelector('path.react-flow__edge-path');
-      expect(path).toHaveStyle({ strokeWidth: '2' });
+      const classAttr = path?.getAttribute('class') ?? '';
+      expect(classAttr).toContain('typeParentChild');
     });
 
-    it('non-blocking edge has thinner stroke', () => {
-      const props = createTestProps({ isBlocking: false });
+    it('applies typeConditionalBlocks class for conditional-blocks dependency', () => {
+      const props = createTestProps({ dependencyType: 'conditional-blocks' });
       const { container } = renderWithProvider(<DependencyEdge {...props} />);
 
       const path = container.querySelector('path.react-flow__edge-path');
-      expect(path).toHaveStyle({ strokeWidth: '1.5' });
+      const classAttr = path?.getAttribute('class') ?? '';
+      expect(classAttr).toContain('typeConditionalBlocks');
+    });
+
+    it('applies typeWaitsFor class for waits-for dependency', () => {
+      const props = createTestProps({ dependencyType: 'waits-for' });
+      const { container } = renderWithProvider(<DependencyEdge {...props} />);
+
+      const path = container.querySelector('path.react-flow__edge-path');
+      const classAttr = path?.getAttribute('class') ?? '';
+      expect(classAttr).toContain('typeWaitsFor');
+    });
+
+    it('applies typeRelated class for related dependency', () => {
+      const props = createTestProps({ dependencyType: 'related' });
+      const { container } = renderWithProvider(<DependencyEdge {...props} />);
+
+      const path = container.querySelector('path.react-flow__edge-path');
+      const classAttr = path?.getAttribute('class') ?? '';
+      expect(classAttr).toContain('typeRelated');
+    });
+
+    it('applies typeDefault class for unknown dependency type', () => {
+      const props = createTestProps({ dependencyType: 'custom-type' as DependencyType });
+      const { container } = renderWithProvider(<DependencyEdge {...props} />);
+
+      const path = container.querySelector('path.react-flow__edge-path');
+      const classAttr = path?.getAttribute('class') ?? '';
+      expect(classAttr).toContain('typeDefault');
+    });
+
+    it('applies typeDefault class for discovered-from (unknown to styling)', () => {
+      const props = createTestProps({ dependencyType: 'discovered-from' });
+      const { container } = renderWithProvider(<DependencyEdge {...props} />);
+
+      const path = container.querySelector('path.react-flow__edge-path');
+      const classAttr = path?.getAttribute('class') ?? '';
+      expect(classAttr).toContain('typeDefault');
+    });
+  });
+
+  describe('data-type attribute', () => {
+    it('adds data-type attribute to label with dependency type', () => {
+      const props = createTestProps({ dependencyType: 'parent-child' });
+      renderWithProvider(<DependencyEdge {...props} />);
+
+      const label = screen.getByText('parent-child');
+      expect(label).toHaveAttribute('data-type', 'parent-child');
+    });
+
+    it('adds data-type attribute for blocks type', () => {
+      const props = createTestProps({ dependencyType: 'blocks' });
+      renderWithProvider(<DependencyEdge {...props} />);
+
+      const label = screen.getByText('blocks');
+      expect(label).toHaveAttribute('data-type', 'blocks');
+    });
+  });
+
+  describe('highlighted state with type styling', () => {
+    it('combines type class with highlighted class', () => {
+      const props = createTestProps({ dependencyType: 'blocks', isHighlighted: true });
+      const { container } = renderWithProvider(<DependencyEdge {...props} />);
+
+      const path = container.querySelector('path.react-flow__edge-path');
+      const classAttr = path?.getAttribute('class') ?? '';
+      expect(classAttr).toContain('typeBlocks');
+      expect(classAttr).toContain('highlighted');
+    });
+
+    it('combines parent-child type with highlighted class', () => {
+      const props = createTestProps({ dependencyType: 'parent-child', isHighlighted: true });
+      const { container } = renderWithProvider(<DependencyEdge {...props} />);
+
+      const path = container.querySelector('path.react-flow__edge-path');
+      const classAttr = path?.getAttribute('class') ?? '';
+      expect(classAttr).toContain('typeParentChild');
+      expect(classAttr).toContain('highlighted');
     });
   });
 
@@ -117,15 +196,15 @@ describe('DependencyEdge', () => {
       ).not.toThrow();
     });
 
-    it('defaults isBlocking to false when undefined', () => {
+    it('defaults to typeBlocks when dependencyType is undefined', () => {
       const props = createTestProps();
-      // @ts-expect-error Testing undefined isBlocking
-      props.data = { ...props.data, isBlocking: undefined };
+      // @ts-expect-error Testing undefined dependencyType
+      props.data = { ...props.data, dependencyType: undefined };
 
       const { container } = renderWithProvider(<DependencyEdge {...props} />);
       const path = container.querySelector('path.react-flow__edge-path');
       const classAttr = path?.getAttribute('class') ?? '';
-      expect(classAttr).toContain('normalEdge');
+      expect(classAttr).toContain('typeBlocks');
     });
 
     it('handles various coordinate positions', () => {
@@ -227,6 +306,77 @@ describe('DependencyEdge', () => {
         'path.react-flow__edge-interaction'
       );
       expect(interactionPath).toBeInTheDocument();
+    });
+  });
+
+  describe('dependency type labels', () => {
+    // Parameterized test for all 10 dependency types
+    const dependencyTypes = [
+      'blocks',
+      'parent-child',
+      'conditional-blocks',
+      'waits-for',
+      'related',
+      'discovered-from',
+      'replies-to',
+      'relates-to',
+      'duplicates',
+      'supersedes',
+    ] as const;
+
+    it.each(dependencyTypes)(
+      'displays "%s" label for dependency type %s',
+      (dependencyType) => {
+        const props = createTestProps({ dependencyType });
+        renderWithProvider(<DependencyEdge {...props} />);
+
+        // EdgeLabelRenderer creates a portal, find label by text content
+        const label = screen.getByText(dependencyType);
+        expect(label).toBeInTheDocument();
+      }
+    );
+
+    it('displays dependency type as-is without transformation', () => {
+      // Use a mixed-case type to verify no casing transformation occurs
+      const props = createTestProps({ dependencyType: 'parent-child' as DependencyType });
+      renderWithProvider(<DependencyEdge {...props} />);
+
+      // Should be exactly 'parent-child', not 'Parent-Child' or 'PARENT-CHILD'
+      const label = screen.getByText('parent-child');
+      expect(label).toBeInTheDocument();
+      expect(label.textContent).toBe('parent-child');
+    });
+
+    it('defaults to "blocks" when dependencyType is undefined', () => {
+      const props = createTestProps();
+      // @ts-expect-error Testing undefined dependencyType
+      props.data = { ...props.data, dependencyType: undefined };
+
+      renderWithProvider(<DependencyEdge {...props} />);
+
+      // Should default to 'blocks' when dependencyType is undefined
+      const label = screen.getByText('blocks');
+      expect(label).toBeInTheDocument();
+    });
+  });
+
+  describe('selected state label styling', () => {
+    it('applies selected class to label when selected is true', () => {
+      const props = { ...createTestProps(), selected: true };
+      renderWithProvider(<DependencyEdge {...props} />);
+
+      // Find label by text, then check for selected class
+      const label = screen.getByText('blocks');
+      expect(label.className).toContain('selected');
+    });
+
+    it('does not apply selected class when selected is false', () => {
+      const props = { ...createTestProps(), selected: false };
+      renderWithProvider(<DependencyEdge {...props} />);
+
+      // Find label by text, then check it doesn't have selected class
+      const label = screen.getByText('blocks');
+      expect(label.className).not.toContain('selected');
     });
   });
 });
