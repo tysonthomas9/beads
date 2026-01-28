@@ -3,7 +3,7 @@
  * Acts as the primary interface between React components and the Go backend.
  */
 
-import { get, post, patch, ApiError } from './client'
+import { get, post, patch, del, ApiError } from './client'
 import type {
   Issue,
   IssueDetails,
@@ -288,6 +288,41 @@ export async function closeIssue(id: string, reason?: string): Promise<void> {
   const response = await post<ApiResult<null>>(
     `/api/issues/${encodeURIComponent(id)}/close`,
     reason ? { reason } : {}
+  )
+  unwrap(response)
+}
+
+// ============= DEPENDENCY OPERATIONS =============
+
+/**
+ * Add a dependency to an issue.
+ * @param issueId - The issue that will depend on another
+ * @param dependsOnId - The issue being depended on
+ * @param depType - Type of dependency (defaults to "blocks")
+ */
+export async function addDependency(
+  issueId: string,
+  dependsOnId: string,
+  depType: DependencyType = 'blocks'
+): Promise<void> {
+  const response = await post<ApiResult<null>>(
+    `/api/issues/${encodeURIComponent(issueId)}/dependencies`,
+    { depends_on_id: dependsOnId, dep_type: depType }
+  )
+  unwrap(response)
+}
+
+/**
+ * Remove a dependency from an issue.
+ * @param issueId - The issue to remove the dependency from
+ * @param dependsOnId - The issue that was being depended on
+ */
+export async function removeDependency(
+  issueId: string,
+  dependsOnId: string
+): Promise<void> {
+  const response = await del<ApiResult<null>>(
+    `/api/issues/${encodeURIComponent(issueId)}/dependencies/${encodeURIComponent(dependsOnId)}`
   )
   unwrap(response)
 }

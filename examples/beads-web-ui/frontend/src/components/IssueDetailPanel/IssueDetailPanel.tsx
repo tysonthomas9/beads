@@ -4,13 +4,14 @@
  */
 
 import { useEffect, useRef, useState, useCallback } from 'react';
-import type { Issue, IssueDetails, IssueWithDependencyMetadata, Priority, IssueType } from '@/types';
+import type { Issue, IssueDetails, IssueWithDependencyMetadata, Priority, IssueType, DependencyType } from '@/types';
 import type { Status } from '@/types/status';
-import { updateIssue } from '@/api';
+import { updateIssue, addDependency, removeDependency } from '@/api';
 import { IssueHeader } from './IssueHeader';
 import { EditableDescription } from './EditableDescription';
 import { PriorityDropdown } from './PriorityDropdown';
 import { TypeDropdown } from './TypeDropdown';
+import { DependencySection } from './DependencySection';
 import { ErrorToast } from '../ErrorToast';
 import styles from './IssueDetailPanel.module.css';
 
@@ -145,6 +146,18 @@ function DefaultContent({
     }
   }, [issue, onIssueUpdate]);
 
+  const handleAddDependency = useCallback(async (dependsOnId: string, type: DependencyType) => {
+    if (!issue) return;
+    await addDependency(issue.id, dependsOnId, type);
+    // The parent component should refresh issue details via WebSocket or manual refetch
+  }, [issue]);
+
+  const handleRemoveDependency = useCallback(async (dependsOnId: string) => {
+    if (!issue) return;
+    await removeDependency(issue.id, dependsOnId);
+    // The parent component should refresh issue details via WebSocket or manual refetch
+  }, [issue]);
+
   // Loading state
   if (isLoading) {
     return (
@@ -257,16 +270,15 @@ function DefaultContent({
           </section>
         )}
 
-        {/* Dependencies (blocking this issue) */}
-        {dependencies && dependencies.length > 0 && (
-          <section className={styles.section}>
-            <h3 className={styles.sectionTitle}>
-              Blocked By ({dependencies.length})
-            </h3>
-            <ul className={styles.dependencyList}>
-              {dependencies.map(renderDependencyItem)}
-            </ul>
-          </section>
+        {/* Dependencies (blocking this issue) - editable */}
+        {hasDetails && (
+          <DependencySection
+            issueId={issue.id}
+            dependencies={dependencies ?? []}
+            onAddDependency={handleAddDependency}
+            onRemoveDependency={handleRemoveDependency}
+            disabled={isLoading}
+          />
         )}
 
         {/* Dependents (this issue blocks) */}

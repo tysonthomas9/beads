@@ -5253,3 +5253,429 @@ func TestParseGraphParams(t *testing.T) {
 		})
 	}
 }
+
+// ============= Dependency Handler Tests =============
+
+// mockDependencyClient implements dependencyManager for testing
+type mockDependencyClient struct {
+	addDependencyFunc    func(args *rpc.DepAddArgs) (*rpc.Response, error)
+	removeDependencyFunc func(args *rpc.DepRemoveArgs) (*rpc.Response, error)
+}
+
+func (m *mockDependencyClient) AddDependency(args *rpc.DepAddArgs) (*rpc.Response, error) {
+	if m.addDependencyFunc != nil {
+		return m.addDependencyFunc(args)
+	}
+	return nil, errors.New("addDependencyFunc not implemented")
+}
+
+func (m *mockDependencyClient) RemoveDependency(args *rpc.DepRemoveArgs) (*rpc.Response, error) {
+	if m.removeDependencyFunc != nil {
+		return m.removeDependencyFunc(args)
+	}
+	return nil, errors.New("removeDependencyFunc not implemented")
+}
+
+// mockDependencyPool implements dependencyConnectionGetter for testing
+type mockDependencyPool struct {
+	getFunc func(ctx context.Context) (dependencyManager, error)
+	putFunc func(client dependencyManager)
+}
+
+func (m *mockDependencyPool) Get(ctx context.Context) (dependencyManager, error) {
+	if m.getFunc != nil {
+		return m.getFunc(ctx)
+	}
+	return nil, errors.New("getFunc not implemented")
+}
+
+func (m *mockDependencyPool) Put(client dependencyManager) {
+	if m.putFunc != nil {
+		m.putFunc(client)
+	}
+}
+
+// TestHandleAddDependency_Success tests successful dependency addition
+func TestHandleAddDependency_Success(t *testing.T) {
+	client := &mockDependencyClient{
+		addDependencyFunc: func(args *rpc.DepAddArgs) (*rpc.Response, error) {
+			if args.FromID != "issue-1" {
+				t.Errorf("FromID = %q, want %q", args.FromID, "issue-1")
+			}
+			if args.ToID != "issue-2" {
+				t.Errorf("ToID = %q, want %q", args.ToID, "issue-2")
+			}
+			if args.DepType != "blocks" {
+				t.Errorf("DepType = %q, want %q", args.DepType, "blocks")
+			}
+			return &rpc.Response{Success: true}, nil
+		},
+	}
+
+	pool := &mockDependencyPool{
+		getFunc: func(ctx context.Context) (dependencyManager, error) {
+			return client, nil
+		},
+	}
+
+	handler := handleAddDependencyWithPool(pool)
+
+	body := `{"depends_on_id": "issue-2"}`
+	req := httptest.NewRequest(http.MethodPost, "/api/issues/issue-1/dependencies", strings.NewReader(body))
+	req.SetPathValue("id", "issue-1")
+	w := httptest.NewRecorder()
+
+	handler.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("status = %d, want %d", w.Code, http.StatusOK)
+	}
+
+	var response DependencyResponse
+	if err := json.NewDecoder(w.Body).Decode(&response); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	if !response.Success {
+		t.Errorf("Success = false, want true")
+	}
+}
+
+// TestHandleAddDependency_MissingIssueID tests missing issue ID in path
+func TestHandleAddDependency_MissingIssueID(t *testing.T) {
+	handler := handleAddDependencyWithPool(nil)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/issues//dependencies", strings.NewReader(`{}`))
+	req.SetPathValue("id", "")
+	w := httptest.NewRecorder()
+
+	handler.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("status = %d, want %d", w.Code, http.StatusBadRequest)
+	}
+
+	var response DependencyResponse
+	if err := json.NewDecoder(w.Body).Decode(&response); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	if response.Success {
+		t.Errorf("Success = true, want false")
+	}
+	if response.Error != "missing issue ID" {
+		t.Errorf("Error = %q, want %q", response.Error, "missing issue ID")
+	}
+}
+
+// TestHandleAddDependency_InvalidBody tests invalid JSON body
+func TestHandleAddDependency_InvalidBody(t *testing.T) {
+	pool := &mockDependencyPool{
+		getFunc: func(ctx context.Context) (dependencyManager, error) {
+			return &mockDependencyClient{}, nil
+		},
+	}
+
+	handler := handleAddDependencyWithPool(pool)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/issues/issue-1/dependencies", strings.NewReader(`invalid json`))
+	req.SetPathValue("id", "issue-1")
+	w := httptest.NewRecorder()
+
+	handler.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("status = %d, want %d", w.Code, http.StatusBadRequest)
+	}
+}
+
+// TestHandleAddDependency_MissingDependsOnID tests missing depends_on_id field
+func TestHandleAddDependency_MissingDependsOnID(t *testing.T) {
+	pool := &mockDependencyPool{
+		getFunc: func(ctx context.Context) (dependencyManager, error) {
+			return &mockDependencyClient{}, nil
+		},
+	}
+
+	handler := handleAddDependencyWithPool(pool)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/issues/issue-1/dependencies", strings.NewReader(`{}`))
+	req.SetPathValue("id", "issue-1")
+	w := httptest.NewRecorder()
+
+	handler.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("status = %d, want %d", w.Code, http.StatusBadRequest)
+	}
+
+	var response DependencyResponse
+	if err := json.NewDecoder(w.Body).Decode(&response); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	if response.Error != "depends_on_id is required" {
+		t.Errorf("Error = %q, want %q", response.Error, "depends_on_id is required")
+	}
+}
+
+// TestHandleAddDependency_SelfDependency tests preventing self-dependency
+func TestHandleAddDependency_SelfDependency(t *testing.T) {
+	pool := &mockDependencyPool{
+		getFunc: func(ctx context.Context) (dependencyManager, error) {
+			return &mockDependencyClient{}, nil
+		},
+	}
+
+	handler := handleAddDependencyWithPool(pool)
+
+	body := `{"depends_on_id": "issue-1"}`
+	req := httptest.NewRequest(http.MethodPost, "/api/issues/issue-1/dependencies", strings.NewReader(body))
+	req.SetPathValue("id", "issue-1")
+	w := httptest.NewRecorder()
+
+	handler.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("status = %d, want %d", w.Code, http.StatusBadRequest)
+	}
+
+	var response DependencyResponse
+	if err := json.NewDecoder(w.Body).Decode(&response); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	if response.Error != "cannot add self-dependency" {
+		t.Errorf("Error = %q, want %q", response.Error, "cannot add self-dependency")
+	}
+}
+
+// TestHandleAddDependency_CustomDepType tests using a custom dependency type
+func TestHandleAddDependency_CustomDepType(t *testing.T) {
+	client := &mockDependencyClient{
+		addDependencyFunc: func(args *rpc.DepAddArgs) (*rpc.Response, error) {
+			if args.DepType != "parent-child" {
+				t.Errorf("DepType = %q, want %q", args.DepType, "parent-child")
+			}
+			return &rpc.Response{Success: true}, nil
+		},
+	}
+
+	pool := &mockDependencyPool{
+		getFunc: func(ctx context.Context) (dependencyManager, error) {
+			return client, nil
+		},
+	}
+
+	handler := handleAddDependencyWithPool(pool)
+
+	body := `{"depends_on_id": "issue-2", "dep_type": "parent-child"}`
+	req := httptest.NewRequest(http.MethodPost, "/api/issues/issue-1/dependencies", strings.NewReader(body))
+	req.SetPathValue("id", "issue-1")
+	w := httptest.NewRecorder()
+
+	handler.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("status = %d, want %d", w.Code, http.StatusOK)
+	}
+}
+
+// TestHandleAddDependency_CycleError tests handling of cycle detection errors
+func TestHandleAddDependency_CycleError(t *testing.T) {
+	client := &mockDependencyClient{
+		addDependencyFunc: func(args *rpc.DepAddArgs) (*rpc.Response, error) {
+			return nil, errors.New("would create a dependency cycle")
+		},
+	}
+
+	pool := &mockDependencyPool{
+		getFunc: func(ctx context.Context) (dependencyManager, error) {
+			return client, nil
+		},
+	}
+
+	handler := handleAddDependencyWithPool(pool)
+
+	body := `{"depends_on_id": "issue-2"}`
+	req := httptest.NewRequest(http.MethodPost, "/api/issues/issue-1/dependencies", strings.NewReader(body))
+	req.SetPathValue("id", "issue-1")
+	w := httptest.NewRecorder()
+
+	handler.ServeHTTP(w, req)
+
+	if w.Code != http.StatusConflict {
+		t.Errorf("status = %d, want %d", w.Code, http.StatusConflict)
+	}
+}
+
+// TestHandleRemoveDependency_Success tests successful dependency removal
+func TestHandleRemoveDependency_Success(t *testing.T) {
+	client := &mockDependencyClient{
+		removeDependencyFunc: func(args *rpc.DepRemoveArgs) (*rpc.Response, error) {
+			if args.FromID != "issue-1" {
+				t.Errorf("FromID = %q, want %q", args.FromID, "issue-1")
+			}
+			if args.ToID != "issue-2" {
+				t.Errorf("ToID = %q, want %q", args.ToID, "issue-2")
+			}
+			return &rpc.Response{Success: true}, nil
+		},
+	}
+
+	pool := &mockDependencyPool{
+		getFunc: func(ctx context.Context) (dependencyManager, error) {
+			return client, nil
+		},
+	}
+
+	handler := handleRemoveDependencyWithPool(pool)
+
+	req := httptest.NewRequest(http.MethodDelete, "/api/issues/issue-1/dependencies/issue-2", nil)
+	req.SetPathValue("id", "issue-1")
+	req.SetPathValue("depId", "issue-2")
+	w := httptest.NewRecorder()
+
+	handler.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("status = %d, want %d", w.Code, http.StatusOK)
+	}
+
+	var response DependencyResponse
+	if err := json.NewDecoder(w.Body).Decode(&response); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	if !response.Success {
+		t.Errorf("Success = false, want true")
+	}
+}
+
+// TestHandleRemoveDependency_MissingIssueID tests missing issue ID in path
+func TestHandleRemoveDependency_MissingIssueID(t *testing.T) {
+	handler := handleRemoveDependencyWithPool(nil)
+
+	req := httptest.NewRequest(http.MethodDelete, "/api/issues//dependencies/issue-2", nil)
+	req.SetPathValue("id", "")
+	req.SetPathValue("depId", "issue-2")
+	w := httptest.NewRecorder()
+
+	handler.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("status = %d, want %d", w.Code, http.StatusBadRequest)
+	}
+
+	var response DependencyResponse
+	if err := json.NewDecoder(w.Body).Decode(&response); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	if response.Error != "missing issue ID" {
+		t.Errorf("Error = %q, want %q", response.Error, "missing issue ID")
+	}
+}
+
+// TestHandleRemoveDependency_MissingDepID tests missing dependency ID in path
+func TestHandleRemoveDependency_MissingDepID(t *testing.T) {
+	handler := handleRemoveDependencyWithPool(nil)
+
+	req := httptest.NewRequest(http.MethodDelete, "/api/issues/issue-1/dependencies/", nil)
+	req.SetPathValue("id", "issue-1")
+	req.SetPathValue("depId", "")
+	w := httptest.NewRecorder()
+
+	handler.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("status = %d, want %d", w.Code, http.StatusBadRequest)
+	}
+
+	var response DependencyResponse
+	if err := json.NewDecoder(w.Body).Decode(&response); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	if response.Error != "missing dependency ID" {
+		t.Errorf("Error = %q, want %q", response.Error, "missing dependency ID")
+	}
+}
+
+// TestHandleRemoveDependency_NotFound tests handling of not found errors
+func TestHandleRemoveDependency_NotFound(t *testing.T) {
+	client := &mockDependencyClient{
+		removeDependencyFunc: func(args *rpc.DepRemoveArgs) (*rpc.Response, error) {
+			return nil, errors.New("dependency not found")
+		},
+	}
+
+	pool := &mockDependencyPool{
+		getFunc: func(ctx context.Context) (dependencyManager, error) {
+			return client, nil
+		},
+	}
+
+	handler := handleRemoveDependencyWithPool(pool)
+
+	req := httptest.NewRequest(http.MethodDelete, "/api/issues/issue-1/dependencies/nonexistent", nil)
+	req.SetPathValue("id", "issue-1")
+	req.SetPathValue("depId", "nonexistent")
+	w := httptest.NewRecorder()
+
+	handler.ServeHTTP(w, req)
+
+	if w.Code != http.StatusNotFound {
+		t.Errorf("status = %d, want %d", w.Code, http.StatusNotFound)
+	}
+}
+
+// TestHandleAddDependency_NilPool tests handling of nil pool
+func TestHandleAddDependency_NilPool(t *testing.T) {
+	handler := handleAddDependencyWithPool(nil)
+
+	body := `{"depends_on_id": "issue-2"}`
+	req := httptest.NewRequest(http.MethodPost, "/api/issues/issue-1/dependencies", strings.NewReader(body))
+	req.SetPathValue("id", "issue-1")
+	w := httptest.NewRecorder()
+
+	handler.ServeHTTP(w, req)
+
+	if w.Code != http.StatusServiceUnavailable {
+		t.Errorf("status = %d, want %d", w.Code, http.StatusServiceUnavailable)
+	}
+
+	var response DependencyResponse
+	if err := json.NewDecoder(w.Body).Decode(&response); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	if response.Error != "connection pool not initialized" {
+		t.Errorf("Error = %q, want %q", response.Error, "connection pool not initialized")
+	}
+}
+
+// TestHandleRemoveDependency_NilPool tests handling of nil pool
+func TestHandleRemoveDependency_NilPool(t *testing.T) {
+	handler := handleRemoveDependencyWithPool(nil)
+
+	req := httptest.NewRequest(http.MethodDelete, "/api/issues/issue-1/dependencies/issue-2", nil)
+	req.SetPathValue("id", "issue-1")
+	req.SetPathValue("depId", "issue-2")
+	w := httptest.NewRecorder()
+
+	handler.ServeHTTP(w, req)
+
+	if w.Code != http.StatusServiceUnavailable {
+		t.Errorf("status = %d, want %d", w.Code, http.StatusServiceUnavailable)
+	}
+
+	var response DependencyResponse
+	if err := json.NewDecoder(w.Body).Decode(&response); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	if response.Error != "connection pool not initialized" {
+		t.Errorf("Error = %q, want %q", response.Error, "connection pool not initialized")
+	}
+}
