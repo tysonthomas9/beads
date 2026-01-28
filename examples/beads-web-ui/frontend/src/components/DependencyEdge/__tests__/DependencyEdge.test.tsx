@@ -145,6 +145,58 @@ describe('DependencyEdge', () => {
     });
   });
 
+  describe('highlighted state', () => {
+    it('applies highlighted class when isHighlighted is true', () => {
+      const props = createTestProps({ isHighlighted: true });
+      const { container } = renderWithProvider(<DependencyEdge {...props} />);
+
+      const path = container.querySelector('path.react-flow__edge-path');
+      const classAttr = path?.getAttribute('class') ?? '';
+      expect(classAttr).toContain('highlighted');
+    });
+
+    it('does not apply highlighted class when isHighlighted is false', () => {
+      const props = createTestProps({ isHighlighted: false });
+      const { container } = renderWithProvider(<DependencyEdge {...props} />);
+
+      const path = container.querySelector('path.react-flow__edge-path');
+      const classAttr = path?.getAttribute('class') ?? '';
+      expect(classAttr).not.toContain('highlighted');
+    });
+
+    it('combines highlighted with blocking class', () => {
+      const props = createTestProps({ isBlocking: true, isHighlighted: true });
+      const { container } = renderWithProvider(<DependencyEdge {...props} />);
+
+      const path = container.querySelector('path.react-flow__edge-path');
+      const classAttr = path?.getAttribute('class') ?? '';
+      expect(classAttr).toContain('blockingEdge');
+      expect(classAttr).toContain('highlighted');
+    });
+
+    it('combines highlighted with normal class', () => {
+      const props = createTestProps({ isBlocking: false, isHighlighted: true });
+      const { container } = renderWithProvider(<DependencyEdge {...props} />);
+
+      const path = container.querySelector('path.react-flow__edge-path');
+      const classAttr = path?.getAttribute('class') ?? '';
+      expect(classAttr).toContain('normalEdge');
+      expect(classAttr).toContain('highlighted');
+    });
+
+    it('defaults isHighlighted to false when undefined', () => {
+      const props = createTestProps();
+      // @ts-expect-error Testing undefined isHighlighted
+      props.data = { ...props.data, isHighlighted: undefined };
+
+      const { container } = renderWithProvider(<DependencyEdge {...props} />);
+
+      const path = container.querySelector('path.react-flow__edge-path');
+      const classAttr = path?.getAttribute('class') ?? '';
+      expect(classAttr).not.toContain('highlighted');
+    });
+  });
+
   describe('marker', () => {
     it('renders with arrow marker end', () => {
       const props = createTestProps();
