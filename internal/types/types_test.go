@@ -1,6 +1,7 @@
 package types
 
 import (
+	"encoding/json"
 	"testing"
 	"time"
 )
@@ -1573,4 +1574,245 @@ func TestComputeContentHashWithValidations(t *testing.T) {
 	if hash2 == hash4 {
 		t.Error("Expected different hash when Score is added")
 	}
+}
+
+// TestIssueDetailsJSONStructure verifies that IssueDetails JSON serialization
+// always includes labels, dependencies, dependents, and comments fields,
+// even when they are empty arrays (GH#bd-rrtu).
+//
+// This ensures consistent JSON structure for frontend type guards.
+// The omitempty directive was removed from these fields so they always appear.
+func TestIssueDetailsJSONStructure(t *testing.T) {
+	t.Run("empty_slices_present_in_json", func(t *testing.T) {
+		// Create IssueDetails with explicit empty slices
+		details := IssueDetails{
+			Issue: Issue{
+				ID:        "test-1",
+				Title:     "Test issue",
+				Status:    StatusOpen,
+				Priority:  2,
+				IssueType: TypeTask,
+			},
+			Labels:       []string{},
+			Dependencies: []*IssueWithDependencyMetadata{},
+			Dependents:   []*IssueWithDependencyMetadata{},
+			Comments:     []*Comment{},
+		}
+
+		// Serialize to JSON
+		data, err := json.Marshal(details)
+		if err != nil {
+			t.Fatalf("Failed to marshal IssueDetails: %v", err)
+		}
+
+		// Parse as raw JSON to verify structure
+		var rawJSON map[string]interface{}
+		if err := json.Unmarshal(data, &rawJSON); err != nil {
+			t.Fatalf("Failed to unmarshal raw JSON: %v", err)
+		}
+
+		// Verify all required fields are present (not omitted due to omitempty)
+		requiredFields := []string{"labels", "dependencies", "dependents", "comments"}
+		for _, field := range requiredFields {
+			val, exists := rawJSON[field]
+			if !exists {
+				t.Errorf("Field %q should be present in JSON, but was omitted", field)
+				continue
+			}
+
+			arr, ok := val.([]interface{})
+			if !ok {
+				t.Errorf("Field %q should be array, got %T: %v", field, val, val)
+				continue
+			}
+
+			if len(arr) != 0 {
+				t.Errorf("Field %q should be empty array [], got length %d", field, len(arr))
+			}
+		}
+
+		// Verify the JSON string contains the fields as empty arrays
+		jsonStr := string(data)
+		expectedPatterns := []string{
+			`"labels":[]`,
+			`"dependencies":[]`,
+			`"dependents":[]`,
+			`"comments":[]`,
+		}
+		for _, pattern := range expectedPatterns {
+			if !containsMiddle(jsonStr, pattern) {
+				t.Errorf("Expected JSON to contain %q, but it doesn't. JSON: %s", pattern, jsonStr)
+			}
+		}
+	})
+
+	t.Run("nil_slices_serialize_as_null", func(t *testing.T) {
+		// Create IssueDetails with nil slices
+		// This tests the raw JSON behavior - nil slices become null, not omitted
+		details := IssueDetails{
+			Issue: Issue{
+				ID:        "test-2",
+				Title:     "Test issue with nil slices",
+				Status:    StatusOpen,
+				Priority:  2,
+				IssueType: TypeTask,
+			},
+			Labels:       nil,
+			Dependencies: nil,
+			Dependents:   nil,
+			Comments:     nil,
+		}
+
+		// Serialize to JSON
+		data, err := json.Marshal(details)
+		if err != nil {
+			t.Fatalf("Failed to marshal IssueDetails: %v", err)
+		}
+
+		// Parse as raw JSON to verify structure
+		var rawJSON map[string]interface{}
+		if err := json.Unmarshal(data, &rawJSON); err != nil {
+			t.Fatalf("Failed to unmarshal raw JSON: %v", err)
+		}
+
+		// With omitempty removed, nil slices should be present (as null)
+		requiredFields := []string{"labels", "dependencies", "dependents", "comments"}
+		for _, field := range requiredFields {
+			val, exists := rawJSON[field]
+			if !exists {
+				t.Errorf("Field %q should be present (not omitted) even when nil", field)
+				continue
+			}
+
+			// nil slices serialize as JSON null
+			if val != nil {
+				t.Errorf("Field %q with nil slice should serialize as null, got %T: %v", field, val, val)
+			}
+		}
+	})
+
+	t.Run("populated_slices_present_in_json", func(t *testing.T) {
+		// Create IssueDetails with populated data
+		details := IssueDetails{
+			Issue: Issue{
+				ID:        "test-3",
+				Title:     "Test issue with data",
+				Status:    StatusOpen,
+				Priority:  1,
+				IssueType: TypeTask,
+			},
+			Labels: []string{"label1", "label2"},
+			Dependencies: []*IssueWithDependencyMetadata{
+				{
+					Issue:          Issue{ID: "dep-1", Title: "Dependency 1"},
+					DependencyType: DepBlocks,
+				},
+			},
+			Dependents: []*IssueWithDependencyMetadata{
+				{
+					Issue:          Issue{ID: "dependent-1", Title: "Dependent 1"},
+					DependencyType: DepBlocks,
+				},
+			},
+			Comments: []*Comment{
+				{ID: 1, IssueID: "test-3", Author: "author", Text: "comment text"},
+			},
+		}
+
+		// Serialize to JSON
+		data, err := json.Marshal(details)
+		if err != nil {
+			t.Fatalf("Failed to marshal IssueDetails: %v", err)
+		}
+
+		// Parse as raw JSON to verify structure
+		var rawJSON map[string]interface{}
+		if err := json.Unmarshal(data, &rawJSON); err != nil {
+			t.Fatalf("Failed to unmarshal raw JSON: %v", err)
+		}
+
+		// Verify all required fields are present with correct lengths
+		testCases := []struct {
+			field    string
+			expected int
+		}{
+			{"labels", 2},
+			{"dependencies", 1},
+			{"dependents", 1},
+			{"comments", 1},
+		}
+
+		for _, tc := range testCases {
+			val, exists := rawJSON[tc.field]
+			if !exists {
+				t.Errorf("Field %q should be present in JSON", tc.field)
+				continue
+			}
+
+			arr, ok := val.([]interface{})
+			if !ok {
+				t.Errorf("Field %q should be array, got %T", tc.field, val)
+				continue
+			}
+
+			if len(arr) != tc.expected {
+				t.Errorf("Field %q should have %d elements, got %d", tc.field, tc.expected, len(arr))
+			}
+		}
+	})
+
+	t.Run("roundtrip_preserves_empty_slices", func(t *testing.T) {
+		// Create IssueDetails with empty slices
+		original := IssueDetails{
+			Issue: Issue{
+				ID:        "test-4",
+				Title:     "Roundtrip test",
+				Status:    StatusOpen,
+				Priority:  2,
+				IssueType: TypeTask,
+			},
+			Labels:       []string{},
+			Dependencies: []*IssueWithDependencyMetadata{},
+			Dependents:   []*IssueWithDependencyMetadata{},
+			Comments:     []*Comment{},
+		}
+
+		// Serialize
+		data, err := json.Marshal(original)
+		if err != nil {
+			t.Fatalf("Failed to marshal: %v", err)
+		}
+
+		// Deserialize
+		var decoded IssueDetails
+		if err := json.Unmarshal(data, &decoded); err != nil {
+			t.Fatalf("Failed to unmarshal: %v", err)
+		}
+
+		// Verify non-nil empty slices after roundtrip
+		// Note: Go's encoding/json unmarshals "[]" into nil slices, not empty slices
+		// This is expected behavior. The important thing is that the fields are PRESENT
+		// in the JSON output, not omitted.
+
+		// Re-serialize the decoded struct
+		data2, err := json.Marshal(decoded)
+		if err != nil {
+			t.Fatalf("Failed to re-marshal: %v", err)
+		}
+
+		// Verify the re-serialized JSON still has all required fields
+		// (even if they're now null due to nil slices from the unmarshal)
+		var rawJSON map[string]interface{}
+		if err := json.Unmarshal(data2, &rawJSON); err != nil {
+			t.Fatalf("Failed to unmarshal raw JSON: %v", err)
+		}
+
+		requiredFields := []string{"labels", "dependencies", "dependents", "comments"}
+		for _, field := range requiredFields {
+			_, exists := rawJSON[field]
+			if !exists {
+				t.Errorf("Field %q should be present after roundtrip", field)
+			}
+		}
+	})
 }

@@ -672,12 +672,14 @@ type IssueWithCounts struct {
 
 // IssueDetails extends Issue with labels, dependencies, dependents, and comments.
 // Used for JSON serialization in bd show and RPC responses.
+// Note: Labels, Dependencies, Dependents, and Comments do NOT use omitempty
+// to ensure consistent JSON structure for frontend type guards (GH#bd-rrtu).
 type IssueDetails struct {
 	Issue
-	Labels       []string                      `json:"labels,omitempty"`
-	Dependencies []*IssueWithDependencyMetadata `json:"dependencies,omitempty"`
-	Dependents   []*IssueWithDependencyMetadata `json:"dependents,omitempty"`
-	Comments     []*Comment                     `json:"comments,omitempty"`
+	Labels       []string                      `json:"labels"`
+	Dependencies []*IssueWithDependencyMetadata `json:"dependencies"`
+	Dependents   []*IssueWithDependencyMetadata `json:"dependents"`
+	Comments     []*Comment                     `json:"comments"`
 	Parent       *string                        `json:"parent,omitempty"`
 }
 

@@ -1657,6 +1657,21 @@ func (s *Server) handleShow(req *Request) Response {
 	// Fetch comments
 	comments, _ := store.GetIssueComments(ctx, issue.ID)
 
+	// Ensure non-nil slices for consistent JSON serialization (GH#bd-rrtu)
+	// Without this, omitempty removes empty arrays from JSON, breaking frontend type guards
+	if labels == nil {
+		labels = []string{}
+	}
+	if deps == nil {
+		deps = []*types.IssueWithDependencyMetadata{}
+	}
+	if dependents == nil {
+		dependents = []*types.IssueWithDependencyMetadata{}
+	}
+	if comments == nil {
+		comments = []*types.Comment{}
+	}
+
 	// Create detailed response with related data
 	details := &types.IssueDetails{
 		Issue:        *issue,

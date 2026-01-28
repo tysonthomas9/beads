@@ -869,3 +869,394 @@ func TestGetParentIDs_RPC_NoParents(t *testing.T) {
 		t.Errorf("Expected 0 parent entries for issues with only blocks dependency, got %d", len(resp.Parents))
 	}
 }
+
+// TestShowIssueDetailsJSONStructure verifies that IssueDetails JSON serialization
+// always includes labels, dependencies, dependents, and comments fields as empty arrays
+// rather than omitting them when empty (GH#bd-rrtu).
+//
+// This is critical for frontend type guards that expect consistent JSON structure.
+func TestShowIssueDetailsJSONStructure(t *testing.T) {
+	_, client, cleanup := setupTestServer(t)
+	defer cleanup()
+
+	// Create a minimal issue with no labels, dependencies, or comments
+	createArgs := &CreateArgs{
+		Title:     "Issue without related data",
+		IssueType: "task",
+		Priority:  2,
+	}
+
+	createResp, err := client.Create(createArgs)
+	if err != nil {
+		t.Fatalf("Create failed: %v", err)
+	}
+	if !createResp.Success {
+		t.Fatalf("Create returned error: %s", createResp.Error)
+	}
+
+	var issue types.Issue
+	if err := json.Unmarshal(createResp.Data, &issue); err != nil {
+		t.Fatalf("Failed to unmarshal issue: %v", err)
+	}
+
+	// Show the issue to get IssueDetails response
+	showArgs := &ShowArgs{ID: issue.ID}
+	showResp, err := client.Show(showArgs)
+	if err != nil {
+		t.Fatalf("Show failed: %v", err)
+	}
+	if !showResp.Success {
+		t.Fatalf("Show returned error: %s", showResp.Error)
+	}
+
+	// Parse the raw JSON to verify structure
+	var rawJSON map[string]interface{}
+	if err := json.Unmarshal(showResp.Data, &rawJSON); err != nil {
+		t.Fatalf("Failed to unmarshal raw JSON: %v", err)
+	}
+
+	// Verify that all required fields are present (not omitted)
+	requiredFields := []string{"labels", "dependencies", "dependents", "comments"}
+	for _, field := range requiredFields {
+		val, exists := rawJSON[field]
+		if !exists {
+			t.Errorf("Field %q is missing from JSON response - should be present as empty array", field)
+			continue
+		}
+
+		// Verify it's an array (not null)
+		arr, ok := val.([]interface{})
+		if !ok {
+			t.Errorf("Field %q should be an array, got %T: %v", field, val, val)
+			continue
+		}
+
+		// Verify it's empty (since we didn't add any labels/deps/comments)
+		if len(arr) != 0 {
+			t.Errorf("Field %q should be empty array [], got %v", field, arr)
+		}
+	}
+
+	// Also verify by unmarshaling to IssueDetails struct
+	var details types.IssueDetails
+	if err := json.Unmarshal(showResp.Data, &details); err != nil {
+		t.Fatalf("Failed to unmarshal IssueDetails: %v", err)
+	}
+
+	// Verify the slices are non-nil
+	if details.Labels == nil {
+		t.Error("IssueDetails.Labels should be non-nil empty slice, got nil")
+	}
+	if details.Dependencies == nil {
+		t.Error("IssueDetails.Dependencies should be non-nil empty slice, got nil")
+	}
+	if details.Dependents == nil {
+		t.Error("IssueDetails.Dependents should be non-nil empty slice, got nil")
+	}
+	if details.Comments == nil {
+		t.Error("IssueDetails.Comments should be non-nil empty slice, got nil")
+	}
+
+	// Verify the slices are empty (correct length)
+	if len(details.Labels) != 0 {
+		t.Errorf("Expected 0 labels, got %d", len(details.Labels))
+	}
+	if len(details.Dependencies) != 0 {
+		t.Errorf("Expected 0 dependencies, got %d", len(details.Dependencies))
+	}
+	if len(details.Dependents) != 0 {
+		t.Errorf("Expected 0 dependents, got %d", len(details.Dependents))
+	}
+	if len(details.Comments) != 0 {
+		t.Errorf("Expected 0 comments, got %d", len(details.Comments))
+	}
+}
+
+// TestShowIssueDetailsWithData verifies that IssueDetails JSON serialization
+// correctly includes non-empty arrays for labels, dependencies, dependents, and comments.
+func TestShowIssueDetailsWithData(t *testing.T) {
+	_, client, store, cleanup := setupTestServerWithStore(t)
+	defer cleanup()
+
+	ctx := context.Background()
+
+	// Create two issues - one will be the main issue, one will be a dependency
+	createArgs1 := &CreateArgs{
+		Title:     "Main issue with data",
+		IssueType: "task",
+		Priority:  1,
+		Labels:    []string{"test-label", "important"},
+	}
+	resp1, err := client.Create(createArgs1)
+	if err != nil {
+		t.Fatalf("Create main issue failed: %v", err)
+	}
+	var mainIssue types.Issue
+	if err := json.Unmarshal(resp1.Data, &mainIssue); err != nil {
+		t.Fatalf("Failed to unmarshal main issue: %v", err)
+	}
+
+	createArgs2 := &CreateArgs{
+		Title:     "Blocking issue",
+		IssueType: "task",
+		Priority:  1,
+	}
+	resp2, err := client.Create(createArgs2)
+	if err != nil {
+		t.Fatalf("Create blocking issue failed: %v", err)
+	}
+	var blockingIssue types.Issue
+	if err := json.Unmarshal(resp2.Data, &blockingIssue); err != nil {
+		t.Fatalf("Failed to unmarshal blocking issue: %v", err)
+	}
+
+	// Add a dependency: mainIssue depends on blockingIssue
+	dep := &types.Dependency{
+		IssueID:     mainIssue.ID,
+		DependsOnID: blockingIssue.ID,
+		Type:        types.DepBlocks,
+	}
+	if err := store.AddDependency(ctx, dep, "test"); err != nil {
+		t.Fatalf("Failed to add dependency: %v", err)
+	}
+
+	// Add a comment using AddIssueComment (writes to comments table, not events)
+	if _, err := store.AddIssueComment(ctx, mainIssue.ID, "test-author", "This is a test comment"); err != nil {
+		t.Fatalf("Failed to add comment: %v", err)
+	}
+
+	// Show the main issue
+	showArgs := &ShowArgs{ID: mainIssue.ID}
+	showResp, err := client.Show(showArgs)
+	if err != nil {
+		t.Fatalf("Show failed: %v", err)
+	}
+	if !showResp.Success {
+		t.Fatalf("Show returned error: %s", showResp.Error)
+	}
+
+	// Parse the raw JSON to verify structure
+	var rawJSON map[string]interface{}
+	if err := json.Unmarshal(showResp.Data, &rawJSON); err != nil {
+		t.Fatalf("Failed to unmarshal raw JSON: %v", err)
+	}
+
+	// Verify all required fields are present and are arrays
+	t.Run("labels_field_present", func(t *testing.T) {
+		val, exists := rawJSON["labels"]
+		if !exists {
+			t.Fatal("Field 'labels' is missing from JSON response")
+		}
+		arr, ok := val.([]interface{})
+		if !ok {
+			t.Fatalf("Field 'labels' should be an array, got %T", val)
+		}
+		if len(arr) != 2 {
+			t.Errorf("Expected 2 labels, got %d", len(arr))
+		}
+	})
+
+	t.Run("dependencies_field_present", func(t *testing.T) {
+		val, exists := rawJSON["dependencies"]
+		if !exists {
+			t.Fatal("Field 'dependencies' is missing from JSON response")
+		}
+		arr, ok := val.([]interface{})
+		if !ok {
+			t.Fatalf("Field 'dependencies' should be an array, got %T", val)
+		}
+		if len(arr) != 1 {
+			t.Errorf("Expected 1 dependency, got %d", len(arr))
+		}
+	})
+
+	t.Run("dependents_field_present", func(t *testing.T) {
+		val, exists := rawJSON["dependents"]
+		if !exists {
+			t.Fatal("Field 'dependents' is missing from JSON response")
+		}
+		arr, ok := val.([]interface{})
+		if !ok {
+			t.Fatalf("Field 'dependents' should be an array, got %T", val)
+		}
+		// mainIssue has no dependents (nothing depends on it)
+		if len(arr) != 0 {
+			t.Errorf("Expected 0 dependents, got %d", len(arr))
+		}
+	})
+
+	t.Run("comments_field_present", func(t *testing.T) {
+		val, exists := rawJSON["comments"]
+		if !exists {
+			t.Fatal("Field 'comments' is missing from JSON response")
+		}
+		arr, ok := val.([]interface{})
+		if !ok {
+			t.Fatalf("Field 'comments' should be an array, got %T", val)
+		}
+		if len(arr) != 1 {
+			t.Errorf("Expected 1 comment, got %d", len(arr))
+		}
+	})
+
+	// Unmarshal to IssueDetails to verify typed structure
+	var details types.IssueDetails
+	if err := json.Unmarshal(showResp.Data, &details); err != nil {
+		t.Fatalf("Failed to unmarshal IssueDetails: %v", err)
+	}
+
+	// Verify non-nil slices
+	if details.Labels == nil {
+		t.Error("IssueDetails.Labels should be non-nil")
+	}
+	if details.Dependencies == nil {
+		t.Error("IssueDetails.Dependencies should be non-nil")
+	}
+	if details.Dependents == nil {
+		t.Error("IssueDetails.Dependents should be non-nil")
+	}
+	if details.Comments == nil {
+		t.Error("IssueDetails.Comments should be non-nil")
+	}
+
+	// Verify correct counts
+	if len(details.Labels) != 2 {
+		t.Errorf("Expected 2 labels, got %d", len(details.Labels))
+	}
+	if len(details.Dependencies) != 1 {
+		t.Errorf("Expected 1 dependency, got %d", len(details.Dependencies))
+	}
+	if len(details.Dependents) != 0 {
+		t.Errorf("Expected 0 dependents, got %d", len(details.Dependents))
+	}
+	if len(details.Comments) != 1 {
+		t.Errorf("Expected 1 comment, got %d", len(details.Comments))
+	}
+}
+
+// TestIssueDetailsJSONSerialization tests that types.IssueDetails serializes
+// with empty arrays (not null or omitted) for slice fields (GH#bd-rrtu).
+func TestIssueDetailsJSONSerialization(t *testing.T) {
+	// Create an IssueDetails with explicit empty slices
+	details := types.IssueDetails{
+		Issue: types.Issue{
+			ID:        "test-1",
+			Title:     "Test issue",
+			Status:    types.StatusOpen,
+			Priority:  2,
+			IssueType: types.TypeTask,
+		},
+		Labels:       []string{},
+		Dependencies: []*types.IssueWithDependencyMetadata{},
+		Dependents:   []*types.IssueWithDependencyMetadata{},
+		Comments:     []*types.Comment{},
+	}
+
+	// Serialize to JSON
+	data, err := json.Marshal(details)
+	if err != nil {
+		t.Fatalf("Failed to marshal IssueDetails: %v", err)
+	}
+
+	// Parse as raw JSON to check structure
+	var rawJSON map[string]interface{}
+	if err := json.Unmarshal(data, &rawJSON); err != nil {
+		t.Fatalf("Failed to unmarshal raw JSON: %v", err)
+	}
+
+	// Verify fields are present as empty arrays
+	requiredFields := []string{"labels", "dependencies", "dependents", "comments"}
+	for _, field := range requiredFields {
+		val, exists := rawJSON[field]
+		if !exists {
+			t.Errorf("Field %q should be present in JSON, but was omitted", field)
+			continue
+		}
+
+		arr, ok := val.([]interface{})
+		if !ok {
+			t.Errorf("Field %q should be array, got %T: %v", field, val, val)
+			continue
+		}
+
+		if len(arr) != 0 {
+			t.Errorf("Field %q should be empty array [], got length %d", field, len(arr))
+		}
+	}
+
+	// Verify the JSON string contains the fields as empty arrays
+	jsonStr := string(data)
+	expectedPatterns := []string{
+		`"labels":[]`,
+		`"dependencies":[]`,
+		`"dependents":[]`,
+		`"comments":[]`,
+	}
+	for _, pattern := range expectedPatterns {
+		if !contains(jsonStr, pattern) {
+			t.Errorf("Expected JSON to contain %q, but it doesn't. JSON: %s", pattern, jsonStr)
+		}
+	}
+}
+
+// TestIssueDetailsJSONWithNilSlices tests behavior when IssueDetails has nil slices.
+// This verifies that nil slices become JSON null (which is the default behavior).
+// The handleShow function ensures this never happens by initializing empty slices.
+func TestIssueDetailsJSONWithNilSlices(t *testing.T) {
+	// Create an IssueDetails with nil slices (the problematic case we're preventing)
+	details := types.IssueDetails{
+		Issue: types.Issue{
+			ID:        "test-2",
+			Title:     "Test issue with nil slices",
+			Status:    types.StatusOpen,
+			Priority:  2,
+			IssueType: types.TypeTask,
+		},
+		Labels:       nil,
+		Dependencies: nil,
+		Dependents:   nil,
+		Comments:     nil,
+	}
+
+	// Serialize to JSON
+	data, err := json.Marshal(details)
+	if err != nil {
+		t.Fatalf("Failed to marshal IssueDetails: %v", err)
+	}
+
+	// Parse as raw JSON to check structure
+	var rawJSON map[string]interface{}
+	if err := json.Unmarshal(data, &rawJSON); err != nil {
+		t.Fatalf("Failed to unmarshal raw JSON: %v", err)
+	}
+
+	// With omitempty removed from the struct tags, nil slices serialize as null (not omitted)
+	// This test documents the current behavior
+	requiredFields := []string{"labels", "dependencies", "dependents", "comments"}
+	for _, field := range requiredFields {
+		val, exists := rawJSON[field]
+		if !exists {
+			t.Errorf("Field %q should be present (not omitted) even when nil - omitempty was removed", field)
+			continue
+		}
+
+		// nil slices serialize as JSON null
+		if val != nil {
+			t.Errorf("Field %q with nil slice should serialize as null, got %T: %v", field, val, val)
+		}
+	}
+}
+
+// contains checks if a string contains a substring
+func contains(s, substr string) bool {
+	return len(s) >= len(substr) && (s == substr || len(s) > 0 && containsHelper(s, substr))
+}
+
+func containsHelper(s, substr string) bool {
+	for i := 0; i <= len(s)-len(substr); i++ {
+		if s[i:i+len(substr)] == substr {
+			return true
+		}
+	}
+	return false
+}
