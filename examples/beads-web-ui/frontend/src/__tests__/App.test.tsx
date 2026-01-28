@@ -14,9 +14,10 @@ import App from '../App';
 import type { Issue, Status } from '@/types';
 import type { ConnectionState } from '@/api/websocket';
 
-// Create a hoisted mock for useIssues that can be shared across mock definitions
-const { mockUseIssues } = vi.hoisted(() => ({
+// Create hoisted mocks that can be shared across mock definitions
+const { mockUseIssues, mockUseIssueDetail } = vi.hoisted(() => ({
   mockUseIssues: vi.fn(),
+  mockUseIssueDetail: vi.fn(),
 }));
 
 // Mock the useIssues hook from its direct module
@@ -27,6 +28,7 @@ vi.mock('@/hooks/useIssues', () => ({
 // Mock the hooks barrel file that App.tsx imports from
 vi.mock('@/hooks', () => ({
   useIssues: mockUseIssues,
+  useIssueDetail: mockUseIssueDetail,
   useViewState: vi.fn(() => ['kanban', vi.fn()]),
   useFilterState: vi.fn(() => [
     { groupBy: 'none' }, // FilterState
@@ -125,6 +127,14 @@ function createMockUseIssuesReturn(
 describe('App', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // Set up default mock returns for useIssueDetail
+    mockUseIssueDetail.mockReturnValue({
+      issueDetails: null,
+      isLoading: false,
+      error: null,
+      fetchIssue: vi.fn(),
+      clearIssue: vi.fn(),
+    });
   });
 
   describe('loading state', () => {

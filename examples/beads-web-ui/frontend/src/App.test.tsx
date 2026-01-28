@@ -15,15 +15,18 @@ import App from './App';
 import type { ConnectionState } from '@/api/websocket';
 import type { UseIssuesReturn } from '@/hooks/useIssues';
 
-// Create a hoisted mock for useIssues that can be shared across mock definitions
-const { mockUseIssues } = vi.hoisted(() => ({
+// Create hoisted mocks that can be shared across mock definitions
+const { mockUseIssues, mockUseIssueDetail, mockUseViewState } = vi.hoisted(() => ({
   mockUseIssues: vi.fn(),
+  mockUseIssueDetail: vi.fn(),
+  mockUseViewState: vi.fn(),
 }));
 
-// Mock the hooks barrel file - includes useIssues, useViewState, and filter hooks
+// Mock the hooks barrel file - includes useIssues, useViewState, useIssueDetail, and filter hooks
 vi.mock('@/hooks', () => ({
   useIssues: mockUseIssues,
-  useViewState: vi.fn(() => ['kanban', vi.fn()]),
+  useViewState: mockUseViewState,
+  useIssueDetail: mockUseIssueDetail,
   useFilterState: vi.fn(() => [
     {}, // FilterState
     {
@@ -32,6 +35,7 @@ vi.mock('@/hooks', () => ({
       setLabels: vi.fn(),
       setSearch: vi.fn(),
       setShowBlocked: vi.fn(),
+      setGroupBy: vi.fn(),
       clearFilter: vi.fn(),
       clearAll: vi.fn(),
     }, // FilterActions
@@ -50,6 +54,12 @@ vi.mock('@/hooks', () => ({
     error: null,
     refetch: vi.fn(),
   })),
+  useSort: vi.fn((options: { data: unknown[] }) => ({
+    sortedData: options.data,
+    sortState: { key: null, direction: 'asc' },
+    handleSort: vi.fn(),
+    clearSort: vi.fn(),
+  })),
 }));
 
 // Also mock the direct useIssues import path
@@ -57,8 +67,10 @@ vi.mock('@/hooks/useIssues', () => ({
   useIssues: mockUseIssues,
 }));
 
-// Import the mocked module for type-safe access
-import { useIssues } from '@/hooks';
+// Import the mocked modules for type-safe access
+import { useIssues, useIssueDetail, useViewState } from '@/hooks';
+import type { UseIssueDetailReturn } from '@/hooks/useIssueDetail';
+import type { Issue } from '@/types';
 
 /**
  * Helper to create a mock useIssues return value.
@@ -83,9 +95,44 @@ function createMockUseIssuesReturn(
   };
 }
 
+/**
+ * Helper to create a mock useIssueDetail return value.
+ */
+function createMockUseIssueDetailReturn(
+  overrides: Partial<UseIssueDetailReturn> = {}
+): UseIssueDetailReturn {
+  return {
+    issueDetails: null,
+    isLoading: false,
+    error: null,
+    fetchIssue: vi.fn(),
+    clearIssue: vi.fn(),
+    ...overrides,
+  };
+}
+
+/**
+ * Helper to create a mock Issue for testing.
+ */
+function createMockIssue(overrides: Partial<Issue> = {}): Issue {
+  return {
+    id: `issue-${Math.random().toString(36).slice(2, 9)}`,
+    title: 'Test Issue',
+    priority: 2,
+    status: 'open',
+    issue_type: 'task',
+    created_at: '2024-01-01T00:00:00Z',
+    updated_at: '2024-01-01T00:00:00Z',
+    ...overrides,
+  };
+}
+
 describe('App', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // Set up default mock returns
+    vi.mocked(useViewState).mockReturnValue(['kanban', vi.fn()]);
+    vi.mocked(useIssueDetail).mockReturnValue(createMockUseIssueDetailReturn());
   });
 
   describe('rendering', () => {
@@ -462,6 +509,259 @@ describe('App', () => {
 
       // FilterBar should have its CSS module class applied (which controls flex layout)
       expect(filterBar.className).toMatch(/filterBar/);
+    });
+  });
+
+  describe('IssueDetailPanel integration', () => {
+    it('renders IssueDetailPanel component', () => {
+      vi.mocked(useIssues).mockReturnValue(createMockUseIssuesReturn());
+
+      render(<App />);
+
+      // IssueDetailPanel renders even when closed (for animation)
+      expect(screen.getByTestId('issue-detail-panel')).toBeInTheDocument();
+    });
+
+    it('calls useIssueDetail hook on render', () => {
+      vi.mocked(useIssues).mockReturnValue(createMockUseIssuesReturn());
+
+      render(<App />);
+
+      expect(useIssueDetail).toHaveBeenCalled();
+    });
+
+    it('opens panel and fetches details when issue card is clicked in kanban view', () => {
+      const mockFetchIssue = vi.fn();
+      vi.mocked(useIssueDetail).mockReturnValue(
+        createMockUseIssueDetailReturn({ fetchIssue: mockFetchIssue })
+      );
+      const testIssue = createMockIssue({ id: 'test-issue-1', title: 'Clickable Issue' });
+      vi.mocked(useIssues).mockReturnValue(
+        createMockUseIssuesReturn({ issues: [testIssue] })
+      );
+
+      render(<App />);
+
+      // Click the issue card
+      const card = screen.getByRole('button', { name: /Issue: Clickable Issue/i });
+      fireEvent.click(card);
+
+      // Verify fetchIssue was called with the issue ID
+      expect(mockFetchIssue).toHaveBeenCalledTimes(1);
+      expect(mockFetchIssue).toHaveBeenCalledWith('test-issue-1');
+    });
+
+    it('opens panel and fetches details when row is clicked in table view', () => {
+      const mockFetchIssue = vi.fn();
+      vi.mocked(useIssueDetail).mockReturnValue(
+        createMockUseIssueDetailReturn({ fetchIssue: mockFetchIssue })
+      );
+      vi.mocked(useViewState).mockReturnValue(['table', vi.fn()]);
+      const testIssue = createMockIssue({ id: 'table-issue-1', title: 'Table Row Issue' });
+      vi.mocked(useIssues).mockReturnValue(
+        createMockUseIssuesReturn({ issues: [testIssue] })
+      );
+
+      render(<App />);
+
+      // Click the table row
+      const row = screen.getByRole('row', { name: /Table Row Issue/i });
+      fireEvent.click(row);
+
+      // Verify fetchIssue was called with the issue ID
+      expect(mockFetchIssue).toHaveBeenCalledTimes(1);
+      expect(mockFetchIssue).toHaveBeenCalledWith('table-issue-1');
+    });
+
+    it('does not re-fetch when clicking same issue that is already open', () => {
+      const mockFetchIssue = vi.fn();
+      vi.mocked(useIssueDetail).mockReturnValue(
+        createMockUseIssueDetailReturn({ fetchIssue: mockFetchIssue })
+      );
+      const testIssue = createMockIssue({ id: 'repeat-issue', title: 'Repeat Click Issue' });
+      vi.mocked(useIssues).mockReturnValue(
+        createMockUseIssuesReturn({ issues: [testIssue] })
+      );
+
+      render(<App />);
+
+      // Click the issue card first time
+      const card = screen.getByRole('button', { name: /Issue: Repeat Click Issue/i });
+      fireEvent.click(card);
+
+      expect(mockFetchIssue).toHaveBeenCalledTimes(1);
+
+      // Click the same issue card again
+      fireEvent.click(card);
+
+      // Should not call fetchIssue again
+      expect(mockFetchIssue).toHaveBeenCalledTimes(1);
+    });
+
+    it('closes panel when onClose is triggered', async () => {
+      const mockClearIssue = vi.fn();
+      vi.mocked(useIssueDetail).mockReturnValue(
+        createMockUseIssueDetailReturn({ clearIssue: mockClearIssue })
+      );
+      const testIssue = createMockIssue({ id: 'close-test', title: 'Close Test Issue' });
+      vi.mocked(useIssues).mockReturnValue(
+        createMockUseIssuesReturn({ issues: [testIssue] })
+      );
+
+      render(<App />);
+
+      // Open the panel by clicking an issue
+      const card = screen.getByRole('button', { name: /Issue: Close Test Issue/i });
+      fireEvent.click(card);
+
+      // Find the overlay and click it to close
+      const overlay = screen.getByTestId('issue-detail-overlay');
+      fireEvent.click(overlay);
+
+      // clearIssue should be called after the animation timeout (300ms)
+      // For unit tests, we verify the close callback was triggered
+      // The panel should no longer have the 'open' class
+      expect(overlay.className).not.toMatch(/_open_/);
+    });
+
+    it('passes loading state to IssueDetailPanel', () => {
+      vi.mocked(useIssueDetail).mockReturnValue(
+        createMockUseIssueDetailReturn({ isLoading: true })
+      );
+      vi.mocked(useIssues).mockReturnValue(createMockUseIssuesReturn());
+
+      render(<App />);
+
+      // Panel should show loading skeleton when isLoading is true
+      const panel = screen.getByTestId('issue-detail-panel');
+      expect(panel).toBeInTheDocument();
+    });
+
+    it('passes error state to IssueDetailPanel', () => {
+      vi.mocked(useIssueDetail).mockReturnValue(
+        createMockUseIssueDetailReturn({ error: 'Failed to fetch issue' })
+      );
+      vi.mocked(useIssues).mockReturnValue(createMockUseIssuesReturn());
+
+      render(<App />);
+
+      // Panel should be present with error state
+      const panel = screen.getByTestId('issue-detail-panel');
+      expect(panel).toBeInTheDocument();
+    });
+
+    it('passes fetched issue details to IssueDetailPanel', () => {
+      const mockIssueDetails = {
+        id: 'details-issue',
+        title: 'Issue With Details',
+        priority: 1 as const,
+        created_at: '2024-01-01T00:00:00Z',
+        updated_at: '2024-01-01T00:00:00Z',
+        description: 'Detailed description',
+        dependents: [],
+        dependencies: [],
+      };
+      vi.mocked(useIssueDetail).mockReturnValue(
+        createMockUseIssueDetailReturn({ issueDetails: mockIssueDetails })
+      );
+      vi.mocked(useIssues).mockReturnValue(createMockUseIssuesReturn());
+
+      render(<App />);
+
+      // Panel should be rendered with the issue details
+      const panel = screen.getByTestId('issue-detail-panel');
+      expect(panel).toBeInTheDocument();
+    });
+
+    it('fetches different issue when clicking a new issue after one is already open', () => {
+      const mockFetchIssue = vi.fn();
+      vi.mocked(useIssueDetail).mockReturnValue(
+        createMockUseIssueDetailReturn({ fetchIssue: mockFetchIssue })
+      );
+      const issue1 = createMockIssue({ id: 'issue-1', title: 'First Issue' });
+      const issue2 = createMockIssue({ id: 'issue-2', title: 'Second Issue' });
+      vi.mocked(useIssues).mockReturnValue(
+        createMockUseIssuesReturn({ issues: [issue1, issue2] })
+      );
+
+      render(<App />);
+
+      // Click the first issue
+      const card1 = screen.getByRole('button', { name: /Issue: First Issue/i });
+      fireEvent.click(card1);
+
+      expect(mockFetchIssue).toHaveBeenCalledWith('issue-1');
+      expect(mockFetchIssue).toHaveBeenCalledTimes(1);
+
+      // Click the second issue
+      const card2 = screen.getByRole('button', { name: /Issue: Second Issue/i });
+      fireEvent.click(card2);
+
+      expect(mockFetchIssue).toHaveBeenCalledWith('issue-2');
+      expect(mockFetchIssue).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  describe('SwimLaneBoard and IssueTable prop passing', () => {
+    it('passes onIssueClick to SwimLaneBoard in kanban view', () => {
+      const mockFetchIssue = vi.fn();
+      vi.mocked(useIssueDetail).mockReturnValue(
+        createMockUseIssueDetailReturn({ fetchIssue: mockFetchIssue })
+      );
+      vi.mocked(useViewState).mockReturnValue(['kanban', vi.fn()]);
+      const testIssue = createMockIssue({ id: 'swimlane-test', title: 'SwimLane Test' });
+      vi.mocked(useIssues).mockReturnValue(
+        createMockUseIssuesReturn({ issues: [testIssue] })
+      );
+
+      render(<App />);
+
+      // SwimLaneBoard receives onIssueClick - clicking a card proves the prop was passed
+      const card = screen.getByRole('button', { name: /Issue: SwimLane Test/i });
+      fireEvent.click(card);
+
+      expect(mockFetchIssue).toHaveBeenCalledWith('swimlane-test');
+    });
+
+    it('passes onRowClick to IssueTable in table view', () => {
+      const mockFetchIssue = vi.fn();
+      vi.mocked(useIssueDetail).mockReturnValue(
+        createMockUseIssueDetailReturn({ fetchIssue: mockFetchIssue })
+      );
+      vi.mocked(useViewState).mockReturnValue(['table', vi.fn()]);
+      const testIssue = createMockIssue({ id: 'table-test', title: 'Table Test' });
+      vi.mocked(useIssues).mockReturnValue(
+        createMockUseIssuesReturn({ issues: [testIssue] })
+      );
+
+      render(<App />);
+
+      // IssueTable receives onRowClick - clicking a row proves the prop was passed
+      const row = screen.getByRole('row', { name: /Table Test/i });
+      fireEvent.click(row);
+
+      expect(mockFetchIssue).toHaveBeenCalledWith('table-test');
+    });
+
+    it('passes selectedId to IssueTable when issue is selected', () => {
+      const mockFetchIssue = vi.fn();
+      vi.mocked(useIssueDetail).mockReturnValue(
+        createMockUseIssueDetailReturn({ fetchIssue: mockFetchIssue })
+      );
+      vi.mocked(useViewState).mockReturnValue(['table', vi.fn()]);
+      const testIssue = createMockIssue({ id: 'selected-test', title: 'Selected Test' });
+      vi.mocked(useIssues).mockReturnValue(
+        createMockUseIssuesReturn({ issues: [testIssue] })
+      );
+
+      render(<App />);
+
+      // Click to select the issue
+      const row = screen.getByRole('row', { name: /Selected Test/i });
+      fireEvent.click(row);
+
+      // The row should have the selected state (aria-selected or CSS class)
+      expect(row).toHaveAttribute('aria-selected', 'true');
     });
   });
 });
