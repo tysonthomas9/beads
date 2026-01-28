@@ -79,40 +79,108 @@ describe('DependencyEdge', () => {
     });
   });
 
-  describe('blocking vs non-blocking styles', () => {
-    it('applies blocking class when isBlocking is true', () => {
-      const props = createTestProps({ isBlocking: true });
-      const { container } = renderWithProvider(<DependencyEdge {...props} />);
-
-      const path = container.querySelector('path.react-flow__edge-path');
-      // SVG elements use getAttribute('class') instead of className
-      const classAttr = path?.getAttribute('class') ?? '';
-      expect(classAttr).toContain('blockingEdge');
-    });
-
-    it('applies normal class when isBlocking is false', () => {
-      const props = createTestProps({ isBlocking: false });
+  describe('type-based styling', () => {
+    it('applies typeBlocks class for blocks dependency', () => {
+      const props = createTestProps({ dependencyType: 'blocks' });
       const { container } = renderWithProvider(<DependencyEdge {...props} />);
 
       const path = container.querySelector('path.react-flow__edge-path');
       const classAttr = path?.getAttribute('class') ?? '';
-      expect(classAttr).toContain('normalEdge');
+      expect(classAttr).toContain('typeBlocks');
     });
 
-    it('blocking edge has thicker stroke', () => {
-      const props = createTestProps({ isBlocking: true });
+    it('applies typeParentChild class for parent-child dependency', () => {
+      const props = createTestProps({ dependencyType: 'parent-child' });
       const { container } = renderWithProvider(<DependencyEdge {...props} />);
 
       const path = container.querySelector('path.react-flow__edge-path');
-      expect(path).toHaveStyle({ strokeWidth: '2' });
+      const classAttr = path?.getAttribute('class') ?? '';
+      expect(classAttr).toContain('typeParentChild');
     });
 
-    it('non-blocking edge has thinner stroke', () => {
-      const props = createTestProps({ isBlocking: false });
+    it('applies typeConditionalBlocks class for conditional-blocks dependency', () => {
+      const props = createTestProps({ dependencyType: 'conditional-blocks' });
       const { container } = renderWithProvider(<DependencyEdge {...props} />);
 
       const path = container.querySelector('path.react-flow__edge-path');
-      expect(path).toHaveStyle({ strokeWidth: '1.5' });
+      const classAttr = path?.getAttribute('class') ?? '';
+      expect(classAttr).toContain('typeConditionalBlocks');
+    });
+
+    it('applies typeWaitsFor class for waits-for dependency', () => {
+      const props = createTestProps({ dependencyType: 'waits-for' });
+      const { container } = renderWithProvider(<DependencyEdge {...props} />);
+
+      const path = container.querySelector('path.react-flow__edge-path');
+      const classAttr = path?.getAttribute('class') ?? '';
+      expect(classAttr).toContain('typeWaitsFor');
+    });
+
+    it('applies typeRelated class for related dependency', () => {
+      const props = createTestProps({ dependencyType: 'related' });
+      const { container } = renderWithProvider(<DependencyEdge {...props} />);
+
+      const path = container.querySelector('path.react-flow__edge-path');
+      const classAttr = path?.getAttribute('class') ?? '';
+      expect(classAttr).toContain('typeRelated');
+    });
+
+    it('applies typeDefault class for unknown dependency type', () => {
+      const props = createTestProps({ dependencyType: 'custom-type' as DependencyType });
+      const { container } = renderWithProvider(<DependencyEdge {...props} />);
+
+      const path = container.querySelector('path.react-flow__edge-path');
+      const classAttr = path?.getAttribute('class') ?? '';
+      expect(classAttr).toContain('typeDefault');
+    });
+
+    it('applies typeDefault class for discovered-from (unknown to styling)', () => {
+      const props = createTestProps({ dependencyType: 'discovered-from' });
+      const { container } = renderWithProvider(<DependencyEdge {...props} />);
+
+      const path = container.querySelector('path.react-flow__edge-path');
+      const classAttr = path?.getAttribute('class') ?? '';
+      expect(classAttr).toContain('typeDefault');
+    });
+  });
+
+  describe('data-type attribute', () => {
+    it('adds data-type attribute to label with dependency type', () => {
+      const props = createTestProps({ dependencyType: 'parent-child' });
+      renderWithProvider(<DependencyEdge {...props} />);
+
+      const label = screen.getByText('parent-child');
+      expect(label).toHaveAttribute('data-type', 'parent-child');
+    });
+
+    it('adds data-type attribute for blocks type', () => {
+      const props = createTestProps({ dependencyType: 'blocks' });
+      renderWithProvider(<DependencyEdge {...props} />);
+
+      const label = screen.getByText('blocks');
+      expect(label).toHaveAttribute('data-type', 'blocks');
+    });
+  });
+
+  describe('highlighted state with type styling', () => {
+    it('combines type class with highlighted class', () => {
+      const props = createTestProps({ dependencyType: 'blocks', isHighlighted: true });
+      const { container } = renderWithProvider(<DependencyEdge {...props} />);
+
+      const path = container.querySelector('path.react-flow__edge-path');
+      const classAttr = path?.getAttribute('class') ?? '';
+      expect(classAttr).toContain('typeBlocks');
+      expect(classAttr).toContain('highlighted');
+    });
+
+    it('combines parent-child type with highlighted class', () => {
+      const props = createTestProps({ dependencyType: 'parent-child', isHighlighted: true });
+      const { container } = renderWithProvider(<DependencyEdge {...props} />);
+
+      const path = container.querySelector('path.react-flow__edge-path');
+      const classAttr = path?.getAttribute('class') ?? '';
+      expect(classAttr).toContain('typeParentChild');
+      expect(classAttr).toContain('highlighted');
     });
   });
 
@@ -128,15 +196,15 @@ describe('DependencyEdge', () => {
       ).not.toThrow();
     });
 
-    it('defaults isBlocking to false when undefined', () => {
+    it('defaults to typeBlocks when dependencyType is undefined', () => {
       const props = createTestProps();
-      // @ts-expect-error Testing undefined isBlocking
-      props.data = { ...props.data, isBlocking: undefined };
+      // @ts-expect-error Testing undefined dependencyType
+      props.data = { ...props.data, dependencyType: undefined };
 
       const { container } = renderWithProvider(<DependencyEdge {...props} />);
       const path = container.querySelector('path.react-flow__edge-path');
       const classAttr = path?.getAttribute('class') ?? '';
-      expect(classAttr).toContain('normalEdge');
+      expect(classAttr).toContain('typeBlocks');
     });
 
     it('handles various coordinate positions', () => {
