@@ -289,7 +289,7 @@ function App() {
       )}
       {activeView === 'graph' && (
         <Suspense fallback={<LoadingSkeleton.Graph />}>
-          <GraphView issues={filteredIssues} />
+          <GraphView issues={filteredIssues} onNodeClick={handleIssueClick} />
         </Suspense>
       )}
       {toastError && (
