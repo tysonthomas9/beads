@@ -9,7 +9,7 @@ import { type ViewMode, DEFAULT_VIEW } from '@/components/ViewSwitcher';
 /**
  * Valid view modes for validation.
  */
-const VALID_VIEWS: ViewMode[] = ['kanban', 'table', 'graph'];
+const VALID_VIEWS: ViewMode[] = ['kanban', 'table', 'graph', 'monitor'];
 
 /**
  * URL parameter name for view.

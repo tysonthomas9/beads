@@ -96,6 +96,14 @@ describe('useViewState', () => {
       expect(view).toBe('graph')
     })
 
+    it('parses monitor view from URL', () => {
+      mockWindowLocation('?view=monitor')
+      const { result } = renderHook(() => useViewState())
+
+      const [view] = result.current
+      expect(view).toBe('monitor')
+    })
+
     it('defaults to kanban for invalid view (?view=invalid returns "kanban")', () => {
       mockWindowLocation('?view=invalid')
       const { result } = renderHook(() => useViewState())
@@ -391,6 +399,12 @@ describe('parseViewFromUrl', () => {
     expect(result).toBe('graph')
   })
 
+  it('parses monitor view', () => {
+    mockWindowLocation('?view=monitor')
+    const result = parseViewFromUrl()
+    expect(result).toBe('monitor')
+  })
+
   it('returns DEFAULT_VIEW for invalid view', () => {
     mockWindowLocation('?view=invalid')
     const result = parseViewFromUrl()
@@ -427,6 +441,10 @@ describe('isValidViewMode', () => {
 
   it('returns true for graph', () => {
     expect(isValidViewMode('graph')).toBe(true)
+  })
+
+  it('returns true for monitor', () => {
+    expect(isValidViewMode('monitor')).toBe(true)
   })
 
   it('returns false for invalid string', () => {
