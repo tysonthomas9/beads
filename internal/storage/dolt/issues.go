@@ -233,11 +233,12 @@ func (s *DoltStore) GetIssueByExternalRef(ctx context.Context, externalRef strin
 func (s *DoltStore) ClaimIssue(ctx context.Context, id string, assignee string) (bool, error) {
 	now := time.Now().UTC()
 
-	// Atomic claim: only succeeds if assignee is empty
+	// Atomic claim: succeeds if assignee is empty OR status is not in_progress
+	// This allows claiming open tasks even with stale assignees
 	result, err := s.db.ExecContext(ctx, `
 		UPDATE issues
 		SET assignee = ?, status = ?, updated_at = ?
-		WHERE id = ? AND (assignee = '' OR assignee IS NULL)
+		WHERE id = ? AND (assignee = '' OR assignee IS NULL OR status != 'in_progress')
 	`, assignee, string(types.StatusInProgress), now, id)
 	if err != nil {
 		return false, fmt.Errorf("failed to claim issue: %w", err)

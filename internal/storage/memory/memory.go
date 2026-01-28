@@ -392,8 +392,9 @@ func (m *MemoryStorage) ClaimIssue(ctx context.Context, id string, assignee stri
 		return false, fmt.Errorf("issue %s not found", id)
 	}
 
-	// Check if already claimed
-	if issue.Assignee != "" {
+	// Only fail if task is actively being worked on (has assignee AND is in_progress)
+	// Allow claiming open tasks even with stale assignees
+	if issue.Assignee != "" && issue.Status == types.StatusInProgress {
 		return false, nil
 	}
 

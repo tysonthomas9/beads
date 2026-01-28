@@ -353,7 +353,9 @@ create, update, show, or close operation).`,
 
 				// Handle claim operation atomically
 				if claimFlag {
-					if issue.Assignee != "" {
+					// Only fail if task is actively being worked on (has assignee AND is in_progress)
+					// Allow claiming open tasks even with stale assignees
+					if issue.Assignee != "" && issue.Status == "in_progress" {
 						fmt.Fprintf(os.Stderr, "Error claiming %s: already claimed by %s\n", id, issue.Assignee)
 						result.Close()
 						continue
@@ -465,8 +467,9 @@ create, update, show, or close operation).`,
 
 			// Handle claim operation atomically
 			if claimFlag {
-				// Check if already claimed (has non-empty assignee)
-				if issue.Assignee != "" {
+				// Only fail if task is actively being worked on (has assignee AND is in_progress)
+				// Allow claiming open tasks even with stale assignees
+				if issue.Assignee != "" && issue.Status == "in_progress" {
 					fmt.Fprintf(os.Stderr, "Error claiming %s: already claimed by %s\n", id, issue.Assignee)
 					result.Close()
 					continue
