@@ -339,7 +339,7 @@ func displayPrettyListWithDeps(issues []*types.Issue, showHeader bool, allDeps m
 	}
 	fmt.Printf("Total: %d issues (%d open, %d in progress)\n", len(issues), openCount, inProgressCount)
 	fmt.Println()
-	fmt.Println("Status: ○ open  ◐ in_progress  ● blocked  ✓ closed  ❄ deferred")
+	fmt.Println("Status: ○ open  ◐ in_progress  ● blocked  ✓ closed  ❄ deferred  ? review")
 }
 
 // watchIssues starts watching for changes and re-displays (GH#654)
@@ -1264,7 +1264,7 @@ var listCmd = &cobra.Command{
 }
 
 func init() {
-	listCmd.Flags().StringP("status", "s", "", "Filter by status (open, in_progress, blocked, deferred, closed)")
+	listCmd.Flags().StringP("status", "s", "", "Filter by status (open, in_progress, blocked, deferred, review, closed)")
 	registerPriorityFlag(listCmd, "")
 	listCmd.Flags().StringP("assignee", "a", "", "Filter by assignee")
 	listCmd.Flags().StringP("type", "t", "", "Filter by type (bug, feature, task, epic, chore, merge-request, molecule, gate, convoy). Aliases: mr→merge-request, feat→feature, mol→molecule")

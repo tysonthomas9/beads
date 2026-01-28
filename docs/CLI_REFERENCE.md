@@ -647,6 +647,7 @@ bd sync
 - `in_progress` - Currently being worked on
 - `blocked` - Cannot proceed (waiting on dependencies)
 - `deferred` - Deliberately put on ice for later
+- `review` - Needs human attention (plan approval, code review)
 - `closed` - Work completed
 - `tombstone` - Deleted issue (suppresses resurrections)
 - `pinned` - Stays open indefinitely (used for hooks, anchors)

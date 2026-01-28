@@ -265,7 +265,7 @@ Each issue in `.beads/issues.jsonl` is a JSON object with the following fields. 
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `status` | string | Current status: `open`, `in_progress`, `blocked`, `deferred`, `closed`, `tombstone`, `pinned`, `hooked` (optional, defaults to `open`) |
+| `status` | string | Current status: `open`, `in_progress`, `blocked`, `deferred`, `review`, `closed`, `tombstone`, `pinned`, `hooked` (optional, defaults to `open`) |
 | `priority` | int | Priority 0-4 where 0=critical, 4=backlog |
 | `issue_type` | string | Type: `bug`, `feature`, `task`, `epic`, `chore`, `message`, `merge-request`, `molecule`, `gate`, `agent`, `role`, `convoy` (optional, defaults to `task`) |
 

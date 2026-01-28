@@ -41,6 +41,8 @@ func TestValidateStatus(t *testing.T) {
 		{"valid open", string(types.StatusOpen), false},
 		{"valid in_progress", string(types.StatusInProgress), false},
 		{"valid blocked", string(types.StatusBlocked), false},
+		{"valid deferred", string(types.StatusDeferred), false},
+		{"valid review", string(types.StatusReview), false},
 		{"valid closed", string(types.StatusClosed), false},
 		{"invalid status", "invalid", true},
 		{"non-string ignored", 123, false},

@@ -91,6 +91,10 @@ var (
 		Light: "#59c2ff", // cyan - actively worked by agent (GUPP)
 		Dark:  "#59c2ff",
 	}
+	ColorStatusReview = lipgloss.AdaptiveColor{
+		Light: "#d2a6ff", // purple - needs human attention
+		Dark:  "#d2a6ff",
+	}
 
 	// === Priority Colors ===
 	// Only P0/P1 get color - they need attention
@@ -170,6 +174,7 @@ var (
 	StatusBlockedStyle    = lipgloss.NewStyle().Foreground(ColorStatusBlocked)
 	StatusPinnedStyle     = lipgloss.NewStyle().Foreground(ColorStatusPinned)
 	StatusHookedStyle     = lipgloss.NewStyle().Foreground(ColorStatusHooked)
+	StatusReviewStyle     = lipgloss.NewStyle().Foreground(ColorStatusReview)
 )
 
 // Priority styles
@@ -213,6 +218,7 @@ const (
 	StatusIconBlocked    = "●" // needs attention (filled circle)
 	StatusIconClosed     = "✓" // completed (checkmark)
 	StatusIconDeferred   = "❄" // scheduled for later (snowflake)
+	StatusIconReview     = "?" // needs human review/decision
 	StatusIconPinned     = "📌" // elevated priority
 )
 
@@ -234,6 +240,8 @@ func RenderStatusIcon(status string) string {
 		return StatusClosedStyle.Render(StatusIconClosed)
 	case "deferred":
 		return MutedStyle.Render(StatusIconDeferred)
+	case "review":
+		return StatusReviewStyle.Render(StatusIconReview)
 	case "pinned":
 		return StatusPinnedStyle.Render(StatusIconPinned)
 	default:
@@ -255,6 +263,8 @@ func GetStatusIcon(status string) string {
 		return StatusIconClosed
 	case "deferred":
 		return StatusIconDeferred
+	case "review":
+		return StatusIconReview
 	case "pinned":
 		return StatusIconPinned
 	default:
@@ -275,6 +285,8 @@ func GetStatusStyle(status string) lipgloss.Style {
 		return StatusClosedStyle
 	case "deferred":
 		return MutedStyle
+	case "review":
+		return StatusReviewStyle
 	case "pinned":
 		return StatusPinnedStyle
 	case "hooked":

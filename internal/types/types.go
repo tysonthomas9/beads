@@ -442,6 +442,7 @@ const (
 	StatusInProgress Status = "in_progress"
 	StatusBlocked    Status = "blocked"
 	StatusDeferred   Status = "deferred" // Deliberately put on ice for later
+	StatusReview     Status = "review"   // Needs human attention (plan approval, code review)
 	StatusClosed     Status = "closed"
 	StatusTombstone  Status = "tombstone" // Soft-deleted issue
 	StatusPinned     Status = "pinned"    // Persistent bead that stays open indefinitely
@@ -451,7 +452,7 @@ const (
 // IsValid checks if the status value is valid (built-in statuses only)
 func (s Status) IsValid() bool {
 	switch s {
-	case StatusOpen, StatusInProgress, StatusBlocked, StatusDeferred, StatusClosed, StatusTombstone, StatusPinned, StatusHooked:
+	case StatusOpen, StatusInProgress, StatusBlocked, StatusDeferred, StatusReview, StatusClosed, StatusTombstone, StatusPinned, StatusHooked:
 		return true
 	}
 	return false
