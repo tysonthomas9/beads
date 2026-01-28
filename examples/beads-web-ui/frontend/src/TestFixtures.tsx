@@ -66,6 +66,29 @@ function parseIssueParams(search: string): IssueDetails | null {
 }
 
 /**
+ * Test fixture for ErrorBoundary e2e tests.
+ * Throws an error during render when URL has throw=true parameter.
+ *
+ * URL: /test/error-boundary?throw=true&errorMessage=...
+ */
+export function ErrorTriggerFixture(): JSX.Element {
+  const params = new URLSearchParams(window.location.search);
+  const shouldThrow = params.get('throw') === 'true';
+  const errorMessage = params.get('errorMessage') || 'Test error from ErrorTriggerFixture';
+
+  if (shouldThrow) {
+    throw new Error(errorMessage);
+  }
+
+  return (
+    <div data-testid="error-boundary-content" style={{ padding: '2rem', background: 'var(--bg-primary, #1a1a1a)', color: 'var(--text-primary, #fff)', minHeight: '100vh' }}>
+      <h1>Error Boundary Test Fixture</h1>
+      <p>This content renders when no error is thrown.</p>
+    </div>
+  );
+}
+
+/**
  * Test fixture for IssueDetailPanel with StatusDropdown.
  * Renders an open panel with the issue specified in URL params.
  *

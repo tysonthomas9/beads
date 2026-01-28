@@ -2,7 +2,7 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import '@/styles/index.css'
 import App from '@/App'
-import { IssueDetailPanelFixture } from '@/TestFixtures'
+import { IssueDetailPanelFixture, ErrorTriggerFixture } from '@/TestFixtures'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 
 const rootElement = document.getElementById('root')
@@ -17,6 +17,10 @@ function getComponent() {
   // Test fixture routes - only available in development
   if (import.meta.env.DEV && path === '/test/issue-detail-panel') {
     return <IssueDetailPanelFixture />
+  }
+
+  if (import.meta.env.DEV && path === '/test/error-boundary') {
+    return <ErrorTriggerFixture />
   }
 
   // Default: render main app
