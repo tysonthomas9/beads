@@ -59,12 +59,13 @@ vi.mock('@xyflow/react', () => ({
 vi.mock('@/components', () => ({
   IssueNode: vi.fn(() => <div data-testid="issue-node" />),
   DependencyEdge: vi.fn(() => <div data-testid="dependency-edge" />),
-  GraphControls: vi.fn(({ highlightReady, onHighlightReadyChange, showClosed, onShowClosedChange, statusFilter, onStatusFilterChange, className }) => (
+  GraphControls: vi.fn(({ highlightReady, onHighlightReadyChange, showClosed, onShowClosedChange, statusFilter, onStatusFilterChange, dependencyTypeFilter, onDependencyTypeFilterChange, className }) => (
     <div
       data-testid="graph-controls"
       data-highlight-ready={highlightReady}
       data-show-closed={showClosed}
       data-status-filter={statusFilter}
+      data-dep-type-filter={dependencyTypeFilter ? JSON.stringify([...dependencyTypeFilter]) : ''}
       className={className}
     >
       <input
@@ -91,6 +92,52 @@ vi.mock('@/components', () => ({
         <option value="deferred">Deferred</option>
         <option value="closed">Closed</option>
       </select>
+      {onDependencyTypeFilterChange && dependencyTypeFilter && (
+        <div data-testid="dep-type-filter-group">
+          <input
+            type="checkbox"
+            data-testid="dep-type-blocking-checkbox"
+            checked={dependencyTypeFilter.has('blocking')}
+            onChange={(e) => {
+              const newFilter = new Set(dependencyTypeFilter);
+              if (e.target.checked) {
+                newFilter.add('blocking');
+              } else {
+                newFilter.delete('blocking');
+              }
+              onDependencyTypeFilterChange(newFilter);
+            }}
+          />
+          <input
+            type="checkbox"
+            data-testid="dep-type-parent-child-checkbox"
+            checked={dependencyTypeFilter.has('parent-child')}
+            onChange={(e) => {
+              const newFilter = new Set(dependencyTypeFilter);
+              if (e.target.checked) {
+                newFilter.add('parent-child');
+              } else {
+                newFilter.delete('parent-child');
+              }
+              onDependencyTypeFilterChange(newFilter);
+            }}
+          />
+          <input
+            type="checkbox"
+            data-testid="dep-type-non-blocking-checkbox"
+            checked={dependencyTypeFilter.has('non-blocking')}
+            onChange={(e) => {
+              const newFilter = new Set(dependencyTypeFilter);
+              if (e.target.checked) {
+                newFilter.add('non-blocking');
+              } else {
+                newFilter.delete('non-blocking');
+              }
+              onDependencyTypeFilterChange(newFilter);
+            }}
+          />
+        </div>
+      )}
     </div>
   )),
   GraphLegend: vi.fn(({ collapsed, onToggle, className }) => (
@@ -1128,6 +1175,261 @@ describe('GraphView', () => {
       // Should fall back to default 'all'
       const container = screen.getByTestId('graph-view');
       expect(container).toHaveAttribute('data-status-filter', 'all');
+    });
+  });
+
+  describe('dependency type filter integration', () => {
+    beforeEach(() => {
+      localStorage.clear();
+    });
+
+    it('passes dependency type filter to GraphControls', () => {
+      const props = createTestProps();
+      render(<GraphView {...props} />);
+
+      // Should render the dep type filter group
+      expect(screen.getByTestId('dep-type-filter-group')).toBeInTheDocument();
+    });
+
+    it('initializes with default filter (blocking + parent-child) when localStorage is empty', () => {
+      const props = createTestProps();
+      render(<GraphView {...props} />);
+
+      const controls = screen.getByTestId('graph-controls');
+      const filterAttr = controls.getAttribute('data-dep-type-filter');
+      const filterArray = JSON.parse(filterAttr || '[]');
+
+      expect(filterArray).toContain('blocking');
+      expect(filterArray).toContain('parent-child');
+      expect(filterArray).not.toContain('non-blocking');
+    });
+
+    it('loads dependency type filter from localStorage on mount', () => {
+      localStorage.setItem('graph-dep-type-filter', JSON.stringify(['blocking', 'non-blocking']));
+
+      const props = createTestProps();
+      render(<GraphView {...props} />);
+
+      const controls = screen.getByTestId('graph-controls');
+      const filterAttr = controls.getAttribute('data-dep-type-filter');
+      const filterArray = JSON.parse(filterAttr || '[]');
+
+      expect(filterArray).toContain('blocking');
+      expect(filterArray).toContain('non-blocking');
+      expect(filterArray).not.toContain('parent-child');
+    });
+
+    it('persists dependency type filter to localStorage when changed', () => {
+      const props = createTestProps();
+      render(<GraphView {...props} />);
+
+      // Default should be blocking + parent-child
+      const storedDefault = JSON.parse(localStorage.getItem('graph-dep-type-filter') || '[]');
+      expect(storedDefault).toContain('blocking');
+      expect(storedDefault).toContain('parent-child');
+
+      // Toggle non-blocking on
+      const nonBlockingCheckbox = screen.getByTestId('dep-type-non-blocking-checkbox');
+      fireEvent.click(nonBlockingCheckbox);
+
+      const storedAfterChange = JSON.parse(localStorage.getItem('graph-dep-type-filter') || '[]');
+      expect(storedAfterChange).toContain('blocking');
+      expect(storedAfterChange).toContain('parent-child');
+      expect(storedAfterChange).toContain('non-blocking');
+    });
+
+    it('ignores invalid dependency type groups in localStorage', () => {
+      localStorage.setItem('graph-dep-type-filter', JSON.stringify(['blocking', 'invalid-type', 'parent-child']));
+
+      const props = createTestProps();
+      render(<GraphView {...props} />);
+
+      const controls = screen.getByTestId('graph-controls');
+      const filterAttr = controls.getAttribute('data-dep-type-filter');
+      const filterArray = JSON.parse(filterAttr || '[]');
+
+      // Should include valid groups, exclude invalid
+      expect(filterArray).toContain('blocking');
+      expect(filterArray).toContain('parent-child');
+      expect(filterArray).not.toContain('invalid-type');
+    });
+
+    it('handles malformed JSON in localStorage gracefully', () => {
+      localStorage.setItem('graph-dep-type-filter', 'not-valid-json');
+
+      const props = createTestProps();
+      render(<GraphView {...props} />);
+
+      // Should fall back to default
+      const controls = screen.getByTestId('graph-controls');
+      const filterAttr = controls.getAttribute('data-dep-type-filter');
+      const filterArray = JSON.parse(filterAttr || '[]');
+
+      expect(filterArray).toContain('blocking');
+      expect(filterArray).toContain('parent-child');
+    });
+
+    it('passes includeDependencyTypes to useGraphData when filter has groups', () => {
+      localStorage.setItem('graph-dep-type-filter', JSON.stringify(['blocking']));
+
+      const props = createTestProps();
+      render(<GraphView {...props} />);
+
+      // useGraphData should be called with includeDependencyTypes containing blocking types
+      expect(useGraphData).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({
+          includeDependencyTypes: expect.arrayContaining(['blocks', 'conditional-blocks', 'waits-for']),
+        })
+      );
+    });
+
+    it('passes includeDependencyTypes with parent-child types when parent-child is selected', () => {
+      localStorage.setItem('graph-dep-type-filter', JSON.stringify(['parent-child']));
+
+      const props = createTestProps();
+      render(<GraphView {...props} />);
+
+      expect(useGraphData).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({
+          includeDependencyTypes: expect.arrayContaining(['parent-child']),
+        })
+      );
+    });
+
+    it('passes includeDependencyTypes with non-blocking types when non-blocking is selected', () => {
+      localStorage.setItem('graph-dep-type-filter', JSON.stringify(['non-blocking']));
+
+      const props = createTestProps();
+      render(<GraphView {...props} />);
+
+      expect(useGraphData).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({
+          includeDependencyTypes: expect.arrayContaining(['related', 'discovered-from', 'replies-to']),
+        })
+      );
+    });
+
+    it('passes undefined includeDependencyTypes when filter is empty (all groups unchecked)', () => {
+      localStorage.setItem('graph-dep-type-filter', JSON.stringify([]));
+
+      const props = createTestProps();
+      render(<GraphView {...props} />);
+
+      // When all groups are unchecked, includeDependencyTypes should be undefined (show all)
+      const calls = (useGraphData as Mock).mock.calls;
+      const lastCall = calls[calls.length - 1];
+      expect(lastCall[1].includeDependencyTypes).toBeUndefined();
+    });
+
+    it('combines dependency types from multiple selected groups', () => {
+      localStorage.setItem('graph-dep-type-filter', JSON.stringify(['blocking', 'parent-child']));
+
+      const props = createTestProps();
+      render(<GraphView {...props} />);
+
+      expect(useGraphData).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({
+          includeDependencyTypes: expect.arrayContaining([
+            'blocks',
+            'conditional-blocks',
+            'waits-for',
+            'parent-child',
+          ]),
+        })
+      );
+    });
+
+    it('updates includeDependencyTypes when filter is toggled', () => {
+      // Start with blocking only
+      localStorage.setItem('graph-dep-type-filter', JSON.stringify(['blocking']));
+
+      const props = createTestProps();
+      render(<GraphView {...props} />);
+
+      // Verify initial call includes blocking types
+      expect(useGraphData).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({
+          includeDependencyTypes: expect.arrayContaining(['blocks']),
+        })
+      );
+
+      // Clear mock to check next call
+      (useGraphData as Mock).mockClear();
+
+      // Toggle parent-child on
+      const parentChildCheckbox = screen.getByTestId('dep-type-parent-child-checkbox');
+      fireEvent.click(parentChildCheckbox);
+
+      // Should now include both blocking and parent-child types
+      expect(useGraphData).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({
+          includeDependencyTypes: expect.arrayContaining(['blocks', 'parent-child']),
+        })
+      );
+    });
+
+    it('removes dependency types from filter when group is unchecked', () => {
+      // Start with blocking + parent-child
+      localStorage.setItem('graph-dep-type-filter', JSON.stringify(['blocking', 'parent-child']));
+
+      const props = createTestProps();
+      render(<GraphView {...props} />);
+
+      // Clear mock
+      (useGraphData as Mock).mockClear();
+
+      // Uncheck blocking
+      const blockingCheckbox = screen.getByTestId('dep-type-blocking-checkbox');
+      fireEvent.click(blockingCheckbox);
+
+      // Should now only include parent-child types
+      const calls = (useGraphData as Mock).mock.calls;
+      const lastCall = calls[calls.length - 1];
+      const depTypes = lastCall[1].includeDependencyTypes;
+
+      expect(depTypes).toContain('parent-child');
+      expect(depTypes).not.toContain('blocks');
+      expect(depTypes).not.toContain('conditional-blocks');
+      expect(depTypes).not.toContain('waits-for');
+    });
+
+    it('checkbox reflects correct checked state for blocking', () => {
+      localStorage.setItem('graph-dep-type-filter', JSON.stringify(['blocking']));
+
+      const props = createTestProps();
+      render(<GraphView {...props} />);
+
+      expect(screen.getByTestId('dep-type-blocking-checkbox')).toBeChecked();
+      expect(screen.getByTestId('dep-type-parent-child-checkbox')).not.toBeChecked();
+      expect(screen.getByTestId('dep-type-non-blocking-checkbox')).not.toBeChecked();
+    });
+
+    it('checkbox reflects correct checked state for all groups selected', () => {
+      localStorage.setItem('graph-dep-type-filter', JSON.stringify(['blocking', 'parent-child', 'non-blocking']));
+
+      const props = createTestProps();
+      render(<GraphView {...props} />);
+
+      expect(screen.getByTestId('dep-type-blocking-checkbox')).toBeChecked();
+      expect(screen.getByTestId('dep-type-parent-child-checkbox')).toBeChecked();
+      expect(screen.getByTestId('dep-type-non-blocking-checkbox')).toBeChecked();
+    });
+
+    it('checkbox reflects correct checked state when none selected', () => {
+      localStorage.setItem('graph-dep-type-filter', JSON.stringify([]));
+
+      const props = createTestProps();
+      render(<GraphView {...props} />);
+
+      expect(screen.getByTestId('dep-type-blocking-checkbox')).not.toBeChecked();
+      expect(screen.getByTestId('dep-type-parent-child-checkbox')).not.toBeChecked();
+      expect(screen.getByTestId('dep-type-non-blocking-checkbox')).not.toBeChecked();
     });
   });
 });

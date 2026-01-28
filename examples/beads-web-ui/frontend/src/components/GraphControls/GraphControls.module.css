@@ -64,6 +64,55 @@
   cursor: not-allowed;
 }
 
+/* Dependency type filter group */
+.depTypeGroup {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.depTypeCheckboxGroup {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.depTypeLabel {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  user-select: none;
+}
+
+.depTypeLabel:has(input:disabled) {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.depTypeLabel:has(input:checked) span {
+  color: var(--color-text);
+  font-weight: var(--font-weight-medium);
+}
+
+.depTypeCheckbox {
+  width: 14px;
+  height: 14px;
+  accent-color: var(--color-primary);
+  cursor: pointer;
+}
+
+.depTypeCheckbox:disabled {
+  cursor: not-allowed;
+}
+
+.depTypeCheckbox:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
 .toggleLabel {
   display: flex;
   align-items: center;

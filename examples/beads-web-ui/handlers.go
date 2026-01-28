@@ -1404,3 +1404,321 @@ func handleCloseIssueWithPool(pool closeConnectionGetter) http.HandlerFunc {
 		}
 	}
 }
+
+// AddDependencyRequest represents the POST body for adding a dependency.
+type AddDependencyRequest struct {
+	DependsOnID string `json:"depends_on_id"`
+	DepType     string `json:"dep_type,omitempty"` // defaults to "blocks"
+}
+
+// DependencyResponse wraps the dependency operation result for JSON response.
+// Follows the same structure as other API responses for consistency.
+type DependencyResponse struct {
+	Success bool        `json:"success"`
+	Data    interface{} `json:"data,omitempty"`
+	Error   string      `json:"error,omitempty"`
+}
+
+// dependencyManager is an internal interface for testing dependency operations.
+// The production code uses *rpc.Client which implements this interface.
+type dependencyManager interface {
+	AddDependency(args *rpc.DepAddArgs) (*rpc.Response, error)
+	RemoveDependency(args *rpc.DepRemoveArgs) (*rpc.Response, error)
+}
+
+// dependencyConnectionGetter is an internal interface for testing dependency handler pool operations.
+type dependencyConnectionGetter interface {
+	Get(ctx context.Context) (dependencyManager, error)
+	Put(client dependencyManager)
+}
+
+// dependencyPoolAdapter wraps *daemon.ConnectionPool to implement dependencyConnectionGetter.
+type dependencyPoolAdapter struct {
+	pool *daemon.ConnectionPool
+}
+
+func (p *dependencyPoolAdapter) Get(ctx context.Context) (dependencyManager, error) {
+	return p.pool.Get(ctx)
+}
+
+func (p *dependencyPoolAdapter) Put(client dependencyManager) {
+	if c, ok := client.(*rpc.Client); ok {
+		p.pool.Put(c)
+	}
+}
+
+// handleAddDependency creates a dependency from the issue to another issue.
+func handleAddDependency(pool *daemon.ConnectionPool) http.HandlerFunc {
+	if pool == nil {
+		return handleAddDependencyWithPool(nil)
+	}
+	return handleAddDependencyWithPool(&dependencyPoolAdapter{pool: pool})
+}
+
+// handleAddDependencyWithPool is the internal implementation that accepts an interface for testing.
+func handleAddDependencyWithPool(pool dependencyConnectionGetter) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+
+		// Extract issue ID from path parameter
+		issueID := r.PathValue("id")
+		if issueID == "" {
+			w.WriteHeader(http.StatusBadRequest)
+			if err := json.NewEncoder(w).Encode(DependencyResponse{
+				Success: false,
+				Error:   "missing issue ID",
+			}); err != nil {
+				log.Printf("Failed to encode add dependency response: %v", err)
+			}
+			return
+		}
+
+		// Check pool availability
+		if pool == nil {
+			w.WriteHeader(http.StatusServiceUnavailable)
+			if err := json.NewEncoder(w).Encode(DependencyResponse{
+				Success: false,
+				Error:   "connection pool not initialized",
+			}); err != nil {
+				log.Printf("Failed to encode add dependency response: %v", err)
+			}
+			return
+		}
+
+		// Parse JSON body
+		var req AddDependencyRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			if err := json.NewEncoder(w).Encode(DependencyResponse{
+				Success: false,
+				Error:   "invalid request body: " + err.Error(),
+			}); err != nil {
+				log.Printf("Failed to encode add dependency response: %v", err)
+			}
+			return
+		}
+
+		// Validate depends_on_id
+		if req.DependsOnID == "" {
+			w.WriteHeader(http.StatusBadRequest)
+			if err := json.NewEncoder(w).Encode(DependencyResponse{
+				Success: false,
+				Error:   "depends_on_id is required",
+			}); err != nil {
+				log.Printf("Failed to encode add dependency response: %v", err)
+			}
+			return
+		}
+
+		// Prevent self-dependency
+		if issueID == req.DependsOnID {
+			w.WriteHeader(http.StatusBadRequest)
+			if err := json.NewEncoder(w).Encode(DependencyResponse{
+				Success: false,
+				Error:   "cannot add self-dependency",
+			}); err != nil {
+				log.Printf("Failed to encode add dependency response: %v", err)
+			}
+			return
+		}
+
+		// Default dep_type to "blocks" if not provided
+		depType := req.DepType
+		if depType == "" {
+			depType = "blocks"
+		}
+
+		// Get connection from pool
+		ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+		defer cancel()
+
+		client, err := pool.Get(ctx)
+		if err != nil {
+			status := http.StatusServiceUnavailable
+			if errors.Is(err, context.DeadlineExceeded) {
+				status = http.StatusGatewayTimeout
+			}
+			w.WriteHeader(status)
+			if err := json.NewEncoder(w).Encode(DependencyResponse{
+				Success: false,
+				Error:   "daemon not available",
+			}); err != nil {
+				log.Printf("Failed to encode add dependency response: %v", err)
+			}
+			return
+		}
+		defer pool.Put(client)
+
+		// Call AddDependency RPC
+		// FromID is the issue that depends on ToID
+		resp, err := client.AddDependency(&rpc.DepAddArgs{
+			FromID:  issueID,
+			ToID:    req.DependsOnID,
+			DepType: depType,
+		})
+		if err != nil {
+			status := http.StatusInternalServerError
+			// Check for common error cases
+			if strings.Contains(err.Error(), "not found") {
+				status = http.StatusNotFound
+			} else if strings.Contains(err.Error(), "cycle") {
+				status = http.StatusConflict
+			} else if strings.Contains(err.Error(), "already exists") {
+				status = http.StatusConflict
+			}
+			w.WriteHeader(status)
+			if err := json.NewEncoder(w).Encode(DependencyResponse{
+				Success: false,
+				Error:   err.Error(),
+			}); err != nil {
+				log.Printf("Failed to encode add dependency response: %v", err)
+			}
+			return
+		}
+
+		if !resp.Success {
+			status := http.StatusInternalServerError
+			if strings.Contains(resp.Error, "not found") {
+				status = http.StatusNotFound
+			} else if strings.Contains(resp.Error, "cycle") {
+				status = http.StatusConflict
+			} else if strings.Contains(resp.Error, "already exists") {
+				status = http.StatusConflict
+			}
+			w.WriteHeader(status)
+			if err := json.NewEncoder(w).Encode(DependencyResponse{
+				Success: false,
+				Error:   resp.Error,
+			}); err != nil {
+				log.Printf("Failed to encode add dependency response: %v", err)
+			}
+			return
+		}
+
+		w.WriteHeader(http.StatusOK)
+		if err := json.NewEncoder(w).Encode(DependencyResponse{
+			Success: true,
+			Data:    nil,
+		}); err != nil {
+			log.Printf("Failed to encode add dependency response: %v", err)
+		}
+	}
+}
+
+// handleRemoveDependency removes a dependency from the issue.
+func handleRemoveDependency(pool *daemon.ConnectionPool) http.HandlerFunc {
+	if pool == nil {
+		return handleRemoveDependencyWithPool(nil)
+	}
+	return handleRemoveDependencyWithPool(&dependencyPoolAdapter{pool: pool})
+}
+
+// handleRemoveDependencyWithPool is the internal implementation that accepts an interface for testing.
+func handleRemoveDependencyWithPool(pool dependencyConnectionGetter) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+
+		// Extract issue ID and depId from path parameters
+		issueID := r.PathValue("id")
+		depID := r.PathValue("depId")
+
+		if issueID == "" {
+			w.WriteHeader(http.StatusBadRequest)
+			if err := json.NewEncoder(w).Encode(DependencyResponse{
+				Success: false,
+				Error:   "missing issue ID",
+			}); err != nil {
+				log.Printf("Failed to encode remove dependency response: %v", err)
+			}
+			return
+		}
+
+		if depID == "" {
+			w.WriteHeader(http.StatusBadRequest)
+			if err := json.NewEncoder(w).Encode(DependencyResponse{
+				Success: false,
+				Error:   "missing dependency ID",
+			}); err != nil {
+				log.Printf("Failed to encode remove dependency response: %v", err)
+			}
+			return
+		}
+
+		// Check pool availability
+		if pool == nil {
+			w.WriteHeader(http.StatusServiceUnavailable)
+			if err := json.NewEncoder(w).Encode(DependencyResponse{
+				Success: false,
+				Error:   "connection pool not initialized",
+			}); err != nil {
+				log.Printf("Failed to encode remove dependency response: %v", err)
+			}
+			return
+		}
+
+		// Get connection from pool
+		ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+		defer cancel()
+
+		client, err := pool.Get(ctx)
+		if err != nil {
+			status := http.StatusServiceUnavailable
+			if errors.Is(err, context.DeadlineExceeded) {
+				status = http.StatusGatewayTimeout
+			}
+			w.WriteHeader(status)
+			if err := json.NewEncoder(w).Encode(DependencyResponse{
+				Success: false,
+				Error:   "daemon not available",
+			}); err != nil {
+				log.Printf("Failed to encode remove dependency response: %v", err)
+			}
+			return
+		}
+		defer pool.Put(client)
+
+		// Call RemoveDependency RPC
+		// FromID is the issue, ToID is the issue it depends on
+		resp, err := client.RemoveDependency(&rpc.DepRemoveArgs{
+			FromID: issueID,
+			ToID:   depID,
+		})
+		if err != nil {
+			status := http.StatusInternalServerError
+			if strings.Contains(err.Error(), "not found") {
+				status = http.StatusNotFound
+			}
+			w.WriteHeader(status)
+			if err := json.NewEncoder(w).Encode(DependencyResponse{
+				Success: false,
+				Error:   err.Error(),
+			}); err != nil {
+				log.Printf("Failed to encode remove dependency response: %v", err)
+			}
+			return
+		}
+
+		if !resp.Success {
+			status := http.StatusInternalServerError
+			if strings.Contains(resp.Error, "not found") {
+				status = http.StatusNotFound
+			}
+			w.WriteHeader(status)
+			if err := json.NewEncoder(w).Encode(DependencyResponse{
+				Success: false,
+				Error:   resp.Error,
+			}); err != nil {
+				log.Printf("Failed to encode remove dependency response: %v", err)
+			}
+			return
+		}
+
+		w.WriteHeader(http.StatusOK)
+		if err := json.NewEncoder(w).Encode(DependencyResponse{
+			Success: true,
+			Data:    nil,
+		}); err != nil {
+			log.Printf("Failed to encode remove dependency response: %v", err)
+		}
+	}
+}

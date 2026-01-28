@@ -18,5 +18,7 @@ export {
   updateIssue,
   closeIssue,
   fetchGraphIssues,
+  addDependency,
+  removeDependency,
 } from './issues'
 export type { CreateIssueRequest, UpdateIssueRequest, GraphFilter } from './issues'
