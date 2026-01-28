@@ -38,9 +38,14 @@ export interface IssueDetailPanelProps {
 
 /**
  * Type guard to check if issue has IssueDetails fields.
+ * Checks for fields that indicate this is a detailed issue response.
+ * Note: The backend may omit empty arrays (dependents, dependencies),
+ * but always includes comments array in IssueDetails responses.
  */
 function isIssueDetails(issue: Issue | IssueDetails): issue is IssueDetails {
-  return 'dependents' in issue;
+  // Check for any IssueDetails-specific field that the backend includes
+  // Comments is always present in /api/issues/{id} responses
+  return 'dependents' in issue || 'dependencies' in issue || 'comments' in issue;
 }
 
 /**
