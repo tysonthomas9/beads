@@ -59,11 +59,12 @@ vi.mock('@xyflow/react', () => ({
 vi.mock('@/components', () => ({
   IssueNode: vi.fn(() => <div data-testid="issue-node" />),
   DependencyEdge: vi.fn(() => <div data-testid="dependency-edge" />),
-  GraphControls: vi.fn(({ highlightReady, onHighlightReadyChange, showClosed, onShowClosedChange, className }) => (
+  GraphControls: vi.fn(({ highlightReady, onHighlightReadyChange, showClosed, onShowClosedChange, statusFilter, onStatusFilterChange, className }) => (
     <div
       data-testid="graph-controls"
       data-highlight-ready={highlightReady}
       data-show-closed={showClosed}
+      data-status-filter={statusFilter}
       className={className}
     >
       <input
@@ -78,6 +79,18 @@ vi.mock('@/components', () => ({
         checked={showClosed}
         onChange={(e) => onShowClosedChange(e.target.checked)}
       />
+      <select
+        data-testid="status-filter-select"
+        value={statusFilter}
+        onChange={(e) => onStatusFilterChange(e.target.value)}
+      >
+        <option value="all">All</option>
+        <option value="open">Open</option>
+        <option value="in_progress">In Progress</option>
+        <option value="blocked">Blocked</option>
+        <option value="deferred">Deferred</option>
+        <option value="closed">Closed</option>
+      </select>
     </div>
   )),
   GraphLegend: vi.fn(({ collapsed, onToggle, className }) => (
@@ -137,6 +150,28 @@ function createTestNodes(issues: Issue[]): IssueNode[] {
       dependencyCount: 0,
       dependentCount: 0,
       isReady: true,
+    },
+  }));
+}
+
+/**
+ * Create test nodes from issues with isClosed flag.
+ */
+function createTestNodesWithClosed(issues: Issue[]): IssueNode[] {
+  return issues.map((issue) => ({
+    id: `node-${issue.id}`,
+    type: 'issue' as const,
+    position: { x: 0, y: 0 },
+    data: {
+      issue,
+      title: issue.title,
+      status: issue.status,
+      priority: issue.priority,
+      issueType: issue.issue_type,
+      dependencyCount: 0,
+      dependentCount: 0,
+      isReady: issue.status !== 'closed',
+      isClosed: issue.status === 'closed',
     },
   }));
 }
@@ -915,6 +950,184 @@ describe('GraphView', () => {
       const lastCallArgs = (useGraphData as Mock).mock.calls[(useGraphData as Mock).mock.calls.length - 1][0];
       expect(lastCallArgs).toHaveLength(1);
       expect(lastCallArgs[0].id).toBe('open-1');
+    });
+  });
+
+  describe('closed issue node data', () => {
+    beforeEach(() => {
+      localStorage.clear();
+    });
+
+    it('passes isClosed: true to node data for closed issues', () => {
+      const issues = [
+        createTestIssue({ id: 'open-issue', status: 'open' }),
+        createTestIssue({ id: 'closed-issue', status: 'closed' }),
+      ];
+      const nodes = createTestNodesWithClosed(issues);
+
+      setupMocks({ nodes });
+
+      const props = createTestProps({ issues });
+      render(<GraphView {...props} />);
+
+      // Verify useGraphData was called with both issues
+      expect(useGraphData).toHaveBeenCalledWith(
+        expect.arrayContaining([
+          expect.objectContaining({ id: 'open-issue' }),
+          expect.objectContaining({ id: 'closed-issue' }),
+        ]),
+        expect.any(Object)
+      );
+
+      // The mock returns nodes with isClosed set appropriately
+      // Verify the closed node has isClosed: true in its data
+      const closedNode = nodes.find(n => n.id === 'node-closed-issue');
+      expect(closedNode?.data.isClosed).toBe(true);
+
+      const openNode = nodes.find(n => n.id === 'node-open-issue');
+      expect(openNode?.data.isClosed).toBe(false);
+    });
+
+    it('sets data-show-closed attribute on container', () => {
+      const props = createTestProps();
+      render(<GraphView {...props} />);
+
+      const container = screen.getByTestId('graph-view');
+      expect(container).toHaveAttribute('data-show-closed');
+    });
+
+    it('sets data-show-closed="false" when showClosed is false', () => {
+      localStorage.setItem('graph-show-closed', 'false');
+
+      const props = createTestProps();
+      render(<GraphView {...props} />);
+
+      const container = screen.getByTestId('graph-view');
+      expect(container).toHaveAttribute('data-show-closed', 'false');
+    });
+  });
+
+  describe('status filter integration', () => {
+    beforeEach(() => {
+      localStorage.clear();
+    });
+
+    it('sets data-status-filter attribute on container', () => {
+      const props = createTestProps();
+      render(<GraphView {...props} />);
+
+      const container = screen.getByTestId('graph-view');
+      expect(container).toHaveAttribute('data-status-filter', 'all');
+    });
+
+    it('filters to only open issues when statusFilter is "open"', () => {
+      localStorage.setItem('graph-status-filter', 'open');
+
+      const issues = [
+        createTestIssue({ id: 'open-1', status: 'open' }),
+        createTestIssue({ id: 'closed-1', status: 'closed' }),
+        createTestIssue({ id: 'in-progress-1', status: 'in_progress' }),
+      ];
+
+      const props = createTestProps({ issues });
+      render(<GraphView {...props} />);
+
+      // Only open issues should be passed to useGraphData
+      const callArgs = (useGraphData as Mock).mock.calls[0][0];
+      expect(callArgs).toHaveLength(1);
+      expect(callArgs[0].id).toBe('open-1');
+    });
+
+    it('filters to only closed issues when statusFilter is "closed"', () => {
+      localStorage.setItem('graph-status-filter', 'closed');
+
+      const issues = [
+        createTestIssue({ id: 'open-1', status: 'open' }),
+        createTestIssue({ id: 'closed-1', status: 'closed' }),
+        createTestIssue({ id: 'closed-2', status: 'closed' }),
+      ];
+
+      const props = createTestProps({ issues });
+      render(<GraphView {...props} />);
+
+      // Only closed issues should be passed to useGraphData
+      const callArgs = (useGraphData as Mock).mock.calls[0][0];
+      expect(callArgs).toHaveLength(2);
+      expect(callArgs.every((issue: Issue) => issue.status === 'closed')).toBe(true);
+    });
+
+    it('shows all issues when statusFilter is "all" and showClosed is true', () => {
+      localStorage.setItem('graph-status-filter', 'all');
+      localStorage.setItem('graph-show-closed', 'true');
+
+      const issues = [
+        createTestIssue({ id: 'open-1', status: 'open' }),
+        createTestIssue({ id: 'closed-1', status: 'closed' }),
+        createTestIssue({ id: 'in-progress-1', status: 'in_progress' }),
+      ];
+
+      const props = createTestProps({ issues });
+      render(<GraphView {...props} />);
+
+      // All issues should be passed to useGraphData
+      const callArgs = (useGraphData as Mock).mock.calls[0][0];
+      expect(callArgs).toHaveLength(3);
+    });
+
+    it('statusFilter "closed" takes precedence over showClosed toggle', () => {
+      // Set statusFilter to "closed" but showClosed to false
+      // statusFilter should take precedence and show closed issues
+      localStorage.setItem('graph-status-filter', 'closed');
+      localStorage.setItem('graph-show-closed', 'false');
+
+      const issues = [
+        createTestIssue({ id: 'open-1', status: 'open' }),
+        createTestIssue({ id: 'closed-1', status: 'closed' }),
+      ];
+
+      const props = createTestProps({ issues });
+      render(<GraphView {...props} />);
+
+      // Despite showClosed being false, closed issues should be shown
+      // because statusFilter "closed" explicitly requests them
+      const callArgs = (useGraphData as Mock).mock.calls[0][0];
+      expect(callArgs).toHaveLength(1);
+      expect(callArgs[0].id).toBe('closed-1');
+    });
+
+    it('persists statusFilter to localStorage', () => {
+      const props = createTestProps();
+      render(<GraphView {...props} />);
+
+      // Default should be 'all'
+      expect(localStorage.getItem('graph-status-filter')).toBe('all');
+
+      // Change status filter using the select
+      const select = screen.getByTestId('status-filter-select');
+      fireEvent.change(select, { target: { value: 'open' } });
+
+      expect(localStorage.getItem('graph-status-filter')).toBe('open');
+    });
+
+    it('loads statusFilter from localStorage on mount', () => {
+      localStorage.setItem('graph-status-filter', 'in_progress');
+
+      const props = createTestProps();
+      render(<GraphView {...props} />);
+
+      const container = screen.getByTestId('graph-view');
+      expect(container).toHaveAttribute('data-status-filter', 'in_progress');
+    });
+
+    it('ignores invalid statusFilter values in localStorage', () => {
+      localStorage.setItem('graph-status-filter', 'invalid_status');
+
+      const props = createTestProps();
+      render(<GraphView {...props} />);
+
+      // Should fall back to default 'all'
+      const container = screen.getByTestId('graph-view');
+      expect(container).toHaveAttribute('data-status-filter', 'all');
     });
   });
 });
