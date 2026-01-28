@@ -8,7 +8,8 @@
 
 import { useState, useCallback, useEffect, useRef, useMemo, lazy, Suspense } from 'react';
 import type { Status } from '@/types';
-import { useIssues, useViewState, useFilterState, useIssueFilter, useDebounce, useBlockedIssues } from '@/hooks';
+import { useIssues, useViewState, useFilterState, useIssueFilter, useDebounce, useBlockedIssues, useIssueDetail } from '@/hooks';
+import type { Issue } from '@/types';
 import type { BlockedInfo } from '@/components/KanbanBoard';
 import styles from './App.module.css';
 import {
@@ -23,6 +24,7 @@ import {
   ErrorToast,
   FilterBar,
   SearchInput,
+  IssueDetailPanel,
 } from '@/components';
 
 // Lazy load GraphView (React Flow ~100KB)
@@ -94,6 +96,11 @@ function App() {
   const [toastError, setToastError] = useState<string | null>(null);
   const mountedRef = useRef(true);
 
+  // Issue detail panel state
+  const [isPanelOpen, setIsPanelOpen] = useState(false);
+  const [selectedIssueId, setSelectedIssueId] = useState<string | null>(null);
+  const { issueDetails, isLoading: isLoadingDetails, error: detailError, fetchIssue, clearIssue } = useIssueDetail();
+
   // Track mount state for async operations (must set true in setup for StrictMode compatibility)
   useEffect(() => {
     mountedRef.current = true;
@@ -124,6 +131,32 @@ function App() {
     setSearchValue('');
     filterActions.setSearch(undefined);
   }, [filterActions]);
+
+  // Handle issue click from SwimLaneBoard/IssueTable
+  const handleIssueClick = useCallback(
+    (issue: Issue) => {
+      // If clicking the same issue that's already selected, just ensure panel is open
+      if (issue.id === selectedIssueId && isPanelOpen) {
+        return;
+      }
+
+      setSelectedIssueId(issue.id);
+      setIsPanelOpen(true);
+      fetchIssue(issue.id);
+    },
+    [selectedIssueId, isPanelOpen, fetchIssue]
+  );
+
+  // Handle panel close
+  const handlePanelClose = useCallback(() => {
+    setIsPanelOpen(false);
+    // Clear issue details after animation completes
+    setTimeout(() => {
+      if (!mountedRef.current) return;
+      clearIssue();
+      setSelectedIssueId(null);
+    }, 300); // Match CSS transition duration
+  }, [clearIssue]);
 
   // Handle blocked issue click from BlockedSummary dropdown
   const handleBlockedIssueClick = useCallback(
@@ -240,6 +273,7 @@ function App() {
           issues={filteredIssues}
           groupBy={filters.groupBy ?? 'none'}
           onDragEnd={handleDragEnd}
+          onIssueClick={handleIssueClick}
           {...(blockedIssuesMap !== undefined && { blockedIssues: blockedIssuesMap })}
           {...(filters.showBlocked !== undefined && { showBlocked: filters.showBlocked })}
         />
@@ -248,6 +282,8 @@ function App() {
         <IssueTable
           issues={filteredIssues}
           sortable
+          onRowClick={handleIssueClick}
+          {...(selectedIssueId !== null && { selectedId: selectedIssueId })}
           {...(blockedIssuesMap !== undefined && { blockedIssues: blockedIssuesMap })}
           {...(filters.showBlocked !== undefined && { showBlocked: filters.showBlocked })}
         />
@@ -260,6 +296,13 @@ function App() {
       {toastError && (
         <ErrorToast message={toastError} onDismiss={handleToastDismiss} />
       )}
+      <IssueDetailPanel
+        isOpen={isPanelOpen}
+        issue={issueDetails}
+        isLoading={isLoadingDetails}
+        error={detailError}
+        onClose={handlePanelClose}
+      />
     </AppLayout>
   );
 }
