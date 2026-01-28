@@ -12,6 +12,7 @@ import { EditableDescription } from './EditableDescription';
 import { PriorityDropdown } from './PriorityDropdown';
 import { TypeDropdown } from './TypeDropdown';
 import { DependencySection } from './DependencySection';
+import { CommentsSection } from './CommentsSection';
 import { ErrorToast } from '../ErrorToast';
 import styles from './IssueDetailPanel.module.css';
 
@@ -194,6 +195,7 @@ function DefaultContent({
   const hasDetails = isIssueDetails(issue);
   const dependencies = hasDetails ? issue.dependencies : undefined;
   const dependents = hasDetails ? issue.dependents : undefined;
+  const comments = hasDetails ? issue.comments : undefined;
 
   return (
     <>
@@ -234,6 +236,9 @@ function DefaultContent({
             }}
           />
         </section>
+
+        {/* Comments */}
+        <CommentsSection comments={comments} />
 
         {/* Assignment */}
         {(issue.assignee || issue.owner) && (

@@ -16,3 +16,5 @@ export { TypeDropdown } from './TypeDropdown';
 export type { TypeDropdownProps } from './TypeDropdown';
 export { DependencySection } from './DependencySection';
 export type { DependencySectionProps } from './DependencySection';
+export { CommentsSection } from './CommentsSection';
+export type { CommentsSectionProps } from './CommentsSection';
