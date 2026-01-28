@@ -2,7 +2,7 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import '@/styles/index.css'
 import App from '@/App'
-import { IssueDetailPanelFixture, ErrorTriggerFixture } from '@/TestFixtures'
+import { IssueDetailPanelFixture, ErrorTriggerFixture, ToastTestFixture } from '@/TestFixtures'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { ToastProvider } from '@/hooks'
 
@@ -22,6 +22,10 @@ function getComponent() {
 
   if (import.meta.env.DEV && path === '/test/error-boundary') {
     return <ErrorTriggerFixture />
+  }
+
+  if (import.meta.env.DEV && path === '/test/toast') {
+    return <ToastTestFixture />
   }
 
   // Default: render main app
