@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -655,5 +656,197 @@ func TestSetupRoutes_StatsEndpointPOSTFallsThrough(t *testing.T) {
 	ct := rr.Header().Get("Content-Type")
 	if ct != "text/html; charset=utf-8" {
 		t.Logf("Content-Type: %q (may vary based on file detection)", ct)
+	}
+}
+
+// mockStatsClient implements statsClient for testing
+type mockStatsClient struct {
+	statsFunc func() (*rpc.Response, error)
+}
+
+func (m *mockStatsClient) Stats() (*rpc.Response, error) {
+	if m.statsFunc != nil {
+		return m.statsFunc()
+	}
+	return nil, errors.New("statsFunc not implemented")
+}
+
+// mockStatsPool implements statsConnectionGetter for testing
+type mockStatsPool struct {
+	getFunc func(ctx context.Context) (statsClient, error)
+	putFunc func(client statsClient)
+}
+
+func (m *mockStatsPool) Get(ctx context.Context) (statsClient, error) {
+	if m.getFunc != nil {
+		return m.getFunc(ctx)
+	}
+	return nil, errors.New("getFunc not implemented")
+}
+
+func (m *mockStatsPool) Put(client statsClient) {
+	if m.putFunc != nil {
+		m.putFunc(client)
+	}
+}
+
+// TestHandleStats_ContentType verifies Content-Type header is application/json for all responses.
+func TestHandleStats_ContentType(t *testing.T) {
+	handler := handleStats(nil)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/stats", nil)
+	rr := httptest.NewRecorder()
+
+	handler.ServeHTTP(rr, req)
+
+	ct := rr.Header().Get("Content-Type")
+	if ct != "application/json" {
+		t.Errorf("Content-Type = %q, want %q", ct, "application/json")
+	}
+}
+
+// TestHandleStats_Success tests the success path with mock data
+func TestHandleStats_Success(t *testing.T) {
+	statsJSON := `{"total_issues":100,"open_issues":50,"in_progress_issues":20,"closed_issues":30,"blocked_issues":5,"deferred_issues":10,"ready_issues":15}`
+
+	client := &mockStatsClient{
+		statsFunc: func() (*rpc.Response, error) {
+			return &rpc.Response{
+				Success: true,
+				Data:    []byte(statsJSON),
+			}, nil
+		},
+	}
+
+	pool := &mockStatsPool{
+		getFunc: func(ctx context.Context) (statsClient, error) {
+			return client, nil
+		},
+		putFunc: func(c statsClient) {},
+	}
+
+	handler := handleStatsWithPool(pool)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/stats", nil)
+	rr := httptest.NewRecorder()
+
+	handler.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("status code = %d, want %d", rr.Code, http.StatusOK)
+	}
+
+	var resp StatsResponse
+	if err := json.Unmarshal(rr.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("failed to parse response: %v", err)
+	}
+
+	if !resp.Success {
+		t.Error("Success = false, want true")
+	}
+
+	if resp.Data == nil {
+		t.Fatal("Data is nil, want non-nil")
+	}
+
+	if resp.Data.TotalIssues != 100 {
+		t.Errorf("TotalIssues = %d, want 100", resp.Data.TotalIssues)
+	}
+
+	if resp.Data.OpenIssues != 50 {
+		t.Errorf("OpenIssues = %d, want 50", resp.Data.OpenIssues)
+	}
+
+	// Verify Content-Type header
+	if ct := rr.Header().Get("Content-Type"); ct != "application/json" {
+		t.Errorf("Content-Type = %q, want %q", ct, "application/json")
+	}
+}
+
+// TestHandleStats_RPCError tests that RPC error returns 500 Internal Server Error
+func TestHandleStats_RPCError(t *testing.T) {
+	client := &mockStatsClient{
+		statsFunc: func() (*rpc.Response, error) {
+			return nil, errors.New("connection reset by peer")
+		},
+	}
+
+	pool := &mockStatsPool{
+		getFunc: func(ctx context.Context) (statsClient, error) {
+			return client, nil
+		},
+		putFunc: func(c statsClient) {},
+	}
+
+	handler := handleStatsWithPool(pool)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/stats", nil)
+	rr := httptest.NewRecorder()
+
+	handler.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusInternalServerError {
+		t.Errorf("status code = %d, want %d", rr.Code, http.StatusInternalServerError)
+	}
+
+	var resp StatsResponse
+	if err := json.Unmarshal(rr.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("failed to parse response: %v", err)
+	}
+
+	if resp.Success {
+		t.Error("Success = true, want false")
+	}
+
+	if resp.Error == "" {
+		t.Error("expected non-empty error message")
+	}
+
+	// Verify Content-Type header
+	if ct := rr.Header().Get("Content-Type"); ct != "application/json" {
+		t.Errorf("Content-Type = %q, want %q", ct, "application/json")
+	}
+}
+
+// TestHandleStats_DaemonError tests that daemon error (success=false) returns 500
+func TestHandleStats_DaemonError(t *testing.T) {
+	client := &mockStatsClient{
+		statsFunc: func() (*rpc.Response, error) {
+			return &rpc.Response{
+				Success: false,
+				Error:   "database connection failed",
+			}, nil
+		},
+	}
+
+	pool := &mockStatsPool{
+		getFunc: func(ctx context.Context) (statsClient, error) {
+			return client, nil
+		},
+		putFunc: func(c statsClient) {},
+	}
+
+	handler := handleStatsWithPool(pool)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/stats", nil)
+	rr := httptest.NewRecorder()
+
+	handler.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusInternalServerError {
+		t.Errorf("status code = %d, want %d", rr.Code, http.StatusInternalServerError)
+	}
+
+	var resp StatsResponse
+	if err := json.Unmarshal(rr.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("failed to parse response: %v", err)
+	}
+
+	if resp.Success {
+		t.Error("Success = true, want false")
+	}
+
+	if resp.Error != "database connection failed" {
+		t.Errorf("Error = %q, want %q", resp.Error, "database connection failed")
 	}
 }

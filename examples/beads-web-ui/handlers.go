@@ -434,6 +434,33 @@ type BlockedResponse struct {
 	Error   string                `json:"error,omitempty"`
 }
 
+// blockedClient is an internal interface for testing blocked operations.
+// The production code uses *rpc.Client which implements this interface.
+type blockedClient interface {
+	Blocked(args *rpc.BlockedArgs) (*rpc.Response, error)
+}
+
+// blockedConnectionGetter is an internal interface for testing blocked handler pool operations.
+type blockedConnectionGetter interface {
+	Get(ctx context.Context) (blockedClient, error)
+	Put(client blockedClient)
+}
+
+// blockedPoolAdapter wraps *daemon.ConnectionPool to implement blockedConnectionGetter.
+type blockedPoolAdapter struct {
+	pool *daemon.ConnectionPool
+}
+
+func (p *blockedPoolAdapter) Get(ctx context.Context) (blockedClient, error) {
+	return p.pool.Get(ctx)
+}
+
+func (p *blockedPoolAdapter) Put(client blockedClient) {
+	if c, ok := client.(*rpc.Client); ok {
+		p.pool.Put(c)
+	}
+}
+
 // GraphDependency represents a dependency relationship for graph visualization.
 type GraphDependency struct {
 	DependsOnID string `json:"depends_on_id"`
@@ -456,6 +483,14 @@ type GraphResponse struct {
 
 // handleBlocked returns issues that have blocking dependencies (waiting on other issues).
 func handleBlocked(pool *daemon.ConnectionPool) http.HandlerFunc {
+	if pool == nil {
+		return handleBlockedWithPool(nil)
+	}
+	return handleBlockedWithPool(&blockedPoolAdapter{pool: pool})
+}
+
+// handleBlockedWithPool is the internal implementation that accepts an interface for testing.
+func handleBlockedWithPool(pool blockedConnectionGetter) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 

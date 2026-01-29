@@ -154,8 +154,43 @@ type StatsResponse struct {
 	Error   string            `json:"error,omitempty"`
 }
 
+// statsClient is an internal interface for testing stats operations.
+// The production code uses *rpc.Client which implements this interface.
+type statsClient interface {
+	Stats() (*rpc.Response, error)
+}
+
+// statsConnectionGetter is an internal interface for testing stats handler pool operations.
+type statsConnectionGetter interface {
+	Get(ctx context.Context) (statsClient, error)
+	Put(client statsClient)
+}
+
+// statsPoolAdapter wraps *daemon.ConnectionPool to implement statsConnectionGetter.
+type statsPoolAdapter struct {
+	pool *daemon.ConnectionPool
+}
+
+func (p *statsPoolAdapter) Get(ctx context.Context) (statsClient, error) {
+	return p.pool.Get(ctx)
+}
+
+func (p *statsPoolAdapter) Put(client statsClient) {
+	if c, ok := client.(*rpc.Client); ok {
+		p.pool.Put(c)
+	}
+}
+
 // handleStats returns project statistics from the daemon.
 func handleStats(pool *daemon.ConnectionPool) http.HandlerFunc {
+	if pool == nil {
+		return handleStatsWithPool(nil)
+	}
+	return handleStatsWithPool(&statsPoolAdapter{pool: pool})
+}
+
+// handleStatsWithPool is the internal implementation that accepts an interface for testing.
+func handleStatsWithPool(pool statsConnectionGetter) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 

@@ -5716,6 +5716,274 @@ func (m *mockBlockedClient) Blocked(args *rpc.BlockedArgs) (*rpc.Response, error
 	return nil, errors.New("blockedFunc not implemented")
 }
 
+// mockBlockedPool implements blockedConnectionGetter for testing
+type mockBlockedPool struct {
+	getFunc func(ctx context.Context) (blockedClient, error)
+	putFunc func(client blockedClient)
+}
+
+func (m *mockBlockedPool) Get(ctx context.Context) (blockedClient, error) {
+	if m.getFunc != nil {
+		return m.getFunc(ctx)
+	}
+	return nil, errors.New("getFunc not implemented")
+}
+
+func (m *mockBlockedPool) Put(client blockedClient) {
+	if m.putFunc != nil {
+		m.putFunc(client)
+	}
+}
+
+// TestHandleBlocked_Success tests the success path with mock data
+func TestHandleBlocked_Success(t *testing.T) {
+	// Create mock data for blocked issues
+	blockedIssuesJSON := `[{"id":"bd-test1","title":"Test Issue 1","status":"blocked","priority":1,"blocked_by_count":2,"blocked_by":["bd-blocker1","bd-blocker2"]},{"id":"bd-test2","title":"Test Issue 2","status":"open","priority":2,"blocked_by_count":1,"blocked_by":["bd-blocker3"]}]`
+
+	client := &mockBlockedClient{
+		blockedFunc: func(args *rpc.BlockedArgs) (*rpc.Response, error) {
+			return &rpc.Response{
+				Success: true,
+				Data:    []byte(blockedIssuesJSON),
+			}, nil
+		},
+	}
+
+	pool := &mockBlockedPool{
+		getFunc: func(ctx context.Context) (blockedClient, error) {
+			return client, nil
+		},
+		putFunc: func(c blockedClient) {},
+	}
+
+	handler := handleBlockedWithPool(pool)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/blocked", nil)
+	rr := httptest.NewRecorder()
+
+	handler.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("status code = %d, want %d", rr.Code, http.StatusOK)
+	}
+
+	var resp BlockedResponse
+	if err := json.NewDecoder(rr.Body).Decode(&resp); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	if !resp.Success {
+		t.Error("Success = false, want true")
+	}
+
+	if len(resp.Data) != 2 {
+		t.Errorf("Data length = %d, want 2", len(resp.Data))
+	}
+
+	// Verify Content-Type header
+	if ct := rr.Header().Get("Content-Type"); ct != "application/json" {
+		t.Errorf("Content-Type = %q, want %q", ct, "application/json")
+	}
+}
+
+// TestHandleBlocked_RPCError tests that RPC error returns 500 Internal Server Error
+func TestHandleBlocked_RPCError(t *testing.T) {
+	client := &mockBlockedClient{
+		blockedFunc: func(args *rpc.BlockedArgs) (*rpc.Response, error) {
+			return nil, errors.New("connection reset by peer")
+		},
+	}
+
+	pool := &mockBlockedPool{
+		getFunc: func(ctx context.Context) (blockedClient, error) {
+			return client, nil
+		},
+		putFunc: func(c blockedClient) {},
+	}
+
+	handler := handleBlockedWithPool(pool)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/blocked", nil)
+	rr := httptest.NewRecorder()
+
+	handler.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusInternalServerError {
+		t.Errorf("status code = %d, want %d", rr.Code, http.StatusInternalServerError)
+	}
+
+	var resp BlockedResponse
+	if err := json.NewDecoder(rr.Body).Decode(&resp); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	if resp.Success {
+		t.Error("Success = true, want false")
+	}
+
+	if !strings.Contains(resp.Error, "rpc error") {
+		t.Errorf("Error = %q, expected to contain 'rpc error'", resp.Error)
+	}
+}
+
+// TestHandleBlocked_DaemonError tests that daemon error (success=false) returns 500
+func TestHandleBlocked_DaemonError(t *testing.T) {
+	client := &mockBlockedClient{
+		blockedFunc: func(args *rpc.BlockedArgs) (*rpc.Response, error) {
+			return &rpc.Response{
+				Success: false,
+				Error:   "database connection failed",
+			}, nil
+		},
+	}
+
+	pool := &mockBlockedPool{
+		getFunc: func(ctx context.Context) (blockedClient, error) {
+			return client, nil
+		},
+		putFunc: func(c blockedClient) {},
+	}
+
+	handler := handleBlockedWithPool(pool)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/blocked", nil)
+	rr := httptest.NewRecorder()
+
+	handler.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusInternalServerError {
+		t.Errorf("status code = %d, want %d", rr.Code, http.StatusInternalServerError)
+	}
+
+	var resp BlockedResponse
+	if err := json.NewDecoder(rr.Body).Decode(&resp); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	if resp.Success {
+		t.Error("Success = true, want false")
+	}
+
+	if resp.Error != "database connection failed" {
+		t.Errorf("Error = %q, want %q", resp.Error, "database connection failed")
+	}
+}
+
+// TestHandleBlocked_ConnectionTimeout tests that connection timeout returns 504 Gateway Timeout
+func TestHandleBlocked_ConnectionTimeout(t *testing.T) {
+	pool := &mockBlockedPool{
+		getFunc: func(ctx context.Context) (blockedClient, error) {
+			return nil, context.DeadlineExceeded
+		},
+	}
+
+	handler := handleBlockedWithPool(pool)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/blocked", nil)
+	rr := httptest.NewRecorder()
+
+	handler.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusGatewayTimeout {
+		t.Errorf("status code = %d, want %d", rr.Code, http.StatusGatewayTimeout)
+	}
+
+	var resp BlockedResponse
+	if err := json.NewDecoder(rr.Body).Decode(&resp); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	if resp.Success {
+		t.Error("Success = true, want false")
+	}
+}
+
+// TestHandleBlocked_EmptyResult tests that empty result returns 200 OK with empty array
+func TestHandleBlocked_EmptyResult(t *testing.T) {
+	client := &mockBlockedClient{
+		blockedFunc: func(args *rpc.BlockedArgs) (*rpc.Response, error) {
+			return &rpc.Response{
+				Success: true,
+				Data:    []byte("[]"),
+			}, nil
+		},
+	}
+
+	pool := &mockBlockedPool{
+		getFunc: func(ctx context.Context) (blockedClient, error) {
+			return client, nil
+		},
+		putFunc: func(c blockedClient) {},
+	}
+
+	handler := handleBlockedWithPool(pool)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/blocked", nil)
+	rr := httptest.NewRecorder()
+
+	handler.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("status code = %d, want %d", rr.Code, http.StatusOK)
+	}
+
+	var resp BlockedResponse
+	if err := json.NewDecoder(rr.Body).Decode(&resp); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	if !resp.Success {
+		t.Error("Success = false, want true")
+	}
+
+	if len(resp.Data) != 0 {
+		t.Errorf("Data length = %d, want 0", len(resp.Data))
+	}
+}
+
+// TestHandleBlocked_MalformedData tests that malformed RPC data returns 500
+func TestHandleBlocked_MalformedData(t *testing.T) {
+	client := &mockBlockedClient{
+		blockedFunc: func(args *rpc.BlockedArgs) (*rpc.Response, error) {
+			return &rpc.Response{
+				Success: true,
+				Data:    []byte(`{"invalid": "not an array"}`),
+			}, nil
+		},
+	}
+
+	pool := &mockBlockedPool{
+		getFunc: func(ctx context.Context) (blockedClient, error) {
+			return client, nil
+		},
+		putFunc: func(c blockedClient) {},
+	}
+
+	handler := handleBlockedWithPool(pool)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/blocked", nil)
+	rr := httptest.NewRecorder()
+
+	handler.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusInternalServerError {
+		t.Errorf("status code = %d, want %d", rr.Code, http.StatusInternalServerError)
+	}
+
+	var resp BlockedResponse
+	if err := json.NewDecoder(rr.Body).Decode(&resp); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	if resp.Success {
+		t.Error("Success = true, want false")
+	}
+
+	if !strings.Contains(resp.Error, "failed to parse") {
+		t.Errorf("Error = %q, expected to contain 'failed to parse'", resp.Error)
+	}
+}
+
 // TestHandleBlocked_ResponseStructure tests that BlockedResponse has the correct JSON structure
 // including the blocked_by_count and blocked_by fields from types.BlockedIssue
 func TestHandleBlocked_ResponseStructure(t *testing.T) {
