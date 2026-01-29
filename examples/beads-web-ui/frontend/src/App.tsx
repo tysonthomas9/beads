@@ -19,6 +19,7 @@ import {
   useToast,
   useStats,
   useRecentAssignees,
+  useSelection,
 } from '@/hooks';
 import { updateIssue, addComment } from '@/api';
 import type { BlockedInfo } from '@/components/KanbanBoard';
@@ -39,6 +40,7 @@ import {
   AgentsSidebar,
   StatsHeader,
   AssigneePrompt,
+  BulkActionToolbar,
 } from '@/components';
 
 // Lazy load GraphView (React Flow ~100KB)
@@ -123,6 +125,13 @@ function App() {
     pollInterval: 30000,
   });
   const mountedRef = useRef(true);
+
+  // Bulk selection state for Table view
+  const {
+    selectedIds,
+    toggleSelection,
+    deselectAll: clearSelection,
+  } = useSelection({ visibleItems: filteredIssues });
 
   // Issue detail panel state
   const [isPanelOpen, setIsPanelOpen] = useState(false);
@@ -426,14 +435,20 @@ function App() {
         />
       )}
       {activeView === 'table' && (
-        <IssueTable
-          issues={filteredIssues}
-          sortable
-          onRowClick={handleIssueClick}
-          {...(selectedIssueId !== null && { selectedId: selectedIssueId })}
-          {...(blockedIssuesMap !== undefined && { blockedIssues: blockedIssuesMap })}
-          {...(filters.showBlocked !== undefined && { showBlocked: filters.showBlocked })}
-        />
+        <>
+          <IssueTable
+            issues={filteredIssues}
+            sortable
+            showCheckbox
+            selectedIds={selectedIds}
+            onSelectionChange={toggleSelection}
+            onRowClick={handleIssueClick}
+            {...(selectedIssueId !== null && { selectedId: selectedIssueId })}
+            {...(blockedIssuesMap !== undefined && { blockedIssues: blockedIssuesMap })}
+            {...(filters.showBlocked !== undefined && { showBlocked: filters.showBlocked })}
+          />
+          <BulkActionToolbar selectedIds={selectedIds} onClearSelection={clearSelection} />
+        </>
       )}
       {activeView === 'graph' && (
         <Suspense fallback={<LoadingSkeleton.Graph />}>
