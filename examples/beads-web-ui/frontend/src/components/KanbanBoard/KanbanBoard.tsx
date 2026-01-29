@@ -3,7 +3,7 @@
  * Wraps content in @dnd-kit DndContext to enable drag-and-drop between status columns.
  * Renders StatusColumns for each status and uses DragOverlay for visual drag feedback.
  *
- * Supports 5-column layout: Ready, Pending, In Progress, Review, Done
+ * Supports 5-column layout: Ready, Backlog, In Progress, Review, Done
  * where columns can be computed from issue data (status + blocked dependencies + title patterns).
  */
 
@@ -256,14 +256,14 @@ export function KanbanBoard({
                 : undefined;
 
           // Determine column type and icon for special columns
-          const isPendingColumn = col.id === 'pending';
+          const isBacklogColumn = col.id === 'backlog';
           const isReviewColumn = col.id === 'review';
-          const columnType = isPendingColumn
-            ? ('pending' as const)
+          const columnType = isBacklogColumn
+            ? ('backlog' as const)
             : isReviewColumn
               ? ('review' as const)
               : undefined;
-          const headerIcon = isPendingColumn ? '⏳' : isReviewColumn ? '👀' : undefined;
+          const headerIcon = isBacklogColumn ? '📦' : isReviewColumn ? '👀' : undefined;
 
           // Build props conditionally to satisfy exactOptionalPropertyTypes
           const statusColumnProps = {
@@ -295,7 +295,7 @@ export function KanbanBoard({
                         blockedByCount: blockedInfo.blockedByCount,
                         blockedBy: blockedInfo.blockedBy,
                       })}
-                      {...(isPendingColumn && { isPending: true })}
+                      {...(isBacklogColumn && { isPending: true })}
                       {...(onApprove !== undefined && { onApprove })}
                       {...(onReject !== undefined && { onReject })}
                     />
@@ -310,7 +310,7 @@ export function KanbanBoard({
         {activeIssue &&
           (() => {
             const blockedInfo = blockedIssues?.get(activeIssue.id);
-            const isPendingCard = sourceColumnId === 'pending';
+            const isBacklogCard = sourceColumnId === 'backlog';
             return (
               <DraggableIssueCard
                 issue={activeIssue}
@@ -319,7 +319,7 @@ export function KanbanBoard({
                   blockedByCount: blockedInfo.blockedByCount,
                   blockedBy: blockedInfo.blockedBy,
                 })}
-                {...(isPendingCard && { isPending: true })}
+                {...(isBacklogCard && { isPending: true })}
               />
             );
           })()}
