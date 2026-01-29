@@ -147,6 +147,12 @@ vi.mock('@/hooks', () => ({
     lastUpdated: null,
     refetch: vi.fn(),
   })),
+  useStats: vi.fn(() => ({
+    data: { open: 0, in_progress: 0, ready: 0, closed: 0 },
+    loading: false,
+    error: null,
+    refetch: vi.fn(),
+  })),
 }));
 
 // Import the mocked module
@@ -393,9 +399,9 @@ describe('App', () => {
       render(<App />);
 
       // KanbanBoard renders StatusColumns with headings
-      expect(screen.queryByRole('heading', { name: 'Open' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('heading', { name: 'Ready' })).not.toBeInTheDocument();
       expect(screen.queryByRole('heading', { name: 'In Progress' })).not.toBeInTheDocument();
-      expect(screen.queryByRole('heading', { name: 'Closed' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('heading', { name: 'Done' })).not.toBeInTheDocument();
     });
   });
 
@@ -420,12 +426,12 @@ describe('App', () => {
       render(<App />);
 
       // KanbanBoard should render with status columns
-      expect(screen.getByRole('heading', { name: 'Open' })).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'Ready' })).toBeInTheDocument();
       expect(
         screen.getByRole('heading', { name: 'In Progress' })
       ).toBeInTheDocument();
       expect(
-        screen.getByRole('heading', { name: 'Closed' })
+        screen.getByRole('heading', { name: 'Done' })
       ).toBeInTheDocument();
 
       // Issues should be rendered
@@ -475,12 +481,12 @@ describe('App', () => {
       render(<App />);
 
       // Should render columns even with no issues
-      expect(screen.getByRole('heading', { name: 'Open' })).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'Ready' })).toBeInTheDocument();
       expect(
         screen.getByRole('heading', { name: 'In Progress' })
       ).toBeInTheDocument();
       expect(
-        screen.getByRole('heading', { name: 'Closed' })
+        screen.getByRole('heading', { name: 'Done' })
       ).toBeInTheDocument();
     });
   });
@@ -523,7 +529,7 @@ describe('App', () => {
 
       // Verify KanbanBoard is rendered (we can't easily test the drag event
       // but we verify the component structure is correct)
-      expect(screen.getByRole('heading', { name: 'Open' })).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'Ready' })).toBeInTheDocument();
       expect(screen.getByText('Test')).toBeInTheDocument();
     });
   });
@@ -742,7 +748,7 @@ describe('App', () => {
       const { rerender } = render(<App />);
 
       // Verify loading state
-      expect(screen.queryByRole('heading', { name: 'Open' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('heading', { name: 'Ready' })).not.toBeInTheDocument();
 
       // Transition to success
       const issues = [createMockIssue({ title: 'Loaded Issue', status: 'open' })];
@@ -755,7 +761,7 @@ describe('App', () => {
       rerender(<App />);
 
       // Verify success state
-      expect(screen.getByRole('heading', { name: 'Open' })).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'Ready' })).toBeInTheDocument();
       expect(screen.getByText('Loaded Issue')).toBeInTheDocument();
     });
 
@@ -950,7 +956,7 @@ describe('App', () => {
       render(<App />);
 
       // SwimLaneBoard should render status columns
-      expect(screen.getByRole('heading', { name: 'Open' })).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'Ready' })).toBeInTheDocument();
       expect(screen.getByRole('heading', { name: 'In Progress' })).toBeInTheDocument();
 
       // Issues should be visible
@@ -981,7 +987,7 @@ describe('App', () => {
       render(<App />);
 
       // Verify SwimLaneBoard is rendered with correct groupBy
-      expect(screen.getByRole('heading', { name: 'Open' })).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'Ready' })).toBeInTheDocument();
     });
 
     it('passes groupBy prop to SwimLaneBoard with epic grouping', () => {
@@ -1007,7 +1013,7 @@ describe('App', () => {
       render(<App />);
 
       // SwimLaneBoard should still render
-      expect(screen.getByRole('heading', { name: 'Open' })).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'Ready' })).toBeInTheDocument();
     });
 
     it('FilterBar receives groupBy and onGroupByChange props', () => {
@@ -1065,7 +1071,7 @@ describe('App', () => {
       const { rerender } = render(<App />);
 
       // Initial render with groupBy: 'none'
-      expect(screen.getByRole('heading', { name: 'Open' })).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'Ready' })).toBeInTheDocument();
 
       // Simulate groupBy change to 'priority'
       currentGroupBy = 'priority';
@@ -1077,7 +1083,7 @@ describe('App', () => {
       rerender(<App />);
 
       // SwimLaneBoard should still render with updated groupBy
-      expect(screen.getByRole('heading', { name: 'Open' })).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'Ready' })).toBeInTheDocument();
       expect(setGroupBy).not.toHaveBeenCalled(); // setGroupBy is called by FilterBar, not App
     });
 
@@ -1096,7 +1102,7 @@ describe('App', () => {
 
       // SwimLaneBoard should be rendered with the drag handler
       expect(screen.getByText('Drag Me')).toBeInTheDocument();
-      expect(screen.getByRole('heading', { name: 'Open' })).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'Ready' })).toBeInTheDocument();
     });
 
     it('SwimLaneBoard receives filtered issues', () => {
@@ -1139,7 +1145,7 @@ describe('App', () => {
 
       // SwimLaneBoard should render without errors
       expect(screen.getByText('Blocked Issue')).toBeInTheDocument();
-      expect(screen.getByRole('heading', { name: 'Open' })).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'Ready' })).toBeInTheDocument();
     });
 
     it('SwimLaneBoard respects showBlocked filter', () => {
