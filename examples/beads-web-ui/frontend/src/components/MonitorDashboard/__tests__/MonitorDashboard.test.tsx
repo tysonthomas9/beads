@@ -70,9 +70,15 @@ describe('MonitorDashboard', () => {
   it('shows placeholder content for panels not yet implemented', () => {
     render(<MonitorDashboard />);
 
-    // These panels still have placeholders
-    expect(screen.getByText(/workpipelinepanel placeholder/i)).toBeInTheDocument();
+    // MiniDependencyGraph still has placeholder
     expect(screen.getByText(/minidependencygraph placeholder/i)).toBeInTheDocument();
+  });
+
+  it('renders WorkPipelinePanel', () => {
+    render(<MonitorDashboard />);
+
+    // WorkPipelinePanel is now implemented
+    expect(screen.getByTestId('work-pipeline-panel')).toBeInTheDocument();
   });
 
   it('renders AgentActivityPanel', () => {

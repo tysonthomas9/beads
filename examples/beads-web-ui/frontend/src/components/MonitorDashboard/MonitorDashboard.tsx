@@ -12,6 +12,7 @@ import { useAgents, useBlockedIssues } from '@/hooks';
 import type { Issue } from '@/types';
 import { AgentActivityPanel } from './AgentActivityPanel';
 import { ProjectHealthPanel } from './ProjectHealthPanel';
+import { WorkPipelinePanel } from './WorkPipelinePanel';
 import styles from './MonitorDashboard.module.css';
 
 /**
@@ -30,7 +31,7 @@ export function MonitorDashboard({
   className,
 }: MonitorDashboardProps): JSX.Element {
   // Fetch agent status and stats
-  const { agents, agentTasks, sync, stats, isLoading, isConnected, lastUpdated } = useAgents({ pollInterval: 5000 });
+  const { agents, agentTasks, tasks, taskLists, sync, stats, isLoading, isConnected, lastUpdated } = useAgents({ pollInterval: 5000 });
 
   // Fetch blocked issues for bottleneck detection
   const { data: blockedIssues, loading: isLoadingBlocked } = useBlockedIssues({
@@ -93,9 +94,10 @@ export function MonitorDashboard({
           </button>
         </header>
         <div className={styles.panelContent}>
-          <div className={styles.placeholder}>
-            WorkPipelinePanel placeholder
-          </div>
+          <WorkPipelinePanel
+            tasks={tasks}
+            taskLists={taskLists}
+          />
         </div>
       </section>
 
