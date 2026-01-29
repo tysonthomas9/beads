@@ -190,7 +190,7 @@ test.describe("StatusDropdown", () => {
       await expect(dropdown).toHaveValue("in_progress")
     })
 
-    test("shows all 5 user statuses and hides system statuses", async ({
+    test("shows all 6 user statuses and hides system statuses", async ({
       page,
     }) => {
       await setupMocks(page)
@@ -210,6 +210,7 @@ test.describe("StatusDropdown", () => {
       expect(optionValues).toContain("in_progress")
       expect(optionValues).toContain("blocked")
       expect(optionValues).toContain("deferred")
+      expect(optionValues).toContain("review")
       expect(optionValues).toContain("closed")
 
       // Should NOT include system statuses
@@ -217,8 +218,8 @@ test.describe("StatusDropdown", () => {
       expect(optionValues).not.toContain("pinned")
       expect(optionValues).not.toContain("hooked")
 
-      // Should have exactly 5 options
-      await expect(options).toHaveCount(5)
+      // Should have exactly 6 options
+      await expect(options).toHaveCount(6)
     })
 
     test("dropdown has correct aria-label for accessibility", async ({

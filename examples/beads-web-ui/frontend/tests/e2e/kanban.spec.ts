@@ -30,6 +30,14 @@ const mockIssues = [
     updated_at: "2026-01-24T12:00:00Z",
   },
   {
+    id: "issue-review-1",
+    title: "Review Task",
+    status: "review",
+    priority: 2,
+    created_at: "2026-01-24T12:30:00Z",
+    updated_at: "2026-01-24T12:30:00Z",
+  },
+  {
     id: "issue-closed-1",
     title: "Closed Task",
     status: "closed",
@@ -66,34 +74,44 @@ test.describe("KanbanBoard", () => {
     expect(response.ok()).toBe(true)
 
     // Wait for the Kanban board to render (columns should appear)
-    const openColumn = page.locator('section[data-status="open"]')
+    // Note: Kanban uses semantic column IDs (ready, pending, in_progress, review, done)
+    // rather than raw status names (open, closed)
+    const readyColumn = page.locator('section[data-status="ready"]')
     const inProgressColumn = page.locator('section[data-status="in_progress"]')
-    const closedColumn = page.locator('section[data-status="closed"]')
+    const reviewColumn = page.locator('section[data-status="review"]')
+    const doneColumn = page.locator('section[data-status="done"]')
 
-    await expect(openColumn).toBeVisible()
+    await expect(readyColumn).toBeVisible()
     await expect(inProgressColumn).toBeVisible()
-    await expect(closedColumn).toBeVisible()
+    await expect(reviewColumn).toBeVisible()
+    await expect(doneColumn).toBeVisible()
 
-    // Verify Open column contains 2 cards with correct titles
-    const openCards = openColumn.locator("article")
-    await expect(openCards).toHaveCount(2)
-    await expect(openColumn.getByText("Open Task 1")).toBeVisible()
-    await expect(openColumn.getByText("Open Task 2")).toBeVisible()
+    // Verify Ready column contains 2 cards with correct titles (status=open issues)
+    const readyCards = readyColumn.locator("article")
+    await expect(readyCards).toHaveCount(2)
+    await expect(readyColumn.getByText("Open Task 1")).toBeVisible()
+    await expect(readyColumn.getByText("Open Task 2")).toBeVisible()
 
     // Verify In Progress column contains 1 card with correct title
     const inProgressCards = inProgressColumn.locator("article")
     await expect(inProgressCards).toHaveCount(1)
     await expect(inProgressColumn.locator("h3")).toHaveText("In Progress Task")
 
-    // Verify Closed column contains 1 card with correct title
-    const closedCards = closedColumn.locator("article")
-    await expect(closedCards).toHaveCount(1)
-    await expect(closedColumn.locator("h3")).toHaveText("Closed Task")
+    // Verify Review column contains 1 card with correct title
+    const reviewCards = reviewColumn.locator("article")
+    await expect(reviewCards).toHaveCount(1)
+    await expect(reviewColumn.locator("h3")).toHaveText("Review Task")
+
+    // Verify Done column contains 1 card with correct title (status=closed issues)
+    const doneCards = doneColumn.locator("article")
+    await expect(doneCards).toHaveCount(1)
+    await expect(doneColumn.locator("h3")).toHaveText("Closed Task")
 
     // Verify count badges show correct numbers (using aria-label for precise matching)
-    await expect(openColumn.getByLabel("2 issues")).toBeVisible()
+    await expect(readyColumn.getByLabel("2 issues")).toBeVisible()
     await expect(inProgressColumn.getByLabel("1 issue")).toBeVisible()
-    await expect(closedColumn.getByLabel("1 issue")).toBeVisible()
+    await expect(reviewColumn.getByLabel("1 issue")).toBeVisible()
+    await expect(doneColumn.getByLabel("1 issue")).toBeVisible()
   })
 
   test("handles empty API response gracefully", async ({ page }) => {
@@ -122,14 +140,14 @@ test.describe("KanbanBoard", () => {
     expect(response.ok()).toBe(true)
 
     // Wait for the Kanban board to render
-    const openColumn = page.locator('section[data-status="open"]')
-    await expect(openColumn).toBeVisible()
+    const readyColumn = page.locator('section[data-status="ready"]')
+    await expect(readyColumn).toBeVisible()
 
     // All columns should have 0 counts (using aria-label for precise matching)
-    await expect(openColumn.getByLabel("0 issues")).toBeVisible()
+    await expect(readyColumn.getByLabel("0 issues")).toBeVisible()
   })
 
-  test("issues without status default to open column", async ({ page }) => {
+  test("issues without status default to ready column", async ({ page }) => {
     // Mock with an issue that has no status field
     const issueWithoutStatus = [
       {
@@ -164,13 +182,13 @@ test.describe("KanbanBoard", () => {
     ])
     expect(response.ok()).toBe(true)
 
-    // The issue should appear in the Open column
-    const openColumn = page.locator('section[data-status="open"]')
-    await expect(openColumn).toBeVisible()
-    await expect(openColumn.getByText("Issue Without Status")).toBeVisible()
+    // The issue should appear in the Ready column (status=open or undefined)
+    const readyColumn = page.locator('section[data-status="ready"]')
+    await expect(readyColumn).toBeVisible()
+    await expect(readyColumn.getByText("Issue Without Status")).toBeVisible()
   })
 
-  test("drag issue from Open to In Progress updates status and persists", async ({ page }) => {
+  test("drag issue from Ready to In Progress updates status and persists", async ({ page }) => {
     // Track API calls for verification
     const patchCalls: { url: string; body: { status?: string } }[] = []
     let hasReloaded = false
@@ -229,15 +247,15 @@ test.describe("KanbanBoard", () => {
     ])
 
     // Get column references
-    const openColumn = page.locator('section[data-status="open"]')
+    const readyColumn = page.locator('section[data-status="ready"]')
     const inProgressColumn = page.locator('section[data-status="in_progress"]')
 
     // Verify initial state
-    await expect(openColumn.locator("article")).toHaveCount(2)
+    await expect(readyColumn.locator("article")).toHaveCount(2)
     await expect(inProgressColumn.locator("article")).toHaveCount(1)
 
-    // Verify initial card is visible in Open column
-    const cardToDrag = openColumn.locator("article").filter({ hasText: "Open Task 1" })
+    // Verify initial card is visible in Ready column
+    const cardToDrag = readyColumn.locator("article").filter({ hasText: "Open Task 1" })
     await expect(cardToDrag).toBeVisible()
 
     // Get the draggable wrapper (has the @dnd-kit listeners)
@@ -319,7 +337,7 @@ test.describe("KanbanBoard", () => {
     // Verify UI updated (card moved to In Progress)
     // Wait for visibility first to ensure component has re-rendered
     await expect(inProgressColumn.getByText("Open Task 1")).toBeVisible()
-    await expect(openColumn.locator("article")).toHaveCount(1)
+    await expect(readyColumn.locator("article")).toHaveCount(1)
     await expect(inProgressColumn.locator("article")).toHaveCount(2)
 
     // Verify API call was made correctly
@@ -385,12 +403,12 @@ test.describe("KanbanBoard", () => {
       page.goto("/"),
     ])
 
-    const openColumn = page.locator('section[data-status="open"]')
+    const readyColumn = page.locator('section[data-status="ready"]')
     const inProgressColumn = page.locator('section[data-status="in_progress"]')
-    await expect(openColumn).toBeVisible()
+    await expect(readyColumn).toBeVisible()
 
-    // Verify card is in Open column initially
-    const card = openColumn.locator("article").filter({ hasText: "Issue To Drag" })
+    // Verify card is in Ready column initially
+    const card = readyColumn.locator("article").filter({ hasText: "Issue To Drag" })
     await expect(card).toBeVisible()
 
     // Wait for the PATCH request when drag completes
@@ -452,8 +470,8 @@ test.describe("KanbanBoard", () => {
     await expect(toast).toBeVisible({ timeout: 5000 })
     await expect(toast).toHaveAttribute("role", "alert")
 
-    // Verify card rolled back to Open column
-    await expect(openColumn.locator("article").filter({ hasText: "Issue To Drag" })).toBeVisible()
+    // Verify card rolled back to Ready column
+    await expect(readyColumn.locator("article").filter({ hasText: "Issue To Drag" })).toBeVisible()
     await expect(inProgressColumn.locator("article")).toHaveCount(0)
   })
 
@@ -505,9 +523,9 @@ test.describe("KanbanBoard", () => {
       page.goto("/"),
     ])
 
-    const openColumn = page.locator('section[data-status="open"]')
+    const readyColumn = page.locator('section[data-status="ready"]')
     const inProgressColumn = page.locator('section[data-status="in_progress"]')
-    await expect(openColumn).toBeVisible()
+    await expect(readyColumn).toBeVisible()
 
     // Get draggable wrapper (has accessible role)
     const draggableWrapper = page.getByRole("button", { name: "Issue: Visual Feedback Test" })
@@ -649,5 +667,285 @@ test.describe("KanbanBoard", () => {
       return Array.from(el.classList).some((c) => c.includes("contentDropOver"))
     })
     expect(hasDropOverClassAfter).toBe(false)
+  })
+
+  test("drag issue from Review to Closed updates status", async ({ page }) => {
+    // Single test issue in review status
+    const reviewIssue = [
+      {
+        id: "review-to-closed-issue",
+        title: "Review to Close Task",
+        status: "review",
+        priority: 2,
+        created_at: "2026-01-24T10:00:00Z",
+        updated_at: "2026-01-24T10:00:00Z",
+      },
+    ]
+
+    // Track PATCH calls
+    const patchCalls: { url: string; body: { status?: string } }[] = []
+
+    await page.route("**/api/ready", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ success: true, data: reviewIssue }),
+      })
+    })
+
+    await page.route("**/api/issues/*", async (route) => {
+      if (route.request().method() === "PATCH") {
+        const url = route.request().url()
+        const body = route.request().postDataJSON() as { status?: string }
+        patchCalls.push({ url, body })
+
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({
+            success: true,
+            data: { ...reviewIssue[0], status: body.status },
+          }),
+        })
+      } else {
+        await route.continue()
+      }
+    })
+
+    await page.route("**/ws", async (route) => {
+      await route.abort()
+    })
+
+    // Navigate and wait for board to render
+    await Promise.all([
+      page.waitForResponse((res) => res.url().includes("/api/ready") && res.status() === 200),
+      page.goto("/"),
+    ])
+
+    const reviewColumn = page.locator('section[data-status="review"]')
+    const doneColumn = page.locator('section[data-status="done"]')
+    await expect(reviewColumn).toBeVisible()
+
+    // Verify card is in Review column initially
+    const card = reviewColumn.locator("article").filter({ hasText: "Review to Close Task" })
+    await expect(card).toBeVisible()
+
+    // Get draggable wrapper (use .first() since both wrapper and card have button role)
+    const draggableWrapper = page.getByRole("button", { name: "Issue: Review to Close Task" }).first()
+    await expect(draggableWrapper).toBeVisible()
+
+    // Get drop target (done column's targetStatus is 'closed')
+    const dropTarget = doneColumn.locator('[data-droppable-id="done"]')
+    await expect(dropTarget).toBeVisible()
+
+    // Get bounding boxes
+    const dragBox = await draggableWrapper.boundingBox()
+    const dropBox = await dropTarget.boundingBox()
+    if (!dragBox || !dropBox) throw new Error("Could not get element bounds")
+
+    const startX = dragBox.x + dragBox.width / 2
+    const startY = dragBox.y + dragBox.height / 2
+    const endX = dropBox.x + dropBox.width / 2
+    const endY = dropBox.y + dropBox.height / 2
+
+    // Perform drag operation
+    await draggableWrapper.dispatchEvent("pointerdown", {
+      clientX: startX,
+      clientY: startY,
+      button: 0,
+      buttons: 1,
+      pointerId: 1,
+      pointerType: "mouse",
+      isPrimary: true,
+    })
+
+    await page.dispatchEvent("body", "pointermove", {
+      clientX: startX + 10,
+      clientY: startY,
+      button: 0,
+      buttons: 1,
+      pointerId: 1,
+      pointerType: "mouse",
+      isPrimary: true,
+    })
+
+    await page.waitForTimeout(50)
+
+    await page.dispatchEvent("body", "pointermove", {
+      clientX: endX,
+      clientY: endY,
+      button: 0,
+      buttons: 1,
+      pointerId: 1,
+      pointerType: "mouse",
+      isPrimary: true,
+    })
+
+    await page.waitForTimeout(50)
+
+    await page.dispatchEvent("body", "pointerup", {
+      clientX: endX,
+      clientY: endY,
+      button: 0,
+      buttons: 0,
+      pointerId: 1,
+      pointerType: "mouse",
+      isPrimary: true,
+    })
+
+    // Wait for PATCH API call
+    await page.waitForResponse(
+      (res) =>
+        res.url().includes("/api/issues/review-to-closed-issue") &&
+        res.request().method() === "PATCH"
+    )
+
+    // Verify card moved to Done column
+    await expect(doneColumn.getByText("Review to Close Task")).toBeVisible()
+    await expect(reviewColumn.locator("article")).toHaveCount(0)
+
+    // Verify API call was made correctly (targetStatus for 'done' column is 'closed')
+    expect(patchCalls).toHaveLength(1)
+    expect(patchCalls[0].body).toEqual({ status: "closed" })
+  })
+
+  test("drag issue from Ready to Review updates status", async ({ page }) => {
+    // Single test issue in open status
+    const openIssue = [
+      {
+        id: "open-to-review-issue",
+        title: "Open to Review Task",
+        status: "open",
+        priority: 2,
+        created_at: "2026-01-24T10:00:00Z",
+        updated_at: "2026-01-24T10:00:00Z",
+      },
+    ]
+
+    // Track PATCH calls
+    const patchCalls: { url: string; body: { status?: string } }[] = []
+
+    await page.route("**/api/ready", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ success: true, data: openIssue }),
+      })
+    })
+
+    await page.route("**/api/issues/*", async (route) => {
+      if (route.request().method() === "PATCH") {
+        const url = route.request().url()
+        const body = route.request().postDataJSON() as { status?: string }
+        patchCalls.push({ url, body })
+
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({
+            success: true,
+            data: { ...openIssue[0], status: body.status },
+          }),
+        })
+      } else {
+        await route.continue()
+      }
+    })
+
+    await page.route("**/ws", async (route) => {
+      await route.abort()
+    })
+
+    // Navigate and wait for board to render
+    await Promise.all([
+      page.waitForResponse((res) => res.url().includes("/api/ready") && res.status() === 200),
+      page.goto("/"),
+    ])
+
+    const readyColumn = page.locator('section[data-status="ready"]')
+    const reviewColumn = page.locator('section[data-status="review"]')
+    await expect(readyColumn).toBeVisible()
+
+    // Verify card is in Ready column initially
+    const card = readyColumn.locator("article").filter({ hasText: "Open to Review Task" })
+    await expect(card).toBeVisible()
+
+    // Get draggable wrapper (use .first() since both wrapper and card have button role)
+    const draggableWrapper = page.getByRole("button", { name: "Issue: Open to Review Task" }).first()
+    await expect(draggableWrapper).toBeVisible()
+
+    // Get drop target
+    const dropTarget = reviewColumn.locator('[data-droppable-id="review"]')
+    await expect(dropTarget).toBeVisible()
+
+    // Get bounding boxes
+    const dragBox = await draggableWrapper.boundingBox()
+    const dropBox = await dropTarget.boundingBox()
+    if (!dragBox || !dropBox) throw new Error("Could not get element bounds")
+
+    const startX = dragBox.x + dragBox.width / 2
+    const startY = dragBox.y + dragBox.height / 2
+    const endX = dropBox.x + dropBox.width / 2
+    const endY = dropBox.y + dropBox.height / 2
+
+    // Perform drag operation
+    await draggableWrapper.dispatchEvent("pointerdown", {
+      clientX: startX,
+      clientY: startY,
+      button: 0,
+      buttons: 1,
+      pointerId: 1,
+      pointerType: "mouse",
+      isPrimary: true,
+    })
+
+    await page.dispatchEvent("body", "pointermove", {
+      clientX: startX + 10,
+      clientY: startY,
+      button: 0,
+      buttons: 1,
+      pointerId: 1,
+      pointerType: "mouse",
+      isPrimary: true,
+    })
+
+    await page.waitForTimeout(50)
+
+    await page.dispatchEvent("body", "pointermove", {
+      clientX: endX,
+      clientY: endY,
+      button: 0,
+      buttons: 1,
+      pointerId: 1,
+      pointerType: "mouse",
+      isPrimary: true,
+    })
+
+    await page.waitForTimeout(50)
+
+    await page.dispatchEvent("body", "pointerup", {
+      clientX: endX,
+      clientY: endY,
+      button: 0,
+      buttons: 0,
+      pointerId: 1,
+      pointerType: "mouse",
+      isPrimary: true,
+    })
+
+    // Wait for PATCH API call
+    await page.waitForResponse(
+      (res) =>
+        res.url().includes("/api/issues/open-to-review-issue") &&
+        res.request().method() === "PATCH"
+    )
+
+    // Verify card moved to Review column
+    await expect(reviewColumn.getByText("Open to Review Task")).toBeVisible()
+    await expect(readyColumn.locator("article")).toHaveCount(0)
+
+    // Verify API call was made correctly
+    expect(patchCalls).toHaveLength(1)
+    expect(patchCalls[0].body).toEqual({ status: "review" })
   })
 })
