@@ -71,9 +71,15 @@ describe('MonitorDashboard', () => {
     render(<MonitorDashboard />);
 
     // These panels still have placeholders
-    expect(screen.getByText(/agentactivitypanel placeholder/i)).toBeInTheDocument();
     expect(screen.getByText(/workpipelinepanel placeholder/i)).toBeInTheDocument();
     expect(screen.getByText(/minidependencygraph placeholder/i)).toBeInTheDocument();
+  });
+
+  it('renders AgentActivityPanel', () => {
+    render(<MonitorDashboard />);
+
+    // AgentActivityPanel is now implemented
+    expect(screen.getByTestId('agent-activity-panel')).toBeInTheDocument();
   });
 
   it('renders ProjectHealthPanel with stats', () => {

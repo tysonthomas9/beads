@@ -10,6 +10,7 @@
 
 import { useAgents, useBlockedIssues } from '@/hooks';
 import type { Issue } from '@/types';
+import { AgentActivityPanel } from './AgentActivityPanel';
 import { ProjectHealthPanel } from './ProjectHealthPanel';
 import styles from './MonitorDashboard.module.css';
 
@@ -29,7 +30,7 @@ export function MonitorDashboard({
   className,
 }: MonitorDashboardProps): JSX.Element {
   // Fetch agent status and stats
-  const { stats } = useAgents({ pollInterval: 5000 });
+  const { agents, agentTasks, sync, stats, isLoading, isConnected, lastUpdated } = useAgents({ pollInterval: 5000 });
 
   // Fetch blocked issues for bottleneck detection
   const { data: blockedIssues, loading: isLoadingBlocked } = useBlockedIssues({
@@ -40,6 +41,12 @@ export function MonitorDashboard({
   const handleBottleneckClick = (issue: Pick<Issue, 'id' | 'title'>) => {
     // TODO: Integrate with IssueDetailPanel when available
     console.log('Bottleneck clicked:', issue.id);
+  };
+
+  // Handler for agent clicks - placeholder for agent details
+  const handleAgentClick = (agentName: string) => {
+    // TODO: Open agent detail drawer/modal when available
+    console.log('Agent clicked:', agentName);
   };
 
   const rootClassName = className
@@ -60,9 +67,15 @@ export function MonitorDashboard({
           <span className={styles.refreshIndicator}>↻ 5s</span>
         </header>
         <div className={styles.panelContent}>
-          <div className={styles.placeholder}>
-            AgentActivityPanel placeholder
-          </div>
+          <AgentActivityPanel
+            agents={agents}
+            agentTasks={agentTasks}
+            sync={sync}
+            isLoading={isLoading}
+            isConnected={isConnected}
+            lastUpdated={lastUpdated}
+            onAgentClick={handleAgentClick}
+          />
         </div>
       </section>
 
