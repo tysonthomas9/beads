@@ -1,9 +1,13 @@
 package main
 
 import (
+	"encoding/json"
 	"errors"
+	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/steveyegge/beads/internal/rpc"
 )
 
 // TestNewDaemonSubscriber tests that NewDaemonSubscriber creates a properly initialized subscriber.
@@ -387,5 +391,91 @@ func TestDaemonSubscriber_BroadcastsToHub(t *testing.T) {
 		}
 	case <-time.After(500 * time.Millisecond):
 		t.Error("client did not receive broadcast")
+	}
+}
+
+// TestDaemonSubscriber_LastSinceUpdatedBeforeBroadcast verifies that lastSince
+// is updated BEFORE any broadcast happens. This prevents a race condition where
+// a concurrent goroutine could read a stale lastSince and request duplicate mutations.
+func TestDaemonSubscriber_LastSinceUpdatedBeforeBroadcast(t *testing.T) {
+	hub := NewSSEHub()
+	// Do NOT call hub.Run() — we want broadcasts to land in the buffered channel
+	// so we can observe ordering.
+
+	subscriber := NewDaemonSubscriber(nil, hub)
+
+	// Create mutations with known timestamps
+	ts1 := time.Date(2025, 6, 15, 12, 0, 0, 0, time.UTC)
+	ts2 := time.Date(2025, 6, 15, 12, 0, 1, 0, time.UTC)
+	mutations := []rpc.MutationEvent{
+		{Type: "create", IssueID: "bd-1", Timestamp: ts1},
+		{Type: "update", IssueID: "bd-2", Timestamp: ts2},
+	}
+
+	mutationData, err := json.Marshal(mutations)
+	if err != nil {
+		t.Fatalf("failed to marshal mutations: %v", err)
+	}
+
+	resp := &rpc.Response{
+		Success: true,
+		Data:    mutationData,
+	}
+
+	// Record lastSince values observed at each broadcast.
+	// We intercept by draining the hub's broadcast channel in a goroutine
+	// that snapshots lastSince each time a message arrives.
+	var lastSinceAtBroadcast []int64
+	var broadcastCount int32
+	done := make(chan struct{})
+
+	go func() {
+		for {
+			select {
+			case <-hub.broadcast:
+				// Snapshot lastSince at the moment we observe a broadcast
+				subscriber.mu.RLock()
+				ls := subscriber.lastSince
+				subscriber.mu.RUnlock()
+				lastSinceAtBroadcast = append(lastSinceAtBroadcast, ls)
+				atomic.AddInt32(&broadcastCount, 1)
+			case <-done:
+				return
+			}
+		}
+	}()
+
+	// Call processMutationResponse — this is the method under test
+	subscriber.processMutationResponse(resp)
+
+	// Give the goroutine time to drain all broadcasts
+	time.Sleep(50 * time.Millisecond)
+	close(done)
+
+	// We expect 2 broadcasts (one per mutation)
+	count := int(atomic.LoadInt32(&broadcastCount))
+	if count != 2 {
+		t.Fatalf("expected 2 broadcasts, got %d", count)
+	}
+
+	// The expected lastSince after update is maxTimestamp + 1
+	expectedLastSince := ts2.UnixMilli() + 1
+
+	// Verify lastSince was already updated when the FIRST broadcast was observed.
+	// Before the fix, lastSince would have been 0 (stale) at broadcast time.
+	for i, ls := range lastSinceAtBroadcast {
+		if ls != expectedLastSince {
+			t.Errorf("broadcast %d: lastSince was %d at broadcast time, expected %d (updated before broadcast)",
+				i, ls, expectedLastSince)
+		}
+	}
+
+	// Also verify the final lastSince value is correct
+	subscriber.mu.RLock()
+	finalLastSince := subscriber.lastSince
+	subscriber.mu.RUnlock()
+
+	if finalLastSince != expectedLastSince {
+		t.Errorf("final lastSince = %d, want %d", finalLastSince, expectedLastSince)
 	}
 }

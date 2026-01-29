@@ -221,25 +221,29 @@ func (s *DaemonSubscriber) processMutationResponse(resp *rpc.Response) {
 		return
 	}
 
-	// Broadcast each mutation to SSE clients
+	// Calculate maxTimestamp first
 	var maxTimestamp int64
 	for _, m := range mutations {
 		ts := m.Timestamp.UnixMilli()
 		if ts > maxTimestamp {
 			maxTimestamp = ts
 		}
-
-		payload := rpcMutationToPayload(m)
-		s.hub.Broadcast(payload)
 	}
 
-	// Update lastSince to avoid re-processing the same mutations
+	// Update lastSince BEFORE broadcasting to prevent concurrent goroutines
+	// from requesting duplicate mutations with a stale since value.
 	if maxTimestamp > 0 {
 		s.mu.Lock()
 		if maxTimestamp >= s.lastSince {
 			s.lastSince = maxTimestamp + 1
 		}
 		s.mu.Unlock()
+	}
+
+	// Broadcast each mutation to SSE clients
+	for _, m := range mutations {
+		payload := rpcMutationToPayload(m)
+		s.hub.Broadcast(payload)
 	}
 
 	log.Printf("Broadcast %d mutations to %d SSE clients", len(mutations), s.hub.ClientCount())
