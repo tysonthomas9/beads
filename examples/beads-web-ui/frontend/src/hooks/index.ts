@@ -2,6 +2,10 @@
  * Hook barrel exports for the beads-web-ui frontend.
  */
 
+export { useSSE } from './useSSE'
+export type { UseSSEOptions, UseSSEReturn } from './useSSE'
+
+// @deprecated Use useSSE instead - WebSocket will be removed in a future version
 export { useWebSocket } from './useWebSocket'
 export type { UseWebSocketOptions, UseWebSocketReturn } from './useWebSocket'
 

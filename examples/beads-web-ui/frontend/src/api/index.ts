@@ -1,13 +1,16 @@
 export { ApiError, get, post, patch, del } from './client'
 export type { RequestOptions } from './client'
 
+// SSE client for real-time updates (recommended)
+export { BeadsSSEClient, getSSEUrl } from './sse'
+export type { SSEClientOptions } from './sse'
+
+// Re-export common types from SSE (they're re-exported from websocket for compatibility)
+export type { ConnectionState, MutationType, MutationPayload } from './sse'
+
+// @deprecated Use BeadsSSEClient instead - WebSocket will be removed in a future version
 export { BeadsWebSocketClient, getWebSocketUrl } from './websocket'
-export type {
-  ConnectionState,
-  MutationType,
-  MutationPayload,
-  WebSocketClientOptions,
-} from './websocket'
+export type { WebSocketClientOptions } from './websocket'
 
 // Issue API functions
 export {

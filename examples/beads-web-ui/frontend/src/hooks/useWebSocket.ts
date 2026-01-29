@@ -1,4 +1,7 @@
 /**
+ * @deprecated Use useSSE hook instead. This WebSocket hook will be removed
+ * in a future version. SSE provides simpler push model with built-in reconnection.
+ *
  * React hook that wraps BeadsWebSocketClient for use in components.
  * Manages WebSocket lifecycle with React component lifecycle (connect on mount, cleanup on unmount).
  */

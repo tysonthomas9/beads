@@ -1,4 +1,7 @@
 /**
+ * @deprecated Use api/sse.ts instead. This WebSocket client will be removed
+ * in a future version. SSE provides simpler push model with built-in reconnection.
+ *
  * WebSocket client for real-time mutation events from the beads daemon.
  * Connects to the /ws endpoint and provides automatic reconnection with exponential backoff.
  */

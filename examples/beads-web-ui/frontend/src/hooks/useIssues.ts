@@ -10,7 +10,7 @@ import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import type { Issue, WorkFilter, Status } from '@/types'
 import type { ConnectionState, GraphFilter } from '@/api'
 import { getReadyIssues, updateIssue as apiUpdateIssue, fetchGraphIssues } from '@/api'
-import { useWebSocket } from './useWebSocket'
+import { useSSE } from './useSSE'
 import { useMutationHandler } from './useMutationHandler'
 
 /**
@@ -97,7 +97,7 @@ export function useIssues(options: UseIssuesOptions = {}): UseIssuesReturn {
     graphFilter,
     autoFetch = true,
     autoConnect = true,
-    subscribeOnConnect = true,
+    // Note: subscribeOnConnect is deprecated with SSE - connection equals subscription
   } = options
 
   // Primary state: Map for O(1) lookups
@@ -121,26 +121,19 @@ export function useIssues(options: UseIssuesOptions = {}): UseIssuesReturn {
     },
   })
 
-  // WebSocket setup
+  // SSE setup - connection equals subscription (no separate subscribe message)
+  // The 'since' parameter is passed on connect for catch-up events
   const {
     state: connectionState,
     isConnected,
     lastError: wsError,
     reconnectAttempts,
-    subscribe,
     retryNow,
-  } = useWebSocket({
+  } = useSSE({
     autoConnect,
-    subscribeOnConnect: false, // We control subscription timing manually
+    since: fetchTimestampRef.current > 0 ? fetchTimestampRef.current : undefined,
     onMutation: handleMutation,
   })
-
-  // Subscribe when connected with the correct timestamp
-  useEffect(() => {
-    if (isConnected && subscribeOnConnect && fetchTimestampRef.current > 0) {
-      subscribe(fetchTimestampRef.current)
-    }
-  }, [isConnected, subscribeOnConnect, subscribe])
 
   // Fetch issues from API
   const refetch = useCallback(async () => {

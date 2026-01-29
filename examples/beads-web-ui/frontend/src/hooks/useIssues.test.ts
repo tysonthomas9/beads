@@ -6,8 +6,8 @@ import { renderHook, act, waitFor } from '@testing-library/react'
 import { useIssues } from './useIssues'
 import type { Issue } from '../types/issue'
 import * as issuesApi from '../api/issues'
-import * as useWebSocketModule from './useWebSocket'
-import type { ConnectionState } from '../api/websocket'
+import * as useSSEModule from './useSSE'
+import type { ConnectionState } from '../api/sse'
 
 // Mock the API
 vi.mock('../api/issues', () => ({
@@ -16,9 +16,9 @@ vi.mock('../api/issues', () => ({
   fetchGraphIssues: vi.fn(),
 }))
 
-// Mock useWebSocket
-vi.mock('./useWebSocket', () => ({
-  useWebSocket: vi.fn(),
+// Mock useSSE
+vi.mock('./useSSE', () => ({
+  useSSE: vi.fn(),
 }))
 
 /**
@@ -36,9 +36,9 @@ function createTestIssue(overrides: Partial<Issue> = {}): Issue {
 }
 
 /**
- * Helper to create mock useWebSocket return value.
+ * Helper to create mock useSSE return value.
  */
-function createMockWebSocket(overrides: Partial<useWebSocketModule.UseWebSocketReturn> = {}): useWebSocketModule.UseWebSocketReturn {
+function createMockSSE(overrides: Partial<useSSEModule.UseSSEReturn> = {}): useSSEModule.UseSSEReturn {
   return {
     state: 'disconnected' as ConnectionState,
     lastError: null,
@@ -46,27 +46,25 @@ function createMockWebSocket(overrides: Partial<useWebSocketModule.UseWebSocketR
     reconnectAttempts: 0,
     connect: vi.fn(),
     disconnect: vi.fn(),
-    subscribe: vi.fn(),
-    unsubscribe: vi.fn(),
     retryNow: vi.fn(),
     ...overrides,
   }
 }
 
 describe('useIssues', () => {
-  let mockWebSocket: useWebSocketModule.UseWebSocketReturn
+  let mockSSE: useSSEModule.UseSSEReturn
   let onMutationCallback: ((mutation: unknown) => void) | undefined
   let onStateChangeCallback: ((state: ConnectionState) => void) | undefined
 
   beforeEach(() => {
     vi.clearAllMocks()
 
-    // Set up default mock for useWebSocket that captures callbacks
-    mockWebSocket = createMockWebSocket()
-    vi.mocked(useWebSocketModule.useWebSocket).mockImplementation((options) => {
+    // Set up default mock for useSSE that captures callbacks
+    mockSSE = createMockSSE()
+    vi.mocked(useSSEModule.useSSE).mockImplementation((options) => {
       onMutationCallback = options?.onMutation
       onStateChangeCallback = options?.onStateChange
-      return mockWebSocket
+      return mockSSE
     })
 
     // Default API mock to return empty array
@@ -287,11 +285,11 @@ describe('useIssues', () => {
     })
   })
 
-  describe('WebSocket integration', () => {
-    it('passes autoConnect option to useWebSocket', () => {
+  describe('SSE integration', () => {
+    it('passes autoConnect option to useSSE', () => {
       renderHook(() => useIssues({ autoConnect: false }))
 
-      expect(useWebSocketModule.useWebSocket).toHaveBeenCalledWith(
+      expect(useSSEModule.useSSE).toHaveBeenCalledWith(
         expect.objectContaining({ autoConnect: false })
       )
     })
@@ -299,18 +297,18 @@ describe('useIssues', () => {
     it('uses autoConnect=true by default', () => {
       renderHook(() => useIssues())
 
-      expect(useWebSocketModule.useWebSocket).toHaveBeenCalledWith(
+      expect(useSSEModule.useSSE).toHaveBeenCalledWith(
         expect.objectContaining({ autoConnect: true })
       )
     })
 
-    it('exposes WebSocket connection state', () => {
-      mockWebSocket = createMockWebSocket({
+    it('exposes SSE connection state', () => {
+      mockSSE = createMockSSE({
         state: 'connected',
         isConnected: true,
         reconnectAttempts: 0,
       })
-      vi.mocked(useWebSocketModule.useWebSocket).mockReturnValue(mockWebSocket)
+      vi.mocked(useSSEModule.useSSE).mockReturnValue(mockSSE)
 
       const { result } = renderHook(() => useIssues({ autoFetch: false }))
 
@@ -320,12 +318,12 @@ describe('useIssues', () => {
     })
 
     it('exposes reconnect attempts during reconnection', () => {
-      mockWebSocket = createMockWebSocket({
+      mockSSE = createMockSSE({
         state: 'reconnecting',
         isConnected: false,
         reconnectAttempts: 3,
       })
-      vi.mocked(useWebSocketModule.useWebSocket).mockReturnValue(mockWebSocket)
+      vi.mocked(useSSEModule.useSSE).mockReturnValue(mockSSE)
 
       const { result } = renderHook(() => useIssues({ autoFetch: false }))
 
@@ -333,10 +331,10 @@ describe('useIssues', () => {
       expect(result.current.reconnectAttempts).toBe(3)
     })
 
-    it('retryConnection calls WebSocket retryNow', () => {
+    it('retryConnection calls SSE retryNow', () => {
       const retryNow = vi.fn()
-      mockWebSocket = createMockWebSocket({ retryNow })
-      vi.mocked(useWebSocketModule.useWebSocket).mockReturnValue(mockWebSocket)
+      mockSSE = createMockSSE({ retryNow })
+      vi.mocked(useSSEModule.useSSE).mockReturnValue(mockSSE)
 
       const { result } = renderHook(() => useIssues({ autoFetch: false }))
 
@@ -347,72 +345,12 @@ describe('useIssues', () => {
       expect(retryNow).toHaveBeenCalledTimes(1)
     })
 
-    it('subscribes when connected and subscribeOnConnect is true', async () => {
-      const subscribe = vi.fn()
-
-      // Start disconnected
-      mockWebSocket = createMockWebSocket({
-        state: 'disconnected',
-        isConnected: false,
-        subscribe,
-      })
-      vi.mocked(useWebSocketModule.useWebSocket).mockReturnValue(mockWebSocket)
-
-      const mockIssues = [createTestIssue()]
-      vi.mocked(issuesApi.getReadyIssues).mockResolvedValue(mockIssues)
-
-      const { result, rerender } = renderHook(() =>
-        useIssues({ subscribeOnConnect: true })
-      )
-
-      // Wait for fetch to complete
-      await waitFor(() => {
-        expect(result.current.isLoading).toBe(false)
-      })
-
-      // Now simulate connection (this will trigger the effect)
-      mockWebSocket = createMockWebSocket({
-        state: 'connected',
-        isConnected: true,
-        subscribe,
-      })
-      vi.mocked(useWebSocketModule.useWebSocket).mockReturnValue(mockWebSocket)
-
-      // Force re-render to pick up new mock values
-      rerender()
-
-      // Should subscribe with timestamp after connection established
-      await waitFor(() => {
-        expect(subscribe).toHaveBeenCalled()
-      })
-
-      // Should be called with a timestamp (number)
-      expect(subscribe).toHaveBeenCalledWith(expect.any(Number))
-    })
-
-    it('does not subscribe when subscribeOnConnect is false', async () => {
-      const subscribe = vi.fn()
-      mockWebSocket = createMockWebSocket({
-        state: 'connected',
-        isConnected: true,
-        subscribe,
-      })
-      vi.mocked(useWebSocketModule.useWebSocket).mockReturnValue(mockWebSocket)
-
-      const mockIssues = [createTestIssue()]
-      vi.mocked(issuesApi.getReadyIssues).mockResolvedValue(mockIssues)
-
-      renderHook(() => useIssues({ subscribeOnConnect: false }))
-
-      // Wait a bit to ensure no subscription happens
-      await new Promise((resolve) => setTimeout(resolve, 50))
-
-      expect(subscribe).not.toHaveBeenCalled()
-    })
+    // Note: SSE doesn't have separate subscribe/unsubscribe - connection equals subscription.
+    // The 'since' parameter is passed during connection for catch-up events.
   })
 
   describe('Mutation handling', () => {
-    it('handles create mutation from WebSocket', async () => {
+    it('handles create mutation from SSE', async () => {
       const mockIssues = [createTestIssue({ id: 'existing' })]
       vi.mocked(issuesApi.getReadyIssues).mockResolvedValue(mockIssues)
 
@@ -427,16 +365,16 @@ describe('useIssues', () => {
         onMutationCallback?.({
           type: 'create',
           issue_id: 'new-issue',
-          title: 'New Issue from WebSocket',
+          title: 'New Issue from SSE',
           timestamp: new Date().toISOString(),
         })
       })
 
       expect(result.current.issues).toHaveLength(2)
-      expect(result.current.getIssue('new-issue')?.title).toBe('New Issue from WebSocket')
+      expect(result.current.getIssue('new-issue')?.title).toBe('New Issue from SSE')
     })
 
-    it('handles update mutation from WebSocket', async () => {
+    it('handles update mutation from SSE', async () => {
       const mockIssues = [createTestIssue({ id: 'issue-1', title: 'Original Title', updated_at: '2025-01-23T10:00:00Z' })]
       vi.mocked(issuesApi.getReadyIssues).mockResolvedValue(mockIssues)
 
@@ -459,7 +397,7 @@ describe('useIssues', () => {
       expect(result.current.getIssue('issue-1')?.title).toBe('Updated Title')
     })
 
-    it('handles delete mutation from WebSocket', async () => {
+    it('handles delete mutation from SSE', async () => {
       const mockIssues = [
         createTestIssue({ id: 'issue-1' }),
         createTestIssue({ id: 'issue-2' }),
@@ -591,14 +529,14 @@ describe('useIssues', () => {
   })
 
   describe('Error combination', () => {
-    it('combines WebSocket error with fetch error (fetch takes priority)', async () => {
+    it('combines SSE error with fetch error (fetch takes priority)', async () => {
       const fetchError = 'Fetch failed'
       vi.mocked(issuesApi.getReadyIssues).mockRejectedValue(new Error(fetchError))
 
-      mockWebSocket = createMockWebSocket({
-        lastError: 'WebSocket error',
+      mockSSE = createMockSSE({
+        lastError: 'SSE error',
       })
-      vi.mocked(useWebSocketModule.useWebSocket).mockReturnValue(mockWebSocket)
+      vi.mocked(useSSEModule.useSSE).mockReturnValue(mockSSE)
 
       const { result } = renderHook(() => useIssues())
 
@@ -610,13 +548,13 @@ describe('useIssues', () => {
       expect(result.current.error).toBe(fetchError)
     })
 
-    it('shows WebSocket error when no fetch error', async () => {
+    it('shows SSE error when no fetch error', async () => {
       vi.mocked(issuesApi.getReadyIssues).mockResolvedValue([])
 
-      mockWebSocket = createMockWebSocket({
-        lastError: 'WebSocket connection failed',
+      mockSSE = createMockSSE({
+        lastError: 'SSE connection failed',
       })
-      vi.mocked(useWebSocketModule.useWebSocket).mockReturnValue(mockWebSocket)
+      vi.mocked(useSSEModule.useSSE).mockReturnValue(mockSSE)
 
       const { result } = renderHook(() => useIssues())
 
@@ -624,7 +562,7 @@ describe('useIssues', () => {
         expect(result.current.isLoading).toBe(false)
       })
 
-      expect(result.current.error).toBe('WebSocket connection failed')
+      expect(result.current.error).toBe('SSE connection failed')
     })
   })
 
@@ -636,7 +574,7 @@ describe('useIssues', () => {
       expect(issuesApi.getReadyIssues).toHaveBeenCalled()
 
       // Should auto-connect
-      expect(useWebSocketModule.useWebSocket).toHaveBeenCalledWith(
+      expect(useSSEModule.useSSE).toHaveBeenCalledWith(
         expect.objectContaining({ autoConnect: true })
       )
     })
@@ -650,7 +588,7 @@ describe('useIssues', () => {
       )
 
       expect(issuesApi.getReadyIssues).not.toHaveBeenCalled()
-      expect(useWebSocketModule.useWebSocket).toHaveBeenCalledWith(
+      expect(useSSEModule.useSSE).toHaveBeenCalledWith(
         expect.objectContaining({ autoConnect: false })
       )
     })
