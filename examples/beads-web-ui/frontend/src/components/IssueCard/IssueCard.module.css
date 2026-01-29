@@ -157,32 +157,51 @@
 }
 
 /* =================================
- * Pending column card styling
- * Cards appear dimmed when in Pending column
+ * Backlog column card styling
+ * Cards appear dimmed when in Backlog column
  * ================================= */
 
-.issueCard[data-in-pending='true'] {
+.issueCard[data-in-backlog='true'] {
   opacity: 0.7;
   background-color: var(--color-bg-secondary);
   filter: saturate(0.5);
 }
 
-.issueCard[data-in-pending='true'] .title {
+.issueCard[data-in-backlog='true'] .title {
   color: var(--color-text-secondary);
 }
 
-.issueCard[data-in-pending='true'] .id {
+.issueCard[data-in-backlog='true'] .id {
   color: var(--color-text-tertiary);
 }
 
-.issueCard[data-in-pending='true']:hover {
+.issueCard[data-in-backlog='true']:hover {
   opacity: 0.85;
 }
 
-/* Ensure focus states remain visible on pending cards */
-.issueCard[data-in-pending='true'][role='button']:focus-visible {
+/* Ensure focus states remain visible on backlog cards */
+.issueCard[data-in-backlog='true'][role='button']:focus-visible {
   outline: 2px solid var(--color-primary);
   outline-offset: 2px;
+}
+
+/* =================================
+ * Deferred badge styling
+ * Shown on deferred issues in Backlog column
+ * ================================= */
+
+.deferredBadge {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-2);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  line-height: 1;
+  border-radius: var(--radius-sm);
+  background-color: var(--color-bg-tertiary);
+  color: var(--color-text-muted);
 }
 
 /* =================================

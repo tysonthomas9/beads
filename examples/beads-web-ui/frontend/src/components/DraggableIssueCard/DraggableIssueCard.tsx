@@ -58,7 +58,7 @@ export function DraggableIssueCard({
   blockedByCount,
   blockedBy,
   columnId,
-  isPending,
+  isBacklog,
   onApprove,
   onReject,
 }: DraggableIssueCardProps): JSX.Element {
@@ -76,7 +76,7 @@ export function DraggableIssueCard({
     ...(className !== undefined && { className }),
     ...(blockedByCount !== undefined && { blockedByCount }),
     ...(blockedBy !== undefined && { blockedBy }),
-    ...(isPending !== undefined && { isPending }),
+    ...(isBacklog !== undefined && { isBacklog }),
     ...(columnId !== undefined && { columnId }),
     ...(onApprove !== undefined && { onApprove }),
     ...(onReject !== undefined && { onReject }),

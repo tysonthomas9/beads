@@ -36,8 +36,8 @@ export interface IssueCardProps {
   blockedByCount?: number;
   /** IDs of blocking issues (optional) */
   blockedBy?: string[];
-  /** Whether this card is in the Pending column (dimmed appearance) */
-  isPending?: boolean;
+  /** Whether this card is in the Backlog column (dimmed appearance) */
+  isBacklog?: boolean;
   /** Column ID this card is displayed in (for conditional rendering) */
   columnId?: string;
   /** Callback when approve button is clicked (only shown in review column). Returns Promise for error handling. */
@@ -79,7 +79,7 @@ export function IssueCard({
   className,
   blockedByCount,
   blockedBy,
-  isPending = false,
+  isBacklog = false,
   columnId,
   onApprove,
   onReject,
@@ -168,12 +168,12 @@ export function IssueCard({
       className={rootClassName}
       data-priority={priority}
       data-blocked={isBlocked ? 'true' : undefined}
-      data-in-pending={isPending ? 'true' : undefined}
+      data-in-backlog={isBacklog ? 'true' : undefined}
       onClick={handleClick}
       onKeyDown={handleKeyDown}
       tabIndex={onClick ? 0 : undefined}
       role={onClick ? 'button' : undefined}
-      aria-label={`Issue: ${displayTitle}${isBlocked ? ' (blocked)' : ''}${isPending ? ' (pending)' : ''}`}
+      aria-label={`Issue: ${displayTitle}${isBlocked ? ' (blocked)' : ''}${isBacklog ? ' (backlog)' : ''}`}
     >
       <header className={styles.header}>
         <span className={styles.id}>{displayId}</span>
@@ -193,6 +193,11 @@ export function IssueCard({
             count={blockedByCount ?? 0}
             {...(blockedBy !== undefined && { issueIds: blockedBy })}
           />
+        )}
+        {issue.status === 'deferred' && (
+          <span className={styles.deferredBadge} aria-label="Deferred">
+            <span aria-hidden="true">⏸</span> Deferred
+          </span>
         )}
         <span
           className={`${styles.priorityBadge} ${styles[`priority${priority}`]}`}
