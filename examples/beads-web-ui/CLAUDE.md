@@ -100,13 +100,49 @@ npm install                               # regenerates from package.json
 
 ## Development
 
+**Recommended: Use `air` for Go hot-reload** (auto-restarts on code changes, handles port conflicts):
+
 ```bash
 # Start daemon (required for API to work)
 bd daemon start
 
-# Run backend (development)
-go run . -port 8080
+# Build frontend first (required - assets are embedded at compile time)
+cd frontend && npm install && npm run build && cd ..
 
-# Run frontend (development with hot reload)
+# Run backend with hot-reload
+air
+```
+
+Alternative without air:
+```bash
+go run . -port 8080
+```
+
+For frontend development with hot reload:
+```bash
 cd frontend && npm run dev
 ```
+
+## Running with Loom (Agent Monitoring)
+
+The web UI's Agents sidebar connects to loom server on **port 9000** by default (configured via `VITE_LOOM_SERVER_URL`).
+
+```bash
+# Full startup sequence
+bd daemon start              # Start beads daemon
+loom serve --port 9000       # Start loom server (for Agents sidebar)
+air                          # Start web UI backend (or: go run . -port 8080)
+```
+
+The Agents sidebar will show "Loom server not available" if loom isn't running on port 9000.
+
+## Branch Switching
+
+**After checking out a different branch, rebuild the frontend:**
+
+```bash
+git checkout <branch>
+cd frontend && npm install && npm run build && cd ..
+```
+
+If using `air`, it will auto-restart. Otherwise, manually restart the server. The Go server embeds frontend assets at compile time.
