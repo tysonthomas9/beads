@@ -176,7 +176,7 @@ describe('WorkPipelinePanel', () => {
       render(<WorkPipelinePanel {...defaultProps} tasks={tasks} />);
 
       expect(screen.getByTestId('pipeline-stage-blocked')).toBeInTheDocument();
-      expect(screen.getByText('Blocked')).toBeInTheDocument();
+      expect(screen.getByText('Backlog')).toBeInTheDocument();
     });
 
     it('shows correct blocked count', () => {
@@ -424,7 +424,7 @@ describe('WorkPipelinePanel', () => {
       fireEvent.click(screen.getByTestId('pipeline-stage-blocked'));
 
       expect(screen.getByRole('dialog')).toBeInTheDocument();
-      // The drawer title shows "Blocked"
+      // The drawer title shows "Backlog"
       const drawer = screen.getByRole('dialog');
       expect(within(drawer).getByText('Blocked task')).toBeInTheDocument();
     });

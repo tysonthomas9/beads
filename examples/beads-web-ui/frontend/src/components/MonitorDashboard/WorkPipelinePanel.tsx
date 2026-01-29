@@ -1,6 +1,6 @@
 /**
  * WorkPipelinePanel displays the task flow through pipeline stages.
- * Shows Plan → Ready → In Progress → Review → Done with Blocked as branch.
+ * Shows Plan → Ready → In Progress → Review → Done with Backlog as branch.
  */
 
 import { useCallback, useState } from 'react';
@@ -46,10 +46,10 @@ const MAIN_STAGES: StageConfig[] = [
 
 const BLOCKED_STAGE: StageConfig = {
   id: 'blocked',
-  label: 'Blocked',
+  label: 'Backlog',
   countKey: 'blocked',
   listKey: 'blocked',
-  icon: '🚫',
+  icon: '📦',
 };
 
 export function WorkPipelinePanel({
@@ -82,7 +82,7 @@ export function WorkPipelinePanel({
       case 'inProgress':
         return { title: 'In Progress', tasks: taskLists.inProgress };
       case 'blocked':
-        return { title: 'Blocked', tasks: taskLists.blocked };
+        return { title: 'Backlog', tasks: taskLists.blocked };
       default:
         return { title: '', tasks: [] };
     }
