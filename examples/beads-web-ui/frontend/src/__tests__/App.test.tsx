@@ -34,7 +34,9 @@ vi.mock('@/hooks/useIssues', () => ({
 // Mock GraphView to avoid ResizeObserver issues in jsdom
 vi.mock('@/components/GraphView', () => ({
   GraphView: ({ issues }: { issues: unknown[] }) => (
-    <div data-testid="mock-graph-view">Graph View ({Array.isArray(issues) ? issues.length : 0} issues)</div>
+    <div data-testid="mock-graph-view">
+      Graph View ({Array.isArray(issues) ? issues.length : 0} issues)
+    </div>
   ),
 }));
 
@@ -137,7 +139,13 @@ vi.mock('@/hooks', () => ({
   useAgents: vi.fn(() => ({
     agents: [],
     tasks: { needs_planning: 0, ready_to_implement: 0, in_progress: 0, need_review: 0, blocked: 0 },
-    taskLists: { needsPlanning: [], readyToImplement: [], needsReview: [], inProgress: [], blocked: [] },
+    taskLists: {
+      needsPlanning: [],
+      readyToImplement: [],
+      needsReview: [],
+      inProgress: [],
+      blocked: [],
+    },
     agentTasks: {},
     sync: { db_synced: true, db_last_sync: '', git_needs_push: 0, git_needs_pull: 0 },
     stats: { open: 0, closed: 0, total: 0, completion: 0 },
@@ -157,9 +165,9 @@ vi.mock('@/hooks', () => ({
 import { useIssues } from '@/hooks/useIssues';
 import { useFilterState, useIssueDetail, useViewState } from '@/hooks';
 
-// Alias for convenience in tests
-const useIssuesMock = mockUseIssues;
-const useViewStateMock = mockUseViewState;
+// Alias for convenience in tests (prefixed with _ to satisfy linter for unused vars)
+const _useIssuesMock = mockUseIssues;
+const _useViewStateMock = mockUseViewState;
 
 /**
  * Create a mock issue for testing.
@@ -199,8 +207,7 @@ function createMockUseIssuesReturn(
   overrides: Partial<MockUseIssuesReturn> = {}
 ): MockUseIssuesReturn {
   const issues = overrides.issues ?? [];
-  const issuesMap =
-    overrides.issuesMap ?? new Map(issues.map((issue) => [issue.id, issue]));
+  const issuesMap = overrides.issuesMap ?? new Map(issues.map((issue) => [issue.id, issue]));
 
   return {
     issues,
@@ -222,13 +229,15 @@ function createMockUseIssuesReturn(
 /**
  * Create default mock return value for useIssueDetail.
  */
-function createMockUseIssueDetailReturn(overrides: Partial<{
-  issueDetails: unknown;
-  isLoading: boolean;
-  error: string | null;
-  fetchIssue: ReturnType<typeof vi.fn>;
-  clearIssue: ReturnType<typeof vi.fn>;
-}> = {}) {
+function createMockUseIssueDetailReturn(
+  overrides: Partial<{
+    issueDetails: unknown;
+    isLoading: boolean;
+    error: string | null;
+    fetchIssue: ReturnType<typeof vi.fn>;
+    clearIssue: ReturnType<typeof vi.fn>;
+  }> = {}
+) {
   return {
     issueDetails: null,
     isLoading: false,
@@ -256,9 +265,7 @@ describe('App', () => {
       const { container } = render(<App />);
 
       // LoadingSkeleton.Column components have aria-hidden="true"
-      const skeletonColumns = container.querySelectorAll(
-        '[aria-hidden="true"]'
-      );
+      const skeletonColumns = container.querySelectorAll('[aria-hidden="true"]');
 
       // Each Column skeleton contains multiple nested elements with aria-hidden
       // We verify that skeletons are rendered by checking for the column structure
@@ -279,9 +286,7 @@ describe('App', () => {
 
       // The loading skeleton columns have a specific structure
       // We check for the loading container with three skeleton columns
-      const flexContainer = container.querySelector(
-        '[data-testid="loading-container"]'
-      );
+      const flexContainer = container.querySelector('[data-testid="loading-container"]');
       expect(flexContainer).toBeInTheDocument();
 
       // Count direct children of the flex container (the 3 skeleton columns)
@@ -329,10 +334,7 @@ describe('App', () => {
 
       render(<App />);
 
-      expect(screen.getByTestId('error-display')).toHaveAttribute(
-        'data-variant',
-        'fetch-error'
-      );
+      expect(screen.getByTestId('error-display')).toHaveAttribute('data-variant', 'fetch-error');
     });
 
     it('renders retry button that calls refetch', () => {
@@ -425,12 +427,8 @@ describe('App', () => {
 
       // KanbanBoard should render with status columns
       expect(screen.getByRole('heading', { name: 'Open' })).toBeInTheDocument();
-      expect(
-        screen.getByRole('heading', { name: 'In Progress' })
-      ).toBeInTheDocument();
-      expect(
-        screen.getByRole('heading', { name: 'Closed' })
-      ).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'In Progress' })).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'Closed' })).toBeInTheDocument();
 
       // Issues should be rendered
       expect(screen.getByText('First Issue')).toBeInTheDocument();
@@ -466,7 +464,7 @@ describe('App', () => {
       const mockReturn = createMockUseIssuesReturn({ isLoading: false });
       vi.mocked(useIssues).mockReturnValue(mockReturn);
 
-      const { container } = render(<App />);
+      const { container: _container } = render(<App />);
 
       // The loading container should not be present when not loading
       expect(screen.queryByTestId('loading-container')).not.toBeInTheDocument();
@@ -480,21 +478,15 @@ describe('App', () => {
 
       // Should render columns even with no issues
       expect(screen.getByRole('heading', { name: 'Open' })).toBeInTheDocument();
-      expect(
-        screen.getByRole('heading', { name: 'In Progress' })
-      ).toBeInTheDocument();
-      expect(
-        screen.getByRole('heading', { name: 'Closed' })
-      ).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'In Progress' })).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'Closed' })).toBeInTheDocument();
     });
   });
 
   describe('drag-end handler', () => {
     it('calls updateIssueStatus with correct parameters on drag-end', async () => {
       const updateIssueStatus = vi.fn().mockResolvedValue(undefined);
-      const issues = [
-        createMockIssue({ id: 'drag-issue', title: 'Drag Me', status: 'open' }),
-      ];
+      const issues = [createMockIssue({ id: 'drag-issue', title: 'Drag Me', status: 'open' })];
       const mockReturn = createMockUseIssuesReturn({
         issues,
         updateIssueStatus,
@@ -514,9 +506,7 @@ describe('App', () => {
 
     it('updateIssueStatus is passed to KanbanBoard via onDragEnd', () => {
       const updateIssueStatus = vi.fn().mockResolvedValue(undefined);
-      const issues = [
-        createMockIssue({ id: 'test-issue', title: 'Test', status: 'open' }),
-      ];
+      const issues = [createMockIssue({ id: 'test-issue', title: 'Test', status: 'open' })];
       const mockReturn = createMockUseIssuesReturn({
         issues,
         updateIssueStatus,
@@ -534,9 +524,7 @@ describe('App', () => {
 
   describe('drag-end failure and ErrorToast', () => {
     it('shows ErrorToast when updateIssueStatus throws', async () => {
-      const updateIssueStatus = vi
-        .fn()
-        .mockRejectedValue(new Error('Update failed'));
+      const updateIssueStatus = vi.fn().mockRejectedValue(new Error('Update failed'));
       const issues = [
         createMockIssue({
           id: 'fail-issue',
@@ -578,9 +566,7 @@ describe('App', () => {
       // Since we can't easily trigger drag events, we test the component's
       // handling of the error state through the hook's error mechanism.
 
-      const updateIssueStatus = vi
-        .fn()
-        .mockRejectedValue(new Error('API Error'));
+      const updateIssueStatus = vi.fn().mockRejectedValue(new Error('API Error'));
       const issues = [createMockIssue({ id: 'test-1', status: 'open' })];
       const mockReturn = createMockUseIssuesReturn({
         issues,
@@ -682,9 +668,7 @@ describe('App', () => {
 
       render(<App />);
 
-      expect(
-        screen.getByRole('heading', { name: 'Beads', level: 1 })
-      ).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'Beads', level: 1 })).toBeInTheDocument();
     });
 
     it('renders header with banner role', () => {
@@ -798,9 +782,7 @@ describe('App', () => {
       expect(screen.getByTestId('error-display')).toBeInTheDocument();
 
       // Transition to success after retry
-      const issues = [
-        createMockIssue({ title: 'Retrieved Issue', status: 'open' }),
-      ];
+      const issues = [createMockIssue({ title: 'Retrieved Issue', status: 'open' })];
       const mockSuccessReturn = createMockUseIssuesReturn({
         isLoading: false,
         error: null,
@@ -893,7 +875,10 @@ describe('App', () => {
       vi.mocked(useIssues).mockReturnValue(mockReturn);
 
       // Track filter state that will change when clearAll is called
-      let currentFilters: { search?: string; groupBy?: string } = { search: 'test query', groupBy: 'none' };
+      let currentFilters: { search?: string; groupBy?: string } = {
+        search: 'test query',
+        groupBy: 'none',
+      };
 
       const clearAll = vi.fn(() => {
         // Simulate clearAll behavior: clears search
@@ -1061,10 +1046,7 @@ describe('App', () => {
         clearAll: vi.fn(),
       };
 
-      vi.mocked(useFilterState).mockReturnValue([
-        { groupBy: currentGroupBy },
-        filterActions,
-      ]);
+      vi.mocked(useFilterState).mockReturnValue([{ groupBy: currentGroupBy }, filterActions]);
 
       const { rerender } = render(<App />);
 
@@ -1073,10 +1055,7 @@ describe('App', () => {
 
       // Simulate groupBy change to 'priority'
       currentGroupBy = 'priority';
-      vi.mocked(useFilterState).mockReturnValue([
-        { groupBy: currentGroupBy },
-        filterActions,
-      ]);
+      vi.mocked(useFilterState).mockReturnValue([{ groupBy: currentGroupBy }, filterActions]);
 
       rerender(<App />);
 
@@ -1087,9 +1066,7 @@ describe('App', () => {
 
     it('passes onDragEnd handler to SwimLaneBoard', () => {
       const updateIssueStatus = vi.fn().mockResolvedValue(undefined);
-      const issues = [
-        createMockIssue({ id: 'drag-test', title: 'Drag Me', status: 'open' }),
-      ];
+      const issues = [createMockIssue({ id: 'drag-test', title: 'Drag Me', status: 'open' })];
       const mockReturn = createMockUseIssuesReturn({
         issues,
         updateIssueStatus,
@@ -1203,9 +1180,11 @@ describe('App', () => {
       ];
       const mockReturn = createMockUseIssuesReturn({ issues });
       vi.mocked(useIssues).mockReturnValue(mockReturn);
-      vi.mocked(useIssueDetail).mockReturnValue(createMockUseIssueDetailReturn({
-        fetchIssue,
-      }));
+      vi.mocked(useIssueDetail).mockReturnValue(
+        createMockUseIssueDetailReturn({
+          fetchIssue,
+        })
+      );
 
       const { container } = render(<App />);
 
@@ -1229,9 +1208,11 @@ describe('App', () => {
       ];
       const mockReturn = createMockUseIssuesReturn({ issues });
       vi.mocked(useIssues).mockReturnValue(mockReturn);
-      vi.mocked(useIssueDetail).mockReturnValue(createMockUseIssueDetailReturn({
-        fetchIssue,
-      }));
+      vi.mocked(useIssueDetail).mockReturnValue(
+        createMockUseIssueDetailReturn({
+          fetchIssue,
+        })
+      );
 
       render(<App />);
 
@@ -1256,18 +1237,20 @@ describe('App', () => {
       const mockReturn = createMockUseIssuesReturn({ issues });
       vi.mocked(useIssues).mockReturnValue(mockReturn);
       // Provide issueDetails so that IssueHeader renders with the close button
-      vi.mocked(useIssueDetail).mockReturnValue(createMockUseIssueDetailReturn({
-        issueDetails: {
-          id: 'issue-1',
-          title: 'Closeable Issue Details',
-          priority: 2,
-          status: 'open',
-          issue_type: 'task',
-          created_at: '2024-01-01T00:00:00Z',
-          updated_at: '2024-01-01T00:00:00Z',
-        },
-        clearIssue,
-      }));
+      vi.mocked(useIssueDetail).mockReturnValue(
+        createMockUseIssueDetailReturn({
+          issueDetails: {
+            id: 'issue-1',
+            title: 'Closeable Issue Details',
+            priority: 2,
+            status: 'open',
+            issue_type: 'task',
+            created_at: '2024-01-01T00:00:00Z',
+            updated_at: '2024-01-01T00:00:00Z',
+          },
+          clearIssue,
+        })
+      );
 
       const { container } = render(<App />);
 
@@ -1298,9 +1281,11 @@ describe('App', () => {
       ];
       const mockReturn = createMockUseIssuesReturn({ issues });
       vi.mocked(useIssues).mockReturnValue(mockReturn);
-      vi.mocked(useIssueDetail).mockReturnValue(createMockUseIssueDetailReturn({
-        fetchIssue,
-      }));
+      vi.mocked(useIssueDetail).mockReturnValue(
+        createMockUseIssueDetailReturn({
+          fetchIssue,
+        })
+      );
 
       render(<App />);
 
@@ -1328,10 +1313,12 @@ describe('App', () => {
       ];
       const mockReturn = createMockUseIssuesReturn({ issues });
       vi.mocked(useIssues).mockReturnValue(mockReturn);
-      vi.mocked(useIssueDetail).mockReturnValue(createMockUseIssueDetailReturn({
-        isLoading: true,
-        fetchIssue,
-      }));
+      vi.mocked(useIssueDetail).mockReturnValue(
+        createMockUseIssueDetailReturn({
+          isLoading: true,
+          fetchIssue,
+        })
+      );
 
       const { container } = render(<App />);
 
@@ -1354,19 +1341,21 @@ describe('App', () => {
       ];
       const mockReturn = createMockUseIssuesReturn({ issues });
       vi.mocked(useIssues).mockReturnValue(mockReturn);
-      vi.mocked(useIssueDetail).mockReturnValue(createMockUseIssueDetailReturn({
-        issueDetails: {
-          id: 'issue-1',
-          title: 'Detail Issue Title',
-          description: 'Issue description',
-          priority: 2,
-          status: 'open',
-          issue_type: 'task',
-          created_at: '2024-01-01T00:00:00Z',
-          updated_at: '2024-01-01T00:00:00Z',
-        },
-        isLoading: false,
-      }));
+      vi.mocked(useIssueDetail).mockReturnValue(
+        createMockUseIssueDetailReturn({
+          issueDetails: {
+            id: 'issue-1',
+            title: 'Detail Issue Title',
+            description: 'Issue description',
+            priority: 2,
+            status: 'open',
+            issue_type: 'task',
+            created_at: '2024-01-01T00:00:00Z',
+            updated_at: '2024-01-01T00:00:00Z',
+          },
+          isLoading: false,
+        })
+      );
 
       render(<App />);
 
@@ -1388,10 +1377,12 @@ describe('App', () => {
       ];
       const mockReturn = createMockUseIssuesReturn({ issues });
       vi.mocked(useIssues).mockReturnValue(mockReturn);
-      vi.mocked(useIssueDetail).mockReturnValue(createMockUseIssueDetailReturn({
-        error: 'Failed to fetch issue details',
-        isLoading: false,
-      }));
+      vi.mocked(useIssueDetail).mockReturnValue(
+        createMockUseIssueDetailReturn({
+          error: 'Failed to fetch issue details',
+          isLoading: false,
+        })
+      );
 
       const { container } = render(<App />);
 
@@ -1420,9 +1411,11 @@ describe('App', () => {
       ];
       const mockReturn = createMockUseIssuesReturn({ issues });
       vi.mocked(useIssues).mockReturnValue(mockReturn);
-      vi.mocked(useIssueDetail).mockReturnValue(createMockUseIssueDetailReturn({
-        fetchIssue,
-      }));
+      vi.mocked(useIssueDetail).mockReturnValue(
+        createMockUseIssueDetailReturn({
+          fetchIssue,
+        })
+      );
 
       render(<App />);
 

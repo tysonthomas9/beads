@@ -6,7 +6,7 @@
  * Unit tests for NodeTooltip component.
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi as _vi, beforeEach, afterEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom';
 
@@ -62,18 +62,14 @@ describe('NodeTooltip', () => {
 
   describe('rendering', () => {
     it('renders nothing when issue is null', () => {
-      const { container } = render(
-        <NodeTooltip issue={null} position={defaultPosition} />
-      );
+      const { container } = render(<NodeTooltip issue={null} position={defaultPosition} />);
 
       expect(container.firstChild).toBeNull();
     });
 
     it('renders nothing when position is null', () => {
       const issue = createTestIssue();
-      const { container } = render(
-        <NodeTooltip issue={issue} position={null} />
-      );
+      const { container } = render(<NodeTooltip issue={issue} position={null} />);
 
       expect(container.firstChild).toBeNull();
     });
@@ -96,13 +92,7 @@ describe('NodeTooltip', () => {
 
     it('applies custom className', () => {
       const issue = createTestIssue();
-      render(
-        <NodeTooltip
-          issue={issue}
-          position={defaultPosition}
-          className="custom-class"
-        />
-      );
+      render(<NodeTooltip issue={issue} position={defaultPosition} className="custom-class" />);
 
       expect(screen.getByTestId('node-tooltip')).toHaveClass('custom-class');
     });
@@ -138,7 +128,9 @@ describe('NodeTooltip', () => {
       render(<NodeTooltip issue={issue} position={defaultPosition} />);
 
       // Use hidden: true because aria-hidden="true" makes tooltip inaccessible
-      expect(screen.getByRole('heading', { level: 4, hidden: true })).toHaveTextContent('Test Title');
+      expect(screen.getByRole('heading', { level: 4, hidden: true })).toHaveTextContent(
+        'Test Title'
+      );
     });
 
     it('displays "Untitled" for empty title', () => {

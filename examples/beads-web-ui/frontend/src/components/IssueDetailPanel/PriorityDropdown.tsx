@@ -117,72 +117,80 @@ export function PriorityDropdown({
     }
   }, [disabled, isSaving, isOpen, optimisticPriority]);
 
-  const handleSelect = useCallback(async (newPriority: Priority) => {
-    // Skip if same priority selected
-    if (newPriority === priority) {
+  const handleSelect = useCallback(
+    async (newPriority: Priority) => {
+      // Skip if same priority selected
+      if (newPriority === priority) {
+        setIsOpen(false);
+        setFocusedIndex(-1);
+        return;
+      }
+
+      // Optimistic update
+      const previousPriority = priority;
+      setOptimisticPriority(newPriority);
       setIsOpen(false);
       setFocusedIndex(-1);
-      return;
-    }
+      setError(null);
 
-    // Optimistic update
-    const previousPriority = priority;
-    setOptimisticPriority(newPriority);
-    setIsOpen(false);
-    setFocusedIndex(-1);
-    setError(null);
-
-    try {
-      await onSave(newPriority);
-    } catch (err) {
-      // Rollback on error
-      setOptimisticPriority(previousPriority);
-      const message = err instanceof Error ? err.message : 'Failed to update priority';
-      setError(message);
-    }
-  }, [priority, onSave]);
-
-  const handleKeyDown = useCallback((event: React.KeyboardEvent) => {
-    if (!isOpen) {
-      // Open on Enter or Space when closed
-      if (event.key === 'Enter' || event.key === ' ') {
-        event.preventDefault();
-        handleTriggerClick();
+      try {
+        await onSave(newPriority);
+      } catch (err) {
+        // Rollback on error
+        setOptimisticPriority(previousPriority);
+        const message = err instanceof Error ? err.message : 'Failed to update priority';
+        setError(message);
       }
-      return;
-    }
+    },
+    [priority, onSave]
+  );
 
-    switch (event.key) {
-      case 'ArrowDown':
-        event.preventDefault();
-        setFocusedIndex((prev) => Math.min(prev + 1, PRIORITY_OPTIONS.length - 1));
-        break;
-      case 'ArrowUp':
-        event.preventDefault();
-        setFocusedIndex((prev) => Math.max(prev - 1, 0));
-        break;
-      case 'Enter':
-      case ' ':
-        event.preventDefault();
-        const selectedOption = PRIORITY_OPTIONS[focusedIndex];
-        if (focusedIndex >= 0 && focusedIndex < PRIORITY_OPTIONS.length && selectedOption) {
-          handleSelect(selectedOption.value);
+  const handleKeyDown = useCallback(
+    (event: React.KeyboardEvent) => {
+      if (!isOpen) {
+        // Open on Enter or Space when closed
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          handleTriggerClick();
         }
-        break;
-      case 'Home':
-        event.preventDefault();
-        setFocusedIndex(0);
-        break;
-      case 'End':
-        event.preventDefault();
-        setFocusedIndex(PRIORITY_OPTIONS.length - 1);
-        break;
-    }
-  }, [isOpen, focusedIndex, handleTriggerClick, handleSelect]);
+        return;
+      }
+
+      switch (event.key) {
+        case 'ArrowDown':
+          event.preventDefault();
+          setFocusedIndex((prev) => Math.min(prev + 1, PRIORITY_OPTIONS.length - 1));
+          break;
+        case 'ArrowUp':
+          event.preventDefault();
+          setFocusedIndex((prev) => Math.max(prev - 1, 0));
+          break;
+        case 'Enter':
+        case ' ': {
+          event.preventDefault();
+          const selectedOption = PRIORITY_OPTIONS[focusedIndex];
+          if (focusedIndex >= 0 && focusedIndex < PRIORITY_OPTIONS.length && selectedOption) {
+            handleSelect(selectedOption.value);
+          }
+          break;
+        }
+        case 'Home':
+          event.preventDefault();
+          setFocusedIndex(0);
+          break;
+        case 'End':
+          event.preventDefault();
+          setFocusedIndex(PRIORITY_OPTIONS.length - 1);
+          break;
+      }
+    },
+    [isOpen, focusedIndex, handleTriggerClick, handleSelect]
+  );
 
   // Find current option, falling back to Medium (P2) if not found
   const defaultOption: PriorityOption = { value: 2, label: 'Medium', shortLabel: 'P2' };
-  const currentOption = PRIORITY_OPTIONS.find((opt) => opt.value === optimisticPriority) ?? defaultOption;
+  const currentOption =
+    PRIORITY_OPTIONS.find((opt) => opt.value === optimisticPriority) ?? defaultOption;
   const isDisabled = disabled || isSaving;
   const rootClassName = [styles.priorityDropdown, className].filter(Boolean).join(' ');
 
@@ -206,7 +214,9 @@ export function PriorityDropdown({
         <span className={styles.triggerText}>
           {currentOption.shortLabel} - {currentOption.label}
         </span>
-        <span className={styles.dropdownArrow} aria-hidden="true">▾</span>
+        <span className={styles.dropdownArrow} aria-hidden="true">
+          ▾
+        </span>
       </button>
 
       {isOpen && (
@@ -234,7 +244,9 @@ export function PriorityDropdown({
                 {option.shortLabel} - {option.label}
               </span>
               {option.value === optimisticPriority && (
-                <span className={styles.checkmark} aria-hidden="true">✓</span>
+                <span className={styles.checkmark} aria-hidden="true">
+                  ✓
+                </span>
               )}
             </div>
           ))}
@@ -242,7 +254,11 @@ export function PriorityDropdown({
       )}
 
       {isSaving && (
-        <span className={styles.savingIndicator} aria-label="Saving..." data-testid="priority-saving" />
+        <span
+          className={styles.savingIndicator}
+          aria-label="Saving..."
+          data-testid="priority-saving"
+        />
       )}
 
       {error && (

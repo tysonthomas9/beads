@@ -29,7 +29,7 @@ function createTestComment(overrides: Partial<Comment> = {}): Comment {
 
 describe('CommentsSection', () => {
   // Mock Date.now for consistent relative time formatting
-  const realNow = Date.now;
+  const _realNow = Date.now;
   beforeEach(() => {
     // Set "now" to January 27, 2026 12:00:00 UTC
     vi.useFakeTimers();
@@ -82,9 +82,7 @@ describe('CommentsSection', () => {
     });
 
     it('shows formatted timestamp', () => {
-      const comments = [
-        createTestComment({ created_at: '2026-01-27T10:00:00Z' }),
-      ];
+      const comments = [createTestComment({ created_at: '2026-01-27T10:00:00Z' })];
       render(<CommentsSection comments={comments} />);
       // Should show "2h ago" since current time is 12:00
       expect(screen.getByText('2h ago')).toBeInTheDocument();
@@ -156,9 +154,7 @@ describe('CommentsSection', () => {
 
   describe('text formatting', () => {
     it('preserves whitespace in comment text', () => {
-      const comments = [
-        createTestComment({ text: 'Line 1\nLine 2\n  Indented' }),
-      ];
+      const comments = [createTestComment({ text: 'Line 1\nLine 2\n  Indented' })];
       render(<CommentsSection comments={comments} />);
       const textElement = screen.getByText(/Line 1/);
       // pre-wrap style should preserve whitespace (tested via rendered text)

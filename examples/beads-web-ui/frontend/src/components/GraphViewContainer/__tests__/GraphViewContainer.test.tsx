@@ -7,7 +7,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest';
-import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor as _waitFor, act } from '@testing-library/react';
 import '@testing-library/jest-dom';
 
 import { GraphViewContainer } from '../GraphViewContainer';
@@ -21,18 +21,10 @@ vi.mock('@/hooks/useIssueDetail', () => ({
 // Mock GraphView component (imported directly from @/components/GraphView)
 vi.mock('@/components/GraphView', () => ({
   GraphView: vi.fn(({ issues, onNodeClick, className }) => (
-    <div
-      data-testid="graph-view"
-      data-issue-count={issues?.length ?? 0}
-      className={className}
-    >
+    <div data-testid="graph-view" data-issue-count={issues?.length ?? 0} className={className}>
       {/* Simulate node rendering to test click handlers */}
       {issues?.map((issue: Issue) => (
-        <div
-          key={issue.id}
-          data-testid={`node-${issue.id}`}
-          onClick={() => onNodeClick?.(issue)}
-        >
+        <div key={issue.id} data-testid={`node-${issue.id}`} onClick={() => onNodeClick?.(issue)}>
           {issue.title}
         </div>
       ))}
@@ -95,13 +87,15 @@ function createTestIssueDetails(overrides: Partial<IssueDetails> = {}): IssueDet
 /**
  * Setup useIssueDetail mock with default return values.
  */
-function setupMocks(options: {
-  issueDetails?: IssueDetails | null;
-  isLoading?: boolean;
-  error?: string | null;
-  fetchIssue?: Mock;
-  clearIssue?: Mock;
-} = {}) {
+function setupMocks(
+  options: {
+    issueDetails?: IssueDetails | null;
+    isLoading?: boolean;
+    error?: string | null;
+    fetchIssue?: Mock;
+    clearIssue?: Mock;
+  } = {}
+) {
   const {
     issueDetails = null,
     isLoading = false,
@@ -301,7 +295,7 @@ describe('GraphViewContainer', () => {
 
   describe('closes panel on close button click', () => {
     it('closes panel when close button is clicked', () => {
-      const { clearIssue } = setupMocks();
+      const { clearIssue: _clearIssue } = setupMocks();
       const issues = [createTestIssue({ id: 'close-test', title: 'Close Test' })];
 
       render(<GraphViewContainer issues={issues} />);
@@ -376,7 +370,9 @@ describe('GraphViewContainer', () => {
 
       const panel = screen.getByTestId('issue-detail-panel');
       expect(panel).toHaveAttribute('data-has-error', 'true');
-      expect(screen.getByTestId('error-message')).toHaveTextContent('Failed to fetch issue details');
+      expect(screen.getByTestId('error-message')).toHaveTextContent(
+        'Failed to fetch issue details'
+      );
     });
 
     it('panel remains open when fetch error occurs', () => {

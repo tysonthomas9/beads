@@ -6,7 +6,7 @@
  * Unit tests for WorkPipelinePanel component.
  */
 
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi as _vi } from 'vitest';
 import { render, screen, fireEvent, within } from '@testing-library/react';
 import '@testing-library/jest-dom';
 
@@ -160,8 +160,12 @@ describe('WorkPipelinePanel', () => {
 
       expect(within(screen.getByTestId('pipeline-stage-plan')).getByText('1')).toBeInTheDocument();
       expect(within(screen.getByTestId('pipeline-stage-ready')).getByText('2')).toBeInTheDocument();
-      expect(within(screen.getByTestId('pipeline-stage-inProgress')).getByText('3')).toBeInTheDocument();
-      expect(within(screen.getByTestId('pipeline-stage-review')).getByText('4')).toBeInTheDocument();
+      expect(
+        within(screen.getByTestId('pipeline-stage-inProgress')).getByText('3')
+      ).toBeInTheDocument();
+      expect(
+        within(screen.getByTestId('pipeline-stage-review')).getByText('4')
+      ).toBeInTheDocument();
     });
   });
 
@@ -474,8 +478,12 @@ describe('WorkPipelinePanel', () => {
 
       render(<WorkPipelinePanel {...defaultProps} tasks={tasks} />);
 
-      expect(within(screen.getByTestId('pipeline-stage-plan')).getByText('999')).toBeInTheDocument();
-      expect(within(screen.getByTestId('pipeline-stage-blocked')).getByText('25')).toBeInTheDocument();
+      expect(
+        within(screen.getByTestId('pipeline-stage-plan')).getByText('999')
+      ).toBeInTheDocument();
+      expect(
+        within(screen.getByTestId('pipeline-stage-blocked')).getByText('25')
+      ).toBeInTheDocument();
     });
 
     it('handles tasks with long titles in table', () => {

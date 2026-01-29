@@ -6,7 +6,15 @@
  */
 
 import { useEffect, useRef, useState, useCallback } from 'react';
-import type { Issue, IssueDetails, IssueWithDependencyMetadata, Priority, IssueType, DependencyType, Comment } from '@/types';
+import type {
+  Issue,
+  IssueDetails,
+  IssueWithDependencyMetadata,
+  Priority,
+  IssueType,
+  DependencyType,
+  Comment,
+} from '@/types';
 import type { Status } from '@/types/status';
 import { updateIssue, addDependency, removeDependency } from '@/api';
 import { IssueHeader } from './IssueHeader';
@@ -53,9 +61,7 @@ function CollapsibleSection({
       >
         <span className={styles.collapsibleTitle}>
           {title}
-          {count !== undefined && (
-            <span className={styles.collapsibleCount}>({count})</span>
-          )}
+          {count !== undefined && <span className={styles.collapsibleCount}>({count})</span>}
         </span>
         <svg
           className={`${styles.chevron} ${isExpanded ? styles.chevronExpanded : ''}`}
@@ -72,9 +78,7 @@ function CollapsibleSection({
           />
         </svg>
       </button>
-      {isExpanded && (
-        <div className={styles.collapsibleContent}>{children}</div>
-      )}
+      {isExpanded && <div className={styles.collapsibleContent}>{children}</div>}
     </section>
   );
 }
@@ -91,11 +95,7 @@ function BlockingBanner({ openBlockerCount }: BlockingBannerProps): JSX.Element 
   if (openBlockerCount === 0) return null;
 
   return (
-    <div
-      className={styles.blockingBanner}
-      role="alert"
-      data-testid="blocking-banner"
-    >
+    <div className={styles.blockingBanner} role="alert" data-testid="blocking-banner">
       <svg viewBox="0 0 16 16" fill="none" aria-hidden="true">
         <path
           d="M8 1L1 15h14L8 1z"
@@ -104,12 +104,7 @@ function BlockingBanner({ openBlockerCount }: BlockingBannerProps): JSX.Element 
           strokeLinecap="round"
           strokeLinejoin="round"
         />
-        <path
-          d="M8 6v3M8 11.5v.5"
-          stroke="currentColor"
-          strokeWidth="1.5"
-          strokeLinecap="round"
-        />
+        <path d="M8 6v3M8 11.5v.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
       </svg>
       Blocked by {openBlockerCount} {openBlockerCount === 1 ? 'issue' : 'issues'}
     </div>
@@ -181,9 +176,7 @@ function renderDependencyItem(dep: IssueWithDependencyMetadata): JSX.Element {
     <li key={dep.id} className={`${styles.dependencyItem} ${statusClass}`}>
       <span className={styles.dependencyId}>{dep.id}</span>
       <span className={styles.dependencyTitle}>{dep.title}</span>
-      {dep.dependency_type && (
-        <span className={styles.dependencyType}>{dep.dependency_type}</span>
-      )}
+      {dep.dependency_type && <span className={styles.dependencyType}>{dep.dependency_type}</span>}
     </li>
   );
 }
@@ -240,75 +233,87 @@ function DefaultContent({
     });
   }, []);
 
-  const handleTitleSave = useCallback(async (newTitle: string) => {
-    if (!issue) return;
+  const handleTitleSave = useCallback(
+    async (newTitle: string) => {
+      if (!issue) return;
 
-    setIsSavingTitle(true);
-    try {
-      const updatedIssue = await updateIssue(issue.id, { title: newTitle });
-      onIssueUpdate?.(updatedIssue);
-    } finally {
-      setIsSavingTitle(false);
-    }
-  }, [issue, onIssueUpdate]);
+      setIsSavingTitle(true);
+      try {
+        const updatedIssue = await updateIssue(issue.id, { title: newTitle });
+        onIssueUpdate?.(updatedIssue);
+      } finally {
+        setIsSavingTitle(false);
+      }
+    },
+    [issue, onIssueUpdate]
+  );
 
-  const handleStatusChange = useCallback(async (newStatus: Status) => {
-    if (!issue) return;
+  const handleStatusChange = useCallback(
+    async (newStatus: Status) => {
+      if (!issue) return;
 
-    setIsSavingStatus(true);
-    setStatusError(null);
-    try {
-      const updatedIssue = await updateIssue(issue.id, { status: newStatus });
-      onIssueUpdate?.(updatedIssue);
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to update status';
-      setStatusError(message);
-    } finally {
-      setIsSavingStatus(false);
-    }
-  }, [issue, onIssueUpdate]);
+      setIsSavingStatus(true);
+      setStatusError(null);
+      try {
+        const updatedIssue = await updateIssue(issue.id, { status: newStatus });
+        onIssueUpdate?.(updatedIssue);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Failed to update status';
+        setStatusError(message);
+      } finally {
+        setIsSavingStatus(false);
+      }
+    },
+    [issue, onIssueUpdate]
+  );
 
-  const handlePrioritySave = useCallback(async (newPriority: Priority) => {
-    if (!issue) return;
+  const handlePrioritySave = useCallback(
+    async (newPriority: Priority) => {
+      if (!issue) return;
 
-    setIsSavingPriority(true);
-    try {
-      const updatedIssue = await updateIssue(issue.id, { priority: newPriority });
-      onIssueUpdate?.(updatedIssue);
-    } catch (err) {
-      // Re-throw to let PriorityDropdown handle error display and rollback
-      throw err;
-    } finally {
-      setIsSavingPriority(false);
-    }
-  }, [issue, onIssueUpdate]);
+      setIsSavingPriority(true);
+      try {
+        const updatedIssue = await updateIssue(issue.id, { priority: newPriority });
+        onIssueUpdate?.(updatedIssue);
+      } finally {
+        setIsSavingPriority(false);
+      }
+    },
+    [issue, onIssueUpdate]
+  );
 
-  const handleTypeSave = useCallback(async (newType: IssueType) => {
-    if (!issue) return;
+  const handleTypeSave = useCallback(
+    async (newType: IssueType) => {
+      if (!issue) return;
 
-    setIsSavingType(true);
-    try {
-      const updatedIssue = await updateIssue(issue.id, { issue_type: newType });
-      onIssueUpdate?.(updatedIssue);
-    } catch (err) {
-      // Re-throw to let TypeDropdown handle error display and rollback
-      throw err;
-    } finally {
-      setIsSavingType(false);
-    }
-  }, [issue, onIssueUpdate]);
+      setIsSavingType(true);
+      try {
+        const updatedIssue = await updateIssue(issue.id, { issue_type: newType });
+        onIssueUpdate?.(updatedIssue);
+      } finally {
+        setIsSavingType(false);
+      }
+    },
+    [issue, onIssueUpdate]
+  );
 
-  const handleAddDependency = useCallback(async (dependsOnId: string, type: DependencyType) => {
-    if (!issue) return;
-    await addDependency(issue.id, dependsOnId, type);
-    // The parent component should refresh issue details via WebSocket or manual refetch
-  }, [issue]);
+  const handleAddDependency = useCallback(
+    async (dependsOnId: string, type: DependencyType) => {
+      if (!issue) return;
+      await addDependency(issue.id, dependsOnId, type);
+      // The parent component should refresh issue details via WebSocket or manual refetch
+    },
+    [issue]
+  );
 
-  const handleRemoveDependency = useCallback(async (dependsOnId: string) => {
-    if (!issue) return;
-    await removeDependency(issue.id, dependsOnId);
-    // The parent component should refresh issue details via WebSocket or manual refetch
-  }, [issue]);
+  const handleRemoveDependency = useCallback(
+    async (dependsOnId: string) => {
+      if (!issue) return;
+      await removeDependency(issue.id, dependsOnId);
+      // The parent component should refresh issue details via WebSocket or manual refetch
+    },
+    [issue]
+  );
 
   // Loading state
   if (isLoading) {
@@ -348,13 +353,13 @@ function DefaultContent({
   const dependents = issueHasDetails ? issue.dependents : undefined;
 
   // Calculate open blocker count for banner
-  const openBlockerCount = dependencies?.filter(d => d.status !== 'closed').length ?? 0;
+  const openBlockerCount = dependencies?.filter((d) => d.status !== 'closed').length ?? 0;
 
   // Auto-collapse logic for Design/Notes (collapse if long)
-  const shouldCollapseDesign = issue.design &&
-    (issue.design.length > 200 || issue.design.split('\n').length > 5);
-  const shouldCollapseNotes = issue.notes &&
-    (issue.notes.length > 200 || issue.notes.split('\n').length > 5);
+  const shouldCollapseDesign =
+    issue.design && (issue.design.length > 200 || issue.design.split('\n').length > 5);
+  const shouldCollapseNotes =
+    issue.notes && (issue.notes.length > 200 || issue.notes.split('\n').length > 5);
 
   return (
     <>
@@ -389,7 +394,12 @@ function DefaultContent({
             <span className={styles.metadataItem} data-testid="metadata-owner">
               <svg viewBox="0 0 16 16" fill="none" aria-hidden="true">
                 <circle cx="8" cy="5" r="3" stroke="currentColor" strokeWidth="1.5" />
-                <path d="M2 14c0-2.5 2.5-4 6-4s6 1.5 6 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                <path
+                  d="M2 14c0-2.5 2.5-4 6-4s6 1.5 6 4"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                />
               </svg>
               {issue.owner}
             </span>
@@ -398,7 +408,12 @@ function DefaultContent({
             <span className={styles.metadataItem} data-testid="metadata-assignee">
               <svg viewBox="0 0 16 16" fill="none" aria-hidden="true">
                 <circle cx="8" cy="5" r="3" stroke="currentColor" strokeWidth="1.5" />
-                <path d="M2 14c0-2.5 2.5-4 6-4s6 1.5 6 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                <path
+                  d="M2 14c0-2.5 2.5-4 6-4s6 1.5 6 4"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                />
               </svg>
               @{issue.assignee}
             </span>
@@ -424,11 +439,7 @@ function DefaultContent({
               onSave={handlePrioritySave}
               isSaving={isSavingPriority}
             />
-            <TypeDropdown
-              type={issue.issue_type}
-              onSave={handleTypeSave}
-              isSaving={isSavingType}
-            />
+            <TypeDropdown type={issue.issue_type} onSave={handleTypeSave} isSaving={isSavingType} />
           </div>
 
           {/* Description */}
@@ -480,21 +491,14 @@ function DefaultContent({
           {/* Dependents (this issue blocks) */}
           {dependents && dependents.length > 0 && (
             <section className={styles.section}>
-              <h3 className={styles.sectionTitle}>
-                Blocks ({dependents.length})
-              </h3>
-              <ul className={styles.dependencyList}>
-                {dependents.map(renderDependencyItem)}
-              </ul>
+              <h3 className={styles.sectionTitle}>Blocks ({dependents.length})</h3>
+              <ul className={styles.dependencyList}>{dependents.map(renderDependencyItem)}</ul>
             </section>
           )}
 
           {/* Comments */}
           <CommentsSection comments={localComments} />
-          <CommentForm
-            issueId={issue.id}
-            onCommentAdded={handleCommentAdded}
-          />
+          <CommentForm issueId={issue.id} onCommentAdded={handleCommentAdded} />
 
           {/* Labels */}
           {issue.labels && issue.labels.length > 0 && (
@@ -579,11 +583,7 @@ export function IssueDetailPanel({
       panelRef.current.focus();
       return () => {
         // Check element is still in DOM before restoring focus (could be unmounted)
-        if (
-          previouslyFocused &&
-          document.contains(previouslyFocused) &&
-          previouslyFocused.focus
-        ) {
+        if (previouslyFocused && document.contains(previouslyFocused) && previouslyFocused.focus) {
           previouslyFocused.focus();
         }
       };
@@ -597,7 +597,12 @@ export function IssueDetailPanel({
 
   // Determine content: children override default, otherwise render default content
   const content = children ?? (
-    <DefaultContent issue={issue} isLoading={isLoading ?? false} error={error ?? null} onClose={onClose} />
+    <DefaultContent
+      issue={issue}
+      isLoading={isLoading ?? false}
+      error={error ?? null}
+      onClose={onClose}
+    />
   );
 
   return (

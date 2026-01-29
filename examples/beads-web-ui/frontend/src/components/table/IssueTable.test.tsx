@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen as _screen } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { IssueTable, IssueTableProps } from './IssueTable';
 import {
@@ -674,9 +674,7 @@ describe('IssueTable', () => {
         createMockIssue({ id: 'bd-002' }),
         createMockIssue({ id: 'bd-003' }),
       ];
-      const { container } = render(
-        <IssueTable issues={issues} columns={DEFAULT_ISSUE_COLUMNS} />
-      );
+      const { container } = render(<IssueTable issues={issues} columns={DEFAULT_ISSUE_COLUMNS} />);
 
       const idBodyCells = container.querySelectorAll('td[data-column="id"]');
       expect(idBodyCells).toHaveLength(3);
@@ -695,9 +693,7 @@ describe('IssueTable', () => {
       );
 
       // Checkbox header cell
-      const checkboxHeaderCell = container.querySelector(
-        'th.issue-table__header-cell--checkbox'
-      );
+      const checkboxHeaderCell = container.querySelector('th.issue-table__header-cell--checkbox');
       expect(checkboxHeaderCell).toBeInTheDocument();
 
       // Checkbox body cell

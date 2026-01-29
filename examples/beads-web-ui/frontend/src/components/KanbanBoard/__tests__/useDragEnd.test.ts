@@ -9,11 +9,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { DragEndEvent, Active, Over } from '@dnd-kit/core';
 
-import {
-  createDragEndHandler,
-  isDraggableData,
-  isDroppableData,
-} from '../useDragEnd';
+import { createDragEndHandler, isDraggableData, isDroppableData } from '../useDragEnd';
 import type { Issue, Status } from '@/types';
 import * as api from '@/api';
 
@@ -350,10 +346,7 @@ describe('useDragEnd', () => {
 
         await handler(event);
 
-        expect(api.updateIssue).toHaveBeenCalledWith(
-          'api-test-id',
-          expect.any(Object)
-        );
+        expect(api.updateIssue).toHaveBeenCalledWith('api-test-id', expect.any(Object));
       });
 
       it('calls updateIssue with status update payload', async () => {
@@ -365,10 +358,7 @@ describe('useDragEnd', () => {
 
         await handler(event);
 
-        expect(api.updateIssue).toHaveBeenCalledWith(
-          expect.any(String),
-          { status: 'closed' }
-        );
+        expect(api.updateIssue).toHaveBeenCalledWith(expect.any(String), { status: 'closed' });
       });
 
       it('handles different status transitions', async () => {
@@ -391,10 +381,7 @@ describe('useDragEnd', () => {
 
           await handler(event);
 
-          expect(api.updateIssue).toHaveBeenCalledWith(
-            expect.any(String),
-            { status: to }
-          );
+          expect(api.updateIssue).toHaveBeenCalledWith(expect.any(String), { status: to });
         }
       });
     });
@@ -416,11 +403,7 @@ describe('useDragEnd', () => {
         expect(onIssueStatusChange).toHaveBeenCalled();
 
         // onError should receive 'open' as previousStatus
-        expect(onError).toHaveBeenCalledWith(
-          expect.any(Error),
-          expect.any(Object),
-          'open'
-        );
+        expect(onError).toHaveBeenCalledWith(expect.any(Error), expect.any(Object), 'open');
       });
 
       it('handles custom status values', async () => {
@@ -432,14 +415,10 @@ describe('useDragEnd', () => {
 
         await handler(event);
 
-        expect(onIssueStatusChange).toHaveBeenCalledWith(
-          expect.any(String),
-          'another_custom'
-        );
-        expect(api.updateIssue).toHaveBeenCalledWith(
-          expect.any(String),
-          { status: 'another_custom' }
-        );
+        expect(onIssueStatusChange).toHaveBeenCalledWith(expect.any(String), 'another_custom');
+        expect(api.updateIssue).toHaveBeenCalledWith(expect.any(String), {
+          status: 'another_custom',
+        });
       });
 
       it('optimistic update still happens even if API fails', async () => {
@@ -454,10 +433,7 @@ describe('useDragEnd', () => {
         await handler(event);
 
         // Optimistic update should have been called
-        expect(onIssueStatusChange).toHaveBeenCalledWith(
-          expect.any(String),
-          'closed'
-        );
+        expect(onIssueStatusChange).toHaveBeenCalledWith(expect.any(String), 'closed');
       });
 
       it('returns a Promise that resolves', async () => {
@@ -514,7 +490,7 @@ describe('useDragEnd', () => {
         const callback2 = vi.fn();
 
         const handler1 = createDragEndHandler({ onIssueStatusChange: callback1 });
-        const handler2 = createDragEndHandler({ onIssueStatusChange: callback2 });
+        const _handler2 = createDragEndHandler({ onIssueStatusChange: callback2 });
 
         const issue = createMockIssue({ status: 'open' });
         const event = createMockDragEvent(issue, 'closed');

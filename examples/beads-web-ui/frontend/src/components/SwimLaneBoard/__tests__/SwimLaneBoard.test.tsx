@@ -94,9 +94,7 @@ describe('SwimLaneBoard', () => {
       fireEvent.click(card);
 
       expect(handleIssueClick).toHaveBeenCalledTimes(1);
-      expect(handleIssueClick).toHaveBeenCalledWith(
-        expect.objectContaining({ id: 'click-test' })
-      );
+      expect(handleIssueClick).toHaveBeenCalledWith(expect.objectContaining({ id: 'click-test' }));
     });
   });
 
@@ -252,11 +250,9 @@ describe('SwimLaneBoard', () => {
 
   describe('collapse toggle', () => {
     it('toggles lane collapse state when toggle clicked', () => {
-      const issues = [
-        createMockIssue({ id: 'issue-1', assignee: 'alice', status: 'open' }),
-      ];
+      const issues = [createMockIssue({ id: 'issue-1', assignee: 'alice', status: 'open' })];
 
-      const { container } = render(
+      const { container: _container } = render(
         <SwimLaneBoard issues={issues} groupBy="assignee" statuses={defaultStatuses} />
       );
 
@@ -294,9 +290,7 @@ describe('SwimLaneBoard', () => {
     });
 
     it('respects defaultCollapsed prop', () => {
-      const issues = [
-        createMockIssue({ id: 'issue-1', assignee: 'alice', status: 'open' }),
-      ];
+      const issues = [createMockIssue({ id: 'issue-1', assignee: 'alice', status: 'open' })];
 
       render(
         <SwimLaneBoard
@@ -316,7 +310,11 @@ describe('SwimLaneBoard', () => {
   describe('onIssueClick propagation', () => {
     it('calls onIssueClick when issue card is clicked', () => {
       const handleIssueClick = vi.fn();
-      const issue = createMockIssue({ id: 'click-test', title: 'Clickable Issue', assignee: 'alice' });
+      const issue = createMockIssue({
+        id: 'click-test',
+        title: 'Clickable Issue',
+        assignee: 'alice',
+      });
 
       render(
         <SwimLaneBoard
@@ -339,7 +337,12 @@ describe('SwimLaneBoard', () => {
     it('calls onIssueClick with correct issue from different lanes', () => {
       const handleIssueClick = vi.fn();
       const issues = [
-        createMockIssue({ id: 'alice-issue', title: 'Alice Issue', assignee: 'alice', status: 'open' }),
+        createMockIssue({
+          id: 'alice-issue',
+          title: 'Alice Issue',
+          assignee: 'alice',
+          status: 'open',
+        }),
         createMockIssue({ id: 'bob-issue', title: 'Bob Issue', assignee: 'bob', status: 'open' }),
       ];
 
@@ -372,8 +375,18 @@ describe('SwimLaneBoard', () => {
   describe('blocked issues filtering', () => {
     it('shows all issues including blocked when showBlocked=true (default)', () => {
       const issues = [
-        createMockIssue({ id: 'normal-issue', title: 'Normal Issue', assignee: 'alice', status: 'open' }),
-        createMockIssue({ id: 'blocked-issue', title: 'Blocked Issue', assignee: 'alice', status: 'open' }),
+        createMockIssue({
+          id: 'normal-issue',
+          title: 'Normal Issue',
+          assignee: 'alice',
+          status: 'open',
+        }),
+        createMockIssue({
+          id: 'blocked-issue',
+          title: 'Blocked Issue',
+          assignee: 'alice',
+          status: 'open',
+        }),
       ];
       const blockedIssues = createBlockedIssuesMap(['blocked-issue']);
 
@@ -392,8 +405,18 @@ describe('SwimLaneBoard', () => {
 
     it('hides blocked issues when showBlocked=false', () => {
       const issues = [
-        createMockIssue({ id: 'normal-issue', title: 'Normal Issue', assignee: 'alice', status: 'open' }),
-        createMockIssue({ id: 'blocked-issue', title: 'Blocked Issue', assignee: 'alice', status: 'open' }),
+        createMockIssue({
+          id: 'normal-issue',
+          title: 'Normal Issue',
+          assignee: 'alice',
+          status: 'open',
+        }),
+        createMockIssue({
+          id: 'blocked-issue',
+          title: 'Blocked Issue',
+          assignee: 'alice',
+          status: 'open',
+        }),
       ];
       const blockedIssues = createBlockedIssuesMap(['blocked-issue']);
 
@@ -433,13 +456,7 @@ describe('SwimLaneBoard', () => {
       const customStatuses: Status[] = ['blocked', 'deferred'];
       const issues = [createMockIssue({ id: 'issue-1', assignee: 'alice', status: 'blocked' })];
 
-      render(
-        <SwimLaneBoard
-          issues={issues}
-          groupBy="assignee"
-          statuses={customStatuses}
-        />
-      );
+      render(<SwimLaneBoard issues={issues} groupBy="assignee" statuses={customStatuses} />);
 
       // Check for custom status columns within the lane
       expect(screen.getByRole('region', { name: 'Blocked issues' })).toBeInTheDocument();
@@ -505,13 +522,7 @@ describe('SwimLaneBoard', () => {
 
   describe('edge cases', () => {
     it('renders empty board with no issues', () => {
-      render(
-        <SwimLaneBoard
-          issues={[]}
-          groupBy="assignee"
-          statuses={defaultStatuses}
-        />
-      );
+      render(<SwimLaneBoard issues={[]} groupBy="assignee" statuses={defaultStatuses} />);
 
       // Should render the board container but with no lanes
       expect(screen.getByTestId('swim-lane-board')).toBeInTheDocument();
@@ -520,17 +531,21 @@ describe('SwimLaneBoard', () => {
 
     it('handles issues appearing in multiple label lanes', () => {
       const issues = [
-        createMockIssue({ id: 'multi-label', title: 'Multi Label Issue', labels: ['frontend', 'urgent'], status: 'open' }),
-        createMockIssue({ id: 'single-label', title: 'Single Label Issue', labels: ['backend'], status: 'open' }),
+        createMockIssue({
+          id: 'multi-label',
+          title: 'Multi Label Issue',
+          labels: ['frontend', 'urgent'],
+          status: 'open',
+        }),
+        createMockIssue({
+          id: 'single-label',
+          title: 'Single Label Issue',
+          labels: ['backend'],
+          status: 'open',
+        }),
       ];
 
-      render(
-        <SwimLaneBoard
-          issues={issues}
-          groupBy="label"
-          statuses={defaultStatuses}
-        />
-      );
+      render(<SwimLaneBoard issues={issues} groupBy="label" statuses={defaultStatuses} />);
 
       // Multi-label issue should appear in both frontend and urgent lanes
       const frontendLane = screen.getByTestId('swim-lane-lane-label-frontend');
@@ -554,13 +569,7 @@ describe('SwimLaneBoard', () => {
         })
       );
 
-      render(
-        <SwimLaneBoard
-          issues={issues}
-          groupBy="assignee"
-          statuses={defaultStatuses}
-        />
-      );
+      render(<SwimLaneBoard issues={issues} groupBy="assignee" statuses={defaultStatuses} />);
 
       // Should render without crashing
       expect(screen.getByTestId('swim-lane-board')).toBeInTheDocument();
@@ -573,17 +582,9 @@ describe('SwimLaneBoard', () => {
 
   describe('DndContext integration', () => {
     it('wraps lanes in DndContext for drag and drop', () => {
-      const issues = [
-        createMockIssue({ id: 'issue-1', assignee: 'alice', status: 'open' }),
-      ];
+      const issues = [createMockIssue({ id: 'issue-1', assignee: 'alice', status: 'open' })];
 
-      render(
-        <SwimLaneBoard
-          issues={issues}
-          groupBy="assignee"
-          statuses={defaultStatuses}
-        />
-      );
+      render(<SwimLaneBoard issues={issues} groupBy="assignee" statuses={defaultStatuses} />);
 
       // The draggable wrapper should have role="button" and aria-roledescription="draggable"
       const draggable = document.querySelector('[aria-roledescription="draggable"]');
@@ -592,9 +593,7 @@ describe('SwimLaneBoard', () => {
 
     it('accepts onDragEnd prop without error', () => {
       const handleDragEnd = vi.fn();
-      const issues = [
-        createMockIssue({ id: 'issue-1', assignee: 'alice', status: 'open' }),
-      ];
+      const issues = [createMockIssue({ id: 'issue-1', assignee: 'alice', status: 'open' })];
 
       expect(() => {
         render(

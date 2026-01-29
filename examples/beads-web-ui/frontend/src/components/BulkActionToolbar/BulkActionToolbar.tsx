@@ -62,12 +62,7 @@ export function BulkActionToolbar({
   actions = [],
   className,
 }: BulkActionToolbarProps): JSX.Element | null {
-  // Don't render if nothing is selected
-  if (selectedIds.size === 0) {
-    return null;
-  }
-
-  // Handle action button click
+  // Handle action button click - defined before early return to satisfy rules-of-hooks
   const handleActionClick = useCallback(
     (action: BulkAction) => {
       if (action.disabled || action.loading) return;
@@ -76,10 +71,13 @@ export function BulkActionToolbar({
     [selectedIds]
   );
 
+  // Don't render if nothing is selected
+  if (selectedIds.size === 0) {
+    return null;
+  }
+
   const count = selectedIds.size;
-  const rootClassName = className
-    ? `${styles.toolbar} ${className}`
-    : styles.toolbar;
+  const rootClassName = className ? `${styles.toolbar} ${className}` : styles.toolbar;
 
   return (
     <div

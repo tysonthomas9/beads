@@ -11,7 +11,7 @@ import { render, screen, within, fireEvent } from '@testing-library/react';
 import '@testing-library/jest-dom';
 
 import { KanbanBoard } from '../KanbanBoard';
-import { DEFAULT_COLUMNS } from '../columnConfigs';
+import { DEFAULT_COLUMNS as _DEFAULT_COLUMNS } from '../columnConfigs';
 import type { Issue, Status, IssueType } from '@/types';
 import type { FilterState } from '@/hooks/useFilterState';
 
@@ -291,7 +291,12 @@ describe('KanbanBoard', () => {
     it('renders EmptyColumn when filter results in empty column', () => {
       const issues = [
         createMockIssue({ id: 'open-1', title: 'Open Task', status: 'open', issue_type: 'task' }),
-        createMockIssue({ id: 'progress-1', title: 'In Progress Bug', status: 'in_progress', issue_type: 'bug' }),
+        createMockIssue({
+          id: 'progress-1',
+          title: 'In Progress Bug',
+          status: 'in_progress',
+          issue_type: 'bug',
+        }),
       ];
       const filters: FilterState = { type: 'feature' as IssueType };
 
@@ -304,9 +309,7 @@ describe('KanbanBoard', () => {
     });
 
     it('shows EmptyColumn only in columns without issues', () => {
-      const issues = [
-        createMockIssue({ id: 'open-1', title: 'Open Issue', status: 'open' }),
-      ];
+      const issues = [createMockIssue({ id: 'open-1', title: 'Open Issue', status: 'open' })];
 
       render(<KanbanBoard issues={issues} statuses={LEGACY_STATUSES} />);
 
@@ -520,14 +523,10 @@ describe('KanbanBoard', () => {
       const cardB = screen.getByRole('button', { name: /Issue: Issue B/i });
 
       fireEvent.click(cardB);
-      expect(handleIssueClick).toHaveBeenLastCalledWith(
-        expect.objectContaining({ id: 'issue-b' })
-      );
+      expect(handleIssueClick).toHaveBeenLastCalledWith(expect.objectContaining({ id: 'issue-b' }));
 
       fireEvent.click(cardA);
-      expect(handleIssueClick).toHaveBeenLastCalledWith(
-        expect.objectContaining({ id: 'issue-a' })
-      );
+      expect(handleIssueClick).toHaveBeenLastCalledWith(expect.objectContaining({ id: 'issue-a' }));
 
       expect(handleIssueClick).toHaveBeenCalledTimes(2);
     });
@@ -908,7 +907,9 @@ describe('KanbanBoard', () => {
     /**
      * Create a blockedIssues map for testing.
      */
-    function createBlockedIssuesMap(blockedIds: string[]): Map<string, { blockedByCount: number; blockedBy: string[] }> {
+    function createBlockedIssuesMap(
+      blockedIds: string[]
+    ): Map<string, { blockedByCount: number; blockedBy: string[] }> {
       const map = new Map<string, { blockedByCount: number; blockedBy: string[] }>();
       blockedIds.forEach((id) => {
         map.set(id, { blockedByCount: 1, blockedBy: ['blocker-id'] });
@@ -995,7 +996,14 @@ describe('KanbanBoard', () => {
       ];
       const blockedIssues = createBlockedIssuesMap(['blocked-1', 'blocked-2']);
 
-      render(<KanbanBoard issues={issues} blockedIssues={blockedIssues} showBlocked={false} statuses={LEGACY_STATUSES} />);
+      render(
+        <KanbanBoard
+          issues={issues}
+          blockedIssues={blockedIssues}
+          showBlocked={false}
+          statuses={LEGACY_STATUSES}
+        />
+      );
 
       // Open column should show 2 (only non-blocked issues)
       const openColumn = screen.getByRole('region', { name: 'Open issues' });
@@ -1077,7 +1085,10 @@ describe('KanbanBoard', () => {
         createMockIssue({ id: 'blocked-issue', title: 'Blocked Issue', status: 'open' }),
       ];
       const blockedIssues = new Map<string, { blockedByCount: number; blockedBy: string[] }>([
-        ['blocked-issue', { blockedByCount: 3, blockedBy: ['blocker-1', 'blocker-2', 'blocker-3'] }],
+        [
+          'blocked-issue',
+          { blockedByCount: 3, blockedBy: ['blocker-1', 'blocker-2', 'blocker-3'] },
+        ],
       ]);
 
       render(<KanbanBoard issues={issues} blockedIssues={blockedIssues} />);
@@ -1121,7 +1132,11 @@ describe('KanbanBoard', () => {
     it('renders blocked badges in multiple columns', () => {
       const issues = [
         createMockIssue({ id: 'blocked-open', title: 'Blocked Open', status: 'open' }),
-        createMockIssue({ id: 'blocked-progress', title: 'Blocked Progress', status: 'in_progress' }),
+        createMockIssue({
+          id: 'blocked-progress',
+          title: 'Blocked Progress',
+          status: 'in_progress',
+        }),
         createMockIssue({ id: 'normal-closed', title: 'Normal Closed', status: 'closed' }),
       ];
       const blockedIssues = new Map<string, { blockedByCount: number; blockedBy: string[] }>([

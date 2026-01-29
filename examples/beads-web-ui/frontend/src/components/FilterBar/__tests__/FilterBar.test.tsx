@@ -6,7 +6,7 @@
  * Unit tests for FilterBar component.
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach as _beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import '@testing-library/jest-dom';
 
@@ -107,9 +107,7 @@ describe('FilterBar', () => {
 
     it('shows selected priority when filter is active', () => {
       const actions = createMockActions();
-      render(
-        <FilterBar filters={createFiltersWithPriority(2)} actions={actions} />
-      );
+      render(<FilterBar filters={createFiltersWithPriority(2)} actions={actions} />);
 
       const select = screen.getByTestId('priority-filter');
       expect(select).toHaveValue('2');
@@ -118,11 +116,7 @@ describe('FilterBar', () => {
     it('applies custom className to filter bar', () => {
       const actions = createMockActions();
       render(
-        <FilterBar
-          filters={createEmptyFilters()}
-          actions={actions}
-          className="custom-class"
-        />
+        <FilterBar filters={createEmptyFilters()} actions={actions} className="custom-class" />
       );
 
       const root = screen.getByTestId('filter-bar');
@@ -135,10 +129,7 @@ describe('FilterBar', () => {
 
       priorities.forEach((priority) => {
         const { unmount } = render(
-          <FilterBar
-            filters={createFiltersWithPriority(priority)}
-            actions={actions}
-          />
+          <FilterBar filters={createFiltersWithPriority(priority)} actions={actions} />
         );
 
         const select = screen.getByTestId('priority-filter');
@@ -165,9 +156,7 @@ describe('FilterBar', () => {
 
       priorities.forEach((priority) => {
         const actions = createMockActions();
-        const { unmount } = render(
-          <FilterBar filters={createEmptyFilters()} actions={actions} />
-        );
+        const { unmount } = render(<FilterBar filters={createEmptyFilters()} actions={actions} />);
 
         const select = screen.getByTestId('priority-filter');
         fireEvent.change(select, { target: { value: priority.toString() } });
@@ -180,9 +169,7 @@ describe('FilterBar', () => {
 
     it('calls setPriority with undefined when "All priorities" selected', () => {
       const actions = createMockActions();
-      render(
-        <FilterBar filters={createFiltersWithPriority(2)} actions={actions} />
-      );
+      render(<FilterBar filters={createFiltersWithPriority(2)} actions={actions} />);
 
       const select = screen.getByTestId('priority-filter');
       fireEvent.change(select, { target: { value: '' } });
@@ -192,9 +179,7 @@ describe('FilterBar', () => {
 
     it('calls clearAll when clear button is clicked', () => {
       const actions = createMockActions();
-      render(
-        <FilterBar filters={createFiltersWithPriority(1)} actions={actions} />
-      );
+      render(<FilterBar filters={createFiltersWithPriority(1)} actions={actions} />);
 
       const clearButton = screen.getByTestId('clear-filters');
       fireEvent.click(clearButton);
@@ -213,9 +198,7 @@ describe('FilterBar', () => {
 
     it('shows clear button when priority is selected', () => {
       const actions = createMockActions();
-      render(
-        <FilterBar filters={createFiltersWithPriority(3)} actions={actions} />
-      );
+      render(<FilterBar filters={createFiltersWithPriority(3)} actions={actions} />);
 
       expect(screen.getByTestId('clear-filters')).toBeInTheDocument();
     });
@@ -226,10 +209,7 @@ describe('FilterBar', () => {
       priorities.forEach((priority) => {
         const actions = createMockActions();
         const { unmount } = render(
-          <FilterBar
-            filters={createFiltersWithPriority(priority)}
-            actions={actions}
-          />
+          <FilterBar filters={createFiltersWithPriority(priority)} actions={actions} />
         );
 
         expect(screen.getByTestId('clear-filters')).toBeInTheDocument();
@@ -240,13 +220,7 @@ describe('FilterBar', () => {
 
     it('showClear prop can force clear button visible when no filters', () => {
       const actions = createMockActions();
-      render(
-        <FilterBar
-          filters={createEmptyFilters()}
-          actions={actions}
-          showClear={true}
-        />
-      );
+      render(<FilterBar filters={createEmptyFilters()} actions={actions} showClear={true} />);
 
       expect(screen.getByTestId('clear-filters')).toBeInTheDocument();
     });
@@ -254,11 +228,7 @@ describe('FilterBar', () => {
     it('showClear prop can hide clear button when filters active', () => {
       const actions = createMockActions();
       render(
-        <FilterBar
-          filters={createFiltersWithPriority(1)}
-          actions={actions}
-          showClear={false}
-        />
+        <FilterBar filters={createFiltersWithPriority(1)} actions={actions} showClear={false} />
       );
 
       expect(screen.queryByTestId('clear-filters')).not.toBeInTheDocument();
@@ -266,9 +236,7 @@ describe('FilterBar', () => {
 
     it('clear button has correct text', () => {
       const actions = createMockActions();
-      render(
-        <FilterBar filters={createFiltersWithPriority(0)} actions={actions} />
-      );
+      render(<FilterBar filters={createFiltersWithPriority(0)} actions={actions} />);
 
       const clearButton = screen.getByTestId('clear-filters');
       expect(clearButton).toHaveTextContent('Clear filters');
@@ -295,9 +263,7 @@ describe('FilterBar', () => {
 
     it('clear button has accessible label', () => {
       const actions = createMockActions();
-      render(
-        <FilterBar filters={createFiltersWithPriority(1)} actions={actions} />
-      );
+      render(<FilterBar filters={createFiltersWithPriority(1)} actions={actions} />);
 
       const clearButton = screen.getByRole('button', { name: /clear all filters/i });
       expect(clearButton).toBeInTheDocument();
@@ -329,9 +295,7 @@ describe('FilterBar', () => {
 
     it('clear button can be activated with keyboard', () => {
       const actions = createMockActions();
-      render(
-        <FilterBar filters={createFiltersWithPriority(2)} actions={actions} />
-      );
+      render(<FilterBar filters={createFiltersWithPriority(2)} actions={actions} />);
 
       const clearButton = screen.getByTestId('clear-filters');
 
@@ -347,9 +311,7 @@ describe('FilterBar', () => {
 
     it('clear button is type="button" to prevent form submission', () => {
       const actions = createMockActions();
-      render(
-        <FilterBar filters={createFiltersWithPriority(0)} actions={actions} />
-      );
+      render(<FilterBar filters={createFiltersWithPriority(0)} actions={actions} />);
 
       const clearButton = screen.getByTestId('clear-filters');
       expect(clearButton).toHaveAttribute('type', 'button');
@@ -384,31 +346,20 @@ describe('FilterBar', () => {
 
       expect(screen.getByTestId('priority-filter')).toHaveValue('0');
 
-      rerender(
-        <FilterBar filters={createFiltersWithPriority(2)} actions={actions} />
-      );
+      rerender(<FilterBar filters={createFiltersWithPriority(2)} actions={actions} />);
 
       expect(screen.getByTestId('priority-filter')).toHaveValue('2');
     });
-
   });
 
   describe('edge cases', () => {
     it('handles rapid priority changes', () => {
       const actions = createMockActions();
-      const { rerender } = render(
-        <FilterBar filters={createEmptyFilters()} actions={actions} />
-      );
+      const { rerender } = render(<FilterBar filters={createEmptyFilters()} actions={actions} />);
 
-      rerender(
-        <FilterBar filters={createFiltersWithPriority(0)} actions={actions} />
-      );
-      rerender(
-        <FilterBar filters={createFiltersWithPriority(1)} actions={actions} />
-      );
-      rerender(
-        <FilterBar filters={createFiltersWithPriority(2)} actions={actions} />
-      );
+      rerender(<FilterBar filters={createFiltersWithPriority(0)} actions={actions} />);
+      rerender(<FilterBar filters={createFiltersWithPriority(1)} actions={actions} />);
+      rerender(<FilterBar filters={createFiltersWithPriority(2)} actions={actions} />);
 
       const select = screen.getByTestId('priority-filter');
       expect(select).toHaveValue('2');
@@ -416,13 +367,7 @@ describe('FilterBar', () => {
 
     it('handles clearing when already empty', () => {
       const actions = createMockActions();
-      render(
-        <FilterBar
-          filters={createEmptyFilters()}
-          actions={actions}
-          showClear={true}
-        />
-      );
+      render(<FilterBar filters={createEmptyFilters()} actions={actions} showClear={true} />);
 
       const clearButton = screen.getByTestId('clear-filters');
       fireEvent.click(clearButton);
@@ -432,13 +377,7 @@ describe('FilterBar', () => {
 
     it('handles undefined className gracefully', () => {
       const actions = createMockActions();
-      render(
-        <FilterBar
-          filters={createEmptyFilters()}
-          actions={actions}
-          className={undefined}
-        />
-      );
+      render(<FilterBar filters={createEmptyFilters()} actions={actions} className={undefined} />);
 
       const root = screen.getByTestId('filter-bar');
       expect(root).toBeInTheDocument();
@@ -453,11 +392,7 @@ describe('FilterBar', () => {
       };
 
       render(
-        <FilterBar
-          filters={filters}
-          actions={actions}
-          availableLabels={['bug', 'feature']}
-        />
+        <FilterBar filters={filters} actions={actions} availableLabels={['bug', 'feature']} />
       );
 
       const select = screen.getByTestId('priority-filter');
@@ -478,13 +413,7 @@ describe('FilterBar', () => {
 
     it('does not render label filter when availableLabels is empty', () => {
       const actions = createMockActions();
-      render(
-        <FilterBar
-          filters={createEmptyFilters()}
-          actions={actions}
-          availableLabels={[]}
-        />
-      );
+      render(<FilterBar filters={createEmptyFilters()} actions={actions} availableLabels={[]} />);
 
       expect(screen.queryByTestId('label-filter-trigger')).not.toBeInTheDocument();
     });
@@ -512,9 +441,7 @@ describe('FilterBar', () => {
         />
       );
 
-      expect(screen.getByTestId('label-filter-trigger')).toHaveTextContent(
-        'All labels'
-      );
+      expect(screen.getByTestId('label-filter-trigger')).toHaveTextContent('All labels');
     });
 
     it('shows count when labels are selected', () => {
@@ -527,9 +454,7 @@ describe('FilterBar', () => {
         />
       );
 
-      expect(screen.getByTestId('label-filter-trigger')).toHaveTextContent(
-        '2 selected'
-      );
+      expect(screen.getByTestId('label-filter-trigger')).toHaveTextContent('2 selected');
     });
   });
 
@@ -669,26 +594,16 @@ describe('FilterBar', () => {
     it('trigger has accessible label', () => {
       const actions = createMockActions();
       render(
-        <FilterBar
-          filters={createEmptyFilters()}
-          actions={actions}
-          availableLabels={['bug']}
-        />
+        <FilterBar filters={createEmptyFilters()} actions={actions} availableLabels={['bug']} />
       );
 
-      expect(
-        screen.getByRole('button', { name: /filter by labels/i })
-      ).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /filter by labels/i })).toBeInTheDocument();
     });
 
     it('trigger has aria-expanded attribute', () => {
       const actions = createMockActions();
       render(
-        <FilterBar
-          filters={createEmptyFilters()}
-          actions={actions}
-          availableLabels={['bug']}
-        />
+        <FilterBar filters={createEmptyFilters()} actions={actions} availableLabels={['bug']} />
       );
 
       const trigger = screen.getByTestId('label-filter-trigger');
@@ -701,11 +616,7 @@ describe('FilterBar', () => {
     it('dropdown menu has group role', () => {
       const actions = createMockActions();
       render(
-        <FilterBar
-          filters={createEmptyFilters()}
-          actions={actions}
-          availableLabels={['bug']}
-        />
+        <FilterBar filters={createEmptyFilters()} actions={actions} availableLabels={['bug']} />
       );
 
       fireEvent.click(screen.getByTestId('label-filter-trigger'));
@@ -767,9 +678,7 @@ describe('FilterBar', () => {
 
     it('shows selected type when filter is active', () => {
       const actions = createMockActions();
-      render(
-        <FilterBar filters={createFiltersWithType('bug')} actions={actions} />
-      );
+      render(<FilterBar filters={createFiltersWithType('bug')} actions={actions} />);
 
       const select = screen.getByTestId('type-filter');
       expect(select).toHaveValue('bug');
@@ -789,9 +698,7 @@ describe('FilterBar', () => {
 
     it('calls setType with undefined when "All types" selected', () => {
       const actions = createMockActions();
-      render(
-        <FilterBar filters={createFiltersWithType('task')} actions={actions} />
-      );
+      render(<FilterBar filters={createFiltersWithType('task')} actions={actions} />);
 
       const select = screen.getByTestId('type-filter');
       fireEvent.change(select, { target: { value: '' } });
@@ -804,9 +711,7 @@ describe('FilterBar', () => {
 
       types.forEach((type) => {
         const actions = createMockActions();
-        const { unmount } = render(
-          <FilterBar filters={createEmptyFilters()} actions={actions} />
-        );
+        const { unmount } = render(<FilterBar filters={createEmptyFilters()} actions={actions} />);
 
         const select = screen.getByTestId('type-filter');
         fireEvent.change(select, { target: { value: type } });
@@ -821,9 +726,7 @@ describe('FilterBar', () => {
   describe('type filter visibility', () => {
     it('shows clear button when type is selected', () => {
       const actions = createMockActions();
-      render(
-        <FilterBar filters={createFiltersWithType('bug')} actions={actions} />
-      );
+      render(<FilterBar filters={createFiltersWithType('bug')} actions={actions} />);
 
       expect(screen.getByTestId('clear-filters')).toBeInTheDocument();
     });
@@ -916,25 +819,14 @@ describe('FilterBar', () => {
 
     it('does not render groupBy dropdown when onGroupByChange is not provided', () => {
       const actions = createMockActions();
-      render(
-        <FilterBar
-          filters={createEmptyFilters()}
-          actions={actions}
-        />
-      );
+      render(<FilterBar filters={createEmptyFilters()} actions={actions} />);
 
       expect(screen.queryByTestId('groupby-filter')).not.toBeInTheDocument();
     });
 
     it('does not render groupBy dropdown when only groupBy prop is provided without callback', () => {
       const actions = createMockActions();
-      render(
-        <FilterBar
-          filters={createEmptyFilters()}
-          actions={actions}
-          groupBy="epic"
-        />
-      );
+      render(<FilterBar filters={createEmptyFilters()} actions={actions} groupBy="epic" />);
 
       expect(screen.queryByTestId('groupby-filter')).not.toBeInTheDocument();
     });
@@ -1193,11 +1085,7 @@ describe('FilterBar', () => {
     it('maintains filterBar class with custom className', () => {
       const actions = createMockActions();
       render(
-        <FilterBar
-          filters={createEmptyFilters()}
-          actions={actions}
-          className="custom-filter-bar"
-        />
+        <FilterBar filters={createEmptyFilters()} actions={actions} className="custom-filter-bar" />
       );
 
       const filterBar = screen.getByTestId('filter-bar');

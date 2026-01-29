@@ -124,68 +124,75 @@ export function TypeDropdown({
     }
   }, [disabled, isSaving, isOpen, optimisticType]);
 
-  const handleSelect = useCallback(async (newType: IssueType) => {
-    // Skip if same type selected
-    if (newType === type) {
+  const handleSelect = useCallback(
+    async (newType: IssueType) => {
+      // Skip if same type selected
+      if (newType === type) {
+        setIsOpen(false);
+        setFocusedIndex(-1);
+        return;
+      }
+
+      // Optimistic update
+      const previousType = type;
+      setOptimisticType(newType);
       setIsOpen(false);
       setFocusedIndex(-1);
-      return;
-    }
+      setError(null);
 
-    // Optimistic update
-    const previousType = type;
-    setOptimisticType(newType);
-    setIsOpen(false);
-    setFocusedIndex(-1);
-    setError(null);
-
-    try {
-      await onSave(newType);
-    } catch (err) {
-      // Rollback on error
-      setOptimisticType(previousType);
-      const message = err instanceof Error ? err.message : 'Failed to update type';
-      setError(message);
-    }
-  }, [type, onSave]);
-
-  const handleKeyDown = useCallback((event: React.KeyboardEvent) => {
-    if (!isOpen) {
-      // Open on Enter or Space when closed
-      if (event.key === 'Enter' || event.key === ' ') {
-        event.preventDefault();
-        handleTriggerClick();
+      try {
+        await onSave(newType);
+      } catch (err) {
+        // Rollback on error
+        setOptimisticType(previousType);
+        const message = err instanceof Error ? err.message : 'Failed to update type';
+        setError(message);
       }
-      return;
-    }
+    },
+    [type, onSave]
+  );
 
-    switch (event.key) {
-      case 'ArrowDown':
-        event.preventDefault();
-        setFocusedIndex((prev) => Math.min(prev + 1, TYPE_OPTIONS.length - 1));
-        break;
-      case 'ArrowUp':
-        event.preventDefault();
-        setFocusedIndex((prev) => Math.max(prev - 1, 0));
-        break;
-      case 'Enter':
-      case ' ':
-        event.preventDefault();
-        const selectedOption = TYPE_OPTIONS[focusedIndex];
-        if (focusedIndex >= 0 && focusedIndex < TYPE_OPTIONS.length && selectedOption) {
-          handleSelect(selectedOption.value);
+  const handleKeyDown = useCallback(
+    (event: React.KeyboardEvent) => {
+      if (!isOpen) {
+        // Open on Enter or Space when closed
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          handleTriggerClick();
         }
-        break;
-      case 'Home':
-        event.preventDefault();
-        setFocusedIndex(0);
-        break;
-      case 'End':
-        event.preventDefault();
-        setFocusedIndex(TYPE_OPTIONS.length - 1);
-        break;
-    }
-  }, [isOpen, focusedIndex, handleTriggerClick, handleSelect]);
+        return;
+      }
+
+      switch (event.key) {
+        case 'ArrowDown':
+          event.preventDefault();
+          setFocusedIndex((prev) => Math.min(prev + 1, TYPE_OPTIONS.length - 1));
+          break;
+        case 'ArrowUp':
+          event.preventDefault();
+          setFocusedIndex((prev) => Math.max(prev - 1, 0));
+          break;
+        case 'Enter':
+        case ' ': {
+          event.preventDefault();
+          const selectedOption = TYPE_OPTIONS[focusedIndex];
+          if (focusedIndex >= 0 && focusedIndex < TYPE_OPTIONS.length && selectedOption) {
+            handleSelect(selectedOption.value);
+          }
+          break;
+        }
+        case 'Home':
+          event.preventDefault();
+          setFocusedIndex(0);
+          break;
+        case 'End':
+          event.preventDefault();
+          setFocusedIndex(TYPE_OPTIONS.length - 1);
+          break;
+      }
+    },
+    [isOpen, focusedIndex, handleTriggerClick, handleSelect]
+  );
 
   const displayType = optimisticType ?? 'task';
   const displayLabel = formatIssueType(optimisticType);
@@ -210,7 +217,9 @@ export function TypeDropdown({
       >
         <TypeIcon type={displayType} size={14} className={styles.triggerIcon ?? ''} />
         <span className={styles.triggerText}>{displayLabel}</span>
-        <span className={styles.dropdownArrow} aria-hidden="true">▾</span>
+        <span className={styles.dropdownArrow} aria-hidden="true">
+          ▾
+        </span>
       </button>
 
       {isOpen && (
@@ -236,7 +245,9 @@ export function TypeDropdown({
               <TypeIcon type={option.value} size={16} className={styles.optionIcon ?? ''} />
               <span className={styles.optionText}>{option.label}</span>
               {option.value === optimisticType && (
-                <span className={styles.checkmark} aria-hidden="true">✓</span>
+                <span className={styles.checkmark} aria-hidden="true">
+                  ✓
+                </span>
               )}
             </div>
           ))}
