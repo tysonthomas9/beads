@@ -349,3 +349,219 @@ test.describe("AgentActivityPanel deep behavior", () => {
     await firstCard.click()
   })
 })
+
+/**
+ * Mock blocked issues with a shared blocker to trigger bottleneck detection.
+ * Two issues are both blocked by "bottleneck-x", making it a bottleneck.
+ */
+const mockBlockedWithBottleneck = {
+  success: true,
+  data: [
+    {
+      id: "blocked-1",
+      title: "Blocked task 1",
+      status: "open",
+      priority: 1,
+      issue_type: "task",
+      created_at: "2026-01-24T10:00:00Z",
+      updated_at: "2026-01-24T10:00:00Z",
+      blocked_by: ["bottleneck-x"],
+    },
+    {
+      id: "blocked-2",
+      title: "Blocked task 2",
+      status: "open",
+      priority: 2,
+      issue_type: "task",
+      created_at: "2026-01-24T11:00:00Z",
+      updated_at: "2026-01-24T11:00:00Z",
+      blocked_by: ["bottleneck-x"],
+    },
+    {
+      id: "blocked-3",
+      title: "Blocked task 3",
+      status: "open",
+      priority: 3,
+      issue_type: "task",
+      created_at: "2026-01-24T12:00:00Z",
+      updated_at: "2026-01-24T12:00:00Z",
+      blocked_by: ["other-blocker"],
+    },
+  ],
+}
+
+/**
+ * Set up mocks with custom blocked issues and optional custom stats.
+ */
+async function setupHealthPanelMocks(
+  page: Page,
+  options?: {
+    blockedResponse?: object
+    stats?: { open: number; closed: number; total: number; completion: number }
+  }
+) {
+  const stats = options?.stats ?? { open: 10, closed: 5, total: 15, completion: 33 }
+  const blockedResponse = options?.blockedResponse ?? { success: true, data: [] }
+
+  const loomStatus = {
+    ...mockLoomStatus,
+    stats,
+  }
+
+  await page.route("**/api/ready", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ success: true, data: mockIssues }),
+    })
+  })
+
+  await page.route("**/api/blocked", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify(blockedResponse),
+    })
+  })
+
+  await page.route("**/api/issues/graph", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ success: true, data: mockIssues }),
+    })
+  })
+
+  await page.route("**/api/events", async (route) => {
+    await route.abort()
+  })
+
+  await page.route("**/api/stats", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ success: true, data: stats }),
+    })
+  })
+
+  await page.route("**/localhost:9000/api/status", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify(loomStatus),
+    })
+  })
+
+  await page.route("**/localhost:9000/api/tasks", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify(mockLoomTasks),
+    })
+  })
+}
+
+/**
+ * Navigate to monitor view and wait for loom status to load.
+ */
+async function navigateAndWaitForHealth(page: Page) {
+  const [readyRes] = await Promise.all([
+    page.waitForResponse(
+      (res) => res.url().includes("/api/ready") && res.status() === 200
+    ),
+    page.goto("/?view=monitor"),
+  ])
+  expect(readyRes.ok()).toBe(true)
+
+  // Wait for loom status to load (drives ProjectHealthPanel stats)
+  await page.waitForResponse(
+    (res) => res.url().includes("/api/status") && res.status() === 200,
+    { timeout: 10000 }
+  )
+  await page.waitForTimeout(500)
+}
+
+test.describe("ProjectHealthPanel deep behavior", () => {
+  test("progress bar shows correct completion percentage", async ({ page }) => {
+    await setupHealthPanelMocks(page, {
+      stats: { open: 10, closed: 5, total: 15, completion: 33 },
+    })
+    await navigateAndWaitForHealth(page)
+
+    const healthPanel = page.getByTestId("project-health-panel")
+    await expect(healthPanel).toBeVisible()
+
+    // Verify progress bar aria attributes
+    const progressBar = healthPanel.getByRole("progressbar", { name: /project completion/i })
+    await expect(progressBar).toBeVisible()
+    await expect(progressBar).toHaveAttribute("aria-valuenow", "33")
+    await expect(progressBar).toHaveAttribute("aria-valuemin", "0")
+    await expect(progressBar).toHaveAttribute("aria-valuemax", "100")
+
+    // Verify percentage text
+    await expect(healthPanel.getByText("33%")).toBeVisible()
+  })
+
+  test("issue counts display open, closed, and total correctly", async ({ page }) => {
+    await setupHealthPanelMocks(page, {
+      stats: { open: 10, closed: 5, total: 15, completion: 33 },
+    })
+    await navigateAndWaitForHealth(page)
+
+    const healthPanel = page.getByTestId("project-health-panel")
+    await expect(healthPanel).toBeVisible()
+
+    // Verify each count appears with its label using the countItem div structure:
+    // <div class="countItem"><span class="countValue">N</span><span class="countLabel">Label</span></div>
+    // Locate each label, then find the sibling count value in the same parent
+    const openItem = healthPanel.locator("div", { hasText: /^10Open$/ })
+    await expect(openItem).toBeVisible()
+
+    const closedItem = healthPanel.locator("div", { hasText: /^5Closed$/ })
+    await expect(closedItem).toBeVisible()
+
+    const totalItem = healthPanel.locator("div", { hasText: /^15Total$/ })
+    await expect(totalItem).toBeVisible()
+  })
+
+  test("bottleneck section shows when blocked issues share a common blocker", async ({ page }) => {
+    await setupHealthPanelMocks(page, {
+      blockedResponse: mockBlockedWithBottleneck,
+    })
+    await navigateAndWaitForHealth(page)
+
+    const healthPanel = page.getByTestId("project-health-panel")
+    await expect(healthPanel).toBeVisible()
+
+    // Verify bottleneck ID is visible
+    await expect(healthPanel.getByText("bottleneck-x")).toBeVisible()
+
+    // Verify blocking count text
+    await expect(healthPanel.getByText("blocks 2")).toBeVisible()
+
+    // Verify bottleneck count badge in heading (1 bottleneck)
+    await expect(healthPanel.getByText("(1)")).toBeVisible()
+
+    // "other-blocker" only blocks 1 issue, so it should NOT appear as a bottleneck
+    await expect(healthPanel.getByText("other-blocker")).not.toBeVisible()
+  })
+
+  test("no bottlenecks message when none exist", async ({ page }) => {
+    await setupHealthPanelMocks(page, {
+      blockedResponse: { success: true, data: [] },
+    })
+    await navigateAndWaitForHealth(page)
+
+    const healthPanel = page.getByTestId("project-health-panel")
+    await expect(healthPanel).toBeVisible()
+
+    // Verify "No bottlenecks detected" message
+    await expect(healthPanel.getByText("No bottlenecks detected")).toBeVisible()
+
+    // Verify no count badge in heading - the component only renders a span with "(N)" when bottlenecks > 0
+    const bottleneckHeading = healthPanel.getByRole("heading", { name: "Bottlenecks" })
+    await expect(bottleneckHeading).toBeVisible()
+    // Heading should contain only "Bottlenecks" text, no badge
+    await expect(bottleneckHeading).toHaveText("Bottlenecks")
+  })
+})
