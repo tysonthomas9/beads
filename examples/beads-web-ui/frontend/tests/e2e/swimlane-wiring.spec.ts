@@ -112,7 +112,7 @@ test.describe("Swim Lane Wiring in App.tsx", () => {
   test.describe("Fallback - KanbanBoard Rendering", () => {
     test("KanbanBoard renders when groupBy is none", async ({ page }) => {
       await setupMocks(page)
-      await navigateAndWait(page)
+      await navigateAndWait(page, "/?groupBy=none")
 
       // Verify swim lane board is NOT visible
       await expect(page.getByTestId("swim-lane-board")).not.toBeVisible()
@@ -497,20 +497,17 @@ test.describe("Swim Lane Wiring in App.tsx", () => {
   })
 
   test.describe("Edge Cases", () => {
-    test("invalid groupBy URL param defaults to flat view", async ({
+    test("invalid groupBy URL param defaults to epic swim lane view", async ({
       page,
     }) => {
       await setupMocks(page)
       await navigateAndWait(page, "/?groupBy=invalid")
 
-      // Should fall back to flat view (no swim lanes)
-      await expect(page.getByTestId("swim-lane-board")).not.toBeVisible()
+      // Should fall back to epic swim lane view (default)
+      await expect(page.getByTestId("swim-lane-board")).toBeVisible()
 
-      // Verify flat Kanban columns visible
-      await expect(page.locator('section[data-status="open"]')).toBeVisible()
-
-      // Verify dropdown shows 'none'
-      await expect(page.getByTestId("groupby-filter")).toHaveValue("none")
+      // Verify dropdown shows 'epic' (default)
+      await expect(page.getByTestId("groupby-filter")).toHaveValue("epic")
     })
 
     test("empty issues still renders swim lane container", async ({ page }) => {

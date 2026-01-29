@@ -59,8 +59,9 @@ vi.mock('@/hooks', () => ({
   useIssueDetail: mockUseIssueDetail,
   useToast: mockUseToast,
   useViewState: mockUseViewState,
+  DEFAULT_GROUP_BY: 'epic',
   useFilterState: vi.fn(() => [
-    { groupBy: 'none' }, // FilterState
+    {}, // FilterState - empty means App.tsx will apply DEFAULT_GROUP_BY fallback
     {
       setPriority: vi.fn(),
       setType: vi.fn(),
@@ -497,6 +498,21 @@ describe('App', () => {
     it('renders empty KanbanBoard when issues array is empty', () => {
       const mockReturn = createMockUseIssuesReturn({ issues: [] });
       vi.mocked(useIssues).mockReturnValue(mockReturn);
+
+      // Use flat view (groupBy: 'none') to verify empty column rendering
+      vi.mocked(useFilterState).mockReturnValue([
+        { groupBy: 'none' },
+        {
+          setPriority: vi.fn(),
+          setType: vi.fn(),
+          setLabels: vi.fn(),
+          setSearch: vi.fn(),
+          setShowBlocked: vi.fn(),
+          setGroupBy: vi.fn(),
+          clearFilter: vi.fn(),
+          clearAll: vi.fn(),
+        },
+      ]);
 
       render(<App />);
 
@@ -971,14 +987,14 @@ describe('App', () => {
       expect(screen.getByText('Issue Two')).toBeInTheDocument();
     });
 
-    it('passes groupBy prop to SwimLaneBoard with default value of none', () => {
+    it('passes groupBy prop to SwimLaneBoard with default value of epic', () => {
       const issues = [createMockIssue()];
       const mockReturn = createMockUseIssuesReturn({ issues });
       vi.mocked(useIssues).mockReturnValue(mockReturn);
 
-      // Mock FilterState with groupBy: 'none' (which is the default)
+      // Mock FilterState with no groupBy (App.tsx applies DEFAULT_GROUP_BY = 'epic')
       vi.mocked(useFilterState).mockReturnValue([
-        { groupBy: 'none' },
+        {},
         {
           setPriority: vi.fn(),
           setType: vi.fn(),
@@ -993,7 +1009,7 @@ describe('App', () => {
 
       render(<App />);
 
-      // Verify SwimLaneBoard is rendered with correct groupBy
+      // Verify SwimLaneBoard is rendered with correct groupBy (epic is default)
       expect(screen.getByRole('heading', { name: 'Ready' })).toBeInTheDocument();
     });
 

@@ -12,6 +12,7 @@ import {
   useIssues,
   useViewState,
   useFilterState,
+  DEFAULT_GROUP_BY,
   useIssueFilter,
   useDebounce,
   useBlockedIssues,
@@ -394,7 +395,7 @@ function App() {
       <FilterBar
         filters={filters}
         actions={filterActions}
-        groupBy={filters.groupBy ?? 'none'}
+        groupBy={filters.groupBy ?? DEFAULT_GROUP_BY}
         onGroupByChange={filterActions.setGroupBy}
       />
     </div>
@@ -425,7 +426,7 @@ function App() {
       {activeView === 'kanban' && (
         <SwimLaneBoard
           issues={filteredIssues}
-          groupBy={filters.groupBy ?? 'none'}
+          groupBy={filters.groupBy ?? DEFAULT_GROUP_BY}
           onDragEnd={handleDragEnd}
           onIssueClick={handleIssueClick}
           onApprove={handleApprove}
