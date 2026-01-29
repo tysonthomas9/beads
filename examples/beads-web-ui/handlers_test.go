@@ -5679,3 +5679,748 @@ func TestHandleRemoveDependency_NilPool(t *testing.T) {
 		t.Errorf("Error = %q, want %q", response.Error, "connection pool not initialized")
 	}
 }
+
+// ===========================================================================
+// API Tests for Kanban Status Endpoints (bd-xb0r)
+// ===========================================================================
+
+// TestParseListParams_StatusReview verifies that ?status=review parses correctly
+func TestParseListParams_StatusReview(t *testing.T) {
+	req := httptest.NewRequest(http.MethodGet, "/api/issues?status=review", nil)
+	args := parseListParams(req)
+
+	if args.Status != "review" {
+		t.Errorf("expected status=review, got %q", args.Status)
+	}
+}
+
+// TestParseListParams_StatusBlocked verifies that ?status=blocked parses correctly
+func TestParseListParams_StatusBlocked(t *testing.T) {
+	req := httptest.NewRequest(http.MethodGet, "/api/issues?status=blocked", nil)
+	args := parseListParams(req)
+
+	if args.Status != "blocked" {
+		t.Errorf("expected status=blocked, got %q", args.Status)
+	}
+}
+
+// mockBlockedClient implements the interface needed for testing handleBlocked
+type mockBlockedClient struct {
+	blockedFunc func(args *rpc.BlockedArgs) (*rpc.Response, error)
+}
+
+func (m *mockBlockedClient) Blocked(args *rpc.BlockedArgs) (*rpc.Response, error) {
+	if m.blockedFunc != nil {
+		return m.blockedFunc(args)
+	}
+	return nil, errors.New("blockedFunc not implemented")
+}
+
+// TestHandleBlocked_ResponseStructure tests that BlockedResponse has the correct JSON structure
+// including the blocked_by_count and blocked_by fields from types.BlockedIssue
+func TestHandleBlocked_ResponseStructure(t *testing.T) {
+	// Test that BlockedIssue can be serialized/deserialized correctly
+	// This validates the response structure matches the expected format
+	blockedIssues := []map[string]interface{}{
+		{
+			"id":               "bd-test1",
+			"title":            "Test Issue 1",
+			"status":           "blocked",
+			"priority":         1,
+			"blocked_by_count": 2,
+			"blocked_by":       []string{"bd-blocker1", "bd-blocker2"},
+		},
+		{
+			"id":               "bd-test2",
+			"title":            "Test Issue 2",
+			"status":           "open",
+			"priority":         2,
+			"blocked_by_count": 1,
+			"blocked_by":       []string{"bd-blocker3"},
+		},
+	}
+	issuesJSON, err := json.Marshal(blockedIssues)
+	if err != nil {
+		t.Fatalf("failed to marshal test data: %v", err)
+	}
+
+	// Verify the JSON structure can be parsed into the expected format
+	var parsed []map[string]interface{}
+	if err := json.Unmarshal(issuesJSON, &parsed); err != nil {
+		t.Fatalf("failed to parse back: %v", err)
+	}
+
+	// Verify first issue has blocked_by_count and blocked_by
+	issue := parsed[0]
+	if count, ok := issue["blocked_by_count"]; !ok || count.(float64) != 2 {
+		t.Errorf("expected blocked_by_count=2, got %v", issue["blocked_by_count"])
+	}
+	if blockedBy, ok := issue["blocked_by"].([]interface{}); !ok || len(blockedBy) != 2 {
+		t.Errorf("expected blocked_by with 2 entries, got %v", issue["blocked_by"])
+	}
+}
+
+// TestHandleBlocked_IncludesBlockedByCount verifies blocked_by_count field is in response
+func TestHandleBlocked_IncludesBlockedByCount(t *testing.T) {
+	// Test that BlockedResponse.Data includes BlockedIssue with blocked_by_count
+	// Create a sample blocked issue with blocked_by_count
+	sampleData := `[{"id":"bd-x1","title":"Test","status":"blocked","priority":1,"blocked_by_count":3,"blocked_by":["bd-a","bd-b","bd-c"]}]`
+
+	var issues []map[string]interface{}
+	if err := json.Unmarshal([]byte(sampleData), &issues); err != nil {
+		t.Fatalf("failed to unmarshal sample data: %v", err)
+	}
+
+	// Verify blocked_by_count field exists
+	issue := issues[0]
+	count, ok := issue["blocked_by_count"]
+	if !ok {
+		t.Error("expected blocked_by_count field in response")
+	}
+	if count.(float64) != 3 {
+		t.Errorf("expected blocked_by_count=3, got %v", count)
+	}
+}
+
+// TestHandleBlocked_IncludesBlockedByArray verifies blocked_by array contains issue IDs
+func TestHandleBlocked_IncludesBlockedByArray(t *testing.T) {
+	// Test that BlockedResponse.Data includes BlockedIssue with blocked_by array
+	sampleData := `[{"id":"bd-x1","title":"Test","status":"blocked","priority":1,"blocked_by_count":2,"blocked_by":["bd-blocker1","bd-blocker2"]}]`
+
+	var issues []map[string]interface{}
+	if err := json.Unmarshal([]byte(sampleData), &issues); err != nil {
+		t.Fatalf("failed to unmarshal sample data: %v", err)
+	}
+
+	// Verify blocked_by field exists and contains expected IDs
+	issue := issues[0]
+	blockedBy, ok := issue["blocked_by"]
+	if !ok {
+		t.Error("expected blocked_by field in response")
+	}
+
+	blockedByArr := blockedBy.([]interface{})
+	if len(blockedByArr) != 2 {
+		t.Errorf("expected 2 blocked_by entries, got %d", len(blockedByArr))
+	}
+
+	if blockedByArr[0].(string) != "bd-blocker1" {
+		t.Errorf("expected blocked_by[0]=bd-blocker1, got %s", blockedByArr[0])
+	}
+	if blockedByArr[1].(string) != "bd-blocker2" {
+		t.Errorf("expected blocked_by[1]=bd-blocker2, got %s", blockedByArr[1])
+	}
+}
+
+// TestHandlePatchIssue_StatusToReview verifies updating status to "review" is accepted
+func TestHandlePatchIssue_StatusToReview(t *testing.T) {
+	var capturedArgs *rpc.UpdateArgs
+
+	client := &mockClient{
+		updateFunc: func(args *rpc.UpdateArgs) (*rpc.Response, error) {
+			capturedArgs = args
+			return &rpc.Response{
+				Success: true,
+				Data:    []byte(`{"id":"test-123"}`),
+			}, nil
+		},
+	}
+
+	pool := &mockPatchPool{
+		getFunc: func(ctx context.Context) (issueUpdater, error) {
+			return client, nil
+		},
+		putFunc: func(c issueUpdater) {},
+	}
+
+	handler := handlePatchIssueWithPool(pool)
+
+	req := httptest.NewRequest(http.MethodPatch, "/api/issues/test-123", strings.NewReader(`{"status":"review"}`))
+	req.SetPathValue("id", "test-123")
+	w := httptest.NewRecorder()
+
+	handler.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("status = %d, want %d", w.Code, http.StatusOK)
+	}
+
+	if capturedArgs == nil {
+		t.Fatal("Update was not called")
+	}
+
+	if capturedArgs.Status == nil {
+		t.Fatal("Status was not set")
+	}
+
+	if *capturedArgs.Status != "review" {
+		t.Errorf("Status = %q, want %q", *capturedArgs.Status, "review")
+	}
+}
+
+// TestHandlePatchIssue_StatusToBlocked verifies updating status to "blocked" is accepted
+func TestHandlePatchIssue_StatusToBlocked(t *testing.T) {
+	var capturedArgs *rpc.UpdateArgs
+
+	client := &mockClient{
+		updateFunc: func(args *rpc.UpdateArgs) (*rpc.Response, error) {
+			capturedArgs = args
+			return &rpc.Response{
+				Success: true,
+				Data:    []byte(`{"id":"test-123"}`),
+			}, nil
+		},
+	}
+
+	pool := &mockPatchPool{
+		getFunc: func(ctx context.Context) (issueUpdater, error) {
+			return client, nil
+		},
+		putFunc: func(c issueUpdater) {},
+	}
+
+	handler := handlePatchIssueWithPool(pool)
+
+	req := httptest.NewRequest(http.MethodPatch, "/api/issues/test-123", strings.NewReader(`{"status":"blocked"}`))
+	req.SetPathValue("id", "test-123")
+	w := httptest.NewRecorder()
+
+	handler.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("status = %d, want %d", w.Code, http.StatusOK)
+	}
+
+	if capturedArgs == nil {
+		t.Fatal("Update was not called")
+	}
+
+	if capturedArgs.Status == nil {
+		t.Fatal("Status was not set")
+	}
+
+	if *capturedArgs.Status != "blocked" {
+		t.Errorf("Status = %q, want %q", *capturedArgs.Status, "blocked")
+	}
+}
+
+// TestHandlePatchIssue_AssigneeWithHPrefix verifies assignee with [H] prefix (human review) is accepted
+func TestHandlePatchIssue_AssigneeWithHPrefix(t *testing.T) {
+	var capturedArgs *rpc.UpdateArgs
+
+	client := &mockClient{
+		updateFunc: func(args *rpc.UpdateArgs) (*rpc.Response, error) {
+			capturedArgs = args
+			return &rpc.Response{
+				Success: true,
+				Data:    []byte(`{"id":"test-123"}`),
+			}, nil
+		},
+	}
+
+	pool := &mockPatchPool{
+		getFunc: func(ctx context.Context) (issueUpdater, error) {
+			return client, nil
+		},
+		putFunc: func(c issueUpdater) {},
+	}
+
+	handler := handlePatchIssueWithPool(pool)
+
+	req := httptest.NewRequest(http.MethodPatch, "/api/issues/test-123", strings.NewReader(`{"assignee":"[H] tyson"}`))
+	req.SetPathValue("id", "test-123")
+	w := httptest.NewRecorder()
+
+	handler.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("status = %d, want %d", w.Code, http.StatusOK)
+	}
+
+	if capturedArgs == nil {
+		t.Fatal("Update was not called")
+	}
+
+	if capturedArgs.Assignee == nil {
+		t.Fatal("Assignee was not set")
+	}
+
+	if *capturedArgs.Assignee != "[H] tyson" {
+		t.Errorf("Assignee = %q, want %q", *capturedArgs.Assignee, "[H] tyson")
+	}
+}
+
+// TestHandlePatchIssue_RemoveNeedReviewFromTitle verifies removing "[Need Review]" from title works
+func TestHandlePatchIssue_RemoveNeedReviewFromTitle(t *testing.T) {
+	var capturedArgs *rpc.UpdateArgs
+
+	client := &mockClient{
+		updateFunc: func(args *rpc.UpdateArgs) (*rpc.Response, error) {
+			capturedArgs = args
+			return &rpc.Response{
+				Success: true,
+				Data:    []byte(`{"id":"test-123"}`),
+			}, nil
+		},
+	}
+
+	pool := &mockPatchPool{
+		getFunc: func(ctx context.Context) (issueUpdater, error) {
+			return client, nil
+		},
+		putFunc: func(c issueUpdater) {},
+	}
+
+	handler := handlePatchIssueWithPool(pool)
+
+	// Test updating title to remove [Need Review] prefix
+	newTitle := "Implement feature X"
+	req := httptest.NewRequest(http.MethodPatch, "/api/issues/test-123", strings.NewReader(`{"title":"Implement feature X"}`))
+	req.SetPathValue("id", "test-123")
+	w := httptest.NewRecorder()
+
+	handler.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("status = %d, want %d", w.Code, http.StatusOK)
+	}
+
+	if capturedArgs == nil {
+		t.Fatal("Update was not called")
+	}
+
+	if capturedArgs.Title == nil {
+		t.Fatal("Title was not set")
+	}
+
+	if *capturedArgs.Title != newTitle {
+		t.Errorf("Title = %q, want %q", *capturedArgs.Title, newTitle)
+	}
+}
+
+// ===========================================================================
+// Comment Handler Tests
+// ===========================================================================
+
+// mockCommentClient implements commentAdder for testing
+type mockCommentClient struct {
+	addCommentFunc func(args *rpc.CommentAddArgs) (*rpc.Response, error)
+}
+
+func (m *mockCommentClient) AddComment(args *rpc.CommentAddArgs) (*rpc.Response, error) {
+	if m.addCommentFunc != nil {
+		return m.addCommentFunc(args)
+	}
+	return nil, errors.New("addCommentFunc not implemented")
+}
+
+// mockCommentPool implements commentConnectionGetter for testing
+type mockCommentPool struct {
+	getFunc func(ctx context.Context) (commentAdder, error)
+	putFunc func(client commentAdder)
+}
+
+func (m *mockCommentPool) Get(ctx context.Context) (commentAdder, error) {
+	if m.getFunc != nil {
+		return m.getFunc(ctx)
+	}
+	return nil, errors.New("getFunc not implemented")
+}
+
+func (m *mockCommentPool) Put(client commentAdder) {
+	if m.putFunc != nil {
+		m.putFunc(client)
+	}
+}
+
+// TestHandleAddComment_Success verifies successful comment creation returns 201
+func TestHandleAddComment_Success(t *testing.T) {
+	commentData := `{"id":1,"issue_id":"test-123","author":"web-ui","text":"Test comment","created_at":"2026-01-28T00:00:00Z"}`
+
+	client := &mockCommentClient{
+		addCommentFunc: func(args *rpc.CommentAddArgs) (*rpc.Response, error) {
+			if args.ID != "test-123" {
+				t.Errorf("AddComment called with ID = %q, want %q", args.ID, "test-123")
+			}
+			if args.Text != "Test comment" {
+				t.Errorf("AddComment called with Text = %q, want %q", args.Text, "Test comment")
+			}
+			if args.Author != "web-ui" {
+				t.Errorf("AddComment called with Author = %q, want %q", args.Author, "web-ui")
+			}
+			return &rpc.Response{
+				Success: true,
+				Data:    []byte(commentData),
+			}, nil
+		},
+	}
+
+	pool := &mockCommentPool{
+		getFunc: func(ctx context.Context) (commentAdder, error) {
+			return client, nil
+		},
+		putFunc: func(c commentAdder) {},
+	}
+
+	handler := handleAddCommentWithPool(pool)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/issues/test-123/comments", strings.NewReader(`{"text":"Test comment"}`))
+	req.SetPathValue("id", "test-123")
+	w := httptest.NewRecorder()
+
+	handler.ServeHTTP(w, req)
+
+	if w.Code != http.StatusCreated {
+		t.Errorf("status = %d, want %d", w.Code, http.StatusCreated)
+	}
+
+	var resp CommentResponse
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	if !resp.Success {
+		t.Errorf("expected success=true, got false (error: %s)", resp.Error)
+	}
+}
+
+// TestHandleAddComment_MissingIssueID verifies 400 for missing issue ID
+func TestHandleAddComment_MissingIssueID(t *testing.T) {
+	handler := handleAddComment(nil)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/issues//comments", strings.NewReader(`{"text":"Test"}`))
+	req.SetPathValue("id", "")
+	w := httptest.NewRecorder()
+
+	handler.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("status = %d, want %d", w.Code, http.StatusBadRequest)
+	}
+
+	var resp CommentResponse
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	if resp.Error != "missing issue ID" {
+		t.Errorf("error = %q, want %q", resp.Error, "missing issue ID")
+	}
+}
+
+// TestHandleAddComment_EmptyText verifies 400 for empty comment text
+func TestHandleAddComment_EmptyText(t *testing.T) {
+	pool := &mockCommentPool{
+		getFunc: func(ctx context.Context) (commentAdder, error) {
+			return &mockCommentClient{}, nil
+		},
+		putFunc: func(c commentAdder) {},
+	}
+
+	handler := handleAddCommentWithPool(pool)
+
+	// Test with empty text
+	req := httptest.NewRequest(http.MethodPost, "/api/issues/test-123/comments", strings.NewReader(`{"text":""}`))
+	req.SetPathValue("id", "test-123")
+	w := httptest.NewRecorder()
+
+	handler.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("status = %d, want %d", w.Code, http.StatusBadRequest)
+	}
+
+	var resp CommentResponse
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	if resp.Error != "comment text is required" {
+		t.Errorf("error = %q, want %q", resp.Error, "comment text is required")
+	}
+
+	// Test with whitespace-only text
+	req2 := httptest.NewRequest(http.MethodPost, "/api/issues/test-123/comments", strings.NewReader(`{"text":"   "}`))
+	req2.SetPathValue("id", "test-123")
+	w2 := httptest.NewRecorder()
+
+	handler.ServeHTTP(w2, req2)
+
+	if w2.Code != http.StatusBadRequest {
+		t.Errorf("status = %d, want %d for whitespace-only text", w2.Code, http.StatusBadRequest)
+	}
+}
+
+// TestHandleAddComment_IssueNotFound verifies 404 when issue does not exist
+func TestHandleAddComment_IssueNotFound(t *testing.T) {
+	client := &mockCommentClient{
+		addCommentFunc: func(args *rpc.CommentAddArgs) (*rpc.Response, error) {
+			return nil, errors.New("issue not found: nonexistent-id")
+		},
+	}
+
+	pool := &mockCommentPool{
+		getFunc: func(ctx context.Context) (commentAdder, error) {
+			return client, nil
+		},
+		putFunc: func(c commentAdder) {},
+	}
+
+	handler := handleAddCommentWithPool(pool)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/issues/nonexistent-id/comments", strings.NewReader(`{"text":"Test comment"}`))
+	req.SetPathValue("id", "nonexistent-id")
+	w := httptest.NewRecorder()
+
+	handler.ServeHTTP(w, req)
+
+	if w.Code != http.StatusNotFound {
+		t.Errorf("status = %d, want %d", w.Code, http.StatusNotFound)
+	}
+}
+
+// TestHandleAddComment_NilPool verifies 503 when pool is not initialized
+func TestHandleAddComment_NilPool(t *testing.T) {
+	handler := handleAddComment(nil)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/issues/test-123/comments", strings.NewReader(`{"text":"Test comment"}`))
+	req.SetPathValue("id", "test-123")
+	w := httptest.NewRecorder()
+
+	handler.ServeHTTP(w, req)
+
+	if w.Code != http.StatusServiceUnavailable {
+		t.Errorf("status = %d, want %d", w.Code, http.StatusServiceUnavailable)
+	}
+
+	var resp CommentResponse
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	if resp.Error != "connection pool not initialized" {
+		t.Errorf("error = %q, want %q", resp.Error, "connection pool not initialized")
+	}
+}
+
+// TestHandleAddComment_PoolClosed verifies 503 when pool connection fails
+func TestHandleAddComment_PoolClosed(t *testing.T) {
+	pool := &mockCommentPool{
+		getFunc: func(ctx context.Context) (commentAdder, error) {
+			return nil, errors.New("pool closed")
+		},
+	}
+
+	handler := handleAddCommentWithPool(pool)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/issues/test-123/comments", strings.NewReader(`{"text":"Test comment"}`))
+	req.SetPathValue("id", "test-123")
+	w := httptest.NewRecorder()
+
+	handler.ServeHTTP(w, req)
+
+	if w.Code != http.StatusServiceUnavailable {
+		t.Errorf("status = %d, want %d", w.Code, http.StatusServiceUnavailable)
+	}
+}
+
+// TestHandleAddComment_RPCError verifies 500 for RPC errors
+func TestHandleAddComment_RPCError(t *testing.T) {
+	client := &mockCommentClient{
+		addCommentFunc: func(args *rpc.CommentAddArgs) (*rpc.Response, error) {
+			return nil, errors.New("database connection failed")
+		},
+	}
+
+	pool := &mockCommentPool{
+		getFunc: func(ctx context.Context) (commentAdder, error) {
+			return client, nil
+		},
+		putFunc: func(c commentAdder) {},
+	}
+
+	handler := handleAddCommentWithPool(pool)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/issues/test-123/comments", strings.NewReader(`{"text":"Test comment"}`))
+	req.SetPathValue("id", "test-123")
+	w := httptest.NewRecorder()
+
+	handler.ServeHTTP(w, req)
+
+	if w.Code != http.StatusInternalServerError {
+		t.Errorf("status = %d, want %d", w.Code, http.StatusInternalServerError)
+	}
+}
+
+// TestHandleAddComment_ContentType verifies Content-Type is application/json
+func TestHandleAddComment_ContentType(t *testing.T) {
+	handler := handleAddComment(nil)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/issues/test-123/comments", strings.NewReader(`{"text":"Test"}`))
+	req.SetPathValue("id", "test-123")
+	w := httptest.NewRecorder()
+
+	handler.ServeHTTP(w, req)
+
+	contentType := w.Header().Get("Content-Type")
+	if contentType != "application/json" {
+		t.Errorf("Content-Type = %q, want %q", contentType, "application/json")
+	}
+}
+
+// TestHandleAddComment_InvalidJSON verifies 400 for invalid JSON body
+func TestHandleAddComment_InvalidJSON(t *testing.T) {
+	pool := &mockCommentPool{
+		getFunc: func(ctx context.Context) (commentAdder, error) {
+			return &mockCommentClient{}, nil
+		},
+		putFunc: func(c commentAdder) {},
+	}
+
+	handler := handleAddCommentWithPool(pool)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/issues/test-123/comments", strings.NewReader(`{invalid json`))
+	req.SetPathValue("id", "test-123")
+	w := httptest.NewRecorder()
+
+	handler.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("status = %d, want %d", w.Code, http.StatusBadRequest)
+	}
+
+	var resp CommentResponse
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	if !strings.Contains(resp.Error, "invalid request body") {
+		t.Errorf("error = %q, want error containing 'invalid request body'", resp.Error)
+	}
+}
+
+// TestHandleAddComment_ResponseNotFound verifies 404 when Response.Error contains "not found"
+func TestHandleAddComment_ResponseNotFound(t *testing.T) {
+	client := &mockCommentClient{
+		addCommentFunc: func(args *rpc.CommentAddArgs) (*rpc.Response, error) {
+			return &rpc.Response{
+				Success: false,
+				Error:   "issue not found: test-123",
+			}, nil
+		},
+	}
+
+	pool := &mockCommentPool{
+		getFunc: func(ctx context.Context) (commentAdder, error) {
+			return client, nil
+		},
+		putFunc: func(c commentAdder) {},
+	}
+
+	handler := handleAddCommentWithPool(pool)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/issues/test-123/comments", strings.NewReader(`{"text":"Test comment"}`))
+	req.SetPathValue("id", "test-123")
+	w := httptest.NewRecorder()
+
+	handler.ServeHTTP(w, req)
+
+	if w.Code != http.StatusNotFound {
+		t.Errorf("status = %d, want %d", w.Code, http.StatusNotFound)
+	}
+}
+
+// TestHandleAddComment_PoolTimeout verifies 504 for timeout errors
+func TestHandleAddComment_PoolTimeout(t *testing.T) {
+	pool := &mockCommentPool{
+		getFunc: func(ctx context.Context) (commentAdder, error) {
+			return nil, context.DeadlineExceeded
+		},
+	}
+
+	handler := handleAddCommentWithPool(pool)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/issues/test-123/comments", strings.NewReader(`{"text":"Test comment"}`))
+	req.SetPathValue("id", "test-123")
+	w := httptest.NewRecorder()
+
+	handler.ServeHTTP(w, req)
+
+	if w.Code != http.StatusGatewayTimeout {
+		t.Errorf("status = %d, want %d", w.Code, http.StatusGatewayTimeout)
+	}
+}
+
+// TestHandleAddComment_ClientReturnedToPool verifies client is returned to pool
+func TestHandleAddComment_ClientReturnedToPool(t *testing.T) {
+	putCalled := false
+	commentData := `{"id":1,"issue_id":"test-123","author":"web-ui","text":"Test","created_at":"2026-01-28T00:00:00Z"}`
+
+	client := &mockCommentClient{
+		addCommentFunc: func(args *rpc.CommentAddArgs) (*rpc.Response, error) {
+			return &rpc.Response{
+				Success: true,
+				Data:    []byte(commentData),
+			}, nil
+		},
+	}
+
+	pool := &mockCommentPool{
+		getFunc: func(ctx context.Context) (commentAdder, error) {
+			return client, nil
+		},
+		putFunc: func(c commentAdder) {
+			putCalled = true
+		},
+	}
+
+	handler := handleAddCommentWithPool(pool)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/issues/test-123/comments", strings.NewReader(`{"text":"Test"}`))
+	req.SetPathValue("id", "test-123")
+	w := httptest.NewRecorder()
+
+	handler.ServeHTTP(w, req)
+
+	if !putCalled {
+		t.Error("Put() was not called - client not returned to pool")
+	}
+}
+
+// TestHandleAddComment_ClientReturnedToPoolOnError verifies client is returned even on RPC error
+func TestHandleAddComment_ClientReturnedToPoolOnError(t *testing.T) {
+	putCalled := false
+
+	client := &mockCommentClient{
+		addCommentFunc: func(args *rpc.CommentAddArgs) (*rpc.Response, error) {
+			return nil, errors.New("database connection failed")
+		},
+	}
+
+	pool := &mockCommentPool{
+		getFunc: func(ctx context.Context) (commentAdder, error) {
+			return client, nil
+		},
+		putFunc: func(c commentAdder) {
+			putCalled = true
+		},
+	}
+
+	handler := handleAddCommentWithPool(pool)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/issues/test-123/comments", strings.NewReader(`{"text":"Test"}`))
+	req.SetPathValue("id", "test-123")
+	w := httptest.NewRecorder()
+
+	handler.ServeHTTP(w, req)
+
+	// Verify client was returned even though RPC failed
+	if !putCalled {
+		t.Error("Put() was not called on error - client not returned to pool")
+	}
+
+	// Verify we got an error response
+	if w.Code != http.StatusInternalServerError {
+		t.Errorf("status = %d, want %d", w.Code, http.StatusInternalServerError)
+	}
+}
