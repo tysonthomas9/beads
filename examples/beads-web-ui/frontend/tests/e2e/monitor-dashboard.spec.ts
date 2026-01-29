@@ -557,4 +557,243 @@ test.describe("MonitorDashboard", () => {
       await expect(miniGraph).toBeVisible()
     })
   })
+
+  test.describe("Work Pipeline deep behavior", () => {
+    /**
+     * Helper to set up mocks with blocked tasks present.
+     */
+    async function setupMocksWithBlocked(page: Page) {
+      const statusWithBlocked = {
+        ...mockLoomStatus,
+        tasks: { ...mockLoomStatus.tasks, blocked: 2 },
+      }
+      const tasksWithBlocked = {
+        ...mockLoomTasks,
+        blocked: [
+          { id: "bd-040", title: "Blocked task A", priority: 1 },
+          { id: "bd-041", title: "Blocked task B", priority: 2 },
+        ],
+      }
+
+      // Mock beads backend API (same as setupMocks)
+      await page.route("**/api/ready", async (route) => {
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({ success: true, data: mockIssues }),
+        })
+      })
+      await page.route("**/api/blocked", async (route) => {
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify(mockBlockedIssues),
+        })
+      })
+      await page.route("**/api/issues/graph", async (route) => {
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({ success: true, data: mockIssues }),
+        })
+      })
+      await page.route("**/api/events", async (route) => {
+        await route.abort()
+      })
+      await page.route("**/api/stats", async (route) => {
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({
+            success: true,
+            data: { open: 10, closed: 5, total: 15, completion: 33 },
+          }),
+        })
+      })
+
+      // Mock loom server with blocked data
+      await page.route("**/localhost:9000/api/status", async (route) => {
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify(statusWithBlocked),
+        })
+      })
+      await page.route("**/localhost:9000/api/tasks", async (route) => {
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify(tasksWithBlocked),
+        })
+      })
+    }
+
+    /**
+     * Helper to wait for pipeline data to load.
+     */
+    async function waitForPipelineData(page: Page) {
+      await page.waitForResponse(
+        (res) => res.url().includes("/api/tasks") && res.status() === 200,
+        { timeout: 10000 }
+      )
+      await page.waitForTimeout(500)
+    }
+
+    test("all 5 stages render with correct counts", async ({ page }) => {
+      await setupMocks(page)
+      await navigateAndWait(page, "/?view=monitor")
+      await waitForPipelineData(page)
+
+      // Verify main stages with correct counts
+      const planStage = page.getByTestId("pipeline-stage-plan")
+      await expect(planStage).toBeVisible()
+      await expect(planStage).toContainText("2")
+
+      const readyStage = page.getByTestId("pipeline-stage-ready")
+      await expect(readyStage).toBeVisible()
+      await expect(readyStage).toContainText("3")
+
+      const inProgressStage = page.getByTestId("pipeline-stage-inProgress")
+      await expect(inProgressStage).toBeVisible()
+      await expect(inProgressStage).toContainText("1")
+
+      const reviewStage = page.getByTestId("pipeline-stage-review")
+      await expect(reviewStage).toBeVisible()
+      await expect(reviewStage).toContainText("1")
+
+      // Blocked stage should NOT be visible (count is 0 in default mocks)
+      await expect(page.getByTestId("pipeline-stage-blocked")).not.toBeVisible()
+
+      // Done stage should be visible
+      const pipelinePanel = page.getByTestId("work-pipeline-panel")
+      await expect(pipelinePanel.getByText("✓")).toBeVisible()
+      await expect(pipelinePanel.getByText("Done")).toBeVisible()
+    })
+
+    test("blocked stage shows as branch when count > 0", async ({ page }) => {
+      await setupMocksWithBlocked(page)
+      await navigateAndWait(page, "/?view=monitor")
+      await waitForPipelineData(page)
+
+      // Blocked stage should be visible
+      const blockedStage = page.getByTestId("pipeline-stage-blocked")
+      await expect(blockedStage).toBeVisible()
+      await expect(blockedStage).toContainText("2")
+
+      // Branch line should be visible
+      const pipelinePanel = page.getByTestId("work-pipeline-panel")
+      await expect(pipelinePanel.getByText("↳")).toBeVisible()
+
+      // Click blocked stage -> verify TaskDrawer opens
+      await blockedStage.click()
+      const taskDrawer = page.getByRole("dialog")
+      await expect(taskDrawer).toBeVisible()
+      await expect(taskDrawer).toContainText("Blocked")
+      await expect(taskDrawer).toContainText("Blocked task A")
+      await expect(taskDrawer).toContainText("Blocked task B")
+    })
+
+    test("click stage opens TaskDrawer with correct title for each category", async ({ page }) => {
+      await setupMocks(page)
+      await navigateAndWait(page, "/?view=monitor")
+      await waitForPipelineData(page)
+
+      // Click Plan stage
+      await page.getByTestId("pipeline-stage-plan").click()
+      const drawer = page.getByRole("dialog")
+      await expect(drawer).toBeVisible()
+      await expect(drawer).toContainText("Needs Planning")
+      await expect(drawer).toContainText("(2)")
+      await page.keyboard.press("Escape")
+      await expect(drawer).not.toBeVisible()
+
+      // Click In Progress stage
+      await page.getByTestId("pipeline-stage-inProgress").click()
+      await expect(drawer).toBeVisible()
+      await expect(drawer).toContainText("In Progress")
+      await expect(drawer).toContainText("(1)")
+      await page.keyboard.press("Escape")
+      await expect(drawer).not.toBeVisible()
+
+      // Click Review stage
+      await page.getByTestId("pipeline-stage-review").click()
+      await expect(drawer).toBeVisible()
+      await expect(drawer).toContainText("Needs Review")
+      await expect(drawer).toContainText("(1)")
+      await page.keyboard.press("Escape")
+      await expect(drawer).not.toBeVisible()
+    })
+
+    test("TaskDrawer closes on overlay click and Escape", async ({ page }) => {
+      await setupMocks(page)
+      await navigateAndWait(page, "/?view=monitor")
+      await waitForPipelineData(page)
+
+      const drawer = page.getByRole("dialog")
+
+      // Open drawer and close with Escape
+      await page.getByTestId("pipeline-stage-ready").click()
+      await expect(drawer).toBeVisible()
+      await page.keyboard.press("Escape")
+      await expect(drawer).not.toBeVisible()
+
+      // Open drawer and close with overlay click
+      await page.getByTestId("pipeline-stage-ready").click()
+      await expect(drawer).toBeVisible()
+      // Click the overlay on the left side of viewport (drawer occupies right side)
+      await page.mouse.click(10, 300)
+      await expect(drawer).not.toBeVisible()
+
+      // Open drawer and close with X button
+      await page.getByTestId("pipeline-stage-ready").click()
+      await expect(drawer).toBeVisible()
+      await page.getByRole("button", { name: "Close drawer" }).click()
+      await expect(drawer).not.toBeVisible()
+    })
+
+    test("oldest items table shows correct data", async ({ page }) => {
+      await setupMocks(page)
+      await navigateAndWait(page, "/?view=monitor")
+      await waitForPipelineData(page)
+
+      const pipelinePanel = page.getByTestId("work-pipeline-panel")
+
+      // Verify heading
+      await expect(pipelinePanel.getByText("Oldest in Each Stage")).toBeVisible()
+
+      // Verify table headers
+      const table = pipelinePanel.locator("table")
+      await expect(table.locator("th").nth(0)).toHaveText("Stage")
+      await expect(table.locator("th").nth(1)).toHaveText("Task")
+      await expect(table.locator("th").nth(2)).toHaveText("Priority")
+
+      // Verify rows - one for each stage with tasks
+      const rows = table.locator("tbody tr")
+      await expect(rows).toHaveCount(4)
+
+      // Plan row
+      await expect(rows.nth(0)).toContainText("Plan")
+      await expect(rows.nth(0)).toContainText("bd-010")
+      await expect(rows.nth(0)).toContainText("Plan new feature")
+      await expect(rows.nth(0)).toContainText("P2")
+
+      // Ready row
+      await expect(rows.nth(1)).toContainText("Ready")
+      await expect(rows.nth(1)).toContainText("bd-020")
+      await expect(rows.nth(1)).toContainText("Implement login")
+      await expect(rows.nth(1)).toContainText("P1")
+
+      // In Progress row
+      await expect(rows.nth(2)).toContainText("In Progress")
+      await expect(rows.nth(2)).toContainText("bd-001")
+      await expect(rows.nth(2)).toContainText("Implement feature X")
+      await expect(rows.nth(2)).toContainText("P2")
+
+      // Review row
+      await expect(rows.nth(3)).toContainText("Review")
+      await expect(rows.nth(3)).toContainText("bd-030")
+      await expect(rows.nth(3)).toContainText("Review PR")
+      await expect(rows.nth(3)).toContainText("P2")
+    })
+  })
 })
