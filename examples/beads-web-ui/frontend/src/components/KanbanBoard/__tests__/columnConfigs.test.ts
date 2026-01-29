@@ -158,4 +158,62 @@ describe('columnConfigs', () => {
       expect(ready.filter(issue, notBlocked)).toBe(false);
     });
   });
+
+  // ---------------------------------------------------------------
+  // Epic exclusion from kanban columns
+  // ---------------------------------------------------------------
+  describe('Epic exclusion from kanban columns', () => {
+    it('excludes epics from Ready', () => {
+      const issue = createMockIssue({ issue_type: 'epic', status: 'open' });
+      expect(getColumn('ready').filter(issue, notBlocked)).toBe(false);
+    });
+
+    it('excludes epics from Backlog (open + blocked)', () => {
+      const issue = createMockIssue({ issue_type: 'epic', status: 'open' });
+      expect(getColumn('backlog').filter(issue, blocked)).toBe(false);
+    });
+
+    it('excludes epics from Backlog (blocked status)', () => {
+      const issue = createMockIssue({ issue_type: 'epic', status: 'blocked' });
+      expect(getColumn('backlog').filter(issue, notBlocked)).toBe(false);
+    });
+
+    it('excludes epics from Backlog (deferred status)', () => {
+      const issue = createMockIssue({ issue_type: 'epic', status: 'deferred' });
+      expect(getColumn('backlog').filter(issue, notBlocked)).toBe(false);
+    });
+
+    it('excludes epics from In Progress', () => {
+      const issue = createMockIssue({ issue_type: 'epic', status: 'in_progress' });
+      expect(getColumn('in_progress').filter(issue, notBlocked)).toBe(false);
+    });
+
+    it('excludes epics from Review (status)', () => {
+      const issue = createMockIssue({ issue_type: 'epic', status: 'review' });
+      expect(getColumn('review').filter(issue, notBlocked)).toBe(false);
+    });
+
+    it('excludes epics from Review (title)', () => {
+      const issue = createMockIssue({
+        issue_type: 'epic',
+        title: '[Need Review] Epic cleanup',
+      });
+      expect(getColumn('review').filter(issue, notBlocked)).toBe(false);
+    });
+
+    it('includes epics in Done', () => {
+      const issue = createMockIssue({ issue_type: 'epic', status: 'closed' });
+      expect(getColumn('done').filter(issue, notBlocked)).toBe(true);
+    });
+
+    it('still includes non-epic tasks in Ready (regression)', () => {
+      const issue = createMockIssue({ issue_type: 'task', status: 'open' });
+      expect(getColumn('ready').filter(issue, notBlocked)).toBe(true);
+    });
+
+    it('still includes undefined issue_type in Ready (regression)', () => {
+      const issue = createMockIssue({ issue_type: undefined, status: 'open' });
+      expect(getColumn('ready').filter(issue, notBlocked)).toBe(true);
+    });
+  });
 });

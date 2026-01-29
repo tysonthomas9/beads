@@ -55,12 +55,12 @@ describe('KanbanBoard', () => {
   });
 
   describe('rendering', () => {
-    it('renders default 5-column kanban layout (Ready, Pending, In Progress, Review, Done)', () => {
+    it('renders default 5-column kanban layout (Ready, Backlog, In Progress, Review, Done)', () => {
       render(<KanbanBoard issues={[]} />);
 
       // Check for new default columns
       expect(screen.getByRole('heading', { name: 'Ready' })).toBeInTheDocument();
-      expect(screen.getByRole('heading', { name: 'Pending' })).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'Backlog' })).toBeInTheDocument();
       expect(screen.getByRole('heading', { name: 'In Progress' })).toBeInTheDocument();
       expect(screen.getByRole('heading', { name: 'Review' })).toBeInTheDocument();
       expect(screen.getByRole('heading', { name: 'Done' })).toBeInTheDocument();
@@ -599,31 +599,33 @@ describe('KanbanBoard', () => {
       ];
     }
 
-    it('shows all issues when no filters provided', () => {
+    it('shows all non-epic issues when no filters provided', () => {
       const issues = createFilterTestIssues();
 
       render(<KanbanBoard issues={issues} />);
 
-      // All issues should be visible
+      // Non-epic issues should be visible
       expect(screen.getByText('Important Task')).toBeInTheDocument();
       expect(screen.getByText('Critical Bug Fix')).toBeInTheDocument();
       expect(screen.getByText('New Feature Request')).toBeInTheDocument();
       expect(screen.getByText('Low Priority Task')).toBeInTheDocument();
-      expect(screen.getByText('Epic for Q1')).toBeInTheDocument();
+      // Epics are excluded from non-Done kanban columns
+      expect(screen.queryByText('Epic for Q1')).not.toBeInTheDocument();
     });
 
-    it('shows all issues when filters prop is empty object', () => {
+    it('shows all non-epic issues when filters prop is empty object', () => {
       const issues = createFilterTestIssues();
       const filters: FilterState = {};
 
       render(<KanbanBoard issues={issues} filters={filters} />);
 
-      // All issues should be visible
+      // Non-epic issues should be visible
       expect(screen.getByText('Important Task')).toBeInTheDocument();
       expect(screen.getByText('Critical Bug Fix')).toBeInTheDocument();
       expect(screen.getByText('New Feature Request')).toBeInTheDocument();
       expect(screen.getByText('Low Priority Task')).toBeInTheDocument();
-      expect(screen.getByText('Epic for Q1')).toBeInTheDocument();
+      // Epics are excluded from non-Done kanban columns
+      expect(screen.queryByText('Epic for Q1')).not.toBeInTheDocument();
     });
 
     it('filters by priority', () => {

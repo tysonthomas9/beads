@@ -26,6 +26,7 @@ export const DEFAULT_COLUMNS: KanbanColumnConfig[] = [
     id: 'ready',
     label: 'Ready',
     filter: (issue, blockedInfo) =>
+      issue.issue_type !== 'epic' &&
       (issue.status === 'open' || issue.status === undefined) &&
       (!blockedInfo || blockedInfo.blockedByCount === 0) &&
       !needsReviewByTitle(issue.title),
@@ -37,6 +38,7 @@ export const DEFAULT_COLUMNS: KanbanColumnConfig[] = [
     id: 'backlog',
     label: 'Backlog',
     filter: (issue, blockedInfo) =>
+      issue.issue_type !== 'epic' &&
       (((issue.status === 'open' || issue.status === undefined) &&
         !!blockedInfo &&
         blockedInfo.blockedByCount > 0) ||
@@ -50,7 +52,8 @@ export const DEFAULT_COLUMNS: KanbanColumnConfig[] = [
   {
     id: 'in_progress',
     label: 'In Progress',
-    filter: (issue) => issue.status === 'in_progress',
+    filter: (issue) =>
+      issue.issue_type !== 'epic' && issue.status === 'in_progress',
     targetStatus: 'in_progress',
     allowedDropTargets: ['ready', 'in_progress', 'review', 'done'],
     style: 'normal',
@@ -59,8 +62,9 @@ export const DEFAULT_COLUMNS: KanbanColumnConfig[] = [
     id: 'review',
     label: 'Review',
     filter: (issue) =>
-      issue.status === 'review' ||
-      needsReviewByTitle(issue.title),
+      issue.issue_type !== 'epic' &&
+      (issue.status === 'review' ||
+       needsReviewByTitle(issue.title)),
     targetStatus: 'review',
     allowedDropTargets: ['ready', 'in_progress', 'review', 'done'],
     style: 'highlighted',
