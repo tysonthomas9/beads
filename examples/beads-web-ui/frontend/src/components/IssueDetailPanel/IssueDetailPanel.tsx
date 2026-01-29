@@ -17,6 +17,7 @@ import type {
 } from '@/types';
 import type { Status } from '@/types/status';
 import { updateIssue, addDependency, removeDependency } from '@/api';
+import { getReviewType } from '@/utils/reviewType';
 import { IssueHeader } from './IssueHeader';
 import { EditableDescription } from './EditableDescription';
 import { MarkdownRenderer } from './MarkdownRenderer';
@@ -25,6 +26,7 @@ import { TypeDropdown } from './TypeDropdown';
 import { DependencySection } from './DependencySection';
 import { CommentsSection } from './CommentsSection';
 import { CommentForm } from './CommentForm';
+import { RejectCommentForm } from './RejectCommentForm';
 import { ErrorToast } from '../ErrorToast';
 import styles from './IssueDetailPanel.module.css';
 
@@ -153,6 +155,10 @@ export interface IssueDetailPanelProps {
   className?: string;
   /** Children to render in the panel content area (overrides default content) */
   children?: React.ReactNode;
+  /** Callback when approve button is clicked (only for review items) */
+  onApprove?: (issue: Issue) => void | Promise<void>;
+  /** Callback when reject is submitted with comment (only for review items) */
+  onReject?: (issue: Issue, comment: string) => void | Promise<void>;
 }
 
 /**
@@ -192,6 +198,10 @@ interface DefaultContentProps {
   onRetry?: () => void;
   /** Callback when issue is updated (e.g., title changed) */
   onIssueUpdate?: (issue: Issue) => void;
+  /** Callback when approve button is clicked */
+  onApprove?: (issue: Issue) => void | Promise<void>;
+  /** Callback when reject is submitted with comment */
+  onReject?: (issue: Issue, comment: string) => void | Promise<void>;
 }
 
 /**
@@ -204,12 +214,18 @@ function DefaultContent({
   onClose,
   onRetry,
   onIssueUpdate,
+  onApprove,
+  onReject,
 }: DefaultContentProps): JSX.Element {
   const [isSavingTitle, setIsSavingTitle] = useState(false);
   const [isSavingStatus, setIsSavingStatus] = useState(false);
   const [isSavingPriority, setIsSavingPriority] = useState(false);
   const [isSavingType, setIsSavingType] = useState(false);
   const [statusError, setStatusError] = useState<string | null>(null);
+  const [showRejectForm, setShowRejectForm] = useState(false);
+  const [isApproving, setIsApproving] = useState(false);
+  const [isRejecting, setIsRejecting] = useState(false);
+  const [rejectError, setRejectError] = useState<string | null>(null);
 
   // Local state for comments to enable optimistic updates
   const hasDetails = issue && isIssueDetails(issue);
@@ -315,6 +331,56 @@ function DefaultContent({
     [issue]
   );
 
+  // Approve handler
+  const handleApprove = useCallback(async () => {
+    if (!issue || !onApprove || isApproving) return;
+    setIsApproving(true);
+    try {
+      await onApprove(issue as Issue);
+    } catch {
+      setIsApproving(false);
+    }
+  }, [issue, onApprove, isApproving]);
+
+  // Reject button click - show form
+  const handleRejectClick = useCallback(() => {
+    setShowRejectForm(true);
+    setRejectError(null);
+  }, []);
+
+  // Reject form cancel
+  const handleRejectCancel = useCallback(() => {
+    if (isRejecting) return;
+    setShowRejectForm(false);
+    setRejectError(null);
+  }, [isRejecting]);
+
+  // Reject form submit
+  const handleRejectSubmit = useCallback(
+    async (comment: string) => {
+      if (!issue || !onReject || isRejecting) return;
+      setIsRejecting(true);
+      setRejectError(null);
+      try {
+        await onReject(issue as Issue, comment);
+        // On success, panel will update via status change
+      } catch (err) {
+        setIsRejecting(false);
+        const message = err instanceof Error ? err.message : 'Failed to reject';
+        setRejectError(message);
+      }
+    },
+    [issue, onReject, isRejecting]
+  );
+
+  // Reset reject form state when issue changes
+  useEffect(() => {
+    setShowRejectForm(false);
+    setIsApproving(false);
+    setIsRejecting(false);
+    setRejectError(null);
+  }, [issue?.id]);
+
   // Loading state
   if (isLoading) {
     return (
@@ -352,6 +418,10 @@ function DefaultContent({
   const dependencies = issueHasDetails ? issue.dependencies : undefined;
   const dependents = issueHasDetails ? issue.dependents : undefined;
 
+  // Determine if this is a review item
+  const reviewType = getReviewType(issue);
+  const isReviewItem = reviewType !== null;
+
   // Calculate open blocker count for banner
   const openBlockerCount = dependencies?.filter((d) => d.status !== 'closed').length ?? 0;
 
@@ -375,6 +445,10 @@ function DefaultContent({
           isSavingStatus={isSavingStatus}
           showPriority={true}
           sticky={true}
+          isReviewItem={isReviewItem}
+          isApproving={isApproving}
+          {...(onApprove && { onApprove: handleApprove })}
+          {...(onReject && { onReject: handleRejectClick })}
         />
 
         {/* Metadata Bar */}
@@ -425,6 +499,17 @@ function DefaultContent({
           )}
         </div>
       </div>
+
+      {/* Reject Comment Form (shown below header when rejecting) */}
+      {showRejectForm && onReject && (
+        <RejectCommentForm
+          issueId={issue.id}
+          onSubmit={handleRejectSubmit}
+          onCancel={handleRejectCancel}
+          isSubmitting={isRejecting}
+          error={rejectError}
+        />
+      )}
 
       {/* Blocking Banner */}
       <BlockingBanner openBlockerCount={openBlockerCount} />
@@ -546,6 +631,8 @@ export function IssueDetailPanel({
   error,
   className,
   children,
+  onApprove,
+  onReject,
 }: IssueDetailPanelProps): JSX.Element {
   const panelRef = useRef<HTMLElement>(null);
 
@@ -602,6 +689,8 @@ export function IssueDetailPanel({
       isLoading={isLoading ?? false}
       error={error ?? null}
       onClose={onClose}
+      {...(onApprove !== undefined && { onApprove })}
+      {...(onReject !== undefined && { onReject })}
     />
   );
 

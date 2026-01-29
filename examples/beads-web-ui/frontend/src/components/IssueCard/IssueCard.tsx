@@ -7,40 +7,10 @@
 import { useState, useCallback } from 'react';
 import type { Issue } from '@/types';
 import { BlockedBadge } from '@/components/BlockedBadge';
+import { getReviewType } from '@/utils/reviewType';
+import type { ReviewType } from '@/utils/reviewType';
 import { RejectCommentForm } from './RejectCommentForm';
 import styles from './IssueCard.module.css';
-
-/**
- * Review type for cards that need human attention.
- */
-type ReviewType = 'plan' | 'code' | 'help';
-
-/**
- * Get the review type for an issue based on title patterns, status, and notes.
- * Returns null if the issue doesn't need review.
- */
-function getReviewType(issue: Issue): ReviewType | null {
-  const hasNeedReview = issue.title?.includes('[Need Review]') ?? false;
-  const isReviewStatus = issue.status === 'review';
-  const isBlockedWithNotes = issue.status === 'blocked' && !!issue.notes;
-
-  // Plan review: Title contains [Need Review]
-  if (hasNeedReview) {
-    return 'plan';
-  }
-
-  // Code review: Status is review AND no [Need Review] in title
-  if (isReviewStatus && !hasNeedReview) {
-    return 'code';
-  }
-
-  // Needs help: Blocked with notes
-  if (isBlockedWithNotes) {
-    return 'help';
-  }
-
-  return null;
-}
 
 /**
  * Review badge configuration by type.

@@ -467,6 +467,8 @@ function App() {
         isLoading={isLoadingDetails}
         error={detailError}
         onClose={handlePanelClose}
+        onApprove={handleApprove}
+        onReject={handleReject}
       />
       <AssigneePrompt
         isOpen={pendingDragData !== null}
