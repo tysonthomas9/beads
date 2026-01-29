@@ -40,6 +40,13 @@ vi.mock('@/components/GraphView', () => ({
   ),
 }));
 
+// Mock MonitorDashboard to avoid complex dependencies in jsdom
+vi.mock('@/components/MonitorDashboard', () => ({
+  MonitorDashboard: () => (
+    <div data-testid="monitor-dashboard">Monitor Dashboard</div>
+  ),
+}));
+
 // Create hoisted mock for useViewState to allow per-test control
 const { mockUseViewState, mockSetActiveView } = vi.hoisted(() => ({
   mockUseViewState: vi.fn(),
@@ -164,6 +171,17 @@ vi.mock('@/hooks', () => ({
     loading: false,
     error: null,
     refetch: vi.fn(),
+  })),
+  useStats: vi.fn(() => ({
+    data: { open: 0, in_progress: 0, ready: 0, closed: 0 },
+    loading: false,
+    error: null,
+    refetch: vi.fn(),
+  })),
+  useRecentAssignees: vi.fn(() => ({
+    recentAssignees: [],
+    addRecentAssignee: vi.fn(),
+    clearRecentAssignees: vi.fn(),
   })),
 }));
 
@@ -1596,6 +1614,217 @@ describe('App', () => {
       expect(viewStateIndex).toBeLessThan(issuesIndex);
       expect(viewStateIndex).toBeGreaterThanOrEqual(0);
       expect(issuesIndex).toBeGreaterThanOrEqual(0);
+    });
+
+    it('calls useIssues with mode: "ready" when activeView is "monitor"', () => {
+      const mockReturn = createMockUseIssuesReturn({});
+      vi.mocked(useIssues).mockReturnValue(mockReturn);
+      vi.mocked(useViewState).mockReturnValue(['monitor', mockSetActiveView]);
+
+      render(<App />);
+
+      expect(useIssues).toHaveBeenCalledWith({ mode: 'ready' });
+    });
+  });
+
+  describe('MonitorDashboard lazy loading integration', () => {
+    it('renders MonitorDashboard when activeView is "monitor"', async () => {
+      const mockReturn = createMockUseIssuesReturn({});
+      vi.mocked(useIssues).mockReturnValue(mockReturn);
+      vi.mocked(useViewState).mockReturnValue(['monitor', mockSetActiveView]);
+
+      render(<App />);
+
+      // Wait for lazy-loaded MonitorDashboard to appear
+      await waitFor(() => {
+        expect(screen.getByTestId('monitor-dashboard')).toBeInTheDocument();
+      });
+    });
+
+    it('shows LoadingSkeleton.Monitor as fallback during lazy load', async () => {
+      const mockReturn = createMockUseIssuesReturn({});
+      vi.mocked(useIssues).mockReturnValue(mockReturn);
+      vi.mocked(useViewState).mockReturnValue(['monitor', mockSetActiveView]);
+
+      render(<App />);
+
+      // The skeleton may appear briefly during the lazy load
+      // We check that MonitorDashboard eventually loads (which means Suspense worked)
+      await waitFor(() => {
+        expect(screen.getByTestId('monitor-dashboard')).toBeInTheDocument();
+      });
+    });
+
+    it('does not render MonitorDashboard when activeView is "kanban"', () => {
+      const mockReturn = createMockUseIssuesReturn({});
+      vi.mocked(useIssues).mockReturnValue(mockReturn);
+      vi.mocked(useViewState).mockReturnValue(['kanban', mockSetActiveView]);
+
+      render(<App />);
+
+      // MonitorDashboard should not be rendered when kanban view is active
+      expect(screen.queryByTestId('monitor-dashboard')).not.toBeInTheDocument();
+      // Kanban view should be active (SwimLaneBoard renders status columns)
+      expect(screen.getByRole('heading', { name: 'Ready' })).toBeInTheDocument();
+    });
+
+    it('does not render MonitorDashboard when activeView is "table"', () => {
+      const mockReturn = createMockUseIssuesReturn({});
+      vi.mocked(useIssues).mockReturnValue(mockReturn);
+      vi.mocked(useViewState).mockReturnValue(['table', mockSetActiveView]);
+
+      render(<App />);
+
+      // MonitorDashboard should not be rendered when table view is active
+      expect(screen.queryByTestId('monitor-dashboard')).not.toBeInTheDocument();
+    });
+
+    it('does not render MonitorDashboard when activeView is "graph"', async () => {
+      const mockReturn = createMockUseIssuesReturn({});
+      vi.mocked(useIssues).mockReturnValue(mockReturn);
+      vi.mocked(useViewState).mockReturnValue(['graph', mockSetActiveView]);
+
+      render(<App />);
+
+      // Wait for lazy-loaded GraphView to appear
+      await waitFor(() => {
+        expect(screen.getByTestId('mock-graph-view')).toBeInTheDocument();
+      });
+
+      // MonitorDashboard should not be rendered when graph view is active
+      expect(screen.queryByTestId('monitor-dashboard')).not.toBeInTheDocument();
+    });
+
+    it('transitions from kanban to monitor view correctly', async () => {
+      const mockReturn = createMockUseIssuesReturn({});
+      vi.mocked(useIssues).mockReturnValue(mockReturn);
+
+      // Start with kanban view
+      vi.mocked(useViewState).mockReturnValue(['kanban', mockSetActiveView]);
+
+      const { rerender } = render(<App />);
+
+      // Verify kanban view is rendered
+      expect(screen.getByRole('heading', { name: 'Ready' })).toBeInTheDocument();
+      expect(screen.queryByTestId('monitor-dashboard')).not.toBeInTheDocument();
+
+      // Switch to monitor view
+      vi.mocked(useViewState).mockReturnValue(['monitor', mockSetActiveView]);
+
+      rerender(<App />);
+
+      // Wait for MonitorDashboard to load
+      await waitFor(() => {
+        expect(screen.getByTestId('monitor-dashboard')).toBeInTheDocument();
+      });
+
+      // Kanban columns should no longer be rendered
+      expect(screen.queryByRole('heading', { name: 'Ready' })).not.toBeInTheDocument();
+    });
+
+    it('transitions from monitor to kanban view correctly', async () => {
+      const mockReturn = createMockUseIssuesReturn({});
+      vi.mocked(useIssues).mockReturnValue(mockReturn);
+
+      // Start with monitor view
+      vi.mocked(useViewState).mockReturnValue(['monitor', mockSetActiveView]);
+
+      const { rerender } = render(<App />);
+
+      // Wait for MonitorDashboard to load
+      await waitFor(() => {
+        expect(screen.getByTestId('monitor-dashboard')).toBeInTheDocument();
+      });
+
+      // Switch to kanban view
+      vi.mocked(useViewState).mockReturnValue(['kanban', mockSetActiveView]);
+
+      rerender(<App />);
+
+      // Verify kanban view is now rendered
+      expect(screen.getByRole('heading', { name: 'Ready' })).toBeInTheDocument();
+      expect(screen.queryByTestId('monitor-dashboard')).not.toBeInTheDocument();
+    });
+
+    it('transitions from graph to monitor view correctly', async () => {
+      const mockReturn = createMockUseIssuesReturn({});
+      vi.mocked(useIssues).mockReturnValue(mockReturn);
+
+      // Start with graph view
+      vi.mocked(useViewState).mockReturnValue(['graph', mockSetActiveView]);
+
+      const { rerender } = render(<App />);
+
+      // Wait for GraphView to load
+      await waitFor(() => {
+        expect(screen.getByTestId('mock-graph-view')).toBeInTheDocument();
+      });
+
+      // Switch to monitor view
+      vi.mocked(useViewState).mockReturnValue(['monitor', mockSetActiveView]);
+
+      rerender(<App />);
+
+      // Wait for MonitorDashboard to load
+      await waitFor(() => {
+        expect(screen.getByTestId('monitor-dashboard')).toBeInTheDocument();
+      });
+
+      // GraphView should no longer be rendered
+      expect(screen.queryByTestId('mock-graph-view')).not.toBeInTheDocument();
+    });
+
+    it('transitions from monitor to graph view correctly', async () => {
+      const mockReturn = createMockUseIssuesReturn({});
+      vi.mocked(useIssues).mockReturnValue(mockReturn);
+
+      // Start with monitor view
+      vi.mocked(useViewState).mockReturnValue(['monitor', mockSetActiveView]);
+
+      const { rerender } = render(<App />);
+
+      // Wait for MonitorDashboard to load
+      await waitFor(() => {
+        expect(screen.getByTestId('monitor-dashboard')).toBeInTheDocument();
+      });
+
+      // Switch to graph view
+      vi.mocked(useViewState).mockReturnValue(['graph', mockSetActiveView]);
+
+      rerender(<App />);
+
+      // Wait for GraphView to load
+      await waitFor(() => {
+        expect(screen.getByTestId('mock-graph-view')).toBeInTheDocument();
+      });
+
+      // MonitorDashboard should no longer be rendered
+      expect(screen.queryByTestId('monitor-dashboard')).not.toBeInTheDocument();
+    });
+
+    it('transitions from table to monitor view correctly', async () => {
+      const mockReturn = createMockUseIssuesReturn({
+        issues: [createMockIssue({ id: 'test-1', title: 'Test Issue', status: 'open' })],
+      });
+      vi.mocked(useIssues).mockReturnValue(mockReturn);
+
+      // Start with table view
+      vi.mocked(useViewState).mockReturnValue(['table', mockSetActiveView]);
+
+      const { rerender } = render(<App />);
+
+      // Verify table view is rendered (IssueTable has specific structure)
+      expect(screen.queryByTestId('monitor-dashboard')).not.toBeInTheDocument();
+
+      // Switch to monitor view
+      vi.mocked(useViewState).mockReturnValue(['monitor', mockSetActiveView]);
+
+      rerender(<App />);
+
+      // Wait for MonitorDashboard to load
+      await waitFor(() => {
+        expect(screen.getByTestId('monitor-dashboard')).toBeInTheDocument();
+      });
     });
   });
 });

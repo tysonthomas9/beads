@@ -1,6 +1,7 @@
 /**
  * @vitest-environment jsdom
  */
+import type React from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { useIssues } from './useIssues';
@@ -20,6 +21,16 @@ vi.mock('../api/issues', () => ({
 vi.mock('./useSSE', () => ({
   useSSE: vi.fn(),
 }));
+
+// Mock useToast
+vi.mock('./useToast', () => ({
+  useToast: () => ({
+    toasts: [],
+    showToast: vi.fn(),
+    removeToast: vi.fn(),
+  }),
+  ToastProvider: ({ children }: { children: React.ReactNode }) => children,
+}))
 
 /**
  * Helper to create a test issue with required fields.
@@ -46,6 +57,7 @@ function createMockSSE(
     lastError: null,
     isConnected: false,
     reconnectAttempts: 0,
+    lastEventId: undefined,
     connect: vi.fn(),
     disconnect: vi.fn(),
     retryNow: vi.fn(),
@@ -75,7 +87,7 @@ describe('useIssues', () => {
 
   afterEach(() => {
     onMutationCallback = undefined;
-    onStateChangeCallback = undefined;
+    _onStateChangeCallback = undefined;
   });
 
   describe('Hook initialization', () => {
@@ -717,6 +729,32 @@ describe('useIssues', () => {
       expect(result.current.issues).toHaveLength(2);
       expect(result.current.getIssue('graph-1')?.dependencies).toHaveLength(1);
       expect(result.current.getIssue('graph-1')?.dependencies?.[0].depends_on_id).toBe('graph-2');
+    });
+  });
+
+  describe('SSE integration', () => {
+    it('exposes lastEventId from SSE connection', async () => {
+      mockSSE = createMockSSE({ lastEventId: 1706011200000 });
+      vi.mocked(useSSEModule.useSSE).mockReturnValue(mockSSE);
+      vi.mocked(issuesApi.getReadyIssues).mockResolvedValue([]);
+
+      const { result } = renderHook(() => useIssues());
+
+      await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+      expect(result.current.lastEventId).toBe(1706011200000);
+    });
+
+    it('returns undefined lastEventId when no events received', async () => {
+      mockSSE = createMockSSE({ lastEventId: undefined });
+      vi.mocked(useSSEModule.useSSE).mockReturnValue(mockSSE);
+      vi.mocked(issuesApi.getReadyIssues).mockResolvedValue([]);
+
+      const { result } = renderHook(() => useIssues());
+
+      await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+      expect(result.current.lastEventId).toBeUndefined();
     });
   });
 });

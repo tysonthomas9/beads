@@ -94,3 +94,6 @@ export type { ToastType, ToastOptions, Toast, ToastContextValue, ToastProviderPr
 
 export { useStats } from './useStats'
 export type { UseStatsOptions, UseStatsResult } from './useStats'
+
+export { useRecentAssignees } from './useRecentAssignees'
+export type { UseRecentAssigneesReturn } from './useRecentAssignees'

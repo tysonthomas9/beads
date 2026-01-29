@@ -231,11 +231,13 @@ describe('AppLayout', () => {
       );
 
       const rootDiv = container.firstChild as HTMLElement;
+      // header and main are no longer direct siblings - main is inside contentWrapper
+      // but header still comes before contentWrapper in the direct children
       const children = Array.from(rootDiv.children);
       const headerIndex = children.findIndex((el) => el.tagName === 'HEADER');
-      const mainIndex = children.findIndex((el) => el.tagName === 'MAIN');
+      const contentWrapperIndex = children.findIndex((el) => el.querySelector('main'));
 
-      expect(headerIndex).toBeLessThan(mainIndex);
+      expect(headerIndex).toBeLessThan(contentWrapperIndex);
     });
 
     it('has correct element hierarchy (div > header + main)', () => {
@@ -250,11 +252,13 @@ describe('AppLayout', () => {
 
       const header = rootDiv.querySelector('header');
       const main = rootDiv.querySelector('main');
+      const contentWrapper = main?.parentElement;
 
       expect(header).toBeInTheDocument();
       expect(main).toBeInTheDocument();
       expect(header?.parentElement).toBe(rootDiv);
-      expect(main?.parentElement).toBe(rootDiv);
+      // main is inside contentWrapper, which is inside rootDiv
+      expect(contentWrapper?.parentElement).toBe(rootDiv);
     });
   });
 

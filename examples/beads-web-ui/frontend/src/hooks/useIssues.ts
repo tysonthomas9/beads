@@ -12,6 +12,11 @@ import type { ConnectionState, GraphFilter } from '@/api'
 import { getReadyIssues, updateIssue as apiUpdateIssue, fetchGraphIssues } from '@/api'
 import { useSSE } from './useSSE'
 import { useMutationHandler } from './useMutationHandler'
+import { useToast } from './useToast'
+
+// Threshold for triggering a full refetch after reconnection
+// If we had this many consecutive reconnect attempts, assume we may have missed events
+const TOO_FAR_BEHIND_THRESHOLD = 3
 
 /**
  * Options for the useIssues hook.
@@ -49,6 +54,8 @@ export interface UseIssuesReturn {
   isConnected: boolean
   /** Current number of reconnection attempts */
   reconnectAttempts: number
+  /** Last event ID received from SSE (for debugging/monitoring) */
+  lastEventId: number | undefined
   /** Refetch issues from API */
   refetch: () => Promise<void>
   /** Update an issue's status (optimistic + API call) */
@@ -128,12 +135,20 @@ export function useIssues(options: UseIssuesOptions = {}): UseIssuesReturn {
     isConnected,
     lastError: wsError,
     reconnectAttempts,
+    lastEventId,
     retryNow,
   } = useSSE({
     autoConnect,
     since: fetchTimestampRef.current > 0 ? fetchTimestampRef.current : undefined,
     onMutation: handleMutation,
   })
+
+  // Toast for user notifications
+  const { showToast } = useToast()
+
+  // Track previous state for detecting reconnection
+  const prevStateRef = useRef<ConnectionState>('disconnected')
+  const maxReconnectAttemptsRef = useRef<number>(0)
 
   // Fetch issues from API
   const refetch = useCallback(async () => {
@@ -175,6 +190,40 @@ export function useIssues(options: UseIssuesOptions = {}): UseIssuesReturn {
       void refetch()
     }
   }, [autoFetch, refetch])
+
+  // Track max reconnect attempts to detect prolonged disconnection
+  useEffect(() => {
+    if (reconnectAttempts > maxReconnectAttemptsRef.current) {
+      maxReconnectAttemptsRef.current = reconnectAttempts
+    }
+  }, [reconnectAttempts])
+
+  // Too-far-behind detection: refetch when recovering from prolonged disconnection
+  useEffect(() => {
+    const prevState = prevStateRef.current
+    prevStateRef.current = connectionState
+
+    // Detect transition from reconnecting → connected
+    if (prevState === 'reconnecting' && connectionState === 'connected') {
+      // If we had multiple reconnect attempts, assume we may have missed events
+      if (maxReconnectAttemptsRef.current >= TOO_FAR_BEHIND_THRESHOLD) {
+        if (process.env.NODE_ENV === 'development') {
+          console.debug(
+            '[useIssues] Connection restored after',
+            maxReconnectAttemptsRef.current,
+            'attempts. Triggering full refetch.'
+          )
+        }
+        showToast('Connection restored. Refreshing data...', {
+          type: 'info',
+          duration: 3000,
+        })
+        void refetch()
+      }
+      // Reset max attempts counter after successful reconnection
+      maxReconnectAttemptsRef.current = 0
+    }
+  }, [connectionState, showToast, refetch])
 
   // Cleanup on unmount
   useEffect(() => {
@@ -236,6 +285,7 @@ export function useIssues(options: UseIssuesOptions = {}): UseIssuesReturn {
     connectionState,
     isConnected,
     reconnectAttempts,
+    lastEventId,
     refetch,
     updateIssueStatus,
     getIssue,

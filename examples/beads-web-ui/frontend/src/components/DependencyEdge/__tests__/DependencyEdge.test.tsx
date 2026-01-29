@@ -249,17 +249,17 @@ describe('DependencyEdge', () => {
 
       const path = container.querySelector('path.react-flow__edge-path');
       const classAttr = path?.getAttribute('class') ?? '';
-      expect(classAttr).toContain('blockingEdge');
+      expect(classAttr).toContain('typeBlocks');
       expect(classAttr).toContain('highlighted');
     });
 
-    it('combines highlighted with normal class', () => {
-      const props = createTestProps({ isBlocking: false, isHighlighted: true });
+    it('combines highlighted with related type class', () => {
+      const props = createTestProps({ dependencyType: 'related', isHighlighted: true });
       const { container } = renderWithProvider(<DependencyEdge {...props} />);
 
       const path = container.querySelector('path.react-flow__edge-path');
       const classAttr = path?.getAttribute('class') ?? '';
-      expect(classAttr).toContain('normalEdge');
+      expect(classAttr).toContain('typeRelated');
       expect(classAttr).toContain('highlighted');
     });
 

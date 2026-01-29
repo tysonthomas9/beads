@@ -45,6 +45,8 @@ export interface UseSSEReturn {
   isConnected: boolean
   /** Current number of reconnection attempts (reactive) */
   reconnectAttempts: number
+  /** Last event ID received from server (for debugging/catch-up tracking) */
+  lastEventId: number | undefined
   /** Connect to the SSE endpoint */
   connect: () => void
   /** Disconnect from the SSE endpoint */
@@ -79,6 +81,7 @@ export function useSSE(options: UseSSEOptions = {}): UseSSEReturn {
   const [state, setState] = useState<ConnectionState>('disconnected')
   const [lastError, setLastError] = useState<string | null>(null)
   const [reconnectAttempts, setReconnectAttempts] = useState(0)
+  const [lastEventId, setLastEventId] = useState<number | undefined>(undefined)
 
   // Refs for stable references across renders
   const clientRef = useRef<BeadsSSEClient | null>(null)
@@ -117,6 +120,11 @@ export function useSSE(options: UseSSEOptions = {}): UseSSEReturn {
     const clientOptions: SSEClientOptions = {
       onMutation: (mutation: MutationPayload) => {
         if (!mountedRef.current) return
+        // Update lastEventId from the client after each mutation
+        const eventId = clientRef.current?.getLastEventId()
+        if (eventId !== undefined) {
+          setLastEventId(eventId)
+        }
         onMutationRef.current?.(mutation)
       },
       onError: (error: string) => {
@@ -176,6 +184,7 @@ export function useSSE(options: UseSSEOptions = {}): UseSSEReturn {
     lastError,
     isConnected,
     reconnectAttempts,
+    lastEventId,
     connect,
     disconnect,
     retryNow,
