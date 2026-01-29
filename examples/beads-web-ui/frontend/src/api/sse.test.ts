@@ -380,6 +380,31 @@ describe('BeadsSSEClient', () => {
   })
 
   describe('Last event ID tracking for reconnection catch-up', () => {
+    it('getLastEventId returns undefined initially', () => {
+      const client = new BeadsSSEClient()
+
+      expect(client.getLastEventId()).toBeUndefined()
+    })
+
+    it('getLastEventId returns the last event ID after receiving a mutation', () => {
+      const client = new BeadsSSEClient()
+
+      client.connect()
+      MockEventSource.lastInstance?.simulateOpen()
+
+      const mutation: MutationPayload = {
+        type: 'create',
+        issue_id: 'beads-123',
+        title: 'Test Issue',
+        timestamp: '2025-01-23T12:00:00Z',
+      }
+
+      MockEventSource.lastInstance?.simulateMutation(mutation)
+
+      const expectedTime = Date.parse('2025-01-23T12:00:00Z')
+      expect(client.getLastEventId()).toBe(expectedTime)
+    })
+
     it('tracks last event ID from event.lastEventId', () => {
       const client = new BeadsSSEClient()
 

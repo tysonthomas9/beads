@@ -59,9 +59,12 @@ class MockEventSource {
     this.onerror?.()
   }
 
-  simulateMutation(data: unknown): void {
+  simulateMutation(data: unknown, lastEventId?: string): void {
     const listeners = this.eventListeners.get('mutation') ?? []
-    const event = { data: JSON.stringify(data) } as MessageEvent
+    // Parse timestamp from data if lastEventId not provided
+    const parsed = data as { timestamp?: string }
+    const eventId = lastEventId ?? (parsed.timestamp ? String(Date.parse(parsed.timestamp)) : '')
+    const event = { data: JSON.stringify(data), lastEventId: eventId } as MessageEvent
     for (const listener of listeners) {
       listener(event)
     }
@@ -98,6 +101,7 @@ describe('useSSE', () => {
       expect(result.current).toHaveProperty('lastError')
       expect(result.current).toHaveProperty('isConnected')
       expect(result.current).toHaveProperty('reconnectAttempts')
+      expect(result.current).toHaveProperty('lastEventId')
       expect(result.current).toHaveProperty('connect')
       expect(result.current).toHaveProperty('disconnect')
       expect(result.current).toHaveProperty('retryNow')
@@ -114,6 +118,7 @@ describe('useSSE', () => {
       expect(result.current.isConnected).toBe(false)
       expect(result.current.lastError).toBeNull()
       expect(result.current.reconnectAttempts).toBe(0)
+      expect(result.current.lastEventId).toBeUndefined()
     })
   })
 
@@ -387,6 +392,39 @@ describe('useSSE', () => {
       })
 
       expect(onMutation).toHaveBeenCalledWith(mutation)
+    })
+
+    it('lastEventId is updated when mutation is received', () => {
+      const { result } = renderHook(() =>
+        useSSE({
+          autoConnect: false,
+        })
+      )
+
+      // Initially undefined
+      expect(result.current.lastEventId).toBeUndefined()
+
+      act(() => {
+        result.current.connect()
+      })
+
+      act(() => {
+        MockEventSource.lastInstance?.simulateOpen()
+      })
+
+      const mutation: MutationPayload = {
+        type: 'create',
+        issue_id: 'beads-123',
+        title: 'Test Issue',
+        timestamp: '2025-01-23T12:00:00Z',
+      }
+
+      act(() => {
+        MockEventSource.lastInstance?.simulateMutation(mutation)
+      })
+
+      // lastEventId should be set to the timestamp in ms
+      expect(result.current.lastEventId).toBe(Date.parse('2025-01-23T12:00:00Z'))
     })
 
     it('onError called with error message', () => {

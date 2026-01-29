@@ -109,6 +109,15 @@ export class BeadsSSEClient {
   }
 
   /**
+   * Get the last event ID received from the server.
+   * This is the timestamp (in ms) used for catch-up on reconnection.
+   * Returns undefined if no events have been received yet.
+   */
+  getLastEventId(): number | undefined {
+    return this.lastEventId
+  }
+
+  /**
    * Immediately retry connection.
    * Only works when in 'reconnecting' state.
    * Resets the reconnect counter on manual retry.
