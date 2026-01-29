@@ -20,7 +20,7 @@
   flex-shrink: 0;
 }
 
-/* Muted column style (Pending - blocked by dependencies) */
+/* Muted column style (Backlog - issues not yet actionable) */
 .mutedColumn {
   opacity: 0.7;
   background-color: var(--color-surface-subtle);

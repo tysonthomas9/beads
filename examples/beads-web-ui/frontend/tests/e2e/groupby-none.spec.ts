@@ -133,7 +133,7 @@ async function navigateAndWait(page: Page, path = "/") {
 
 test.describe("groupBy None (Flat View)", () => {
   test.describe("Default State", () => {
-    test("default page load shows flat view without groupBy URL param", async ({
+    test("default page load shows epic swim lane view without groupBy URL param", async ({
       page,
     }) => {
       await setupMocks(page)
@@ -142,18 +142,11 @@ test.describe("groupBy None (Flat View)", () => {
       // No groupBy param in URL
       expect(page.url()).not.toContain("groupBy")
 
-      // Swim lane board should NOT be visible (flat view)
-      await expect(page.getByTestId("swim-lane-board")).not.toBeVisible()
+      // Swim lane board should be visible (epic swim lanes are the default)
+      await expect(page.getByTestId("swim-lane-board")).toBeVisible()
 
-      // GroupBy dropdown shows 'none' selected
-      await expect(page.getByTestId("groupby-filter")).toHaveValue("none")
-
-      // Flat status columns visible
-      await expect(page.locator('section[data-status="open"]')).toBeVisible()
-      await expect(
-        page.locator('section[data-status="in_progress"]')
-      ).toBeVisible()
-      await expect(page.locator('section[data-status="closed"]')).toBeVisible()
+      // GroupBy dropdown shows 'epic' selected
+      await expect(page.getByTestId("groupby-filter")).toHaveValue("epic")
     })
 
     test("navigating with explicit groupBy=none shows flat view", async ({
@@ -176,7 +169,7 @@ test.describe("groupBy None (Flat View)", () => {
       page,
     }) => {
       await setupMocks(page)
-      await navigateAndWait(page)
+      await navigateAndWait(page, "/?groupBy=none")
 
       // No swim lane board
       await expect(page.getByTestId("swim-lane-board")).not.toBeVisible()
@@ -192,7 +185,7 @@ test.describe("groupBy None (Flat View)", () => {
 
     test("no grouping headers shown in flat view", async ({ page }) => {
       await setupMocks(page)
-      await navigateAndWait(page)
+      await navigateAndWait(page, "/?groupBy=none")
 
       // No swim lane headings (e.g., epic titles, assignee names, priority labels)
       const swimLaneHeadings = page.locator(
@@ -207,7 +200,7 @@ test.describe("groupBy None (Flat View)", () => {
       page,
     }) => {
       await setupMocks(page)
-      await navigateAndWait(page)
+      await navigateAndWait(page, "/?groupBy=none")
 
       const openColumn = page.locator('section[data-status="open"]')
       const inProgressColumn = page.locator('section[data-status="in_progress"]')
@@ -226,7 +219,7 @@ test.describe("groupBy None (Flat View)", () => {
 
     test("issues appear in correct status columns", async ({ page }) => {
       await setupMocks(page)
-      await navigateAndWait(page)
+      await navigateAndWait(page, "/?groupBy=none")
 
       const openColumn = page.locator('section[data-status="open"]')
       const inProgressColumn = page.locator('section[data-status="in_progress"]')
@@ -251,7 +244,7 @@ test.describe("groupBy None (Flat View)", () => {
     }) => {
       const patchCalls: { url: string; body: object }[] = []
       await setupMocksWithPatch(page, patchCalls)
-      await navigateAndWait(page)
+      await navigateAndWait(page, "/?groupBy=none")
 
       const openColumn = page.locator('section[data-status="open"]')
       const inProgressColumn = page.locator('section[data-status="in_progress"]')
@@ -340,7 +333,7 @@ test.describe("groupBy None (Flat View)", () => {
     test("drag issue to closed column works", async ({ page }) => {
       const patchCalls: { url: string; body: object }[] = []
       await setupMocksWithPatch(page, patchCalls)
-      await navigateAndWait(page)
+      await navigateAndWait(page, "/?groupBy=none")
 
       const openColumn = page.locator('section[data-status="open"]')
       const closedColumn = page.locator('section[data-status="closed"]')
@@ -472,7 +465,7 @@ test.describe("groupBy None (Flat View)", () => {
 
     test("switching groupBy repeatedly works correctly", async ({ page }) => {
       await setupMocks(page)
-      await navigateAndWait(page)
+      await navigateAndWait(page, "/?groupBy=none")
 
       // Start flat
       await expect(page.getByTestId("swim-lane-board")).not.toBeVisible()
@@ -514,35 +507,33 @@ test.describe("groupBy None (Flat View)", () => {
       }).toPass({ timeout: 2000 })
     })
 
-    test("page reload preserves flat view (default)", async ({ page }) => {
+    test("page reload preserves epic swim lane view (default)", async ({ page }) => {
       await setupMocks(page)
       await navigateAndWait(page)
 
-      // Verify flat view
-      await expect(page.getByTestId("swim-lane-board")).not.toBeVisible()
+      // Verify epic swim lane view (default)
+      await expect(page.getByTestId("swim-lane-board")).toBeVisible()
 
       // Re-setup mocks before reload
       await setupMocks(page)
       await page.reload()
       await page.waitForResponse((res) => res.url().includes("/api/ready"))
 
-      // Still flat view
-      await expect(page.getByTestId("swim-lane-board")).not.toBeVisible()
-      await expect(page.locator('section[data-status="open"]')).toBeVisible()
+      // Still epic swim lane view
+      await expect(page.getByTestId("swim-lane-board")).toBeVisible()
     })
 
-    test("invalid groupBy URL param defaults to flat view", async ({
+    test("invalid groupBy URL param defaults to epic swim lane view", async ({
       page,
     }) => {
       await setupMocks(page)
       await navigateAndWait(page, "/?groupBy=invalid")
 
-      // Flat view renders (invalid param ignored)
-      await expect(page.getByTestId("swim-lane-board")).not.toBeVisible()
-      await expect(page.locator('section[data-status="open"]')).toBeVisible()
+      // Epic swim lane view renders (invalid param falls back to default)
+      await expect(page.getByTestId("swim-lane-board")).toBeVisible()
 
-      // Dropdown shows 'none' (default)
-      await expect(page.getByTestId("groupby-filter")).toHaveValue("none")
+      // Dropdown shows 'epic' (default)
+      await expect(page.getByTestId("groupby-filter")).toHaveValue("epic")
     })
   })
 
@@ -551,7 +542,7 @@ test.describe("groupBy None (Flat View)", () => {
       page,
     }) => {
       await setupMocks(page)
-      await navigateAndWait(page)
+      await navigateAndWait(page, "/?groupBy=none")
 
       // All 5 issues visible initially
       await expect(page.locator("article")).toHaveCount(5)
@@ -567,7 +558,7 @@ test.describe("groupBy None (Flat View)", () => {
 
     test("type filter works with flat view", async ({ page }) => {
       await setupMocks(page)
-      await navigateAndWait(page)
+      await navigateAndWait(page, "/?groupBy=none")
 
       // Filter to bugs only (2 bugs: open-2 and closed-1)
       await page.getByTestId("type-filter").selectOption("bug")
@@ -579,7 +570,7 @@ test.describe("groupBy None (Flat View)", () => {
 
     test("clear filters restores all issues in flat view", async ({ page }) => {
       await setupMocks(page)
-      await navigateAndWait(page)
+      await navigateAndWait(page, "/?groupBy=none")
 
       const clearButton = page.getByTestId("clear-filters")
       const priorityFilter = page.getByTestId("priority-filter")
@@ -616,7 +607,7 @@ test.describe("groupBy None (Flat View)", () => {
   test.describe("Edge Cases", () => {
     test("empty issues shows empty status columns", async ({ page }) => {
       await setupMocks(page, [])
-      await navigateAndWait(page)
+      await navigateAndWait(page, "/?groupBy=none")
 
       // Status columns still visible
       await expect(page.locator('section[data-status="open"]')).toBeVisible()
@@ -662,7 +653,7 @@ test.describe("groupBy None (Flat View)", () => {
         },
       ]
       await setupMocks(page, allOpenIssues)
-      await navigateAndWait(page)
+      await navigateAndWait(page, "/?groupBy=none")
 
       const openColumn = page.locator('section[data-status="open"]')
       const inProgressColumn = page.locator('section[data-status="in_progress"]')

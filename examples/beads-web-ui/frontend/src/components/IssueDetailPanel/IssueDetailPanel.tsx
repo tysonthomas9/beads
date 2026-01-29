@@ -17,6 +17,7 @@ import type {
 } from '@/types';
 import type { Status } from '@/types/status';
 import { updateIssue, addDependency, removeDependency } from '@/api';
+import { getReviewType } from '@/utils/reviewType';
 import { IssueHeader } from './IssueHeader';
 import { EditableDescription } from './EditableDescription';
 import { MarkdownRenderer } from './MarkdownRenderer';
@@ -25,6 +26,7 @@ import { TypeDropdown } from './TypeDropdown';
 import { DependencySection } from './DependencySection';
 import { CommentsSection } from './CommentsSection';
 import { CommentForm } from './CommentForm';
+import { RejectCommentForm } from './RejectCommentForm';
 import { ErrorToast } from '../ErrorToast';
 import styles from './IssueDetailPanel.module.css';
 
@@ -153,6 +155,10 @@ export interface IssueDetailPanelProps {
   className?: string;
   /** Children to render in the panel content area (overrides default content) */
   children?: React.ReactNode;
+  /** Callback when approve button is clicked (only for review items) */
+  onApprove?: (issue: Issue) => void | Promise<void>;
+  /** Callback when reject is submitted with comment (only for review items) */
+  onReject?: (issue: Issue, comment: string) => void | Promise<void>;
 }
 
 /**
@@ -192,6 +198,14 @@ interface DefaultContentProps {
   onRetry?: () => void;
   /** Callback when issue is updated (e.g., title changed) */
   onIssueUpdate?: (issue: Issue) => void;
+  /** Callback when approve button is clicked */
+  onApprove?: (issue: Issue) => void | Promise<void>;
+  /** Callback when reject is submitted with comment */
+  onReject?: (issue: Issue, comment: string) => void | Promise<void>;
+  /** Whether the panel is in fullscreen mode */
+  isFullscreen?: boolean;
+  /** Callback to toggle fullscreen mode */
+  onToggleFullscreen?: () => void;
 }
 
 /**
@@ -204,12 +218,20 @@ function DefaultContent({
   onClose,
   onRetry,
   onIssueUpdate,
+  onApprove,
+  onReject,
+  isFullscreen,
+  onToggleFullscreen,
 }: DefaultContentProps): JSX.Element {
   const [isSavingTitle, setIsSavingTitle] = useState(false);
   const [isSavingStatus, setIsSavingStatus] = useState(false);
   const [isSavingPriority, setIsSavingPriority] = useState(false);
   const [isSavingType, setIsSavingType] = useState(false);
   const [statusError, setStatusError] = useState<string | null>(null);
+  const [showRejectForm, setShowRejectForm] = useState(false);
+  const [isApproving, setIsApproving] = useState(false);
+  const [isRejecting, setIsRejecting] = useState(false);
+  const [rejectError, setRejectError] = useState<string | null>(null);
 
   // Local state for comments to enable optimistic updates
   const hasDetails = issue && isIssueDetails(issue);
@@ -315,6 +337,56 @@ function DefaultContent({
     [issue]
   );
 
+  // Approve handler
+  const handleApprove = useCallback(async () => {
+    if (!issue || !onApprove || isApproving) return;
+    setIsApproving(true);
+    try {
+      await onApprove(issue as Issue);
+    } catch {
+      setIsApproving(false);
+    }
+  }, [issue, onApprove, isApproving]);
+
+  // Reject button click - show form
+  const handleRejectClick = useCallback(() => {
+    setShowRejectForm(true);
+    setRejectError(null);
+  }, []);
+
+  // Reject form cancel
+  const handleRejectCancel = useCallback(() => {
+    if (isRejecting) return;
+    setShowRejectForm(false);
+    setRejectError(null);
+  }, [isRejecting]);
+
+  // Reject form submit
+  const handleRejectSubmit = useCallback(
+    async (comment: string) => {
+      if (!issue || !onReject || isRejecting) return;
+      setIsRejecting(true);
+      setRejectError(null);
+      try {
+        await onReject(issue as Issue, comment);
+        // On success, panel will update via status change
+      } catch (err) {
+        setIsRejecting(false);
+        const message = err instanceof Error ? err.message : 'Failed to reject';
+        setRejectError(message);
+      }
+    },
+    [issue, onReject, isRejecting]
+  );
+
+  // Reset reject form state when issue changes
+  useEffect(() => {
+    setShowRejectForm(false);
+    setIsApproving(false);
+    setIsRejecting(false);
+    setRejectError(null);
+  }, [issue?.id]);
+
   // Loading state
   if (isLoading) {
     return (
@@ -352,6 +424,10 @@ function DefaultContent({
   const dependencies = issueHasDetails ? issue.dependencies : undefined;
   const dependents = issueHasDetails ? issue.dependents : undefined;
 
+  // Determine if this is a review item
+  const reviewType = getReviewType(issue);
+  const isReviewItem = reviewType !== null;
+
   // Calculate open blocker count for banner
   const openBlockerCount = dependencies?.filter((d) => d.status !== 'closed').length ?? 0;
 
@@ -375,6 +451,12 @@ function DefaultContent({
           isSavingStatus={isSavingStatus}
           showPriority={true}
           sticky={true}
+          isReviewItem={isReviewItem}
+          isApproving={isApproving}
+          isFullscreen={isFullscreen ?? false}
+          {...(onToggleFullscreen && { onToggleFullscreen })}
+          {...(onApprove && { onApprove: handleApprove })}
+          {...(onReject && { onReject: handleRejectClick })}
         />
 
         {/* Metadata Bar */}
@@ -426,94 +508,192 @@ function DefaultContent({
         </div>
       </div>
 
+      {/* Reject Comment Form (shown below header when rejecting) */}
+      {showRejectForm && onReject && (
+        <RejectCommentForm
+          issueId={issue.id}
+          onSubmit={handleRejectSubmit}
+          onCancel={handleRejectCancel}
+          isSubmitting={isRejecting}
+          error={rejectError}
+        />
+      )}
+
       {/* Blocking Banner */}
       <BlockingBanner openBlockerCount={openBlockerCount} />
 
       {/* Scrollable Content */}
       <div className={styles.scrollableContent}>
-        <div className={styles.detailContent}>
-          {/* Priority/Type dropdowns for editing */}
-          <div className={styles.statusRow}>
-            <PriorityDropdown
-              priority={issue.priority as Priority}
-              onSave={handlePrioritySave}
-              isSaving={isSavingPriority}
-            />
-            <TypeDropdown type={issue.issue_type} onSave={handleTypeSave} isSaving={isSavingType} />
-          </div>
+        {isFullscreen && issue.design ? (
+          /* Two-column layout in fullscreen when design exists */
+          <div className={styles.twoColumnLayout}>
+            <div className={styles.leftColumn}>
+              <div className={styles.detailContent}>
+                {/* Priority/Type dropdowns for editing */}
+                <div className={styles.statusRow}>
+                  <PriorityDropdown
+                    priority={issue.priority as Priority}
+                    onSave={handlePrioritySave}
+                    isSaving={isSavingPriority}
+                  />
+                  <TypeDropdown type={issue.issue_type} onSave={handleTypeSave} isSaving={isSavingType} />
+                </div>
 
-          {/* Description */}
-          <section className={styles.section}>
-            <h3 className={styles.sectionTitle}>Description</h3>
-            <EditableDescription
-              description={issue.description}
-              isEditable={true}
-              onSave={async (newDescription) => {
-                const updatedIssue = await updateIssue(issue.id, { description: newDescription });
-                onIssueUpdate?.(updatedIssue);
-              }}
-            />
-          </section>
+                {/* Description */}
+                <section className={styles.section}>
+                  <h3 className={styles.sectionTitle}>Description</h3>
+                  <EditableDescription
+                    description={issue.description}
+                    isEditable={true}
+                    onSave={async (newDescription) => {
+                      const updatedIssue = await updateIssue(issue.id, { description: newDescription });
+                      onIssueUpdate?.(updatedIssue);
+                    }}
+                  />
+                </section>
 
-          {/* Design (collapsible, markdown rendered) */}
-          {issue.design && (
-            <CollapsibleSection
-              title="Design"
-              defaultExpanded={!shouldCollapseDesign}
-              testId="design-section"
-            >
-              <MarkdownRenderer content={issue.design} />
-            </CollapsibleSection>
-          )}
+                {/* Dependencies (blocking this issue) - editable */}
+                {hasDetails && (
+                  <DependencySection
+                    issueId={issue.id}
+                    dependencies={dependencies ?? []}
+                    onAddDependency={handleAddDependency}
+                    onRemoveDependency={handleRemoveDependency}
+                    disabled={isLoading}
+                  />
+                )}
 
-          {/* Notes (collapsible) */}
-          {issue.notes && (
-            <CollapsibleSection
-              title="Notes"
-              defaultExpanded={!shouldCollapseNotes}
-              testId="notes-section"
-            >
-              <MarkdownRenderer content={issue.notes} />
-            </CollapsibleSection>
-          )}
+                {/* Dependents (this issue blocks) */}
+                {dependents && dependents.length > 0 && (
+                  <section className={styles.section}>
+                    <h3 className={styles.sectionTitle}>Blocks ({dependents.length})</h3>
+                    <ul className={styles.dependencyList}>{dependents.map(renderDependencyItem)}</ul>
+                  </section>
+                )}
 
-          {/* Dependencies (blocking this issue) - editable */}
-          {hasDetails && (
-            <DependencySection
-              issueId={issue.id}
-              dependencies={dependencies ?? []}
-              onAddDependency={handleAddDependency}
-              onRemoveDependency={handleRemoveDependency}
-              disabled={isLoading}
-            />
-          )}
+                {/* Comments */}
+                <CommentsSection comments={localComments} />
+                <CommentForm issueId={issue.id} onCommentAdded={handleCommentAdded} />
 
-          {/* Dependents (this issue blocks) */}
-          {dependents && dependents.length > 0 && (
-            <section className={styles.section}>
-              <h3 className={styles.sectionTitle}>Blocks ({dependents.length})</h3>
-              <ul className={styles.dependencyList}>{dependents.map(renderDependencyItem)}</ul>
-            </section>
-          )}
-
-          {/* Comments */}
-          <CommentsSection comments={localComments} />
-          <CommentForm issueId={issue.id} onCommentAdded={handleCommentAdded} />
-
-          {/* Labels */}
-          {issue.labels && issue.labels.length > 0 && (
-            <section className={styles.section}>
-              <h3 className={styles.sectionTitle}>Labels</h3>
-              <div className={styles.labels}>
-                {issue.labels.map((label) => (
-                  <span key={label} className={styles.label}>
-                    {label}
-                  </span>
-                ))}
+                {/* Labels */}
+                {issue.labels && issue.labels.length > 0 && (
+                  <section className={styles.section}>
+                    <h3 className={styles.sectionTitle}>Labels</h3>
+                    <div className={styles.labels}>
+                      {issue.labels.map((label) => (
+                        <span key={label} className={styles.label}>
+                          {label}
+                        </span>
+                      ))}
+                    </div>
+                  </section>
+                )}
               </div>
+            </div>
+            <div className={styles.rightColumn}>
+              <div className={styles.detailContent}>
+                {/* Design (always expanded in fullscreen) */}
+                <section className={styles.section}>
+                  <h3 className={styles.sectionTitle}>Design</h3>
+                  <MarkdownRenderer content={issue.design} />
+                </section>
+
+                {/* Notes */}
+                {issue.notes && (
+                  <section className={styles.section}>
+                    <h3 className={styles.sectionTitle}>Notes</h3>
+                    <MarkdownRenderer content={issue.notes} />
+                  </section>
+                )}
+              </div>
+            </div>
+          </div>
+        ) : (
+          /* Single-column layout (panel mode or fullscreen without design) */
+          <div className={styles.detailContent}>
+            {/* Priority/Type dropdowns for editing */}
+            <div className={styles.statusRow}>
+              <PriorityDropdown
+                priority={issue.priority as Priority}
+                onSave={handlePrioritySave}
+                isSaving={isSavingPriority}
+              />
+              <TypeDropdown type={issue.issue_type} onSave={handleTypeSave} isSaving={isSavingType} />
+            </div>
+
+            {/* Description */}
+            <section className={styles.section}>
+              <h3 className={styles.sectionTitle}>Description</h3>
+              <EditableDescription
+                description={issue.description}
+                isEditable={true}
+                onSave={async (newDescription) => {
+                  const updatedIssue = await updateIssue(issue.id, { description: newDescription });
+                  onIssueUpdate?.(updatedIssue);
+                }}
+              />
             </section>
-          )}
-        </div>
+
+            {/* Design (collapsible, markdown rendered) */}
+            {issue.design && (
+              <CollapsibleSection
+                title="Design"
+                defaultExpanded={!shouldCollapseDesign}
+                testId="design-section"
+              >
+                <MarkdownRenderer content={issue.design} />
+              </CollapsibleSection>
+            )}
+
+            {/* Notes (collapsible) */}
+            {issue.notes && (
+              <CollapsibleSection
+                title="Notes"
+                defaultExpanded={!shouldCollapseNotes}
+                testId="notes-section"
+              >
+                <MarkdownRenderer content={issue.notes} />
+              </CollapsibleSection>
+            )}
+
+            {/* Dependencies (blocking this issue) - editable */}
+            {hasDetails && (
+              <DependencySection
+                issueId={issue.id}
+                dependencies={dependencies ?? []}
+                onAddDependency={handleAddDependency}
+                onRemoveDependency={handleRemoveDependency}
+                disabled={isLoading}
+              />
+            )}
+
+            {/* Dependents (this issue blocks) */}
+            {dependents && dependents.length > 0 && (
+              <section className={styles.section}>
+                <h3 className={styles.sectionTitle}>Blocks ({dependents.length})</h3>
+                <ul className={styles.dependencyList}>{dependents.map(renderDependencyItem)}</ul>
+              </section>
+            )}
+
+            {/* Comments */}
+            <CommentsSection comments={localComments} />
+            <CommentForm issueId={issue.id} onCommentAdded={handleCommentAdded} />
+
+            {/* Labels */}
+            {issue.labels && issue.labels.length > 0 && (
+              <section className={styles.section}>
+                <h3 className={styles.sectionTitle}>Labels</h3>
+                <div className={styles.labels}>
+                  {issue.labels.map((label) => (
+                    <span key={label} className={styles.label}>
+                      {label}
+                    </span>
+                  ))}
+                </div>
+              </section>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Error toast for status change failures */}
@@ -546,22 +726,40 @@ export function IssueDetailPanel({
   error,
   className,
   children,
+  onApprove,
+  onReject,
 }: IssueDetailPanelProps): JSX.Element {
   const panelRef = useRef<HTMLElement>(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
-  // Handle Escape key
+  const handleToggleFullscreen = useCallback(() => {
+    setIsFullscreen((prev) => !prev);
+  }, []);
+
+  // Reset fullscreen when panel closes
+  useEffect(() => {
+    if (!isOpen) {
+      setIsFullscreen(false);
+    }
+  }, [isOpen]);
+
+  // Handle Escape key: fullscreen -> panel, panel -> close
   useEffect(() => {
     if (!isOpen) return;
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
-        onClose();
+        if (isFullscreen) {
+          setIsFullscreen(false);
+        } else {
+          onClose();
+        }
       }
     };
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, onClose]);
+  }, [isOpen, isFullscreen, onClose]);
 
   // Lock body scroll when open, restoring previous value on close.
   // Note: Only ONE panel should be open at a time. Multiple concurrent panels
@@ -591,7 +789,7 @@ export function IssueDetailPanel({
   }, [isOpen]);
 
   // Build root class name
-  const rootClassName = [styles.overlay, isOpen && styles.open, className]
+  const rootClassName = [styles.overlay, isOpen && styles.open, isFullscreen && styles.fullscreen, className]
     .filter(Boolean)
     .join(' ');
 
@@ -602,6 +800,10 @@ export function IssueDetailPanel({
       isLoading={isLoading ?? false}
       error={error ?? null}
       onClose={onClose}
+      isFullscreen={isFullscreen}
+      onToggleFullscreen={handleToggleFullscreen}
+      {...(onApprove !== undefined && { onApprove })}
+      {...(onReject !== undefined && { onReject })}
     />
   );
 

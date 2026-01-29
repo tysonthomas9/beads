@@ -9,7 +9,7 @@ import type { BlockedInfo } from './KanbanBoard';
 /**
  * Configuration for a kanban column.
  * Decouples visual columns from underlying status values to support
- * computed columns like "Pending" (status=open but blocked).
+ * computed columns like "Backlog" (blocked by deps, blocked status, or deferred).
  */
 export interface KanbanColumnConfig {
   /** Unique column identifier (used as droppable ID) */

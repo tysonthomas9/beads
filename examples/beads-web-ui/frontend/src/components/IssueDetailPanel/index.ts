@@ -20,3 +20,5 @@ export { CommentsSection } from './CommentsSection';
 export type { CommentsSectionProps } from './CommentsSection';
 export { CommentForm } from './CommentForm';
 export type { CommentFormProps } from './CommentForm';
+export { RejectCommentForm } from './RejectCommentForm';
+export type { RejectCommentFormProps } from './RejectCommentForm';

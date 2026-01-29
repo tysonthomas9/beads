@@ -72,13 +72,13 @@ test.describe("groupBy URL Synchronization", () => {
       // Verify no groupBy param initially
       expect(page.url()).not.toContain("groupBy=")
 
-      // Select epic grouping
+      // Select assignee grouping
       const groupByFilter = page.getByTestId("groupby-filter")
-      await groupByFilter.selectOption("epic")
+      await groupByFilter.selectOption("assignee")
 
       // Verify URL contains groupBy param
       await expect(async () => {
-        expect(page.url()).toContain("groupBy=epic")
+        expect(page.url()).toContain("groupBy=assignee")
       }).toPass({ timeout: 2000 })
     })
 
@@ -99,7 +99,7 @@ test.describe("groupBy URL Synchronization", () => {
 
     test("all valid groupBy options update URL correctly", async ({ page }) => {
       // Test that all groupBy options work with the same mechanism
-      const options = ["epic", "assignee", "priority", "type", "label"]
+      const options = ["assignee", "priority", "type", "label"]
       await navigateAndWait(page, "/")
       const groupByFilter = page.getByTestId("groupby-filter")
 
@@ -145,36 +145,36 @@ test.describe("groupBy URL Synchronization", () => {
   })
 
   test.describe("Default State Tests", () => {
-    test("no groupBy URL param defaults to 'none'", async ({ page }) => {
+    test("no groupBy URL param defaults to 'epic'", async ({ page }) => {
       await navigateAndWait(page, "/")
 
-      // Verify dropdown shows 'none'
+      // Verify dropdown shows 'epic'
       const groupByFilter = page.getByTestId("groupby-filter")
-      await expect(groupByFilter).toHaveValue("none")
+      await expect(groupByFilter).toHaveValue("epic")
 
-      // Verify no swim lanes (flat view)
-      await expect(page.getByTestId("swim-lane-board")).not.toBeVisible()
+      // Verify swim lanes visible (epic swim lane view)
+      await expect(page.getByTestId("swim-lane-board")).toBeVisible()
     })
 
-    test("empty groupBy param (?groupBy=) defaults to 'none'", async ({
+    test("empty groupBy param (?groupBy=) defaults to 'epic'", async ({
       page,
     }) => {
       await navigateAndWait(page, "/?groupBy=")
 
       const groupByFilter = page.getByTestId("groupby-filter")
-      await expect(groupByFilter).toHaveValue("none")
+      await expect(groupByFilter).toHaveValue("epic")
     })
   })
 
   test.describe("Invalid Value Tests", () => {
-    test("invalid groupBy value falls back to 'none'", async ({ page }) => {
+    test("invalid groupBy value falls back to 'epic'", async ({ page }) => {
       await navigateAndWait(page, "/?groupBy=invalid")
 
       const groupByFilter = page.getByTestId("groupby-filter")
-      await expect(groupByFilter).toHaveValue("none")
+      await expect(groupByFilter).toHaveValue("epic")
 
-      // Verify no swim lanes
-      await expect(page.getByTestId("swim-lane-board")).not.toBeVisible()
+      // Verify swim lanes visible (epic default)
+      await expect(page.getByTestId("swim-lane-board")).toBeVisible()
     })
 
     test("groupBy values are case-sensitive", async ({ page }) => {
@@ -182,13 +182,13 @@ test.describe("groupBy URL Synchronization", () => {
       await navigateAndWait(page, "/?groupBy=Epic")
 
       const groupByFilter = page.getByTestId("groupby-filter")
-      await expect(groupByFilter).toHaveValue("none")
+      await expect(groupByFilter).toHaveValue("epic")
     })
 
     test("groupBy=PRIORITY (uppercase) is invalid", async ({ page }) => {
       await navigateAndWait(page, "/?groupBy=PRIORITY")
 
-      await expect(page.getByTestId("groupby-filter")).toHaveValue("none")
+      await expect(page.getByTestId("groupby-filter")).toHaveValue("epic")
     })
   })
 
@@ -343,9 +343,9 @@ test.describe("groupBy URL Synchronization", () => {
       await navigateAndWait(page, "/?priority=2")
 
       // First set groupBy via dropdown to have both filters active
-      await page.getByTestId("groupby-filter").selectOption("epic")
+      await page.getByTestId("groupby-filter").selectOption("assignee")
       await expect(async () => {
-        expect(page.url()).toContain("groupBy=epic")
+        expect(page.url()).toContain("groupBy=assignee")
       }).toPass({ timeout: 2000 })
 
       // Click clear filters using JavaScript dispatch to bypass pointer event interception
@@ -362,8 +362,8 @@ test.describe("groupBy URL Synchronization", () => {
         expect(page.url()).not.toContain("priority=")
       }).toPass({ timeout: 2000 })
 
-      // Verify dropdown reset to 'none'
-      await expect(page.getByTestId("groupby-filter")).toHaveValue("none")
+      // Verify dropdown reset to 'epic' (the new default)
+      await expect(page.getByTestId("groupby-filter")).toHaveValue("epic")
     })
 
     test("swim lanes visible when groupBy is set from URL", async ({
@@ -378,8 +378,8 @@ test.describe("groupBy URL Synchronization", () => {
       // The swim-lane-board takes over when groupBy is set
     })
 
-    test("flat kanban visible when groupBy is none", async ({ page }) => {
-      await navigateAndWait(page, "/")
+    test("flat kanban visible when groupBy is explicit none (?groupBy=none)", async ({ page }) => {
+      await navigateAndWait(page, "/?groupBy=none")
 
       // Verify no swim lanes
       await expect(page.getByTestId("swim-lane-board")).not.toBeVisible()

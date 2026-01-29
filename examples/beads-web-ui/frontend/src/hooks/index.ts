@@ -23,7 +23,7 @@ export type { UseBlockedIssuesOptions, UseBlockedIssuesResult } from './useBlock
 export { useMutationHandler } from './useMutationHandler'
 export type { UseMutationHandlerOptions, UseMutationHandlerReturn } from './useMutationHandler'
 
-export { useFilterState, toQueryString, parseFromUrl, isEmptyFilter } from './useFilterState'
+export { useFilterState, toQueryString, parseFromUrl, isEmptyFilter, DEFAULT_GROUP_BY } from './useFilterState'
 export type {
   FilterState,
   FilterActions,

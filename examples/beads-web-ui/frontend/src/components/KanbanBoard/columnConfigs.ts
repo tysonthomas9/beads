@@ -3,9 +3,9 @@
  *
  * Columns:
  * - Ready: Open issues with no blockers (can be started immediately)
- * - Pending: Open issues blocked by dependencies (auto-calculated)
+ * - Backlog: Issues not yet actionable (blocked by deps, blocked status, or deferred)
  * - In Progress: Issues actively being worked on
- * - Review: Issues needing human attention (review, blocked, [Need Review])
+ * - Review: Issues needing human attention (review, [Need Review])
  * - Done: Closed issues
  */
 
@@ -26,6 +26,7 @@ export const DEFAULT_COLUMNS: KanbanColumnConfig[] = [
     id: 'ready',
     label: 'Ready',
     filter: (issue, blockedInfo) =>
+      issue.issue_type !== 'epic' &&
       (issue.status === 'open' || issue.status === undefined) &&
       (!blockedInfo || blockedInfo.blockedByCount === 0) &&
       !needsReviewByTitle(issue.title),
@@ -34,21 +35,25 @@ export const DEFAULT_COLUMNS: KanbanColumnConfig[] = [
     style: 'normal',
   },
   {
-    id: 'pending',
-    label: 'Pending',
+    id: 'backlog',
+    label: 'Backlog',
     filter: (issue, blockedInfo) =>
-      (issue.status === 'open' || issue.status === undefined) &&
-      !!blockedInfo &&
-      blockedInfo.blockedByCount > 0 &&
+      issue.issue_type !== 'epic' &&
+      (((issue.status === 'open' || issue.status === undefined) &&
+        !!blockedInfo &&
+        blockedInfo.blockedByCount > 0) ||
+        issue.status === 'blocked' ||
+        issue.status === 'deferred') &&
       !needsReviewByTitle(issue.title),
-    droppableDisabled: true, // Cannot drop TO pending (auto-calculated)
-    allowedDropTargets: ['done'], // Can only drag FROM pending to Done
+    droppableDisabled: true, // Cannot drop TO backlog (auto-calculated)
+    allowedDropTargets: ['done'], // Can only drag FROM backlog to Done
     style: 'muted',
   },
   {
     id: 'in_progress',
     label: 'In Progress',
-    filter: (issue) => issue.status === 'in_progress',
+    filter: (issue) =>
+      issue.issue_type !== 'epic' && issue.status === 'in_progress',
     targetStatus: 'in_progress',
     allowedDropTargets: ['ready', 'in_progress', 'review', 'done'],
     style: 'normal',
@@ -57,9 +62,9 @@ export const DEFAULT_COLUMNS: KanbanColumnConfig[] = [
     id: 'review',
     label: 'Review',
     filter: (issue) =>
-      issue.status === 'review' ||
-      issue.status === 'blocked' ||
-      needsReviewByTitle(issue.title),
+      issue.issue_type !== 'epic' &&
+      (issue.status === 'review' ||
+       needsReviewByTitle(issue.title)),
     targetStatus: 'review',
     allowedDropTargets: ['ready', 'in_progress', 'review', 'done'],
     style: 'highlighted',

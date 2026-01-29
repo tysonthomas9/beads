@@ -7,40 +7,10 @@
 import { useState, useCallback } from 'react';
 import type { Issue } from '@/types';
 import { BlockedBadge } from '@/components/BlockedBadge';
+import { getReviewType } from '@/utils/reviewType';
+import type { ReviewType } from '@/utils/reviewType';
 import { RejectCommentForm } from './RejectCommentForm';
 import styles from './IssueCard.module.css';
-
-/**
- * Review type for cards that need human attention.
- */
-type ReviewType = 'plan' | 'code' | 'help';
-
-/**
- * Get the review type for an issue based on title patterns, status, and notes.
- * Returns null if the issue doesn't need review.
- */
-function getReviewType(issue: Issue): ReviewType | null {
-  const hasNeedReview = issue.title?.includes('[Need Review]') ?? false;
-  const isReviewStatus = issue.status === 'review';
-  const isBlockedWithNotes = issue.status === 'blocked' && !!issue.notes;
-
-  // Plan review: Title contains [Need Review]
-  if (hasNeedReview) {
-    return 'plan';
-  }
-
-  // Code review: Status is review AND no [Need Review] in title
-  if (isReviewStatus && !hasNeedReview) {
-    return 'code';
-  }
-
-  // Needs help: Blocked with notes
-  if (isBlockedWithNotes) {
-    return 'help';
-  }
-
-  return null;
-}
 
 /**
  * Review badge configuration by type.
@@ -66,8 +36,8 @@ export interface IssueCardProps {
   blockedByCount?: number;
   /** IDs of blocking issues (optional) */
   blockedBy?: string[];
-  /** Whether this card is in the Pending column (dimmed appearance) */
-  isPending?: boolean;
+  /** Whether this card is in the Backlog column (dimmed appearance) */
+  isBacklog?: boolean;
   /** Column ID this card is displayed in (for conditional rendering) */
   columnId?: string;
   /** Callback when approve button is clicked (only shown in review column). Returns Promise for error handling. */
@@ -109,7 +79,7 @@ export function IssueCard({
   className,
   blockedByCount,
   blockedBy,
-  isPending = false,
+  isBacklog = false,
   columnId,
   onApprove,
   onReject,
@@ -198,12 +168,12 @@ export function IssueCard({
       className={rootClassName}
       data-priority={priority}
       data-blocked={isBlocked ? 'true' : undefined}
-      data-in-pending={isPending ? 'true' : undefined}
+      data-in-backlog={isBacklog ? 'true' : undefined}
       onClick={handleClick}
       onKeyDown={handleKeyDown}
       tabIndex={onClick ? 0 : undefined}
       role={onClick ? 'button' : undefined}
-      aria-label={`Issue: ${displayTitle}${isBlocked ? ' (blocked)' : ''}${isPending ? ' (pending)' : ''}`}
+      aria-label={`Issue: ${displayTitle}${isBlocked ? ' (blocked)' : ''}${isBacklog ? ' (backlog)' : ''}`}
     >
       <header className={styles.header}>
         <span className={styles.id}>{displayId}</span>
@@ -223,6 +193,11 @@ export function IssueCard({
             count={blockedByCount ?? 0}
             {...(blockedBy !== undefined && { issueIds: blockedBy })}
           />
+        )}
+        {issue.status === 'deferred' && (
+          <span className={styles.deferredBadge} aria-label="Deferred">
+            <span aria-hidden="true">⏸</span> Deferred
+          </span>
         )}
         <span
           className={`${styles.priorityBadge} ${styles[`priority${priority}`]}`}

@@ -109,14 +109,14 @@ test.describe("GroupBy Dropdown", () => {
       )
     })
 
-    test('shows "None" as default selection', async ({ page }) => {
+    test('shows "Epic" as default selection', async ({ page }) => {
       await setupMocks(page)
       await navigateAndWait(page, "/")
 
       const groupByDropdown = page.getByTestId("groupby-filter")
 
-      // Verify dropdown value is 'none'
-      await expect(groupByDropdown).toHaveValue("none")
+      // Verify dropdown value is 'epic'
+      await expect(groupByDropdown).toHaveValue("epic")
     })
   })
 
@@ -224,22 +224,22 @@ test.describe("GroupBy Dropdown", () => {
   })
 
   test.describe("Default Behavior Tests", () => {
-    test("default is 'None' without URL param", async ({ page }) => {
+    test("default is 'Epic' without URL param", async ({ page }) => {
       await setupMocks(page)
       await navigateAndWait(page, "/")
 
       const groupByDropdown = page.getByTestId("groupby-filter")
-      await expect(groupByDropdown).toHaveValue("none")
+      await expect(groupByDropdown).toHaveValue("epic")
     })
 
-    test("invalid URL param defaults to 'None'", async ({ page }) => {
+    test("invalid URL param defaults to 'Epic'", async ({ page }) => {
       await setupMocks(page)
       await navigateAndWait(page, "/?groupBy=invalid")
 
       const groupByDropdown = page.getByTestId("groupby-filter")
 
-      // Verify dropdown shows 'None' (hook ignores invalid values)
-      await expect(groupByDropdown).toHaveValue("none")
+      // Verify dropdown shows 'Epic' (hook ignores invalid values)
+      await expect(groupByDropdown).toHaveValue("epic")
     })
   })
 
@@ -282,7 +282,7 @@ test.describe("GroupBy Dropdown", () => {
       const groupByDropdown = page.getByTestId("groupby-filter")
 
       // Initial value
-      await expect(groupByDropdown).toHaveValue("none")
+      await expect(groupByDropdown).toHaveValue("epic")
 
       // Focus and try to interact
       await groupByDropdown.focus()
@@ -291,7 +291,7 @@ test.describe("GroupBy Dropdown", () => {
       await page.keyboard.press("Escape")
 
       // Verify original selection preserved
-      await expect(groupByDropdown).toHaveValue("none")
+      await expect(groupByDropdown).toHaveValue("epic")
     })
   })
 
@@ -328,17 +328,17 @@ test.describe("GroupBy Dropdown", () => {
       await setupMocks(page)
       await navigateAndWait(page, "/")
 
-      // Apply type filter + set groupBy=epic
+      // Apply type filter + set groupBy=assignee
       const typeFilter = page.getByTestId("type-filter")
       await typeFilter.selectOption("bug")
 
       const groupByDropdown = page.getByTestId("groupby-filter")
-      await groupByDropdown.selectOption("epic")
+      await groupByDropdown.selectOption("assignee")
 
       // Wait for filters to be applied
       await expect(async () => {
         expect(page.url()).toContain("type=bug")
-        expect(page.url()).toContain("groupBy=epic")
+        expect(page.url()).toContain("groupBy=assignee")
       }).toPass({ timeout: 2000 })
 
       // Clear filters button should be visible
@@ -357,7 +357,7 @@ test.describe("GroupBy Dropdown", () => {
 
       // Verify dropdowns reset
       await expect(typeFilter).toHaveValue("")
-      await expect(groupByDropdown).toHaveValue("none")
+      await expect(groupByDropdown).toHaveValue("epic")
     })
 
     test("groupBy selection persists when changing views", async ({ page }) => {
@@ -407,12 +407,12 @@ test.describe("GroupBy Dropdown", () => {
       // Verify dropdown still renders and is functional
       await expect(groupByDropdown).toBeVisible()
 
-      // Select 'Epic' option
-      await groupByDropdown.selectOption("epic")
+      // Select 'Assignee' option
+      await groupByDropdown.selectOption("assignee")
 
       // Verify selection works (URL updates)
       await expect(async () => {
-        expect(page.url()).toContain("groupBy=epic")
+        expect(page.url()).toContain("groupBy=assignee")
       }).toPass({ timeout: 2000 })
     })
 

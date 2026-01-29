@@ -75,6 +75,12 @@ export interface UseFilterStateOptions {
 export type UseFilterStateReturn = [FilterState, FilterActions]
 
 /**
+ * Default group by option for swim lane display.
+ * When no groupBy is specified in URL, the UI defaults to epic swim lanes.
+ */
+export const DEFAULT_GROUP_BY: GroupByOption = 'epic'
+
+/**
  * Default empty filter state.
  */
 const DEFAULT_FILTER_STATE: FilterState = {}
@@ -204,7 +210,7 @@ function toQueryString(state: FilterState): string {
   if (state.showBlocked === true) {
     params.set('showBlocked', 'true')
   }
-  if (state.groupBy !== undefined && state.groupBy !== 'none') {
+  if (state.groupBy !== undefined && state.groupBy !== 'none' && state.groupBy !== DEFAULT_GROUP_BY) {
     params.set('groupBy', state.groupBy)
   }
 
@@ -237,7 +243,7 @@ function isEmptyFilter(state: FilterState): boolean {
     state.type === undefined &&
     (state.labels === undefined || state.labels.length === 0) &&
     (state.search === undefined || state.search === '') &&
-    (state.groupBy === undefined || state.groupBy === 'none')
+    (state.groupBy === undefined || state.groupBy === 'none' || state.groupBy === DEFAULT_GROUP_BY)
   )
 }
 
