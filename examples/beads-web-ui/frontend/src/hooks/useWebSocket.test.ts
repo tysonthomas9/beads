@@ -312,6 +312,63 @@ describe('useWebSocket', () => {
 
       expect(result.current.lastError).toBeNull()
     })
+
+    it('deprecation warnings are logged but do not set lastError', () => {
+      const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+      const { result } = renderHook(() =>
+        useWebSocket({ url: 'ws://localhost:8080/ws', autoConnect: false })
+      )
+
+      act(() => {
+        result.current.connect()
+      })
+
+      act(() => {
+        MockWebSocket.lastInstance?.simulateOpen()
+      })
+
+      act(() => {
+        MockWebSocket.lastInstance?.simulateMessage({
+          type: 'error',
+          error: 'deprecated',
+          message: 'WebSocket subscription is deprecated. Please migrate to SSE endpoint /api/events for real-time updates.',
+        })
+      })
+
+      // lastError should remain null for deprecation warnings
+      expect(result.current.lastError).toBeNull()
+      // But warning should be logged to console
+      expect(consoleSpy).toHaveBeenCalledWith(
+        '[WebSocket] deprecated: WebSocket subscription is deprecated. Please migrate to SSE endpoint /api/events for real-time updates.'
+      )
+
+      consoleSpy.mockRestore()
+    })
+
+    it('non-deprecation errors still set lastError', () => {
+      const { result } = renderHook(() =>
+        useWebSocket({ url: 'ws://localhost:8080/ws', autoConnect: false })
+      )
+
+      act(() => {
+        result.current.connect()
+      })
+
+      act(() => {
+        MockWebSocket.lastInstance?.simulateOpen()
+      })
+
+      act(() => {
+        MockWebSocket.lastInstance?.simulateMessage({
+          type: 'error',
+          error: 'connection_error',
+          message: 'Connection failed',
+        })
+      })
+
+      // Non-deprecation errors should still set lastError
+      expect(result.current.lastError).toBe('connection_error: Connection failed')
+    })
   })
 
   describe('Callbacks', () => {

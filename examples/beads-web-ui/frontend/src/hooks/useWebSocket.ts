@@ -133,7 +133,13 @@ export function useWebSocket(options: UseWebSocketOptions = {}): UseWebSocketRet
       },
       onError: (error: string, message: string) => {
         if (!mountedRef.current) return
-        setLastError(`${error}: ${message}`)
+        // Deprecation warnings are informational, not fatal errors
+        if (error === 'deprecated') {
+          console.warn(`[WebSocket] ${error}: ${message}`)
+        } else {
+          setLastError(`${error}: ${message}`)
+        }
+        // Always call user's onError callback for custom handling
         onErrorRef.current?.(error, message)
       },
       onStateChange: (newState: ConnectionState) => {
