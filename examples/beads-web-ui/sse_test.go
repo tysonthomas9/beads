@@ -595,6 +595,276 @@ func TestWriteSSEEvent_InvalidTimestamp(t *testing.T) {
 	}
 }
 
+// TestSSEHub_BroadcastQueuesToRetryQueue tests that Broadcast queues mutations when broadcast channel is full.
+func TestSSEHub_BroadcastQueuesToRetryQueue(t *testing.T) {
+	hub := NewSSEHub()
+	// Don't run the hub - we want the broadcast channel to fill up
+
+	// Fill the broadcast channel (capacity 256)
+	for i := 0; i < 256; i++ {
+		hub.Broadcast(&MutationPayload{Type: "create", IssueID: "bd-fill"})
+	}
+
+	// Now broadcast should queue to retry queue
+	hub.Broadcast(&MutationPayload{Type: "create", IssueID: "bd-retry1"})
+	hub.Broadcast(&MutationPayload{Type: "create", IssueID: "bd-retry2"})
+
+	hub.retryMu.Lock()
+	queueLen := len(hub.retryQueue)
+	hub.retryMu.Unlock()
+
+	if queueLen != 2 {
+		t.Errorf("expected 2 items in retry queue, got %d", queueLen)
+	}
+}
+
+// TestSSEHub_BroadcastDropsWhenRetryQueueFull tests that mutations are dropped when retry queue exceeds 1024.
+func TestSSEHub_BroadcastDropsWhenRetryQueueFull(t *testing.T) {
+	hub := NewSSEHub()
+	// Don't run the hub - we want the broadcast channel to fill up
+
+	// Fill the broadcast channel (capacity 256)
+	for i := 0; i < 256; i++ {
+		hub.Broadcast(&MutationPayload{Type: "create", IssueID: "bd-fill"})
+	}
+
+	// Fill the retry queue (capacity 1024)
+	for i := 0; i < 1024; i++ {
+		hub.Broadcast(&MutationPayload{Type: "create", IssueID: "bd-retry"})
+	}
+
+	hub.retryMu.Lock()
+	queueLen := len(hub.retryQueue)
+	hub.retryMu.Unlock()
+
+	if queueLen != 1024 {
+		t.Errorf("expected retry queue to be full at 1024, got %d", queueLen)
+	}
+
+	initialDropped := hub.GetDroppedCount()
+	if initialDropped != 0 {
+		t.Errorf("expected initial dropped count to be 0, got %d", initialDropped)
+	}
+
+	// This mutation should be dropped
+	hub.Broadcast(&MutationPayload{Type: "create", IssueID: "bd-dropped1"})
+	hub.Broadcast(&MutationPayload{Type: "create", IssueID: "bd-dropped2"})
+
+	droppedCount := hub.GetDroppedCount()
+	if droppedCount != 2 {
+		t.Errorf("expected 2 dropped mutations, got %d", droppedCount)
+	}
+
+	// Retry queue should still be at 1024
+	hub.retryMu.Lock()
+	queueLen = len(hub.retryQueue)
+	hub.retryMu.Unlock()
+
+	if queueLen != 1024 {
+		t.Errorf("expected retry queue to remain at 1024, got %d", queueLen)
+	}
+}
+
+// TestSSEHub_GetDroppedCount tests that GetDroppedCount returns the correct count.
+func TestSSEHub_GetDroppedCount(t *testing.T) {
+	hub := NewSSEHub()
+
+	// Initial count should be 0
+	if count := hub.GetDroppedCount(); count != 0 {
+		t.Errorf("expected initial dropped count to be 0, got %d", count)
+	}
+
+	// Fill broadcast channel
+	for i := 0; i < 256; i++ {
+		hub.Broadcast(&MutationPayload{Type: "create", IssueID: "bd-fill"})
+	}
+
+	// Fill retry queue
+	for i := 0; i < 1024; i++ {
+		hub.Broadcast(&MutationPayload{Type: "create", IssueID: "bd-retry"})
+	}
+
+	// Drop 5 mutations
+	for i := 0; i < 5; i++ {
+		hub.Broadcast(&MutationPayload{Type: "create", IssueID: "bd-dropped"})
+	}
+
+	if count := hub.GetDroppedCount(); count != 5 {
+		t.Errorf("expected dropped count to be 5, got %d", count)
+	}
+}
+
+// TestSSEHub_DrainRetryQueue tests that drainRetryQueue sends queued mutations to broadcast channel.
+func TestSSEHub_DrainRetryQueue(t *testing.T) {
+	hub := NewSSEHub()
+
+	// Manually add items to retry queue
+	hub.retryMu.Lock()
+	hub.retryQueue = []*MutationPayload{
+		{Type: "create", IssueID: "bd-1"},
+		{Type: "create", IssueID: "bd-2"},
+		{Type: "create", IssueID: "bd-3"},
+	}
+	hub.retryMu.Unlock()
+
+	// Drain the retry queue (broadcast channel should have room)
+	hub.drainRetryQueue()
+
+	// Check that broadcast channel has the mutations
+	if len(hub.broadcast) != 3 {
+		t.Errorf("expected 3 items in broadcast channel, got %d", len(hub.broadcast))
+	}
+
+	// Retry queue should be empty
+	hub.retryMu.Lock()
+	queueLen := len(hub.retryQueue)
+	hub.retryMu.Unlock()
+
+	if queueLen != 0 {
+		t.Errorf("expected retry queue to be empty, got %d items", queueLen)
+	}
+
+	// Verify the mutations were sent in order
+	m1 := <-hub.broadcast
+	if m1.IssueID != "bd-1" {
+		t.Errorf("expected first mutation to be bd-1, got %s", m1.IssueID)
+	}
+	m2 := <-hub.broadcast
+	if m2.IssueID != "bd-2" {
+		t.Errorf("expected second mutation to be bd-2, got %s", m2.IssueID)
+	}
+	m3 := <-hub.broadcast
+	if m3.IssueID != "bd-3" {
+		t.Errorf("expected third mutation to be bd-3, got %s", m3.IssueID)
+	}
+}
+
+// TestSSEHub_DrainRetryQueuePreservesRemaining tests that drainRetryQueue preserves remaining items
+// if broadcast channel fills up again.
+func TestSSEHub_DrainRetryQueuePreservesRemaining(t *testing.T) {
+	hub := NewSSEHub()
+
+	// Fill broadcast channel almost completely (leave room for just 2 more)
+	for i := 0; i < 254; i++ {
+		hub.broadcast <- &MutationPayload{Type: "create", IssueID: "bd-fill"}
+	}
+
+	// Add 5 items to retry queue
+	hub.retryMu.Lock()
+	hub.retryQueue = []*MutationPayload{
+		{Type: "create", IssueID: "bd-retry-1"},
+		{Type: "create", IssueID: "bd-retry-2"},
+		{Type: "create", IssueID: "bd-retry-3"},
+		{Type: "create", IssueID: "bd-retry-4"},
+		{Type: "create", IssueID: "bd-retry-5"},
+	}
+	hub.retryMu.Unlock()
+
+	// Drain - should only be able to send 2
+	hub.drainRetryQueue()
+
+	// Check broadcast channel is full
+	if len(hub.broadcast) != 256 {
+		t.Errorf("expected broadcast channel to be full (256), got %d", len(hub.broadcast))
+	}
+
+	// Retry queue should still have 3 items
+	hub.retryMu.Lock()
+	queueLen := len(hub.retryQueue)
+	remainingIDs := make([]string, len(hub.retryQueue))
+	for i, m := range hub.retryQueue {
+		remainingIDs[i] = m.IssueID
+	}
+	hub.retryMu.Unlock()
+
+	if queueLen != 3 {
+		t.Errorf("expected 3 items remaining in retry queue, got %d", queueLen)
+	}
+
+	// Verify the remaining items are the last 3 (preserves order)
+	expected := []string{"bd-retry-3", "bd-retry-4", "bd-retry-5"}
+	for i, id := range expected {
+		if i < len(remainingIDs) && remainingIDs[i] != id {
+			t.Errorf("expected remaining[%d] to be %s, got %s", i, id, remainingIDs[i])
+		}
+	}
+}
+
+// TestSSEHub_DrainRetryQueueEmpty tests that drainRetryQueue handles empty queue gracefully.
+func TestSSEHub_DrainRetryQueueEmpty(t *testing.T) {
+	hub := NewSSEHub()
+
+	// Should not panic or error with empty queue
+	hub.drainRetryQueue()
+
+	hub.retryMu.Lock()
+	queueLen := len(hub.retryQueue)
+	hub.retryMu.Unlock()
+
+	if queueLen != 0 {
+		t.Errorf("expected retry queue to remain empty, got %d", queueLen)
+	}
+}
+
+// TestSSEHub_RetryQueueDrainedByTicker tests that the ticker in Run() drains the retry queue.
+// This test verifies the integration between the ticker and the retry queue drain mechanism.
+func TestSSEHub_RetryQueueDrainedByTicker(t *testing.T) {
+	hub := NewSSEHub()
+	go hub.Run()
+	defer hub.Stop()
+
+	// Register a client with large buffer to consume all broadcasts
+	client := &SSEClient{
+		id:   1,
+		send: make(chan *MutationPayload, 512), // Large buffer to avoid blocking
+		done: make(chan struct{}),
+	}
+	hub.RegisterClient(client)
+	time.Sleep(50 * time.Millisecond)
+
+	// Manually add items to retry queue (simulating queued mutations)
+	hub.retryMu.Lock()
+	hub.retryQueue = []*MutationPayload{
+		{Type: "create", IssueID: "bd-retry-1"},
+		{Type: "create", IssueID: "bd-retry-2"},
+	}
+	hub.retryMu.Unlock()
+
+	// Wait for ticker to fire and drain retry queue (ticker fires every 100ms)
+	time.Sleep(200 * time.Millisecond)
+
+	hub.retryMu.Lock()
+	finalQueueLen := len(hub.retryQueue)
+	hub.retryMu.Unlock()
+
+	if finalQueueLen != 0 {
+		t.Errorf("expected retry queue to be drained by ticker, got %d items", finalQueueLen)
+	}
+
+	// Verify the client received the mutations from the retry queue
+	// The mutations should have been broadcast and then sent to the client
+	receivedCount := 0
+	timeout := time.After(500 * time.Millisecond)
+drainLoop:
+	for {
+		select {
+		case m := <-client.send:
+			if m.IssueID == "bd-retry-1" || m.IssueID == "bd-retry-2" {
+				receivedCount++
+			}
+			if receivedCount >= 2 {
+				break drainLoop
+			}
+		case <-timeout:
+			break drainLoop
+		}
+	}
+
+	if receivedCount != 2 {
+		t.Errorf("expected client to receive 2 retried mutations, got %d", receivedCount)
+	}
+}
+
 // TestRpcMutationToPayload tests conversion of RPC mutation events to payloads.
 func TestRpcMutationToPayload(t *testing.T) {
 	tests := []struct {

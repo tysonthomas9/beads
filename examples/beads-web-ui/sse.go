@@ -15,12 +15,15 @@ import (
 
 // SSEHub manages connected SSE clients and broadcasts mutations to them.
 type SSEHub struct {
-	clients    map[*SSEClient]bool
-	register   chan *SSEClient
-	unregister chan *SSEClient
-	broadcast  chan *MutationPayload
-	mu         sync.RWMutex
-	done       chan struct{}
+	clients      map[*SSEClient]bool
+	register     chan *SSEClient
+	unregister   chan *SSEClient
+	broadcast    chan *MutationPayload
+	mu           sync.RWMutex
+	done         chan struct{}
+	retryQueue   []*MutationPayload // Buffer when broadcast full
+	retryMu      sync.Mutex
+	droppedCount int64 // For metrics
 }
 
 // SSEClient represents a single SSE connection.
@@ -44,6 +47,9 @@ func NewSSEHub() *SSEHub {
 
 // Run starts the hub's main loop for managing clients and broadcasts.
 func (h *SSEHub) Run() {
+	retryTicker := time.NewTicker(100 * time.Millisecond)
+	defer retryTicker.Stop()
+
 	for {
 		select {
 		case client := <-h.register:
@@ -73,6 +79,9 @@ func (h *SSEHub) Run() {
 			}
 			h.mu.RUnlock()
 
+		case <-retryTicker.C:
+			h.drainRetryQueue()
+
 		case <-h.done:
 			h.mu.Lock()
 			for client := range h.clients {
@@ -101,11 +110,20 @@ func (h *SSEHub) UnregisterClient(client *SSEClient) {
 }
 
 // Broadcast sends a mutation to all connected clients.
+// If the broadcast channel is full, mutations are queued for retry.
 func (h *SSEHub) Broadcast(mutation *MutationPayload) {
 	select {
 	case h.broadcast <- mutation:
 	default:
-		log.Printf("SSE broadcast channel full, dropping mutation")
+		h.retryMu.Lock()
+		if len(h.retryQueue) < 1024 {
+			h.retryQueue = append(h.retryQueue, mutation)
+			log.Printf("SSE broadcast channel full, queued mutation (queue size: %d)", len(h.retryQueue))
+		} else {
+			atomic.AddInt64(&h.droppedCount, 1)
+			log.Printf("SSE retry queue full, dropped mutation (total dropped: %d)", atomic.LoadInt64(&h.droppedCount))
+		}
+		h.retryMu.Unlock()
 	}
 }
 
@@ -114,6 +132,50 @@ func (h *SSEHub) ClientCount() int {
 	h.mu.RLock()
 	defer h.mu.RUnlock()
 	return len(h.clients)
+}
+
+// GetDroppedCount returns the number of mutations dropped due to queue overflow.
+func (h *SSEHub) GetDroppedCount() int64 {
+	return atomic.LoadInt64(&h.droppedCount)
+}
+
+// drainRetryQueue attempts to send queued mutations to the broadcast channel.
+func (h *SSEHub) drainRetryQueue() {
+	h.retryMu.Lock()
+	defer h.retryMu.Unlock()
+
+	if len(h.retryQueue) == 0 {
+		return
+	}
+
+	// Try to drain as many as possible
+	sent := 0
+	for i, mutation := range h.retryQueue {
+		select {
+		case h.broadcast <- mutation:
+			sent++
+		default:
+			// Broadcast channel full again, keep remaining in queue
+			// Clear sent items to allow GC
+			for j := 0; j < i; j++ {
+				h.retryQueue[j] = nil
+			}
+			h.retryQueue = h.retryQueue[i:]
+			if sent > 0 {
+				log.Printf("SSE retry queue drained %d mutations, %d remaining", sent, len(h.retryQueue))
+			}
+			return
+		}
+	}
+
+	// All sent, clear queue and allow GC
+	for i := range h.retryQueue {
+		h.retryQueue[i] = nil
+	}
+	h.retryQueue = h.retryQueue[:0]
+	if sent > 0 {
+		log.Printf("SSE retry queue fully drained %d mutations", sent)
+	}
 }
 
 // handleSSE creates an HTTP handler for the SSE endpoint.
