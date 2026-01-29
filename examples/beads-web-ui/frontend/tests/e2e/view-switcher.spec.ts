@@ -36,8 +36,25 @@ async function setupMocks(page: Page) {
       body: JSON.stringify({ success: true, data: mockIssues }),
     })
   })
-  await page.route("**/ws", async (route) => {
+  // Mock /api/issues/graph for Graph view
+  await page.route("**/api/issues/graph", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ success: true, data: mockIssues }),
+    })
+  })
+  // Mock SSE events endpoint (app uses /api/events instead of WebSocket)
+  await page.route("**/api/events", async (route) => {
     await route.abort()
+  })
+  // Mock /api/stats to prevent proxy errors
+  await page.route("**/api/stats", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ success: true, data: { open: 2, closed: 0, total: 2, completion: 0 } }),
+    })
   })
 }
 
@@ -68,9 +85,27 @@ test.describe("ViewSwitcher", () => {
       })
     })
 
-    // Mock WebSocket to prevent connection errors
-    await page.route("**/ws", async (route) => {
+    // Mock /api/issues/graph for Graph view
+    await page.route("**/api/issues/graph", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ success: true, data: mockIssues }),
+      })
+    })
+
+    // Mock SSE events endpoint (app uses /api/events instead of WebSocket)
+    await page.route("**/api/events", async (route) => {
       await route.abort()
+    })
+
+    // Mock /api/stats to prevent proxy errors
+    await page.route("**/api/stats", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ success: true, data: { open: 2, closed: 0, total: 2, completion: 0 } }),
+      })
     })
   })
 

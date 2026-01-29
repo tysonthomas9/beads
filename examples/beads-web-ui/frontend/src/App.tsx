@@ -442,7 +442,7 @@ function App() {
       )}
       {activeView === 'monitor' && (
         <Suspense fallback={<LoadingSkeleton.Monitor />}>
-          <MonitorDashboard />
+          <MonitorDashboard onViewChange={setActiveView} />
         </Suspense>
       )}
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />

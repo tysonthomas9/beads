@@ -8,7 +8,8 @@
  * - Mini Dependency Graph (bottom-right)
  */
 
-import { useAgents, useBlockedIssues, useIssues, useViewState } from '@/hooks';
+import { useAgents, useBlockedIssues, useIssues } from '@/hooks';
+import type { ViewMode } from '@/components/ViewSwitcher';
 import type { Issue } from '@/types';
 import { AgentActivityPanel } from './AgentActivityPanel';
 import { ConnectionBanner } from './ConnectionBanner';
@@ -23,15 +24,15 @@ import styles from './MonitorDashboard.module.css';
 export interface MonitorDashboardProps {
   /** Additional CSS class name */
   className?: string;
+  /** Callback to change the active view (used for expand to graph) */
+  onViewChange?: (view: ViewMode) => void;
 }
 
 /**
  * MonitorDashboard renders the 2x2 grid layout for multi-agent monitoring.
  * Each panel is a placeholder that will be replaced by dedicated components.
  */
-export function MonitorDashboard({
-  className,
-}: MonitorDashboardProps): JSX.Element {
+export function MonitorDashboard({ className, onViewChange }: MonitorDashboardProps): JSX.Element {
   // Fetch agent status and stats
   const {
     agents,
@@ -59,9 +60,6 @@ export function MonitorDashboard({
   // Fetch all issues with dependency data for the graph
   const { issues: graphIssues } = useIssues({ mode: 'graph' });
 
-  // View state for navigation to full graph view
-  const [, setActiveView] = useViewState();
-
   // Handler for bottleneck clicks - placeholder for navigation
   const handleBottleneckClick = (issue: Pick<Issue, 'id' | 'title'>) => {
     // TODO: Integrate with IssueDetailPanel when available
@@ -82,12 +80,10 @@ export function MonitorDashboard({
 
   // Handler for expand button - navigate to full graph view
   const handleExpandGraph = () => {
-    setActiveView('graph');
+    onViewChange?.('graph');
   };
 
-  const rootClassName = className
-    ? `${styles.dashboard} ${className}`
-    : styles.dashboard;
+  const rootClassName = className ? `${styles.dashboard} ${className}` : styles.dashboard;
 
   return (
     <div className={rootClassName} data-testid="monitor-dashboard">
@@ -143,10 +139,7 @@ export function MonitorDashboard({
           </button>
         </header>
         <div className={styles.panelContent}>
-          <WorkPipelinePanel
-            tasks={tasks}
-            taskLists={taskLists}
-          />
+          <WorkPipelinePanel tasks={tasks} taskLists={taskLists} />
         </div>
       </section>
 
