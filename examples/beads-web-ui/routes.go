@@ -10,11 +10,12 @@ import (
 	"time"
 
 	"github.com/steveyegge/beads/examples/beads-web-ui/daemon"
+	"github.com/steveyegge/beads/internal/rpc"
 	"github.com/steveyegge/beads/internal/types"
 )
 
 // setupRoutes configures all HTTP routes for the server.
-func setupRoutes(mux *http.ServeMux, pool *daemon.ConnectionPool) {
+func setupRoutes(mux *http.ServeMux, pool *daemon.ConnectionPool, hub *SSEHub, getMutationsSince func(since int64) []rpc.MutationEvent) {
 	// Health check endpoint for load balancers and monitoring
 	mux.HandleFunc("GET /health", handleHealth(pool))
 
@@ -45,8 +46,13 @@ func setupRoutes(mux *http.ServeMux, pool *daemon.ConnectionPool) {
 	// Graph endpoint for dependency visualization
 	mux.HandleFunc("GET /api/issues/graph", handleGraph(pool))
 
-	// WebSocket endpoint for real-time mutation events
+	// WebSocket endpoint for real-time mutation events (deprecated, use SSE)
 	mux.HandleFunc("/ws", handleWebSocket(pool))
+
+	// Server-Sent Events endpoint for real-time push notifications
+	if hub != nil {
+		mux.HandleFunc("GET /api/events", handleSSE(hub, getMutationsSince))
+	}
 
 	// Static file serving with SPA routing (must be last - catches all paths)
 	mux.Handle("/", frontendHandler())

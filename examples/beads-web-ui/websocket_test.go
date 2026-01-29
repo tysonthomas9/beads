@@ -186,12 +186,12 @@ func TestHandleWebSocket_SubscribeMessage(t *testing.T) {
 		t.Fatalf("failed to read response: %v", err)
 	}
 
-	// With nil pool, we should get a daemon_unavailable error
+	// WebSocket subscription is deprecated, should get a deprecation warning
 	if resp.Type != MsgTypeError {
 		t.Errorf("expected type=%q, got %q", MsgTypeError, resp.Type)
 	}
-	if resp.Error != "daemon_unavailable" {
-		t.Errorf("expected error=daemon_unavailable, got %q", resp.Error)
+	if resp.Error != "deprecated" {
+		t.Errorf("expected error=deprecated, got %q", resp.Error)
 	}
 }
 
@@ -659,16 +659,8 @@ func TestWebSocketConstants(t *testing.T) {
 	if maxMessageSize <= 0 {
 		t.Errorf("maxMessageSize = %v, want positive value", maxMessageSize)
 	}
-	if defaultMutationPollInterval <= 0 {
-		t.Errorf("defaultMutationPollInterval = %v, want positive duration", defaultMutationPollInterval)
-	}
-	// mutationPollInterval is a var set at init, but should still be positive
-	if mutationPollInterval <= 0 {
-		t.Errorf("mutationPollInterval = %v, want positive duration", mutationPollInterval)
-	}
-	if daemonAcquireTimeout <= 0 {
-		t.Errorf("daemonAcquireTimeout = %v, want positive duration", daemonAcquireTimeout)
-	}
+	// Note: polling-related constants removed when WebSocket polling was deprecated
+	// in favor of SSE endpoint /api/events
 }
 
 // TestUpgrader_CheckOrigin tests the upgrader's CheckOrigin function directly.
@@ -812,6 +804,7 @@ func TestWsConnection_SubscribeWithSince(t *testing.T) {
 }
 
 // TestWsConnection_SubscribeWithZeroSince tests subscribing without specifying since.
+// Note: WebSocket subscription is deprecated - this test verifies the deprecation flow.
 func TestWsConnection_SubscribeWithZeroSince(t *testing.T) {
 	handler := handleWebSocket(nil)
 	server := httptest.NewServer(handler)
@@ -842,39 +835,25 @@ func TestWsConnection_SubscribeWithZeroSince(t *testing.T) {
 
 	conn.SetReadDeadline(time.Now().Add(5 * time.Second))
 
-	// Read pong response
-	var resp ServerMessage
-	if err := conn.ReadJSON(&resp); err != nil {
-		t.Fatalf("failed to read response: %v", err)
+	// First message is the deprecation warning from subscribe
+	var deprecationResp ServerMessage
+	if err := conn.ReadJSON(&deprecationResp); err != nil {
+		t.Fatalf("failed to read deprecation response: %v", err)
+	}
+	if deprecationResp.Type != MsgTypeError || deprecationResp.Error != "deprecated" {
+		t.Errorf("expected deprecation error, got type=%q error=%q", deprecationResp.Type, deprecationResp.Error)
 	}
 
-	if resp.Type != MsgTypePong {
-		t.Errorf("expected type=%q, got %q", MsgTypePong, resp.Type)
+	// Second message is the pong response
+	var pongResp ServerMessage
+	if err := conn.ReadJSON(&pongResp); err != nil {
+		t.Fatalf("failed to read pong response: %v", err)
+	}
+	if pongResp.Type != MsgTypePong {
+		t.Errorf("expected type=%q, got %q", MsgTypePong, pongResp.Type)
 	}
 }
 
-// TestMutationPollInterval tests that the mutation poll interval is set correctly.
-func TestMutationPollInterval(t *testing.T) {
-	// The variable should be set from init() and must be positive
-	if mutationPollInterval <= 0 {
-		t.Errorf("mutationPollInterval should be positive, got %v", mutationPollInterval)
-	}
-	// The poll interval should be reasonable (at least 100ms to avoid excessive polling)
-	if mutationPollInterval < 100*time.Millisecond {
-		t.Errorf("mutationPollInterval %v seems too small, expected at least 100ms", mutationPollInterval)
-	}
-}
-
-// TestDefaultMutationPollInterval tests the default value.
-func TestDefaultMutationPollInterval(t *testing.T) {
-	if defaultMutationPollInterval != 2*time.Second {
-		t.Errorf("defaultMutationPollInterval = %v, want 2s", defaultMutationPollInterval)
-	}
-}
-
-// TestDaemonAcquireTimeout tests the daemon acquire timeout value.
-func TestDaemonAcquireTimeout(t *testing.T) {
-	if daemonAcquireTimeout != 2*time.Second {
-		t.Errorf("daemonAcquireTimeout = %v, want 2s", daemonAcquireTimeout)
-	}
-}
+// Note: TestMutationPollInterval, TestDefaultMutationPollInterval, and
+// TestDaemonAcquireTimeout were removed when WebSocket polling was deprecated
+// in favor of SSE endpoint /api/events

@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/steveyegge/beads/examples/beads-web-ui/daemon"
+	"github.com/steveyegge/beads/internal/rpc"
 )
 
 const (
@@ -149,9 +150,23 @@ func main() {
 		}()
 	}
 
+	// Create SSE hub for real-time push notifications
+	hub := NewSSEHub()
+	go hub.Run()
+
+	// Create daemon subscriber to bridge mutations from daemon to SSE clients
+	var subscriber *DaemonSubscriber
+	var getMutationsSince func(since int64) []rpc.MutationEvent
+	if pool != nil {
+		subscriber = NewDaemonSubscriber(pool, hub)
+		subscriber.Start()
+		getMutationsSince = subscriber.GetMutationsSince
+		log.Printf("Daemon subscriber started")
+	}
+
 	// Create HTTP server
 	mux := http.NewServeMux()
-	setupRoutes(mux, pool)
+	setupRoutes(mux, pool, hub, getMutationsSince)
 
 	// Wrap with CORS middleware if enabled
 	corsMiddleware := NewCORSMiddleware(corsConfig)
@@ -180,6 +195,18 @@ func main() {
 	signal.Stop(quit)
 
 	log.Println("Shutting down server...")
+
+	// Stop daemon subscriber first (before closing pool)
+	if subscriber != nil {
+		subscriber.Stop()
+		log.Printf("Daemon subscriber stopped")
+	}
+
+	// Stop SSE hub
+	if hub != nil {
+		hub.Stop()
+		log.Printf("SSE hub stopped")
+	}
 
 	// Close daemon connection pool
 	if pool != nil {

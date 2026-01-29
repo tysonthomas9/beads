@@ -360,6 +360,22 @@ func (c *Client) GetMutations(args *GetMutationsArgs) (*Response, error) {
 	return c.Execute(OpGetMutations, args)
 }
 
+// WaitForMutations waits for mutations to occur, returning immediately if any
+// exist since the given timestamp, or blocking until new mutations arrive or timeout.
+func (c *Client) WaitForMutations(args *WaitForMutationsArgs) (*Response, error) {
+	// Temporarily increase timeout for this blocking call
+	oldTimeout := c.timeout
+	// Use request timeout plus buffer, or at least the requested timeout
+	requestTimeout := time.Duration(args.Timeout) * time.Millisecond
+	if args.Timeout == 0 {
+		requestTimeout = 30 * time.Second
+	}
+	c.timeout = requestTimeout + 5*time.Second
+	defer func() { c.timeout = oldTimeout }()
+
+	return c.Execute(OpWaitForMutations, args)
+}
+
 // AddDependency adds a dependency via the daemon
 func (c *Client) AddDependency(args *DepAddArgs) (*Response, error) {
 	return c.Execute(OpDepAdd, args)

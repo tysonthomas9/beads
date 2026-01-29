@@ -46,6 +46,7 @@ const (
 	OpGetConfig           = "get_config"
 	OpMolStale            = "mol_stale"
 	OpGetParentIDs        = "get_parent_ids"
+	OpWaitForMutations    = "wait_for_mutations"
 
 	// Gate operations
 	OpGateCreate = "gate_create"
@@ -513,6 +514,12 @@ type ImportArgs struct {
 // GetMutationsArgs represents arguments for retrieving recent mutations
 type GetMutationsArgs struct {
 	Since int64 `json:"since"` // Unix timestamp in milliseconds (0 for all recent)
+}
+
+// WaitForMutationsArgs represents arguments for waiting on mutations
+type WaitForMutationsArgs struct {
+	Since   int64 `json:"since"`   // Unix timestamp in ms - return mutations after this time
+	Timeout int64 `json:"timeout"` // Max wait time in ms (0 = default 30s)
 }
 
 // Gate operations

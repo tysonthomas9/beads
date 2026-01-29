@@ -1,19 +1,15 @@
 package main
 
 import (
-	"context"
 	"encoding/json"
 	"log"
-	"math/rand"
 	"net/http"
-	"os"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/gorilla/websocket"
 	"github.com/steveyegge/beads/examples/beads-web-ui/daemon"
-	"github.com/steveyegge/beads/internal/rpc"
 )
 
 const (
@@ -28,32 +24,7 @@ const (
 
 	// Maximum message size allowed from peer.
 	maxMessageSize = 1024
-
-	// Default mutation polling interval when subscribed.
-	// Can be overridden via BEADS_WS_POLL_INTERVAL environment variable.
-	defaultMutationPollInterval = 2 * time.Second
-
-	// Timeout for acquiring daemon connection.
-	daemonAcquireTimeout = 2 * time.Second
 )
-
-// mutationPollInterval is the effective polling interval for mutations.
-// Set at init time from BEADS_WS_POLL_INTERVAL env var or defaults to defaultMutationPollInterval.
-var mutationPollInterval = defaultMutationPollInterval
-
-func init() {
-	if envVal := os.Getenv("BEADS_WS_POLL_INTERVAL"); envVal != "" {
-		d, err := time.ParseDuration(envVal)
-		if err != nil {
-			log.Printf("Invalid BEADS_WS_POLL_INTERVAL value %q: %v, using default %v", envVal, err, defaultMutationPollInterval)
-		} else if d <= 0 {
-			log.Printf("Invalid BEADS_WS_POLL_INTERVAL value %q: must be positive, using default %v", envVal, defaultMutationPollInterval)
-		} else {
-			mutationPollInterval = d
-			log.Printf("WebSocket poll interval set to %v from BEADS_WS_POLL_INTERVAL", d)
-		}
-	}
-}
 
 // WebSocket message types (client -> server).
 const (
@@ -129,6 +100,8 @@ type wsConnection struct {
 }
 
 // handleWebSocket upgrades HTTP to WebSocket and manages the connection.
+// DEPRECATED: Use the SSE endpoint /api/events instead for better performance.
+// WebSocket polling has been removed - clients should migrate to SSE.
 func handleWebSocket(pool *daemon.ConnectionPool) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		conn, err := upgrader.Upgrade(w, r, nil)
@@ -148,7 +121,7 @@ func handleWebSocket(pool *daemon.ConnectionPool) http.HandlerFunc {
 		go wsc.writePump()
 		go wsc.readPump()
 
-		log.Printf("WebSocket connection established from %s", r.RemoteAddr)
+		log.Printf("DEPRECATED: WebSocket connection from %s. Clients should migrate to SSE endpoint /api/events", r.RemoteAddr)
 	}
 }
 
@@ -181,19 +154,12 @@ func (wsc *wsConnection) readPump() {
 }
 
 // writePump writes messages to the WebSocket connection.
+// NOTE: Polling has been removed - WebSocket clients no longer receive mutation events.
+// Clients should migrate to the SSE endpoint /api/events for real-time updates.
 func (wsc *wsConnection) writePump() {
 	ticker := time.NewTicker(pingPeriod)
-	// Add jitter to polling interval to prevent thundering herd when many clients connect.
-	// Guard against very small intervals where mutationPollInterval/2 could be 0 (which panics).
-	jitterMax := int64(mutationPollInterval / 2)
-	if jitterMax <= 0 {
-		jitterMax = 1 // Minimum 1ns to avoid panic in rand.Int63n
-	}
-	jitter := time.Duration(rand.Int63n(jitterMax))
-	pollTicker := time.NewTicker(mutationPollInterval + jitter)
 	defer func() {
 		ticker.Stop()
-		pollTicker.Stop()
 		wsc.conn.Close()
 		log.Printf("WebSocket connection closed (write pump exit)")
 	}()
@@ -219,9 +185,6 @@ func (wsc *wsConnection) writePump() {
 				log.Printf("WebSocket ping error: %v", err)
 				return
 			}
-
-		case <-pollTicker.C:
-			wsc.pollMutations()
 
 		case <-wsc.done:
 			return
@@ -250,19 +213,18 @@ func (wsc *wsConnection) handleMessage(data []byte) {
 	}
 }
 
-// handleSubscribe starts subscription to mutation events.
+// handleSubscribe handles subscription requests.
+// NOTE: WebSocket subscription is deprecated. Clients should migrate to SSE /api/events.
 func (wsc *wsConnection) handleSubscribe(since int64) {
 	wsc.mu.Lock()
 	wsc.subscribed = true
 	wsc.lastSince = since
 	wsc.mu.Unlock()
 
-	log.Printf("WebSocket subscribed (since=%d)", since)
+	log.Printf("WebSocket subscribed (since=%d) - DEPRECATED: migrate to SSE /api/events", since)
 
-	// Immediately poll for any events since the requested timestamp.
-	if since > 0 {
-		wsc.pollMutations()
-	}
+	// Send deprecation warning to client
+	wsc.sendError("deprecated", "WebSocket subscription is deprecated. Please migrate to SSE endpoint /api/events for real-time updates.")
 }
 
 // handleUnsubscribe stops subscription to mutation events.
@@ -281,95 +243,6 @@ func (wsc *wsConnection) handlePing() {
 		Timestamp: time.Now().UTC().Format(time.RFC3339),
 	}
 	wsc.sendJSON(msg)
-}
-
-// pollMutations fetches mutations from the daemon and sends them to the client.
-func (wsc *wsConnection) pollMutations() {
-	wsc.mu.RLock()
-	subscribed := wsc.subscribed
-	since := wsc.lastSince
-	wsc.mu.RUnlock()
-
-	if !subscribed {
-		return
-	}
-
-	if wsc.pool == nil {
-		wsc.sendError("daemon_unavailable", "Connection pool not initialized")
-		return
-	}
-
-	// Acquire connection from pool.
-	ctx, cancel := context.WithTimeout(context.Background(), daemonAcquireTimeout)
-	defer cancel()
-
-	client, err := wsc.pool.Get(ctx)
-	if err != nil {
-		// Only log occasionally to avoid spam.
-		log.Printf("WebSocket daemon connection error: %v", err)
-		wsc.sendError("daemon_unavailable", "Cannot connect to beads daemon")
-		return
-	}
-	defer wsc.pool.Put(client)
-
-	// Call GetMutations RPC.
-	args := &rpc.GetMutationsArgs{Since: since}
-	resp, err := client.GetMutations(args)
-	if err != nil {
-		log.Printf("WebSocket GetMutations error: %v", err)
-		wsc.sendError("rpc_error", "Failed to get mutations")
-		return
-	}
-
-	if !resp.Success {
-		log.Printf("WebSocket GetMutations failed: %s", resp.Error)
-		return
-	}
-
-	// Parse mutations from response.
-	var mutations []rpc.MutationEvent
-	if err := json.Unmarshal(resp.Data, &mutations); err != nil {
-		log.Printf("WebSocket mutation parse error: %v", err)
-		return
-	}
-
-	// Send each mutation to the client.
-	var maxTimestamp int64
-	for _, m := range mutations {
-		ts := m.Timestamp.UnixMilli()
-		if ts > maxTimestamp {
-			maxTimestamp = ts
-		}
-
-		payload := MutationPayload{
-			Type:      m.Type,
-			IssueID:   m.IssueID,
-			Title:     m.Title,
-			Assignee:  m.Assignee,
-			Actor:     m.Actor,
-			Timestamp: m.Timestamp.UTC().Format(time.RFC3339),
-			OldStatus: m.OldStatus,
-			NewStatus: m.NewStatus,
-			ParentID:  m.ParentID,
-			StepCount: m.StepCount,
-		}
-
-		msg := ServerMessage{
-			Type:     MsgTypeMutation,
-			Mutation: &payload,
-		}
-		wsc.sendJSON(msg)
-	}
-
-	// Update lastSince to avoid re-sending the same mutations.
-	// Add 1ms to move past the boundary and prevent re-fetching mutations at the exact timestamp.
-	if maxTimestamp > 0 {
-		wsc.mu.Lock()
-		if maxTimestamp >= wsc.lastSince {
-			wsc.lastSince = maxTimestamp + 1
-		}
-		wsc.mu.Unlock()
-	}
 }
 
 // sendJSON marshals and sends a message to the client.

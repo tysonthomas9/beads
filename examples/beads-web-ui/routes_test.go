@@ -610,7 +610,7 @@ func TestHandleAPIHealth_NilPool(t *testing.T) {
 // TestSetupRoutes_StatsEndpoint tests that stats endpoint is registered.
 func TestSetupRoutes_StatsEndpoint(t *testing.T) {
 	mux := http.NewServeMux()
-	setupRoutes(mux, nil)
+	setupRoutes(mux, nil, nil, nil)
 
 	// Test that stats endpoint is registered
 	req := httptest.NewRequest(http.MethodGet, "/api/stats", nil)
@@ -639,7 +639,7 @@ func TestSetupRoutes_StatsEndpoint(t *testing.T) {
 // catch-all frontend handler "/" which returns index.html (200 OK).
 func TestSetupRoutes_StatsEndpointPOSTFallsThrough(t *testing.T) {
 	mux := http.NewServeMux()
-	setupRoutes(mux, nil)
+	setupRoutes(mux, nil, nil, nil)
 
 	// POST to GET-only endpoint falls through to frontend handler
 	req := httptest.NewRequest(http.MethodPost, "/api/stats", nil)
