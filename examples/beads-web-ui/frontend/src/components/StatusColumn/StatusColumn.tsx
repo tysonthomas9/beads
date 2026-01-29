@@ -77,6 +77,7 @@ export function StatusColumn({
       className={rootClassName}
       data-status={status}
       data-column-type={columnType}
+      data-has-items={count > 0 ? 'true' : undefined}
       aria-label={`${displayLabel} issues`}
     >
       <header className={styles.header}>

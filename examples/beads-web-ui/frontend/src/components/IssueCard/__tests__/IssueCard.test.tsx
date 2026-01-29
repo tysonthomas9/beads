@@ -503,4 +503,204 @@ describe('IssueCard', () => {
       expect(screen.getByLabelText('Issue: Complex Issue (blocked) (pending)')).toBeInTheDocument();
     });
   });
+
+  describe('review type badge', () => {
+    describe('getReviewType logic', () => {
+      it('returns plan when title contains [Need Review]', () => {
+        const issue = createTestIssue({ title: '[Need Review] My feature plan' });
+        render(<IssueCard issue={issue} />);
+
+        expect(screen.getByText('Plan')).toBeInTheDocument();
+        expect(screen.getByLabelText('Plan review')).toBeInTheDocument();
+      });
+
+      it('returns code when status is review AND title does not contain [Need Review]', () => {
+        const issue = createTestIssue({
+          title: 'Implement feature X',
+          status: 'review',
+        });
+        render(<IssueCard issue={issue} />);
+
+        expect(screen.getByText('Code')).toBeInTheDocument();
+        expect(screen.getByLabelText('Code review')).toBeInTheDocument();
+      });
+
+      it('returns help when status is blocked AND notes field is populated', () => {
+        const issue = createTestIssue({
+          title: 'Task needing help',
+          status: 'blocked',
+          notes: 'Stuck on database migration issue',
+        });
+        render(<IssueCard issue={issue} />);
+
+        expect(screen.getByText('Help')).toBeInTheDocument();
+        expect(screen.getByLabelText('Help review')).toBeInTheDocument();
+      });
+
+      it('returns null when none of the conditions are met', () => {
+        const issue = createTestIssue({
+          title: 'Regular task',
+          status: 'in_progress',
+        });
+        render(<IssueCard issue={issue} />);
+
+        expect(screen.queryByText('Plan')).not.toBeInTheDocument();
+        expect(screen.queryByText('Code')).not.toBeInTheDocument();
+        expect(screen.queryByText('Help')).not.toBeInTheDocument();
+      });
+
+      it('returns null for blocked status without notes', () => {
+        const issue = createTestIssue({
+          title: 'Blocked task without notes',
+          status: 'blocked',
+        });
+        render(<IssueCard issue={issue} />);
+
+        expect(screen.queryByText('Help')).not.toBeInTheDocument();
+      });
+
+      it('prioritizes plan over code when title has [Need Review] and status is review', () => {
+        const issue = createTestIssue({
+          title: '[Need Review] Code review request',
+          status: 'review',
+        });
+        render(<IssueCard issue={issue} />);
+
+        // Plan takes priority over Code when [Need Review] is in title
+        expect(screen.getByText('Plan')).toBeInTheDocument();
+        expect(screen.queryByText('Code')).not.toBeInTheDocument();
+      });
+    });
+
+    describe('badge rendering', () => {
+      it('shows Plan badge with icon for issues with [Need Review] in title', () => {
+        const issue = createTestIssue({ title: '[Need Review] Design proposal' });
+        render(<IssueCard issue={issue} />);
+
+        const badge = screen.getByLabelText('Plan review');
+        expect(badge).toBeInTheDocument();
+        expect(badge).toHaveTextContent('Plan');
+        // Check icon is rendered
+        expect(screen.getByText('📝')).toBeInTheDocument();
+      });
+
+      it('shows Code badge with icon for issues with review status', () => {
+        const issue = createTestIssue({
+          title: 'Feature implementation',
+          status: 'review',
+        });
+        render(<IssueCard issue={issue} />);
+
+        const badge = screen.getByLabelText('Code review');
+        expect(badge).toBeInTheDocument();
+        expect(badge).toHaveTextContent('Code');
+        // Check icon is rendered
+        expect(screen.getByText('🔍')).toBeInTheDocument();
+      });
+
+      it('shows Help badge with icon for blocked issues with notes', () => {
+        const issue = createTestIssue({
+          title: 'Needs assistance',
+          status: 'blocked',
+          notes: 'Need help with API integration',
+        });
+        render(<IssueCard issue={issue} />);
+
+        const badge = screen.getByLabelText('Help review');
+        expect(badge).toBeInTheDocument();
+        expect(badge).toHaveTextContent('Help');
+        // Check icon is rendered
+        expect(screen.getByText('❓')).toBeInTheDocument();
+      });
+
+      it('does not show badge for regular issues', () => {
+        const issue = createTestIssue({
+          title: 'Normal task',
+          status: 'open',
+        });
+        render(<IssueCard issue={issue} />);
+
+        expect(screen.queryByLabelText('Plan review')).not.toBeInTheDocument();
+        expect(screen.queryByLabelText('Code review')).not.toBeInTheDocument();
+        expect(screen.queryByLabelText('Help review')).not.toBeInTheDocument();
+      });
+
+      it('badge icon has aria-hidden attribute', () => {
+        const issue = createTestIssue({ title: '[Need Review] Feature' });
+        render(<IssueCard issue={issue} />);
+
+        const icon = screen.getByText('📝');
+        expect(icon).toHaveAttribute('aria-hidden', 'true');
+      });
+
+      it('applies reviewPlan class to Plan badge', () => {
+        const issue = createTestIssue({ title: '[Need Review] Plan item' });
+        render(<IssueCard issue={issue} />);
+
+        const badge = screen.getByLabelText('Plan review');
+        expect(badge.className).toMatch(/reviewPlan/);
+      });
+
+      it('applies reviewCode class to Code badge', () => {
+        const issue = createTestIssue({
+          title: 'Code item',
+          status: 'review',
+        });
+        render(<IssueCard issue={issue} />);
+
+        const badge = screen.getByLabelText('Code review');
+        expect(badge.className).toMatch(/reviewCode/);
+      });
+
+      it('applies reviewHelp class to Help badge', () => {
+        const issue = createTestIssue({
+          title: 'Help item',
+          status: 'blocked',
+          notes: 'Need assistance',
+        });
+        render(<IssueCard issue={issue} />);
+
+        const badge = screen.getByLabelText('Help review');
+        expect(badge.className).toMatch(/reviewHelp/);
+      });
+    });
+
+    describe('edge cases', () => {
+      it('handles undefined title gracefully', () => {
+        // @ts-expect-error Testing undefined title
+        const issue = createTestIssue({ title: undefined });
+        render(<IssueCard issue={issue} />);
+
+        // Should not show any review badge
+        expect(screen.queryByLabelText(/review/)).not.toBeInTheDocument();
+      });
+
+      it('handles empty notes field for blocked status', () => {
+        const issue = createTestIssue({
+          title: 'Blocked issue',
+          status: 'blocked',
+          notes: '',
+        });
+        render(<IssueCard issue={issue} />);
+
+        // Empty string notes should not trigger Help badge
+        expect(screen.queryByText('Help')).not.toBeInTheDocument();
+      });
+
+      it('[Need Review] detection is case sensitive', () => {
+        const issue = createTestIssue({ title: '[need review] lowercase' });
+        render(<IssueCard issue={issue} />);
+
+        // Should not match because case is different
+        expect(screen.queryByText('Plan')).not.toBeInTheDocument();
+      });
+
+      it('[Need Review] can be anywhere in title', () => {
+        const issue = createTestIssue({ title: 'My feature [Need Review] for approval' });
+        render(<IssueCard issue={issue} />);
+
+        expect(screen.getByText('Plan')).toBeInTheDocument();
+      });
+    });
+  });
 });

@@ -249,10 +249,15 @@ export function KanbanBoard({
                 ? styles.highlightedColumn
                 : undefined;
 
-          // Determine column type and icon for pending column
+          // Determine column type and icon for special columns
           const isPendingColumn = col.id === 'pending';
-          const columnType = isPendingColumn ? ('pending' as const) : undefined;
-          const headerIcon = isPendingColumn ? '⏳' : undefined;
+          const isReviewColumn = col.id === 'review';
+          const columnType = isPendingColumn
+            ? ('pending' as const)
+            : isReviewColumn
+              ? ('review' as const)
+              : undefined;
+          const headerIcon = isPendingColumn ? '⏳' : isReviewColumn ? '👀' : undefined;
 
           // Build props conditionally to satisfy exactOptionalPropertyTypes
           const statusColumnProps = {

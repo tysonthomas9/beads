@@ -19,7 +19,7 @@ import type { KanbanColumnConfig } from './types';
  * Helper to check if issue needs review based on title.
  */
 const needsReviewByTitle = (title: string): boolean =>
-  title.toLowerCase().includes('[need review]');
+  title.includes('[Need Review]');
 
 export const DEFAULT_COLUMNS: KanbanColumnConfig[] = [
   {

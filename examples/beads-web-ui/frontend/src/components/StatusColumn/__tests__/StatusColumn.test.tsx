@@ -252,6 +252,55 @@ describe('StatusColumn', () => {
     });
   });
 
+  describe('data-has-items attribute', () => {
+    it('renders data-has-items="true" when count > 0', () => {
+      const { container } = render(
+        <StatusColumn status="open" count={5} />
+      );
+
+      const section = container.querySelector('section');
+      expect(section).toHaveAttribute('data-has-items', 'true');
+    });
+
+    it('does not render data-has-items when count = 0', () => {
+      const { container } = render(
+        <StatusColumn status="open" count={0} />
+      );
+
+      const section = container.querySelector('section');
+      expect(section).not.toHaveAttribute('data-has-items');
+    });
+
+    it('renders data-has-items="true" when count = 1', () => {
+      const { container } = render(
+        <StatusColumn status="open" count={1} />
+      );
+
+      const section = container.querySelector('section');
+      expect(section).toHaveAttribute('data-has-items', 'true');
+    });
+
+    it('renders data-has-items="true" for large counts', () => {
+      const { container } = render(
+        <StatusColumn status="open" count={999} />
+      );
+
+      const section = container.querySelector('section');
+      expect(section).toHaveAttribute('data-has-items', 'true');
+    });
+
+    it('data-has-items attribute is on section element with other data attributes', () => {
+      const { container } = render(
+        <StatusColumn status="review" count={3} columnType="review" />
+      );
+
+      const section = container.querySelector('section');
+      expect(section).toHaveAttribute('data-status', 'review');
+      expect(section).toHaveAttribute('data-column-type', 'review');
+      expect(section).toHaveAttribute('data-has-items', 'true');
+    });
+  });
+
   describe('edge cases', () => {
     it('count of 0 renders correctly', () => {
       render(<StatusColumn status="open" count={0} />);

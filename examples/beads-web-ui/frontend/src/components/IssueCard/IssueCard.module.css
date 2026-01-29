@@ -172,3 +172,44 @@
   outline: 2px solid var(--color-primary);
   outline-offset: 2px;
 }
+
+/* =================================
+ * Review type badge styling
+ * ================================= */
+
+.reviewTypeBadge {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-2);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  line-height: 1;
+  border-radius: var(--radius-sm);
+  background-color: var(--color-warning-bg);
+  color: var(--color-text);
+}
+
+.reviewTypeBadge .reviewIcon {
+  font-size: 0.7em;
+  line-height: 1;
+}
+
+/* Plan review - needs plan approval */
+.reviewPlan {
+  background-color: var(--color-warning-bg);
+  color: var(--color-text);
+}
+
+/* Code review - needs code approval */
+.reviewCode {
+  background-color: var(--color-primary-bg);
+  color: var(--color-text);
+}
+
+/* Needs help - blocked and needs human assistance */
+.reviewHelp {
+  background-color: var(--color-danger-bg);
+  color: var(--color-text);
+}
