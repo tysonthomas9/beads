@@ -13,6 +13,22 @@ import (
 	"github.com/steveyegge/beads/internal/rpc"
 )
 
+const (
+	// sseRetryMs is the reconnection interval sent to clients in milliseconds.
+	sseRetryMs = 5000
+	// sseHeartbeatInterval is how often heartbeat comments are sent to keep connections alive.
+	sseHeartbeatInterval = 30 * time.Second
+)
+
+// sseEventIDCounter provides monotonically increasing event IDs across all SSE connections.
+// Initialized to current time in milliseconds so IDs remain roughly time-ordered,
+// which is important for the Last-Event-ID catch-up mechanism.
+var sseEventIDCounter atomic.Int64
+
+func init() {
+	sseEventIDCounter.Store(time.Now().UnixMilli())
+}
+
 // SSEHub manages connected SSE clients and broadcasts mutations to them.
 type SSEHub struct {
 	clients      map[*SSEClient]bool
@@ -242,9 +258,17 @@ func handleSSE(hub *SSEHub, getMutationsSince func(since int64) []rpc.MutationEv
 			}
 		}
 
+		// Send retry interval first so client knows reconnection time from the start
+		fmt.Fprintf(w, "retry: %d\n\n", sseRetryMs)
+		flusher.Flush()
+
 		// Send initial connection event
 		fmt.Fprintf(w, "event: connected\ndata: {\"clientId\":%d}\n\n", client.id)
 		flusher.Flush()
+
+		// Start heartbeat ticker to keep connection alive through proxies
+		heartbeatTicker := time.NewTicker(sseHeartbeatInterval)
+		defer heartbeatTicker.Stop()
 
 		// Stream events
 		for {
@@ -255,6 +279,14 @@ func handleSSE(hub *SSEHub, getMutationsSince func(since int64) []rpc.MutationEv
 					return
 				}
 				writeSSEEvent(w, mutation)
+				flusher.Flush()
+
+			case <-heartbeatTicker.C:
+				// Send SSE comment to keep connection alive
+				if _, err := fmt.Fprint(w, ": heartbeat\n\n"); err != nil {
+					log.Printf("SSE client %d heartbeat failed: %v", client.id, err)
+					return
+				}
 				flusher.Flush()
 
 			case <-r.Context().Done():
@@ -268,13 +300,7 @@ func handleSSE(hub *SSEHub, getMutationsSince func(since int64) []rpc.MutationEv
 
 // writeSSEEvent writes a mutation as an SSE event.
 func writeSSEEvent(w http.ResponseWriter, mutation *MutationPayload) {
-	// Parse timestamp to get Unix ms for event ID
-	var eventID int64
-	if t, err := time.Parse(time.RFC3339, mutation.Timestamp); err == nil {
-		eventID = t.UnixMilli()
-	} else {
-		eventID = time.Now().UnixMilli()
-	}
+	eventID := sseEventIDCounter.Add(1)
 
 	data, err := json.Marshal(mutation)
 	if err != nil {
