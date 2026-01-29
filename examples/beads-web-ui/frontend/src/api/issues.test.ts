@@ -224,15 +224,15 @@ describe('issues API', () => {
     };
 
     it('calls get with correct URL', async () => {
-      mockGet.mockResolvedValue(mockIssueDetails);
+      mockGet.mockResolvedValue({ success: true, data: mockIssueDetails });
 
       await getIssue('issue-123');
 
       expect(mockGet).toHaveBeenCalledWith('/api/issues/issue-123');
     });
 
-    it('returns IssueDetails directly (no unwrapping)', async () => {
-      mockGet.mockResolvedValue(mockIssueDetails);
+    it('unwraps successful response and returns IssueDetails', async () => {
+      mockGet.mockResolvedValue({ success: true, data: mockIssueDetails });
 
       const result = await getIssue('issue-123');
 
@@ -240,7 +240,7 @@ describe('issues API', () => {
     });
 
     it('encodes special characters in ID', async () => {
-      mockGet.mockResolvedValue(mockIssueDetails);
+      mockGet.mockResolvedValue({ success: true, data: mockIssueDetails });
 
       await getIssue('issue/with/slashes');
 
@@ -248,11 +248,17 @@ describe('issues API', () => {
     });
 
     it('encodes spaces in ID', async () => {
-      mockGet.mockResolvedValue(mockIssueDetails);
+      mockGet.mockResolvedValue({ success: true, data: mockIssueDetails });
 
       await getIssue('issue with spaces');
 
       expect(mockGet).toHaveBeenCalledWith('/api/issues/issue%20with%20spaces');
+    });
+
+    it('throws ApiError on failure response', async () => {
+      mockGet.mockResolvedValue({ success: false, error: 'Issue not found' });
+
+      await expect(getIssue('nonexistent')).rejects.toThrow(ApiError);
     });
 
     it('propagates ApiError from client', async () => {

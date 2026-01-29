@@ -96,10 +96,10 @@ function mapWorkFilterToQueryParams(filter: WorkFilter): Record<string, unknown>
 
 /**
  * Get a single issue by ID with full details.
- * Note: This endpoint returns IssueDetails directly without wrapper.
  */
 export async function getIssue(id: string): Promise<IssueDetails> {
-  return get<IssueDetails>(`/api/issues/${encodeURIComponent(id)}`)
+  const response = await get<ApiResult<IssueDetails>>(`/api/issues/${encodeURIComponent(id)}`)
+  return unwrap(response)
 }
 
 /**
