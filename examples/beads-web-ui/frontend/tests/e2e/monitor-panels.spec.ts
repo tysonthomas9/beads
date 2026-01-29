@@ -565,3 +565,209 @@ test.describe("ProjectHealthPanel deep behavior", () => {
     await expect(bottleneckHeading).toHaveText("Bottlenecks")
   })
 })
+
+/**
+ * Mock graph API issues with blocking dependencies for MiniDependencyGraph tests.
+ * test-2 depends on test-1 via "blocks" dependency type.
+ * Uses the graph API format: { issues: [...] } with dependencies as { depends_on_id, type }.
+ */
+const mockGraphIssuesWithDeps = [
+  {
+    id: "test-1",
+    title: "Feature A",
+    status: "open",
+    priority: 2,
+    issue_type: "feature",
+    created_at: "2026-01-24T10:00:00Z",
+    updated_at: "2026-01-24T10:00:00Z",
+  },
+  {
+    id: "test-2",
+    title: "Task blocked by Feature A",
+    status: "open",
+    priority: 1,
+    issue_type: "task",
+    created_at: "2026-01-24T11:00:00Z",
+    updated_at: "2026-01-24T11:00:00Z",
+    dependencies: [{ depends_on_id: "test-1", type: "blocks" }],
+  },
+]
+
+/**
+ * Empty graph API issues for empty state test.
+ * When no issues exist, the MiniDependencyGraph shows "No blocking dependencies".
+ */
+const mockGraphIssuesEmpty: typeof mockGraphIssuesWithDeps = []
+
+/**
+ * Set up mocks for MiniDependencyGraph tests with customizable graph data.
+ * The graph API uses a different response format: { issues: [...] } with
+ * dependencies as { depends_on_id, type } arrays.
+ */
+async function setupGraphMocks(
+  page: Page,
+  options: {
+    graphIssues: typeof mockGraphIssuesWithDeps
+    hasBlocked?: boolean
+  }
+) {
+  const { graphIssues, hasBlocked = false } = options
+
+  await page.route("**/api/ready", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ success: true, data: mockIssues }),
+    })
+  })
+
+  await page.route("**/api/blocked", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        success: true,
+        data: hasBlocked
+          ? [
+              {
+                id: "test-2",
+                title: "Task blocked by Feature A",
+                status: "open",
+                priority: 1,
+                issue_type: "task",
+                created_at: "2026-01-24T11:00:00Z",
+                updated_at: "2026-01-24T11:00:00Z",
+                blocked_by: ["test-1"],
+              },
+            ]
+          : [],
+      }),
+    })
+  })
+
+  // Graph API returns { success, issues: [...] } format
+  await page.route("**/api/issues/graph", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ success: true, issues: graphIssues }),
+    })
+  })
+
+  await page.route("**/api/events", async (route) => {
+    await route.abort()
+  })
+
+  await page.route("**/api/stats", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        success: true,
+        data: { open: 10, closed: 5, total: 15, completion: 33 },
+      }),
+    })
+  })
+
+  await page.route("**/localhost:9000/api/status", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify(mockLoomStatus),
+    })
+  })
+
+  await page.route("**/localhost:9000/api/tasks", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify(mockLoomTasks),
+    })
+  })
+}
+
+/**
+ * Navigate to monitor view and wait for graph data to load.
+ */
+async function navigateAndWaitForGraph(page: Page) {
+  const [readyRes] = await Promise.all([
+    page.waitForResponse(
+      (res) => res.url().includes("/api/ready") && res.status() === 200
+    ),
+    page.goto("/?view=monitor"),
+  ])
+  expect(readyRes.ok()).toBe(true)
+
+  // Wait for graph data to load
+  await page.waitForResponse(
+    (res) => res.url().includes("/api/issues/graph") && res.status() === 200,
+    { timeout: 10000 }
+  )
+  // Allow React Flow to render and layout
+  await page.waitForTimeout(1000)
+}
+
+test.describe("MiniDependencyGraph deep behavior", () => {
+  test("renders nodes from blocking dependencies", async ({ page }) => {
+    await setupGraphMocks(page, { graphIssues: mockGraphIssuesWithDeps, hasBlocked: true })
+    await navigateAndWaitForGraph(page)
+
+    const miniGraph = page.getByTestId("mini-dependency-graph")
+    await expect(miniGraph).toBeVisible()
+
+    // React Flow renders nodes with .react-flow__node CSS class
+    const nodes = miniGraph.locator(".react-flow__node")
+    await expect(nodes.first()).toBeVisible({ timeout: 10000 })
+
+    // Should have at least 1 node rendered from the blocking dependency
+    const nodeCount = await nodes.count()
+    expect(nodeCount).toBeGreaterThanOrEqual(1)
+
+    // Verify the empty state is NOT shown
+    await expect(miniGraph.getByText("No blocking dependencies")).not.toBeVisible()
+  })
+
+  test("shows empty state when no blocking dependencies", async ({ page }) => {
+    await setupGraphMocks(page, { graphIssues: mockGraphIssuesEmpty })
+    await navigateAndWaitForGraph(page)
+
+    const miniGraph = page.getByTestId("mini-dependency-graph")
+    await expect(miniGraph).toBeVisible()
+
+    // Verify empty state text is displayed
+    await expect(miniGraph.getByText("No blocking dependencies")).toBeVisible()
+
+    // No React Flow nodes should be rendered
+    const nodes = miniGraph.locator(".react-flow__node")
+    await expect(nodes).toHaveCount(0)
+  })
+
+  test("expand button is keyboard accessible and navigates to graph view", async ({ page }) => {
+    await setupGraphMocks(page, { graphIssues: mockGraphIssuesWithDeps, hasBlocked: true })
+    await navigateAndWaitForGraph(page)
+
+    const miniGraph = page.getByTestId("mini-dependency-graph")
+    await expect(miniGraph).toBeVisible()
+
+    // Find the expand button
+    const expandButton = page.getByRole("button", { name: "Expand to full graph view" })
+    await expect(expandButton).toBeVisible()
+
+    // Verify aria-label
+    await expect(expandButton).toHaveAttribute("aria-label", "Expand to full graph view")
+
+    // Focus the button and verify it receives focus
+    await expandButton.focus()
+    await expect(expandButton).toBeFocused()
+
+    // Press Enter to activate
+    await page.keyboard.press("Enter")
+
+    // Verify URL changed to graph view
+    expect(page.url()).toContain("view=graph")
+
+    // Verify graph view is displayed
+    const graphTab = page.getByTestId("view-tab-graph")
+    await expect(graphTab).toHaveAttribute("aria-selected", "true")
+  })
+})
