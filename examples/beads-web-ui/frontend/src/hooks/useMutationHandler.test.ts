@@ -5,7 +5,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
 import { useMutationHandler } from './useMutationHandler'
 import type { Issue } from '../types/issue'
-import type { MutationPayload } from '../api/websocket'
+import type { MutationPayload } from '../api/sse'
 
 /**
  * Helper to create a test issue with required fields.

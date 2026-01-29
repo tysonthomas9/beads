@@ -128,9 +128,6 @@ async function setupMocks(page: Page, issues: object[] = mockIssues) {
     }
   })
 
-  await page.route("**/ws", async (route) => {
-    await route.abort()
-  })
 }
 
 /**
@@ -368,10 +365,6 @@ test.describe("groupBy Assignee Swim Lanes", () => {
         }
       })
 
-      await page.route("**/ws", async (route) => {
-        await route.abort()
-      })
-
       await navigateToAssigneeView(page)
 
       // Get bob's lane (has 2 open issues)
@@ -495,10 +488,6 @@ test.describe("groupBy Assignee Swim Lanes", () => {
         } else {
           await route.continue()
         }
-      })
-
-      await page.route("**/ws", async (route) => {
-        await route.abort()
       })
 
       await navigateToAssigneeView(page)

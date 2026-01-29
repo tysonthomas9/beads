@@ -63,10 +63,6 @@ async function setupMocks(
     })
   })
 
-  // Mock WebSocket to prevent connection errors
-  await page.route("**/ws", async (route) => {
-    await route.abort()
-  })
 }
 
 /**
@@ -239,10 +235,6 @@ test.describe("Visual Regression - Loading States", () => {
       })
     })
 
-    await page.route("**/ws", async (route) => {
-      await route.abort()
-    })
-
     // Navigate without waiting for full load to catch skeleton
     await page.goto("/", { waitUntil: "domcontentloaded" })
 
@@ -267,10 +259,6 @@ test.describe("Visual Regression - Error States", () => {
         contentType: "application/json",
         body: JSON.stringify({ success: false, error: "Server error" }),
       })
-    })
-
-    await page.route("**/ws", async (route) => {
-      await route.abort()
     })
 
     await page.goto("/")

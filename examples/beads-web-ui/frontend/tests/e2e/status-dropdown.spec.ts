@@ -75,11 +75,6 @@ async function setupMocks(
   // Track patch calls
   const patchCalls: { url: string; body: { status?: string } }[] = []
 
-  // Mock WebSocket to prevent connection errors
-  await page.route("**/ws", async (route) => {
-    await route.abort()
-  })
-
   // Mock GET and PATCH /api/issues/{id}
   await page.route("**/api/issues/*", async (route) => {
     const request = route.request()

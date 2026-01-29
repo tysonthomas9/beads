@@ -1,17 +1,17 @@
 /**
- * Fallback polling hook for when SSE/WebSocket connection is unavailable.
+ * Fallback polling hook for when SSE connection is unavailable.
  * Automatically activates polling after the connection has been
  * in 'reconnecting' state for a configurable threshold period.
  */
 
 import { useState, useEffect, useRef, useCallback } from 'react'
-import type { ConnectionState } from '../api/websocket'
+import type { ConnectionState } from '../api/sse'
 
 /**
  * Options for the useFallbackPolling hook.
  */
 export interface UseFallbackPollingOptions {
-  /** Current SSE/WebSocket connection state */
+  /** Current SSE connection state */
   wsState: ConnectionState
   /** Callback invoked on each poll cycle */
   onPoll: () => void | Promise<void>
@@ -38,7 +38,7 @@ export interface UseFallbackPollingReturn {
 }
 
 /**
- * React hook for fallback polling when SSE/WebSocket is unavailable.
+ * React hook for fallback polling when SSE is unavailable.
  *
  * The hook monitors the connection state and automatically
  * activates polling when the connection has been in 'reconnecting' state
@@ -135,7 +135,7 @@ export function useFallbackPolling(
     }
 
     if (wsState === 'connected') {
-      // WebSocket recovered - stop polling
+      // SSE recovered - stop polling
       clearTimers()
       setIsActive(false)
       setTimeUntilActive(null)

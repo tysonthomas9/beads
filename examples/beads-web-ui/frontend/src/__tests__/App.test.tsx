@@ -12,7 +12,7 @@ import '@testing-library/jest-dom';
 
 import App from '../App';
 import type { Issue, Status } from '@/types';
-import type { ConnectionState } from '@/api/websocket';
+import type { ConnectionState } from '@/api/sse';
 
 // Create hoisted mocks that can be shared across mock definitions
 const { mockUseIssues, mockUseIssueDetail, mockUseToast } = vi.hoisted(() => ({

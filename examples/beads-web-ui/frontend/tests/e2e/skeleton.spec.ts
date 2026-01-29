@@ -16,8 +16,6 @@ const mockIssues = [
 
 test.describe("Loading Skeleton States", () => {
   test.beforeEach(async ({ page }) => {
-    // Mock WebSocket to prevent connection errors
-    await page.route("**/ws", (route) => route.abort())
   })
 
   test("shows three skeleton columns while loading", async ({ page }) => {

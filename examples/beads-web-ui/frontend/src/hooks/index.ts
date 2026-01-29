@@ -5,10 +5,6 @@
 export { useSSE } from './useSSE'
 export type { UseSSEOptions, UseSSEReturn } from './useSSE'
 
-// @deprecated Use useSSE instead - WebSocket will be removed in a future version
-export { useWebSocket } from './useWebSocket'
-export type { UseWebSocketOptions, UseWebSocketReturn } from './useWebSocket'
-
 export { useDebounce } from './useDebounce'
 
 export { useSort } from './useSort'

@@ -125,9 +125,6 @@ async function setupMocks(page: Page, issues = mockIssuesWithDependencies) {
       body: JSON.stringify({ success: true, data: blockedIssues }),
     })
   })
-  await page.route("**/ws", async (route) => {
-    await route.abort()
-  })
 }
 
 /**

@@ -3,9 +3,25 @@
  * Provides a simpler push model compared to WebSocket with built-in browser reconnection.
  */
 
-// Re-export types from websocket for compatibility during migration
-export type { ConnectionState, MutationType, MutationPayload } from './websocket'
-import type { ConnectionState, MutationPayload } from './websocket'
+// Connection states for real-time event streaming
+export type ConnectionState = 'disconnected' | 'connecting' | 'connected' | 'reconnecting'
+
+// Mutation types from the backend
+export type MutationType = 'create' | 'update' | 'delete' | 'comment' | 'status' | 'bonded' | 'squashed' | 'burned'
+
+// Server → Client: Mutation payload
+export interface MutationPayload {
+  type: MutationType
+  issue_id: string
+  title?: string
+  assignee?: string
+  actor?: string
+  timestamp: string
+  old_status?: string
+  new_status?: string
+  parent_id?: string
+  step_count?: number
+}
 
 /**
  * Options for the BeadsSSEClient.

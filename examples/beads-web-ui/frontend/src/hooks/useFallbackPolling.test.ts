@@ -4,7 +4,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
 import { useFallbackPolling } from './useFallbackPolling'
-import type { ConnectionState } from '../api/websocket'
+import type { ConnectionState } from '../api/sse'
 
 describe('useFallbackPolling', () => {
   beforeEach(() => {

@@ -68,9 +68,6 @@ async function setupMocks(page: Page) {
       body: JSON.stringify({ success: true, data: mockIssues }),
     })
   })
-  await page.route("**/ws", async (route) => {
-    await route.abort()
-  })
 }
 
 async function navigateAndWait(page: Page, path = "/?groupBy=epic") {

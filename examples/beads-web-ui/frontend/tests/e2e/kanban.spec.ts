@@ -61,11 +61,6 @@ test.describe("KanbanBoard", () => {
       })
     })
 
-    // Mock WebSocket to prevent connection errors
-    await page.route("**/ws", async (route) => {
-      await route.abort()
-    })
-
     // Navigate to the app and wait for API response
     const [response] = await Promise.all([
       page.waitForResponse((res) => res.url().includes("/api/ready") && res.status() === 200),
@@ -127,11 +122,6 @@ test.describe("KanbanBoard", () => {
       })
     })
 
-    // Mock WebSocket
-    await page.route("**/ws", async (route) => {
-      await route.abort()
-    })
-
     // Navigate to the app and wait for API response
     const [response] = await Promise.all([
       page.waitForResponse((res) => res.url().includes("/api/ready") && res.status() === 200),
@@ -169,10 +159,6 @@ test.describe("KanbanBoard", () => {
           data: issueWithoutStatus,
         }),
       })
-    })
-
-    await page.route("**/ws", async (route) => {
-      await route.abort()
     })
 
     // Navigate to the app and wait for API response
@@ -233,11 +219,6 @@ test.describe("KanbanBoard", () => {
       } else {
         await route.continue()
       }
-    })
-
-    // Mock WebSocket
-    await page.route("**/ws", async (route) => {
-      await route.abort()
     })
 
     // Navigate and wait for initial load
@@ -379,11 +360,6 @@ test.describe("KanbanBoard", () => {
       })
     })
 
-    // Mock WebSocket to prevent connection errors
-    await page.route("**/ws", async (route) => {
-      await route.abort()
-    })
-
     // Mock PATCH /api/issues/{id} to fail with 500
     await page.route("**/api/issues/*", async (route) => {
       if (route.request().method() === "PATCH") {
@@ -511,10 +487,6 @@ test.describe("KanbanBoard", () => {
       } else {
         await route.continue()
       }
-    })
-
-    await page.route("**/ws", async (route) => {
-      await route.abort()
     })
 
     // Navigate and wait for board to render
@@ -712,10 +684,6 @@ test.describe("KanbanBoard", () => {
       }
     })
 
-    await page.route("**/ws", async (route) => {
-      await route.abort()
-    })
-
     // Navigate and wait for board to render
     await Promise.all([
       page.waitForResponse((res) => res.url().includes("/api/ready") && res.status() === 200),
@@ -850,10 +818,6 @@ test.describe("KanbanBoard", () => {
       } else {
         await route.continue()
       }
-    })
-
-    await page.route("**/ws", async (route) => {
-      await route.abort()
     })
 
     // Navigate and wait for board to render

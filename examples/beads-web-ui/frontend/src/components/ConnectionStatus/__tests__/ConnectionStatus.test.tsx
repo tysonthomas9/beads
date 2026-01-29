@@ -11,7 +11,7 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import '@testing-library/jest-dom';
 
 import { ConnectionStatus } from '../ConnectionStatus';
-import type { ConnectionState } from '@/api/websocket';
+import type { ConnectionState } from '@/api/sse';
 
 describe('ConnectionStatus', () => {
   describe('rendering', () => {

@@ -5,12 +5,8 @@ export type { RequestOptions } from './client'
 export { BeadsSSEClient, getSSEUrl } from './sse'
 export type { SSEClientOptions } from './sse'
 
-// Re-export common types from SSE (they're re-exported from websocket for compatibility)
+// Re-export common types from SSE
 export type { ConnectionState, MutationType, MutationPayload } from './sse'
-
-// @deprecated Use BeadsSSEClient instead - WebSocket will be removed in a future version
-export { BeadsWebSocketClient, getWebSocketUrl } from './websocket'
-export type { WebSocketClientOptions } from './websocket'
 
 // Issue API functions
 export {

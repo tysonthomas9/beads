@@ -323,7 +323,7 @@ function DefaultContent({
     async (dependsOnId: string, type: DependencyType) => {
       if (!issue) return;
       await addDependency(issue.id, dependsOnId, type);
-      // The parent component should refresh issue details via WebSocket or manual refetch
+      // The parent component should refresh issue details via SSE or manual refetch
     },
     [issue]
   );
@@ -332,7 +332,7 @@ function DefaultContent({
     async (dependsOnId: string) => {
       if (!issue) return;
       await removeDependency(issue.id, dependsOnId);
-      // The parent component should refresh issue details via WebSocket or manual refetch
+      // The parent component should refresh issue details via SSE or manual refetch
     },
     [issue]
   );

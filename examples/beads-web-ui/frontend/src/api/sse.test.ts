@@ -3,7 +3,7 @@
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { BeadsSSEClient, getSSEUrl } from './sse'
-import type { MutationPayload } from './websocket'
+import type { MutationPayload } from './sse'
 
 // Mock EventSource class with static constants matching the real EventSource API
 class MockEventSource {

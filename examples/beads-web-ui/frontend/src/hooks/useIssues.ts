@@ -1,9 +1,9 @@
 /**
  * React hook for managing issue state with real-time updates.
- * Composes useWebSocket + useMutationHandler + API fetch.
+ * Composes useSSE + useMutationHandler + API fetch.
  *
  * This hook is the single source of truth for issue data across the application,
- * handling initial data fetching, real-time updates via WebSocket, and optimistic updates.
+ * handling initial data fetching, real-time updates via SSE, and optimistic updates.
  */
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
@@ -30,7 +30,7 @@ export interface UseIssuesOptions {
   graphFilter?: GraphFilter
   /** Auto-fetch on mount (default: true) */
   autoFetch?: boolean
-  /** Auto-connect WebSocket (default: true) */
+  /** Auto-connect SSE (default: true) */
   autoConnect?: boolean
   /** Subscribe to mutations on connect (default: true) */
   subscribeOnConnect?: boolean
@@ -46,11 +46,11 @@ export interface UseIssuesReturn {
   issuesMap: Map<string, Issue>
   /** Loading state for initial fetch */
   isLoading: boolean
-  /** Error from fetch or WebSocket */
+  /** Error from fetch or SSE */
   error: string | null
-  /** WebSocket connection state */
+  /** SSE connection state */
   connectionState: ConnectionState
-  /** Whether WebSocket is connected */
+  /** Whether SSE is connected */
   isConnected: boolean
   /** Current number of reconnection attempts */
   reconnectAttempts: number
@@ -64,7 +64,7 @@ export interface UseIssuesReturn {
   getIssue: (id: string) => Issue | undefined
   /** Number of mutations processed */
   mutationCount: number
-  /** Immediately retry WebSocket connection */
+  /** Immediately retry SSE connection */
   retryConnection: () => void
 }
 
@@ -242,7 +242,7 @@ export function useIssues(options: UseIssuesOptions = {}): UseIssuesReturn {
       }
 
       // Capture state for rollback BEFORE optimistic update to avoid race conditions
-      // with WebSocket mutations that might arrive during the API call
+      // with SSE mutations that might arrive during the API call
       const preUpdateMap = new Map(issuesMap)
 
       // Optimistic update
@@ -274,7 +274,7 @@ export function useIssues(options: UseIssuesOptions = {}): UseIssuesReturn {
   // Derive array from Map (memoized)
   const issues = useMemo(() => Array.from(issuesMap.values()), [issuesMap])
 
-  // Combine errors (fetch error takes priority, then WebSocket error)
+  // Combine errors (fetch error takes priority, then SSE error)
   const combinedError = error ?? wsError
 
   return {

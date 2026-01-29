@@ -1,12 +1,12 @@
 /**
- * React hook for reconciling WebSocket mutation events with client-side issue state.
+ * React hook for reconciling SSE mutation events with client-side issue state.
  * Processes create, update, delete, status, and other mutation types to keep the UI in sync.
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { produce } from 'immer'
 import type { Issue } from '../types/issue'
-import type { MutationPayload } from '../api/websocket'
+import type { MutationPayload } from '../api/sse'
 import {
   MutationCreate,
   MutationUpdate,
@@ -141,7 +141,7 @@ function applyBondedToIssue(issue: Issue, mutation: MutationPayload): Issue {
 }
 
 /**
- * React hook for handling WebSocket mutation events.
+ * React hook for handling SSE mutation events.
  *
  * @example
  * ```tsx
@@ -155,9 +155,8 @@ function applyBondedToIssue(issue: Issue, mutation: MutationPayload): Issue {
  *     onIssueDeleted: (id) => console.log('Deleted:', id),
  *   })
  *
- *   const { subscribe } = useWebSocket({
+ *   const { connect } = useSSE({
  *     onMutation: handleMutation,
- *     subscribeOnConnect: true,
  *   })
  *
  *   return <div>Processed {mutationCount} mutations</div>
@@ -183,7 +182,7 @@ export function useMutationHandler(
   const onIssueDeletedRef = useRef(onIssueDeleted)
   const onMutationSkippedRef = useRef(onMutationSkipped)
 
-  // Update refs when callbacks change (following useWebSocket pattern)
+  // Update refs when callbacks change (following useSSE pattern)
   useEffect(() => {
     onIssueCreatedRef.current = onIssueCreated
   }, [onIssueCreated])

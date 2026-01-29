@@ -144,9 +144,6 @@ async function setupMocks(page: Page, issues: object[] = mockIssuesAllTypes) {
     }
   })
 
-  await page.route("**/ws", async (route) => {
-    await route.abort()
-  })
 }
 
 /**
@@ -187,9 +184,6 @@ async function setupMocksWithPatch(
     }
   })
 
-  await page.route("**/ws", async (route) => {
-    await route.abort()
-  })
 }
 
 /**
