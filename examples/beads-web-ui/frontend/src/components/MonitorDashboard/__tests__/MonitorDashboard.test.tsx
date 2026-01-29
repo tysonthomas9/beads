@@ -8,6 +8,8 @@ import '@testing-library/jest-dom';
 import { MonitorDashboard } from '../MonitorDashboard';
 
 // Mock the hooks to prevent API calls in tests
+const mockSetActiveView = vi.fn();
+
 vi.mock('@/hooks', () => ({
   useAgents: () => ({
     stats: { open: 10, closed: 5, total: 15, completion: 33.3 },
@@ -28,6 +30,21 @@ vi.mock('@/hooks', () => ({
     error: null,
     refetch: vi.fn(),
   }),
+  useIssues: () => ({
+    issues: [],
+    issuesMap: new Map(),
+    isLoading: false,
+    error: null,
+    connectionState: 'connected',
+    isConnected: true,
+    reconnectAttempts: 0,
+    refetch: vi.fn(),
+    updateIssueStatus: vi.fn(),
+    getIssue: vi.fn(),
+    mutationCount: 0,
+    retryConnection: vi.fn(),
+  }),
+  useViewState: () => ['monitor', mockSetActiveView],
 }));
 
 describe('MonitorDashboard', () => {
@@ -63,15 +80,16 @@ describe('MonitorDashboard', () => {
   it('renders expand button for mini graph', () => {
     render(<MonitorDashboard />);
 
-    const expandButton = screen.getByRole('button', { name: /expand graph/i });
+    // The expand button is inside MiniDependencyGraph component
+    const expandButton = screen.getByRole('button', { name: /expand to full graph view/i });
     expect(expandButton).toBeInTheDocument();
   });
 
-  it('shows placeholder content for panels not yet implemented', () => {
+  it('renders MiniDependencyGraph component', () => {
     render(<MonitorDashboard />);
 
-    // MiniDependencyGraph still has placeholder
-    expect(screen.getByText(/minidependencygraph placeholder/i)).toBeInTheDocument();
+    // MiniDependencyGraph is now implemented
+    expect(screen.getByTestId('mini-dependency-graph')).toBeInTheDocument();
   });
 
   it('renders WorkPipelinePanel', () => {

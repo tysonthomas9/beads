@@ -8,3 +8,5 @@ export { WorkPipelinePanel } from './WorkPipelinePanel';
 export type { WorkPipelinePanelProps } from './WorkPipelinePanel';
 export { PipelineStage } from './PipelineStage';
 export type { PipelineStageProps } from './PipelineStage';
+export { MiniDependencyGraph } from './MiniDependencyGraph';
+export type { MiniDependencyGraphProps } from './MiniDependencyGraph';

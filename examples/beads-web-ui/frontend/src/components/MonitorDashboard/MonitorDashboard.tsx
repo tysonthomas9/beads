@@ -8,11 +8,12 @@
  * - Mini Dependency Graph (bottom-right)
  */
 
-import { useAgents, useBlockedIssues } from '@/hooks';
+import { useAgents, useBlockedIssues, useIssues, useViewState } from '@/hooks';
 import type { Issue } from '@/types';
 import { AgentActivityPanel } from './AgentActivityPanel';
 import { ProjectHealthPanel } from './ProjectHealthPanel';
 import { WorkPipelinePanel } from './WorkPipelinePanel';
+import { MiniDependencyGraph } from './MiniDependencyGraph';
 import styles from './MonitorDashboard.module.css';
 
 /**
@@ -38,6 +39,12 @@ export function MonitorDashboard({
     pollInterval: 30000,
   });
 
+  // Fetch all issues with dependency data for the graph
+  const { issues: graphIssues } = useIssues({ mode: 'graph' });
+
+  // View state for navigation to full graph view
+  const [, setActiveView] = useViewState();
+
   // Handler for bottleneck clicks - placeholder for navigation
   const handleBottleneckClick = (issue: Pick<Issue, 'id' | 'title'>) => {
     // TODO: Integrate with IssueDetailPanel when available
@@ -48,6 +55,17 @@ export function MonitorDashboard({
   const handleAgentClick = (agentName: string) => {
     // TODO: Open agent detail drawer/modal when available
     console.log('Agent clicked:', agentName);
+  };
+
+  // Handler for node clicks in MiniDependencyGraph
+  const handleGraphNodeClick = (issue: Issue) => {
+    // TODO: Integrate with IssueDetailPanel when available
+    console.log('Graph node clicked:', issue.id);
+  };
+
+  // Handler for expand button - navigate to full graph view
+  const handleExpandGraph = () => {
+    setActiveView('graph');
   };
 
   const rootClassName = className
@@ -130,14 +148,13 @@ export function MonitorDashboard({
           <h2 id="mini-graph-heading" className={styles.panelTitle}>
             Blocking Dependencies
           </h2>
-          <button className={styles.expandButton} aria-label="Expand graph">
-            ↗
-          </button>
         </header>
         <div className={styles.panelContent}>
-          <div className={styles.placeholder}>
-            MiniDependencyGraph placeholder
-          </div>
+          <MiniDependencyGraph
+            issues={graphIssues}
+            onNodeClick={handleGraphNodeClick}
+            onExpandClick={handleExpandGraph}
+          />
         </div>
       </section>
     </div>
