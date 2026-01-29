@@ -139,22 +139,22 @@
 }
 
 /* =================================
- * Pending column styling (blocked by deps)
+ * Backlog column styling (blocked by deps, blocked status, or deferred)
  * ================================= */
 
-.statusColumn[data-column-type='pending'] {
+.statusColumn[data-column-type='backlog'] {
   background-color: var(--color-bg-tertiary);
 }
 
-.statusColumn[data-column-type='pending'] .header {
+.statusColumn[data-column-type='backlog'] .header {
   border-bottom-color: var(--color-text-muted);
 }
 
-.statusColumn[data-column-type='pending'] .title {
+.statusColumn[data-column-type='backlog'] .title {
   color: var(--color-text-secondary);
 }
 
-.statusColumn[data-column-type='pending'] .count {
+.statusColumn[data-column-type='backlog'] .count {
   background-color: var(--color-border);
 }
 

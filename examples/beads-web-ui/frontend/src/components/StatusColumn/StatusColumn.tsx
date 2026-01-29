@@ -13,7 +13,7 @@ import styles from './StatusColumn.module.css';
  * Column type for visual variants (different from status value).
  * Allows same status to have different visual treatments.
  */
-export type ColumnType = 'ready' | 'pending' | 'review' | 'default';
+export type ColumnType = 'ready' | 'backlog' | 'review' | 'default';
 
 /**
  * Props for the StatusColumn component.
