@@ -11,7 +11,7 @@ import {
   unwrap,
   mapWorkFilterToQueryParams,
 } from './issues';
-import type { CreateIssueRequest, UpdateIssueRequest, GraphFilter as _GraphFilter } from './issues';
+import type { CreateIssueRequest, UpdateIssueRequest } from './issues';
 import { ApiError } from './client';
 import type { Issue, IssueDetails, Statistics, WorkFilter } from '@/types';
 
