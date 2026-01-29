@@ -47,6 +47,11 @@ export interface LoadingSkeletonGraphProps {
   className?: string;
 }
 
+export interface LoadingSkeletonMonitorProps {
+  /** Additional CSS class name */
+  className?: string;
+}
+
 /**
  * Base LoadingSkeleton component.
  * Renders an animated placeholder in the specified shape.
@@ -180,7 +185,34 @@ function Graph({ className }: LoadingSkeletonGraphProps): JSX.Element {
   );
 }
 
+/**
+ * Monitor skeleton matching MonitorDashboard layout.
+ * Use when lazy loading the MonitorDashboard component.
+ * Shows a 2x2 grid of placeholder panels.
+ */
+function Monitor({ className }: LoadingSkeletonMonitorProps): JSX.Element {
+  const rootClassName = className
+    ? `${styles.monitor} ${className}`
+    : styles.monitor;
+
+  return (
+    <div className={rootClassName} aria-hidden="true" data-testid="loading-skeleton-monitor">
+      {[1, 2, 3, 4].map((i) => (
+        <div key={i} className={styles.monitorPanel}>
+          <div className={styles.monitorPanelHeader}>
+            <LoadingSkeleton shape="text" width={100} height={14} />
+          </div>
+          <div className={styles.monitorPanelContent}>
+            <LoadingSkeleton shape="rect" width="100%" height={120} />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // Attach preset variants as static properties
 LoadingSkeleton.Card = Card;
 LoadingSkeleton.Column = Column;
 LoadingSkeleton.Graph = Graph;
+LoadingSkeleton.Monitor = Monitor;
