@@ -5,7 +5,15 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { fetchStatus, fetchTasks } from '@/api';
-import type { LoomAgentStatus, LoomTaskSummary, LoomTaskInfo, LoomTaskLists, LoomSyncInfo, LoomStats, LoomConnectionState } from '@/types';
+import type {
+  LoomAgentStatus,
+  LoomTaskSummary,
+  LoomTaskInfo,
+  LoomTaskLists,
+  LoomSyncInfo,
+  LoomStats,
+  LoomConnectionState,
+} from '@/types';
 
 /**
  * Options for the useAgents hook.
@@ -183,10 +191,7 @@ export function useAgents(options?: UseAgentsOptions): UseAgentsResult {
 
     try {
       // Fetch status and task lists in parallel
-      const [statusResult, tasksResult] = await Promise.all([
-        fetchStatus(),
-        fetchTasks(),
-      ]);
+      const [statusResult, tasksResult] = await Promise.all([fetchStatus(), fetchTasks()]);
 
       // Only update state if still mounted
       if (mountedRef.current) {
@@ -234,7 +239,7 @@ export function useAgents(options?: UseAgentsOptions): UseAgentsResult {
     const delay = currentRetryDelayRef.current;
     setRetryCountdown(delay);
 
-    // Store interval ID locally to ensure we clear the right one
+    // Create both timers
     const intervalId = setInterval(() => {
       if (!mountedRef.current) {
         clearInterval(intervalId);
@@ -251,9 +256,6 @@ export function useAgents(options?: UseAgentsOptions): UseAgentsResult {
         return prev - 1;
       });
     }, 1000);
-    retryIntervalRef.current = intervalId;
-
-    // Store timeout ID locally
     const timeoutId = setTimeout(() => {
       if (!mountedRef.current) return;
       clearRetryTimers();
@@ -264,6 +266,11 @@ export function useAgents(options?: UseAgentsOptions): UseAgentsResult {
       );
       void fetchData();
     }, delay * 1000);
+
+    // Set refs IMMEDIATELY after timer creation (same sync block)
+    // Prevents race where second effect invocation passes the ref check
+    // before first invocation has set its refs
+    retryIntervalRef.current = intervalId;
     retryTimeoutRef.current = timeoutId;
 
     // Cleanup: clear timers if effect dependencies change or component unmounts
