@@ -456,4 +456,51 @@ describe('IssueCard', () => {
       expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
     });
   });
+
+  describe('isPending prop', () => {
+    it('renders with data-in-pending="true" when isPending is true', () => {
+      const issue = createTestIssue();
+      const { container } = render(<IssueCard issue={issue} isPending={true} />);
+
+      const article = container.querySelector('article');
+      expect(article).toHaveAttribute('data-in-pending', 'true');
+    });
+
+    it('does not render data-in-pending attribute when isPending is false', () => {
+      const issue = createTestIssue();
+      const { container } = render(<IssueCard issue={issue} isPending={false} />);
+
+      const article = container.querySelector('article');
+      expect(article).not.toHaveAttribute('data-in-pending');
+    });
+
+    it('does not render data-in-pending attribute when isPending is undefined', () => {
+      const issue = createTestIssue();
+      const { container } = render(<IssueCard issue={issue} />);
+
+      const article = container.querySelector('article');
+      expect(article).not.toHaveAttribute('data-in-pending');
+    });
+
+    it('includes (pending) in aria-label when isPending is true', () => {
+      const issue = createTestIssue({ title: 'Pending Issue' });
+      render(<IssueCard issue={issue} isPending={true} />);
+
+      expect(screen.getByLabelText('Issue: Pending Issue (pending)')).toBeInTheDocument();
+    });
+
+    it('aria-label does not include (pending) when isPending is false', () => {
+      const issue = createTestIssue({ title: 'Normal Issue' });
+      render(<IssueCard issue={issue} isPending={false} />);
+
+      expect(screen.getByLabelText('Issue: Normal Issue')).toBeInTheDocument();
+    });
+
+    it('aria-label includes both (blocked) and (pending) when both are true', () => {
+      const issue = createTestIssue({ title: 'Complex Issue' });
+      render(<IssueCard issue={issue} blockedByCount={1} isPending={true} />);
+
+      expect(screen.getByLabelText('Issue: Complex Issue (blocked) (pending)')).toBeInTheDocument();
+    });
+  });
 });

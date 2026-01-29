@@ -65,6 +65,12 @@
   border-bottom-color: var(--color-status-done);
 }
 
+.columnIcon {
+  flex-shrink: 0;
+  font-size: var(--font-size-sm);
+  line-height: 1;
+}
+
 .title {
   margin: 0;
   font-size: var(--font-size-sm);
@@ -130,4 +136,24 @@
 .contentDropOver {
   background-color: var(--color-bg-tertiary);
   border-color: var(--color-primary);
+}
+
+/* =================================
+ * Pending column styling (blocked by deps)
+ * ================================= */
+
+.statusColumn[data-column-type='pending'] {
+  background-color: var(--color-bg-tertiary);
+}
+
+.statusColumn[data-column-type='pending'] .header {
+  border-bottom-color: var(--color-text-muted);
+}
+
+.statusColumn[data-column-type='pending'] .title {
+  color: var(--color-text-secondary);
+}
+
+.statusColumn[data-column-type='pending'] .count {
+  background-color: var(--color-border);
 }

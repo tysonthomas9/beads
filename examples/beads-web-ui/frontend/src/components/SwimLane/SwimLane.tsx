@@ -134,6 +134,11 @@ export function SwimLane({
                 ? styles.highlightedColumn
                 : undefined;
 
+          // Determine column type and icon for pending column
+          const isPendingColumn = col.id === 'pending';
+          const columnType = isPendingColumn ? ('pending' as const) : undefined;
+          const headerIcon = isPendingColumn ? '⏳' : undefined;
+
           // Build props conditionally to satisfy exactOptionalPropertyTypes
           const isDropDisabled = isCollapsed || col.droppableDisabled === true;
           const statusColumnProps = {
@@ -142,6 +147,8 @@ export function SwimLane({
             count: colIssues.length,
             ...(isDropDisabled && { droppableDisabled: true }),
             ...(columnClassName !== undefined && { className: columnClassName }),
+            ...(columnType !== undefined && { columnType }),
+            ...(headerIcon !== undefined && { headerIcon }),
           };
 
           return (
@@ -159,6 +166,7 @@ export function SwimLane({
                       blockedByCount: blockedInfo.blockedByCount,
                       blockedBy: blockedInfo.blockedBy,
                     }),
+                    ...(isPendingColumn && { isPending: true }),
                   };
                   return <DraggableIssueCard key={issue.id} {...cardProps} />;
                 })

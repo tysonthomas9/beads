@@ -21,6 +21,8 @@ export interface IssueCardProps {
   blockedByCount?: number;
   /** IDs of blocking issues (optional) */
   blockedBy?: string[];
+  /** Whether this card is in the Pending column (dimmed appearance) */
+  isPending?: boolean;
 }
 
 /**
@@ -55,6 +57,7 @@ export function IssueCard({
   className,
   blockedByCount,
   blockedBy,
+  isPending = false,
 }: IssueCardProps): JSX.Element {
   const priority = getPriorityLevel(issue.priority);
   const displayId = formatIssueId(issue.id);
@@ -83,11 +86,12 @@ export function IssueCard({
       className={rootClassName}
       data-priority={priority}
       data-blocked={isBlocked ? 'true' : undefined}
+      data-in-pending={isPending ? 'true' : undefined}
       onClick={handleClick}
       onKeyDown={handleKeyDown}
       tabIndex={onClick ? 0 : undefined}
       role={onClick ? 'button' : undefined}
-      aria-label={`Issue: ${displayTitle}${isBlocked ? ' (blocked)' : ''}`}
+      aria-label={`Issue: ${displayTitle}${isBlocked ? ' (blocked)' : ''}${isPending ? ' (pending)' : ''}`}
     >
       <header className={styles.header}>
         <span className={styles.id}>{displayId}</span>

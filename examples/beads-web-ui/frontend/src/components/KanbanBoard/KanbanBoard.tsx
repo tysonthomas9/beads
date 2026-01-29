@@ -249,6 +249,11 @@ export function KanbanBoard({
                 ? styles.highlightedColumn
                 : undefined;
 
+          // Determine column type and icon for pending column
+          const isPendingColumn = col.id === 'pending';
+          const columnType = isPendingColumn ? ('pending' as const) : undefined;
+          const headerIcon = isPendingColumn ? '⏳' : undefined;
+
           // Build props conditionally to satisfy exactOptionalPropertyTypes
           const statusColumnProps = {
             status: col.id,
@@ -256,6 +261,8 @@ export function KanbanBoard({
             count: colIssues.length,
             ...(col.droppableDisabled !== undefined && { droppableDisabled: col.droppableDisabled }),
             ...(columnClassName !== undefined && { className: columnClassName }),
+            ...(columnType !== undefined && { columnType }),
+            ...(headerIcon !== undefined && { headerIcon }),
           };
 
           return (
@@ -275,6 +282,7 @@ export function KanbanBoard({
                         blockedByCount: blockedInfo.blockedByCount,
                         blockedBy: blockedInfo.blockedBy,
                       })}
+                      {...(isPendingColumn && { isPending: true })}
                     />
                   );
                 })
@@ -287,6 +295,7 @@ export function KanbanBoard({
         {activeIssue &&
           (() => {
             const blockedInfo = blockedIssues?.get(activeIssue.id);
+            const isPendingCard = sourceColumnId === 'pending';
             return (
               <DraggableIssueCard
                 issue={activeIssue}
@@ -295,6 +304,7 @@ export function KanbanBoard({
                   blockedByCount: blockedInfo.blockedByCount,
                   blockedBy: blockedInfo.blockedBy,
                 })}
+                {...(isPendingCard && { isPending: true })}
               />
             );
           })()}

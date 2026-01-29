@@ -10,6 +10,12 @@ import { formatStatusLabel } from './utils';
 import styles from './StatusColumn.module.css';
 
 /**
+ * Column type for visual variants (different from status value).
+ * Allows same status to have different visual treatments.
+ */
+export type ColumnType = 'ready' | 'pending' | 'review' | 'default';
+
+/**
  * Props for the StatusColumn component.
  */
 export interface StatusColumnProps {
@@ -25,6 +31,10 @@ export interface StatusColumnProps {
   className?: string;
   /** Whether dropping is disabled for this column */
   droppableDisabled?: boolean;
+  /** Column type for visual styling (defaults to 'default') */
+  columnType?: ColumnType;
+  /** Icon to display in header (e.g., '⏳' for pending) */
+  headerIcon?: string;
 }
 
 /**
@@ -39,6 +49,8 @@ export function StatusColumn({
   children,
   className,
   droppableDisabled = false,
+  columnType,
+  headerIcon,
 }: StatusColumnProps): JSX.Element {
   const { setNodeRef, isOver } = useDroppable({
     id: status,
@@ -64,9 +76,15 @@ export function StatusColumn({
     <section
       className={rootClassName}
       data-status={status}
+      data-column-type={columnType}
       aria-label={`${displayLabel} issues`}
     >
       <header className={styles.header}>
+        {headerIcon && (
+          <span className={styles.columnIcon} aria-hidden="true">
+            {headerIcon}
+          </span>
+        )}
         <h2 className={styles.title}>{displayLabel}</h2>
         <span
           className={styles.count}

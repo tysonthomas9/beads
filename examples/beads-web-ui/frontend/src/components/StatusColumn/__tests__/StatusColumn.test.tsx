@@ -169,6 +169,89 @@ describe('StatusColumn', () => {
     });
   });
 
+  describe('columnType prop', () => {
+    it('renders with data-column-type="pending" when columnType is pending', () => {
+      const { container } = render(
+        <StatusColumn status="open" count={1} columnType="pending" />
+      );
+
+      const section = container.querySelector('section');
+      expect(section).toHaveAttribute('data-column-type', 'pending');
+    });
+
+    it('renders with data-column-type for each column type', () => {
+      const columnTypes = ['ready', 'pending', 'review', 'default'] as const;
+
+      columnTypes.forEach((columnType) => {
+        const { container, unmount } = render(
+          <StatusColumn status="open" count={1} columnType={columnType} />
+        );
+
+        const section = container.querySelector('section');
+        expect(section).toHaveAttribute('data-column-type', columnType);
+
+        unmount();
+      });
+    });
+
+    it('does not set data-column-type when columnType is undefined', () => {
+      const { container } = render(
+        <StatusColumn status="open" count={1} />
+      );
+
+      const section = container.querySelector('section');
+      // When columnType is undefined, the attribute value should be undefined/null
+      expect(section?.getAttribute('data-column-type')).toBeNull();
+    });
+  });
+
+  describe('headerIcon prop', () => {
+    it('displays headerIcon when provided', () => {
+      render(
+        <StatusColumn status="open" count={1} headerIcon="⏳" />
+      );
+
+      // Icon should be in the document
+      const icon = screen.getByText('⏳');
+      expect(icon).toBeInTheDocument();
+      expect(icon).toHaveAttribute('aria-hidden', 'true');
+    });
+
+    it('does not show headerIcon when not provided', () => {
+      const { container } = render(
+        <StatusColumn status="open" count={1} />
+      );
+
+      // Should not have any columnIcon span
+      const iconSpan = container.querySelector('[aria-hidden="true"]');
+      expect(iconSpan).not.toBeInTheDocument();
+    });
+
+    it('headerIcon is inside the header element', () => {
+      const { container } = render(
+        <StatusColumn status="open" count={1} headerIcon="🔍" />
+      );
+
+      const header = container.querySelector('header');
+      const icon = screen.getByText('🔍');
+      expect(header).toContainElement(icon);
+    });
+
+    it('renders headerIcon with different emoji values', () => {
+      const icons = ['⏳', '✅', '🔍', '📝'];
+
+      icons.forEach((icon) => {
+        const { unmount } = render(
+          <StatusColumn status="open" count={1} headerIcon={icon} />
+        );
+
+        expect(screen.getByText(icon)).toBeInTheDocument();
+
+        unmount();
+      });
+    });
+  });
+
   describe('edge cases', () => {
     it('count of 0 renders correctly', () => {
       render(<StatusColumn status="open" count={0} />);

@@ -143,3 +143,32 @@
   border-color: transparent var(--color-blocked) transparent transparent;
   border-top-right-radius: var(--radius-md);
 }
+
+/* =================================
+ * Pending column card styling
+ * Cards appear dimmed when in Pending column
+ * ================================= */
+
+.issueCard[data-in-pending='true'] {
+  opacity: 0.7;
+  background-color: var(--color-bg-secondary);
+  filter: saturate(0.5);
+}
+
+.issueCard[data-in-pending='true'] .title {
+  color: var(--color-text-secondary);
+}
+
+.issueCard[data-in-pending='true'] .id {
+  color: var(--color-text-tertiary);
+}
+
+.issueCard[data-in-pending='true']:hover {
+  opacity: 0.85;
+}
+
+/* Ensure focus states remain visible on pending cards */
+.issueCard[data-in-pending='true'][role='button']:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
