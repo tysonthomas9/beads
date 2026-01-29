@@ -59,13 +59,14 @@ export function DraggableIssueCard({
   blockedBy,
   columnId,
   isPending,
+  onApprove,
+  onReject,
 }: DraggableIssueCardProps): JSX.Element {
-  const { attributes, listeners, setNodeRef, transform, isDragging } =
-    useDraggable({
-      id: issue.id,
-      data: { issue, type: 'issue', columnId },
-      disabled: isOverlay,
-    });
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+    id: issue.id,
+    data: { issue, type: 'issue', columnId },
+    disabled: isOverlay,
+  });
 
   // Build IssueCard props, only including optional fields if defined
   // (required for exactOptionalPropertyTypes compatibility)
@@ -76,6 +77,9 @@ export function DraggableIssueCard({
     ...(blockedByCount !== undefined && { blockedByCount }),
     ...(blockedBy !== undefined && { blockedBy }),
     ...(isPending !== undefined && { isPending }),
+    ...(columnId !== undefined && { columnId }),
+    ...(onApprove !== undefined && { onApprove }),
+    ...(onReject !== undefined && { onReject }),
   };
 
   // In overlay mode, render without drag functionality
@@ -89,9 +93,7 @@ export function DraggableIssueCard({
 
   // Apply transform using CSS translate3d for hardware acceleration
   const style: React.CSSProperties = {
-    transform: transform
-      ? `translate3d(${transform.x}px, ${transform.y}px, 0)`
-      : undefined,
+    transform: transform ? `translate3d(${transform.x}px, ${transform.y}px, 0)` : undefined,
     opacity: isDragging ? 0.5 : 1,
   };
 

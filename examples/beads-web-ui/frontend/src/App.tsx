@@ -8,8 +8,19 @@
 
 import { useState, useCallback, useEffect, useRef, useMemo, lazy, Suspense } from 'react';
 import type { Issue, Status } from '@/types';
-import { useIssues, useViewState, useFilterState, useIssueFilter, useDebounce, useBlockedIssues, useIssueDetail, useToast, useStats, useRecentAssignees } from '@/hooks';
-import { updateIssue } from '@/api';
+import {
+  useIssues,
+  useViewState,
+  useFilterState,
+  useIssueFilter,
+  useDebounce,
+  useBlockedIssues,
+  useIssueDetail,
+  useToast,
+  useStats,
+  useRecentAssignees,
+} from '@/hooks';
+import { updateIssue, addComment } from '@/api';
 import type { BlockedInfo } from '@/components/KanbanBoard';
 import styles from './App.module.css';
 import {
@@ -32,12 +43,12 @@ import {
 
 // Lazy load GraphView (React Flow ~100KB)
 const GraphView = lazy(() =>
-  import('@/components/GraphView').then(m => ({ default: m.GraphView }))
+  import('@/components/GraphView').then((m) => ({ default: m.GraphView }))
 );
 
 // Lazy load MonitorDashboard (multi-agent operator view)
 const MonitorDashboard = lazy(() =>
-  import('@/components/MonitorDashboard').then(m => ({ default: m.MonitorDashboard }))
+  import('@/components/MonitorDashboard').then((m) => ({ default: m.MonitorDashboard }))
 );
 
 function App() {
@@ -103,7 +114,12 @@ function App() {
   }, [blockedIssuesData]);
 
   const { toasts, showToast, dismissToast } = useToast();
-  const { data: stats, loading: statsLoading, error: statsError, refetch: refetchStats } = useStats({
+  const {
+    data: stats,
+    loading: statsLoading,
+    error: statsError,
+    refetch: refetchStats,
+  } = useStats({
     pollInterval: 30000,
   });
   const mountedRef = useRef(true);
@@ -111,7 +127,13 @@ function App() {
   // Issue detail panel state
   const [isPanelOpen, setIsPanelOpen] = useState(false);
   const [selectedIssueId, setSelectedIssueId] = useState<string | null>(null);
-  const { issueDetails, isLoading: isLoadingDetails, error: detailError, fetchIssue, clearIssue } = useIssueDetail();
+  const {
+    issueDetails,
+    isLoading: isLoadingDetails,
+    error: detailError,
+    fetchIssue,
+    clearIssue,
+  } = useIssueDetail();
 
   // Assignee prompt state for Ready → In Progress drag
   const { recentAssignees, addRecentAssignee } = useRecentAssignees();
@@ -143,8 +165,7 @@ function App() {
         await updateIssueStatus(issueId, newStatus);
       } catch (err) {
         if (!mountedRef.current) return;
-        const message =
-          err instanceof Error ? err.message : 'Failed to update status';
+        const message = err instanceof Error ? err.message : 'Failed to update status';
         showToast(message, { type: 'error' });
       }
     },
@@ -168,8 +189,7 @@ function App() {
         await updateIssue(issueId, { status: newStatus, assignee });
       } catch (err) {
         if (!mountedRef.current) return;
-        const message =
-          err instanceof Error ? err.message : 'Failed to update status';
+        const message = err instanceof Error ? err.message : 'Failed to update status';
         showToast(message, { type: 'error' });
       }
     },
@@ -188,11 +208,62 @@ function App() {
       await updateIssueStatus(issueId, newStatus);
     } catch (err) {
       if (!mountedRef.current) return;
-      const message =
-        err instanceof Error ? err.message : 'Failed to update status';
+      const message = err instanceof Error ? err.message : 'Failed to update status';
       showToast(message, { type: 'error' });
     }
   }, [pendingDragData, updateIssueStatus, showToast]);
+
+  // Handle approve button click on review cards
+  const handleApprove = useCallback(
+    async (issue: Issue) => {
+      try {
+        const hasNeedReview = issue.title?.includes('[Need Review]') ?? false;
+        const isReviewStatus = issue.status === 'review';
+        const isBlockedWithNotes = issue.status === 'blocked' && !!issue.notes;
+
+        if (hasNeedReview) {
+          // Plan review: Remove [Need Review] prefix and set to open (Ready column)
+          const newTitle = issue.title.replace(/\[Need Review\]\s*/g, '').trim();
+          await updateIssue(issue.id, { title: newTitle, status: 'open' });
+        } else if (isReviewStatus) {
+          // Code review: Move to closed (Done)
+          await updateIssue(issue.id, { status: 'closed' });
+        } else if (isBlockedWithNotes) {
+          // Needs help: Move to in_progress (unblock)
+          await updateIssue(issue.id, { status: 'in_progress' });
+        }
+      } catch (err) {
+        if (!mountedRef.current) return;
+        const message = err instanceof Error ? err.message : 'Failed to approve';
+        showToast(message, { type: 'error' });
+      }
+    },
+    [showToast]
+  );
+
+  // Handle reject button submission on review cards
+  const handleReject = useCallback(
+    async (issue: Issue, comment: string) => {
+      try {
+        // First add the comment
+        await addComment(issue.id, comment);
+
+        // Then update status and remove [Need Review] prefix if present
+        const hasNeedReview = issue.title?.includes('[Need Review]') ?? false;
+        if (hasNeedReview) {
+          const newTitle = issue.title.replace(/\[Need Review\]\s*/g, '').trim();
+          await updateIssue(issue.id, { title: newTitle, status: 'open' });
+        } else {
+          await updateIssue(issue.id, { status: 'open' });
+        }
+      } catch (err) {
+        if (!mountedRef.current) return;
+        const message = err instanceof Error ? err.message : 'Failed to reject';
+        showToast(message, { type: 'error' });
+      }
+    },
+    [showToast]
+  );
 
   // Handle search clear to sync both local and filter state
   const handleSearchClear = useCallback(() => {
@@ -243,13 +314,7 @@ function App() {
   if (isLoading) {
     return (
       <AppLayout
-        navigation={
-          <ViewSwitcher
-            activeView={activeView}
-            onChange={setActiveView}
-            disabled
-          />
-        }
+        navigation={<ViewSwitcher activeView={activeView} onChange={setActiveView} disabled />}
         actions={
           <div className={styles.actionsContainer}>
             <StatsHeader
@@ -277,13 +342,7 @@ function App() {
   if (error && !isLoading) {
     return (
       <AppLayout
-        navigation={
-          <ViewSwitcher
-            activeView={activeView}
-            onChange={setActiveView}
-            disabled
-          />
-        }
+        navigation={<ViewSwitcher activeView={activeView} onChange={setActiveView} disabled />}
         actions={
           <div className={styles.actionsContainer}>
             <StatsHeader
@@ -315,10 +374,7 @@ function App() {
   // Navigation element with view switcher, search, and filters (success state only)
   const navigation = (
     <div className={styles.navigationBar} data-testid="navigation-bar">
-      <ViewSwitcher
-        activeView={activeView}
-        onChange={setActiveView}
-      />
+      <ViewSwitcher activeView={activeView} onChange={setActiveView} />
       <SearchInput
         value={searchValue}
         onChange={setSearchValue}
@@ -363,6 +419,8 @@ function App() {
           groupBy={filters.groupBy ?? 'none'}
           onDragEnd={handleDragEnd}
           onIssueClick={handleIssueClick}
+          onApprove={handleApprove}
+          onReject={handleReject}
           {...(blockedIssuesMap !== undefined && { blockedIssues: blockedIssuesMap })}
           {...(filters.showBlocked !== undefined && { showBlocked: filters.showBlocked })}
         />

@@ -59,6 +59,10 @@ export interface KanbanBoardProps {
   blockedIssues?: Map<string, BlockedInfo>;
   /** Whether to show blocked issues (default: true) */
   showBlocked?: boolean;
+  /** Callback when approve button is clicked on a card in review column */
+  onApprove?: (issue: Issue) => void | Promise<void>;
+  /** Callback when reject is submitted with comment on a card in review column */
+  onReject?: (issue: Issue, comment: string) => void | Promise<void>;
 }
 
 /**
@@ -90,6 +94,8 @@ export function KanbanBoard({
   className,
   blockedIssues,
   showBlocked = true,
+  onApprove,
+  onReject,
 }: KanbanBoardProps): JSX.Element {
   const [activeIssue, setActiveIssue] = useState<Issue | null>(null);
   const [sourceColumnId, setSourceColumnId] = useState<string | null>(null);
@@ -264,7 +270,9 @@ export function KanbanBoard({
             status: col.id,
             statusLabel: col.label,
             count: colIssues.length,
-            ...(col.droppableDisabled !== undefined && { droppableDisabled: col.droppableDisabled }),
+            ...(col.droppableDisabled !== undefined && {
+              droppableDisabled: col.droppableDisabled,
+            }),
             ...(columnClassName !== undefined && { className: columnClassName }),
             ...(columnType !== undefined && { columnType }),
             ...(headerIcon !== undefined && { headerIcon }),
@@ -288,6 +296,8 @@ export function KanbanBoard({
                         blockedBy: blockedInfo.blockedBy,
                       })}
                       {...(isPendingColumn && { isPending: true })}
+                      {...(onApprove !== undefined && { onApprove })}
+                      {...(onReject !== undefined && { onReject })}
                     />
                   );
                 })

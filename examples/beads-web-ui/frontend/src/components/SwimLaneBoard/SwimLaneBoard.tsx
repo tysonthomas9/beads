@@ -51,7 +51,10 @@ function loadCollapsedLanes(groupBy: GroupByField): Set<string> {
     const stored = localStorage.getItem(getStorageKey(groupBy));
     if (stored) {
       const parsed: unknown = JSON.parse(stored);
-      if (Array.isArray(parsed) && parsed.every((item): item is string => typeof item === 'string')) {
+      if (
+        Array.isArray(parsed) &&
+        parsed.every((item): item is string => typeof item === 'string')
+      ) {
         return new Set(parsed);
       }
     }
@@ -115,6 +118,10 @@ export interface SwimLaneBoardProps {
   sortLanesBy?: 'title' | 'count';
   /** Default collapsed state for new lanes (default: false) */
   defaultCollapsed?: boolean;
+  /** Callback when approve button is clicked on a card in review column */
+  onApprove?: (issue: Issue) => void | Promise<void>;
+  /** Callback when reject is submitted with comment on a card in review column */
+  onReject?: (issue: Issue, comment: string) => void | Promise<void>;
 }
 
 /**
@@ -135,6 +142,8 @@ export function SwimLaneBoard({
   showBlocked = true,
   sortLanesBy = 'title',
   defaultCollapsed = false,
+  onApprove,
+  onReject,
 }: SwimLaneBoardProps): JSX.Element {
   // Resolve columns: props.columns > props.statuses (legacy) > DEFAULT_COLUMNS
   const columns = useMemo(() => {
@@ -155,6 +164,8 @@ export function SwimLaneBoard({
       ...(onDragEnd !== undefined && { onDragEnd }),
       ...(className !== undefined && { className }),
       ...(blockedIssues !== undefined && { blockedIssues }),
+      ...(onApprove !== undefined && { onApprove }),
+      ...(onReject !== undefined && { onReject }),
     };
     return <KanbanBoard {...kanbanProps} />;
   }
@@ -171,6 +182,8 @@ export function SwimLaneBoard({
     ...(onDragEnd !== undefined && { onDragEnd }),
     ...(className !== undefined && { className }),
     ...(blockedIssues !== undefined && { blockedIssues }),
+    ...(onApprove !== undefined && { onApprove }),
+    ...(onReject !== undefined && { onReject }),
   };
 
   return <SwimLaneBoardContent {...contentProps} />;
@@ -191,6 +204,8 @@ function SwimLaneBoardContent({
   showBlocked,
   sortLanesBy,
   defaultCollapsed,
+  onApprove,
+  onReject,
 }: Omit<SwimLaneBoardProps, 'filters' | 'groupBy' | 'statuses'> & {
   groupBy: Exclude<GroupByField, 'none'>;
   columns: KanbanColumnConfig[];
@@ -201,9 +216,7 @@ function SwimLaneBoardContent({
   // When defaultCollapsed=true, this tracks lanes that were EXPANDED (toggled to open).
   // When defaultCollapsed=false, this tracks lanes that were COLLAPSED (toggled to closed).
   // Initialize from localStorage for persistence across page refreshes.
-  const [toggledLanes, setToggledLanes] = useState<Set<string>>(() =>
-    loadCollapsedLanes(groupBy)
-  );
+  const [toggledLanes, setToggledLanes] = useState<Set<string>>(() => loadCollapsedLanes(groupBy));
 
   // Persist toggledLanes to localStorage when it changes
   useEffect(() => {
@@ -386,6 +399,8 @@ function SwimLaneBoardContent({
             ...(onIssueClick !== undefined && { onIssueClick }),
             ...(blockedIssues !== undefined && { blockedIssues }),
             ...(showBlocked !== undefined && { showBlocked }),
+            ...(onApprove !== undefined && { onApprove }),
+            ...(onReject !== undefined && { onReject }),
           };
           return <SwimLane key={lane.id} {...laneProps} />;
         })}
