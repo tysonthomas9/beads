@@ -33,6 +33,11 @@ const GraphView = lazy(() =>
   import('@/components/GraphView').then(m => ({ default: m.GraphView }))
 );
 
+// Lazy load MonitorDashboard (multi-agent operator view)
+const MonitorDashboard = lazy(() =>
+  import('@/components/MonitorDashboard').then(m => ({ default: m.MonitorDashboard }))
+);
+
 function App() {
   // View state must be read before useIssues to determine fetch mode
   const [activeView, setActiveView] = useViewState();
@@ -314,6 +319,11 @@ function App() {
       {activeView === 'graph' && (
         <Suspense fallback={<LoadingSkeleton.Graph />}>
           <GraphView issues={filteredIssues} onNodeClick={handleIssueClick} />
+        </Suspense>
+      )}
+      {activeView === 'monitor' && (
+        <Suspense fallback={<LoadingSkeleton.Monitor />}>
+          <MonitorDashboard />
         </Suspense>
       )}
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
