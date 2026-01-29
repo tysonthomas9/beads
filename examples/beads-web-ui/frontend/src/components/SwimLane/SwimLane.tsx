@@ -5,8 +5,9 @@
  */
 
 import { useMemo } from 'react';
-import type { Issue, Status } from '@/types';
+import type { Issue } from '@/types';
 import type { BlockedInfo } from '@/components/KanbanBoard';
+import type { KanbanColumnConfig } from '@/components/KanbanBoard/types';
 import { StatusColumn } from '@/components/StatusColumn';
 import { DraggableIssueCard } from '@/components/DraggableIssueCard';
 import { EmptyColumn } from '@/components/EmptyColumn';
@@ -22,8 +23,8 @@ export interface SwimLaneProps {
   title: string;
   /** Issues belonging to this lane */
   issues: Issue[];
-  /** Status columns to display */
-  statuses: Status[];
+  /** Column configurations (5-column layout) */
+  columns: KanbanColumnConfig[];
   /** Whether the lane content is collapsed */
   isCollapsed?: boolean;
   /** Callback when collapse toggle is clicked */
@@ -47,7 +48,7 @@ export function SwimLane({
   id,
   title,
   issues,
-  statuses,
+  columns,
   isCollapsed = false,
   onToggleCollapse,
   onIssueClick,
@@ -61,19 +62,23 @@ export function SwimLane({
     return issues.filter((issue) => !blockedIssues.has(issue.id));
   }, [issues, showBlocked, blockedIssues]);
 
-  // Group issues by status
-  const issuesByStatus = useMemo(() => {
-    const grouped = new Map<Status, Issue[]>();
-    for (const status of statuses) {
-      grouped.set(status, []);
+  // Group issues by column using filter functions
+  const issuesByColumn = useMemo(() => {
+    const grouped = new Map<string, Issue[]>();
+    for (const col of columns) {
+      grouped.set(col.id, []);
     }
     for (const issue of filteredIssues) {
-      const status = issue.status ?? 'open';
-      const existing = grouped.get(status);
-      if (existing) existing.push(issue);
+      const blockedInfo = blockedIssues?.get(issue.id);
+      for (const col of columns) {
+        if (col.filter(issue, blockedInfo)) {
+          grouped.get(col.id)?.push(issue);
+          break; // Issue belongs to first matching column only
+        }
+      }
     }
     return grouped;
-  }, [filteredIssues, statuses]);
+  }, [filteredIssues, columns, blockedIssues]);
 
   const headerId = `lane-header-${id}`;
   const rootClassName = [styles.swimLane, className].filter(Boolean).join(' ');
@@ -120,22 +125,35 @@ export function SwimLane({
         data-collapsed={isCollapsed}
         aria-hidden={isCollapsed}
       >
-        {statuses.map((status) => {
-          const statusIssues = issuesByStatus.get(status) ?? [];
+        {columns.map((col) => {
+          const colIssues = issuesByColumn.get(col.id) ?? [];
+          const columnClassName =
+            col.style === 'muted'
+              ? styles.mutedColumn
+              : col.style === 'highlighted'
+                ? styles.highlightedColumn
+                : undefined;
+
+          // Build props conditionally to satisfy exactOptionalPropertyTypes
+          const isDropDisabled = isCollapsed || col.droppableDisabled === true;
+          const statusColumnProps = {
+            status: col.id,
+            statusLabel: col.label,
+            count: colIssues.length,
+            ...(isDropDisabled && { droppableDisabled: true }),
+            ...(columnClassName !== undefined && { className: columnClassName }),
+          };
+
           return (
-            <StatusColumn
-              key={status}
-              status={status}
-              count={statusIssues.length}
-              droppableDisabled={isCollapsed}
-            >
-              {statusIssues.length === 0 ? (
-                <EmptyColumn status={status} />
+            <StatusColumn key={col.id} {...statusColumnProps}>
+              {colIssues.length === 0 ? (
+                <EmptyColumn status={col.id} />
               ) : (
-                statusIssues.map((issue) => {
+                colIssues.map((issue) => {
                   const blockedInfo = blockedIssues?.get(issue.id);
                   const cardProps = {
                     issue,
+                    columnId: col.id,
                     ...(onIssueClick !== undefined && { onClick: onIssueClick }),
                     ...(blockedInfo !== undefined && {
                       blockedByCount: blockedInfo.blockedByCount,

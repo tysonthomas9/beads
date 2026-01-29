@@ -13,7 +13,7 @@ import { DndContext } from '@dnd-kit/core';
 
 import { SwimLane } from '../SwimLane';
 import type { Issue, Status } from '@/types';
-import type { BlockedInfo } from '@/components/KanbanBoard';
+import type { BlockedInfo, KanbanColumnConfig } from '@/components/KanbanBoard';
 
 /**
  * Helper to render SwimLane within a DndContext for droppable tests.
@@ -52,9 +52,22 @@ function createMockIssues(statuses: Status[]): Issue[] {
 }
 
 /**
- * Default statuses for testing.
+ * Helper to convert statuses to column configs for testing.
+ * Handles undefined status as 'open' for backward compatibility.
  */
-const defaultStatuses: Status[] = ['open', 'in_progress', 'closed'];
+function statusesToColumns(statuses: Status[]): KanbanColumnConfig[] {
+  return statuses.map((s) => ({
+    id: s,
+    label: s.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()),
+    filter: (issue: Issue) => (s === 'open' ? issue.status === s || issue.status === undefined : issue.status === s),
+    targetStatus: s,
+  }));
+}
+
+/**
+ * Default columns for testing (3-status layout for backward compatibility).
+ */
+const defaultColumns = statusesToColumns(['open', 'in_progress', 'closed']);
 
 describe('SwimLane', () => {
   beforeEach(() => {
@@ -68,7 +81,7 @@ describe('SwimLane', () => {
           id="test-lane"
           title="Epic: User Authentication"
           issues={[]}
-          statuses={defaultStatuses}
+          columns={defaultColumns}
         />
       );
 
@@ -85,7 +98,7 @@ describe('SwimLane', () => {
           id="test-lane"
           title="Test Lane"
           issues={issues}
-          statuses={defaultStatuses}
+          columns={defaultColumns}
         />
       );
 
@@ -95,18 +108,18 @@ describe('SwimLane', () => {
     });
 
     it('renders all status columns', () => {
-      const statuses: Status[] = ['open', 'in_progress', 'closed', 'blocked'];
+      const columns = statusesToColumns(['open', 'in_progress', 'closed', 'blocked']);
 
       renderWithDndContext(
         <SwimLane
           id="test-lane"
           title="Test Lane"
           issues={[]}
-          statuses={statuses}
+          columns={columns}
         />
       );
 
-      // Each status should have a column
+      // Each column should be present
       expect(screen.getByRole('region', { name: 'Open issues' })).toBeInTheDocument();
       expect(screen.getByRole('region', { name: 'In Progress issues' })).toBeInTheDocument();
       expect(screen.getByRole('region', { name: 'Closed issues' })).toBeInTheDocument();
@@ -126,7 +139,7 @@ describe('SwimLane', () => {
           id="test-lane"
           title="Test Lane"
           issues={issues}
-          statuses={defaultStatuses}
+          columns={defaultColumns}
         />
       );
 
@@ -152,7 +165,7 @@ describe('SwimLane', () => {
           id="test-lane"
           title="Test Lane"
           issues={[]}
-          statuses={defaultStatuses}
+          columns={defaultColumns}
           onToggleCollapse={handleToggleCollapse}
         />
       );
@@ -169,7 +182,7 @@ describe('SwimLane', () => {
           id="test-lane"
           title="Test Lane"
           issues={[]}
-          statuses={defaultStatuses}
+          columns={defaultColumns}
           isCollapsed={false}
         />
       );
@@ -185,7 +198,7 @@ describe('SwimLane', () => {
           id="test-lane"
           title="Test Lane"
           issues={[]}
-          statuses={defaultStatuses}
+          columns={defaultColumns}
           isCollapsed={true}
         />
       );
@@ -201,7 +214,7 @@ describe('SwimLane', () => {
           id="test-lane"
           title="Test Lane"
           issues={[]}
-          statuses={defaultStatuses}
+          columns={defaultColumns}
           isCollapsed={true}
         />
       );
@@ -221,7 +234,7 @@ describe('SwimLane', () => {
           id="test-lane"
           title="Test Lane"
           issues={[]}
-          statuses={defaultStatuses}
+          columns={defaultColumns}
           isCollapsed={false}
         />
       );
@@ -242,7 +255,7 @@ describe('SwimLane', () => {
           id="test-lane"
           title="Test Lane"
           issues={[issue]}
-          statuses={defaultStatuses}
+          columns={defaultColumns}
           onIssueClick={handleIssueClick}
         />
       );
@@ -269,7 +282,7 @@ describe('SwimLane', () => {
           id="test-lane"
           title="Test Lane"
           issues={issues}
-          statuses={defaultStatuses}
+          columns={defaultColumns}
           onIssueClick={handleIssueClick}
         />
       );
@@ -317,7 +330,7 @@ describe('SwimLane', () => {
           id="test-lane"
           title="Test Lane"
           issues={issues}
-          statuses={defaultStatuses}
+          columns={defaultColumns}
           blockedIssues={blockedIssues}
         />
       );
@@ -338,7 +351,7 @@ describe('SwimLane', () => {
           id="test-lane"
           title="Test Lane"
           issues={issues}
-          statuses={defaultStatuses}
+          columns={defaultColumns}
           blockedIssues={blockedIssues}
           showBlocked={false}
         />
@@ -362,7 +375,7 @@ describe('SwimLane', () => {
           id="test-lane"
           title="Test Lane"
           issues={issues}
-          statuses={defaultStatuses}
+          columns={defaultColumns}
           blockedIssues={blockedIssues}
           showBlocked={false}
         />
@@ -390,7 +403,7 @@ describe('SwimLane', () => {
           id="test-lane"
           title="Test Lane"
           issues={issues}
-          statuses={defaultStatuses}
+          columns={defaultColumns}
           showBlocked={false}
         />
       );
@@ -407,7 +420,7 @@ describe('SwimLane', () => {
           id="test-lane"
           title="Test Lane"
           issues={[]}
-          statuses={defaultStatuses}
+          columns={defaultColumns}
           className="custom-lane-class"
         />
       );
@@ -422,7 +435,7 @@ describe('SwimLane', () => {
           id="epic-auth"
           title="Epic: Authentication"
           issues={[]}
-          statuses={defaultStatuses}
+          columns={defaultColumns}
         />
       );
 
@@ -435,7 +448,7 @@ describe('SwimLane', () => {
           id="test-lane"
           title="Test Lane"
           issues={[]}
-          statuses={defaultStatuses}
+          columns={defaultColumns}
         />
       );
 
@@ -456,7 +469,7 @@ describe('SwimLane', () => {
           id="test-lane"
           title="Test Lane"
           issues={[]}
-          statuses={defaultStatuses}
+          columns={defaultColumns}
         />
       );
 
@@ -478,7 +491,7 @@ describe('SwimLane', () => {
           id="test-lane"
           title="Test Lane"
           issues={[issueWithoutStatus]}
-          statuses={defaultStatuses}
+          columns={defaultColumns}
         />
       );
 
@@ -499,7 +512,7 @@ describe('SwimLane', () => {
           id="test-lane"
           title="Test Lane"
           issues={[issueWithUnknownStatus]}
-          statuses={defaultStatuses}
+          columns={defaultColumns}
         />
       );
 
@@ -521,7 +534,7 @@ describe('SwimLane', () => {
           id="test-lane"
           title="Test Lane"
           issues={manyIssues}
-          statuses={defaultStatuses}
+          columns={defaultColumns}
         />
       );
 
@@ -540,7 +553,7 @@ describe('SwimLane', () => {
           id="test-lane"
           title="Test Lane"
           issues={issues}
-          statuses={defaultStatuses}
+          columns={defaultColumns}
           isCollapsed={true}
         />
       );
@@ -560,30 +573,32 @@ describe('SwimLane', () => {
           id="test-lane"
           title="Test Lane"
           issues={[]}
-          statuses={defaultStatuses}
+          columns={defaultColumns}
         />
       );
 
-      defaultStatuses.forEach((status) => {
-        const droppable = document.querySelector(`[data-droppable-id="${status}"]`);
+      // Check droppable zones exist for each column
+      defaultColumns.forEach((col) => {
+        const droppable = document.querySelector(`[data-droppable-id="${col.id}"]`);
         expect(droppable).toBeInTheDocument();
       });
     });
 
     it('works with multiple SwimLanes in same DndContext', () => {
+      const twoColumns = statusesToColumns(['open', 'closed']);
       render(
         <DndContext>
           <SwimLane
             id="lane-1"
             title="Lane 1"
             issues={[]}
-            statuses={['open', 'closed']}
+            columns={twoColumns}
           />
           <SwimLane
             id="lane-2"
             title="Lane 2"
             issues={[]}
-            statuses={['open', 'closed']}
+            columns={twoColumns}
           />
         </DndContext>
       );
@@ -608,7 +623,7 @@ describe('SwimLane', () => {
           id="test-lane"
           title="Test Lane"
           issues={issues}
-          statuses={defaultStatuses}
+          columns={defaultColumns}
           blockedIssues={blockedIssues}
         />
       );
@@ -630,7 +645,7 @@ describe('SwimLane', () => {
           id="test-lane"
           title="Test Lane"
           issues={issues}
-          statuses={defaultStatuses}
+          columns={defaultColumns}
           blockedIssues={blockedIssues}
         />
       );

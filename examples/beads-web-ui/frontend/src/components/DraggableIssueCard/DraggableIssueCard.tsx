@@ -38,6 +38,8 @@ function DragHandleIcon({ className }: { className?: string | undefined }): JSX.
 export interface DraggableIssueCardProps extends IssueCardProps {
   /** Whether this card is being rendered in a DragOverlay (no drag listeners) */
   isOverlay?: boolean;
+  /** Column ID this card belongs to (for drag restrictions) */
+  columnId?: string;
 }
 
 /**
@@ -55,11 +57,12 @@ export function DraggableIssueCard({
   isOverlay = false,
   blockedByCount,
   blockedBy,
+  columnId,
 }: DraggableIssueCardProps): JSX.Element {
   const { attributes, listeners, setNodeRef, transform, isDragging } =
     useDraggable({
       id: issue.id,
-      data: { issue, type: 'issue' },
+      data: { issue, type: 'issue', columnId },
       disabled: isOverlay,
     });
 

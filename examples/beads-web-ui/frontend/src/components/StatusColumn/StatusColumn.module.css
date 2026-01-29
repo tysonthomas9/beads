@@ -52,6 +52,19 @@
   border-bottom-color: var(--color-status-review);
 }
 
+/* New 5-column layout column IDs */
+.statusColumn[data-status='ready'] .header {
+  border-bottom-color: var(--color-status-ready);
+}
+
+.statusColumn[data-status='pending'] .header {
+  border-bottom-color: var(--color-status-pending);
+}
+
+.statusColumn[data-status='done'] .header {
+  border-bottom-color: var(--color-status-done);
+}
+
 .title {
   margin: 0;
   font-size: var(--font-size-sm);

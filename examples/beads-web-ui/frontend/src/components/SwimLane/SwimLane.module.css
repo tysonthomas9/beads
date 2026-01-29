@@ -109,3 +109,14 @@
   padding-bottom: 0;
   overflow: hidden;
 }
+
+/* Muted column style (Pending - blocked by dependencies) */
+.mutedColumn {
+  opacity: 0.7;
+  background-color: var(--color-surface-subtle);
+}
+
+/* Highlighted column style (Review - needs human attention) */
+.highlightedColumn {
+  border-left: 3px solid var(--color-status-review);
+}

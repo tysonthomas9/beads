@@ -11,8 +11,14 @@ import { render, screen, within, fireEvent } from '@testing-library/react';
 import '@testing-library/jest-dom';
 
 import { KanbanBoard } from '../KanbanBoard';
+import { DEFAULT_COLUMNS } from '../columnConfigs';
 import type { Issue, Status, IssueType } from '@/types';
 import type { FilterState } from '@/hooks/useFilterState';
+
+/**
+ * Legacy 3-column statuses for backward compatibility tests.
+ */
+const LEGACY_STATUSES: Status[] = ['open', 'in_progress', 'closed'];
 
 /**
  * Create a mock issue for testing.
@@ -49,10 +55,21 @@ describe('KanbanBoard', () => {
   });
 
   describe('rendering', () => {
-    it('renders default status columns (open, in_progress, closed)', () => {
+    it('renders default 5-column kanban layout (Ready, Pending, In Progress, Review, Done)', () => {
       render(<KanbanBoard issues={[]} />);
 
-      // Check for default columns
+      // Check for new default columns
+      expect(screen.getByRole('heading', { name: 'Ready' })).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'Pending' })).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'In Progress' })).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'Review' })).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'Done' })).toBeInTheDocument();
+    });
+
+    it('renders legacy 3-column layout with statuses prop', () => {
+      render(<KanbanBoard issues={[]} statuses={LEGACY_STATUSES} />);
+
+      // Check for legacy columns
       expect(screen.getByRole('heading', { name: 'Open' })).toBeInTheDocument();
       expect(screen.getByRole('heading', { name: 'In Progress' })).toBeInTheDocument();
       expect(screen.getByRole('heading', { name: 'Closed' })).toBeInTheDocument();
@@ -74,7 +91,7 @@ describe('KanbanBoard', () => {
     it('renders correct issue count in each column', () => {
       const issues = createMockIssues(['open', 'open', 'open', 'in_progress', 'closed', 'closed']);
 
-      render(<KanbanBoard issues={issues} />);
+      render(<KanbanBoard issues={issues} statuses={LEGACY_STATUSES} />);
 
       // Open column should show 3
       const openColumn = screen.getByRole('region', { name: 'Open issues' });
@@ -97,7 +114,7 @@ describe('KanbanBoard', () => {
         createMockIssue({ id: 'closed-1', title: 'Closed Issue 1', status: 'closed' }),
       ];
 
-      render(<KanbanBoard issues={issues} />);
+      render(<KanbanBoard issues={issues} statuses={LEGACY_STATUSES} />);
 
       // Get column content areas and verify issues are in correct columns
       const openColumn = screen.getByRole('region', { name: 'Open issues' });
@@ -181,7 +198,7 @@ describe('KanbanBoard', () => {
 
   describe('DndContext', () => {
     it('DndContext provider wraps columns', () => {
-      const { container } = render(<KanbanBoard issues={[]} />);
+      const { container } = render(<KanbanBoard issues={[]} statuses={LEGACY_STATUSES} />);
 
       // The board div should exist and contain columns
       const board = container.firstChild as HTMLElement;
@@ -249,7 +266,7 @@ describe('KanbanBoard', () => {
 
   describe('edge cases', () => {
     it('empty issues array renders columns with 0 count', () => {
-      render(<KanbanBoard issues={[]} />);
+      render(<KanbanBoard issues={[]} statuses={LEGACY_STATUSES} />);
 
       // All columns should show 0 count
       const openColumn = screen.getByRole('region', { name: 'Open issues' });
@@ -263,7 +280,7 @@ describe('KanbanBoard', () => {
     });
 
     it('renders EmptyColumn in empty status columns', () => {
-      render(<KanbanBoard issues={[]} />);
+      render(<KanbanBoard issues={[]} statuses={LEGACY_STATUSES} />);
 
       // Each empty column should show EmptyColumn with appropriate message
       expect(screen.getByText('No open issues')).toBeInTheDocument();
@@ -278,7 +295,7 @@ describe('KanbanBoard', () => {
       ];
       const filters: FilterState = { type: 'feature' as IssueType };
 
-      render(<KanbanBoard issues={issues} filters={filters} />);
+      render(<KanbanBoard issues={issues} filters={filters} statuses={LEGACY_STATUSES} />);
 
       // All columns should be empty due to filter (no features)
       expect(screen.getByText('No open issues')).toBeInTheDocument();
@@ -291,7 +308,7 @@ describe('KanbanBoard', () => {
         createMockIssue({ id: 'open-1', title: 'Open Issue', status: 'open' }),
       ];
 
-      render(<KanbanBoard issues={issues} />);
+      render(<KanbanBoard issues={issues} statuses={LEGACY_STATUSES} />);
 
       // Open column should NOT show EmptyColumn
       expect(screen.queryByText('No open issues')).not.toBeInTheDocument();
@@ -308,7 +325,7 @@ describe('KanbanBoard', () => {
       // Remove status property
       delete (issueWithoutStatus as Partial<Issue>).status;
 
-      render(<KanbanBoard issues={[issueWithoutStatus]} />);
+      render(<KanbanBoard issues={[issueWithoutStatus]} statuses={LEGACY_STATUSES} />);
 
       // Issue should appear in Open column
       const openColumn = screen.getByRole('region', { name: 'Open issues' });
@@ -323,7 +340,7 @@ describe('KanbanBoard', () => {
         status: 'unknown_status' as Status,
       });
 
-      render(<KanbanBoard issues={[issueWithUnknownStatus]} />);
+      render(<KanbanBoard issues={[issueWithUnknownStatus]} statuses={LEGACY_STATUSES} />);
 
       // Issue should not appear since 'unknown_status' is not in default columns
       expect(screen.queryByText('Unknown Status Issue')).not.toBeInTheDocument();
@@ -342,7 +359,7 @@ describe('KanbanBoard', () => {
         })
       );
 
-      render(<KanbanBoard issues={manyIssues} />);
+      render(<KanbanBoard issues={manyIssues} statuses={LEGACY_STATUSES} />);
 
       // Should render without crashing
       const openColumn = screen.getByRole('region', { name: 'Open issues' });
@@ -386,7 +403,7 @@ describe('KanbanBoard', () => {
         updated_at: '2024-01-01T00:00:00Z',
       };
 
-      render(<KanbanBoard issues={[issueUndefinedStatus]} />);
+      render(<KanbanBoard issues={[issueUndefinedStatus]} statuses={LEGACY_STATUSES} />);
 
       // Should appear in Open column (fallback)
       const openColumn = screen.getByRole('region', { name: 'Open issues' });
@@ -434,7 +451,7 @@ describe('KanbanBoard', () => {
         createMockIssue({ id: 'third', title: 'Third Issue', status: 'open' }),
       ];
 
-      render(<KanbanBoard issues={issues} />);
+      render(<KanbanBoard issues={issues} statuses={LEGACY_STATUSES} />);
 
       const openColumn = screen.getByRole('region', { name: 'Open issues' });
       const articles = within(openColumn).getAllByRole('article');
@@ -459,10 +476,10 @@ describe('KanbanBoard', () => {
     });
 
     it('droppable zones have role="list"', () => {
-      render(<KanbanBoard issues={[]} />);
+      render(<KanbanBoard issues={[]} statuses={LEGACY_STATUSES} />);
 
       const lists = screen.getAllByRole('list');
-      expect(lists).toHaveLength(3); // Three default columns
+      expect(lists).toHaveLength(3); // Three legacy columns
 
       lists.forEach((list) => {
         expect(list).toHaveAttribute('data-droppable-id');
@@ -784,7 +801,7 @@ describe('KanbanBoard', () => {
       const issues = createFilterTestIssues();
       const filters: FilterState = { priority: 1 };
 
-      render(<KanbanBoard issues={issues} filters={filters} />);
+      render(<KanbanBoard issues={issues} filters={filters} statuses={LEGACY_STATUSES} />);
 
       // Open column should show 1 (only P1 task)
       const openColumn = screen.getByRole('region', { name: 'Open issues' });
@@ -978,7 +995,7 @@ describe('KanbanBoard', () => {
       ];
       const blockedIssues = createBlockedIssuesMap(['blocked-1', 'blocked-2']);
 
-      render(<KanbanBoard issues={issues} blockedIssues={blockedIssues} showBlocked={false} />);
+      render(<KanbanBoard issues={issues} blockedIssues={blockedIssues} showBlocked={false} statuses={LEGACY_STATUSES} />);
 
       // Open column should show 2 (only non-blocked issues)
       const openColumn = screen.getByRole('region', { name: 'Open issues' });
