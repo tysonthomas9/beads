@@ -37,6 +37,7 @@
   --color-status-error: #ef4444;   /* red-500, error state */
   --color-status-dirty: #f59e0b;   /* amber-500, uncommitted changes */
   --color-status-ready: #6b7280;   /* gray-500, ready/available */
+  --color-status-pending: #9ca3af; /* gray-400, blocked by dependencies */
 
   /* ===========================
    * Colors - Semantic
@@ -68,6 +69,7 @@
   --color-bg-tertiary: #f3f4f6;
   --color-bg-hover: #f3f4f6;    /* gray-100, for hover states */
   --color-bg-active: #e5e7eb;   /* gray-200, for active states */
+  --color-surface-subtle: #f9fafb; /* gray-50, for muted surfaces */
   --color-border: #e5e7eb;
   --color-border-light: #f3f4f6;
   --color-border-hover: #d1d5db; /* gray-300, for hover states */

@@ -10,8 +10,8 @@ import styles from './EmptyColumn.module.css';
  * Props for the EmptyColumn component.
  */
 export interface EmptyColumnProps {
-  /** Status for contextual messaging (optional) */
-  status?: Status;
+  /** Status or column ID for contextual messaging (optional) */
+  status?: Status | string;
   /** Custom message override */
   message?: string;
   /** Whether to show an icon */
@@ -21,9 +21,10 @@ export interface EmptyColumnProps {
 }
 
 /**
- * Get the default empty state message based on status.
+ * Get the default empty state message based on status or column ID.
+ * Supports both traditional status values and new column IDs from 5-column layout.
  */
-function getDefaultMessage(status?: Status): string {
+function getDefaultMessage(status?: Status | string): string {
   switch (status) {
     case 'open':
       return 'No open issues';
@@ -41,6 +42,15 @@ function getDefaultMessage(status?: Status): string {
       return 'No pinned issues';
     case 'hooked':
       return 'No hooked issues';
+    case 'review':
+      return 'No issues in review';
+    // New 5-column layout column IDs
+    case 'ready':
+      return 'No ready issues';
+    case 'pending':
+      return 'No pending issues';
+    case 'done':
+      return 'No completed issues';
     default:
       return 'No issues';
   }

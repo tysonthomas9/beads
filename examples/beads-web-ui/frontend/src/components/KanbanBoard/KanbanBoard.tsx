@@ -2,6 +2,9 @@
  * KanbanBoard component for displaying issues in a drag-and-drop Kanban layout.
  * Wraps content in @dnd-kit DndContext to enable drag-and-drop between status columns.
  * Renders StatusColumns for each status and uses DragOverlay for visual drag feedback.
+ *
+ * Supports 5-column layout: Ready, Pending, In Progress, Review, Done
+ * where columns can be computed from issue data (status + blocked dependencies + title patterns).
  */
 
 import { useState, useMemo, useCallback } from 'react';
@@ -21,6 +24,9 @@ import type { FilterState } from '@/hooks/useFilterState';
 import { StatusColumn } from '@/components/StatusColumn';
 import { DraggableIssueCard } from '@/components/DraggableIssueCard';
 import { EmptyColumn } from '@/components/EmptyColumn';
+import { formatStatusLabel } from '@/components/StatusColumn/utils';
+import type { KanbanColumnConfig } from './types';
+import { DEFAULT_COLUMNS } from './columnConfigs';
 import styles from './KanbanBoard.module.css';
 
 /**
@@ -37,7 +43,9 @@ export interface BlockedInfo {
 export interface KanbanBoardProps {
   /** Issues to display in the board */
   issues: Issue[];
-  /** Status columns to show, in order (default: open, in_progress, closed) */
+  /** Column configurations (default: 5-column kanban layout) */
+  columns?: KanbanColumnConfig[];
+  /** @deprecated Use columns prop instead. Status columns for backward compatibility */
   statuses?: Status[];
   /** Optional filter state to apply to issues */
   filters?: FilterState;
@@ -53,17 +61,29 @@ export interface KanbanBoardProps {
   showBlocked?: boolean;
 }
 
-/** Default status columns to display */
-const DEFAULT_STATUSES: Status[] = ['open', 'in_progress', 'closed'];
+/**
+ * Convert legacy statuses prop to column configs for backward compatibility.
+ * Handles undefined status as 'open' for backward compatibility.
+ */
+function statusesToColumns(statuses: Status[]): KanbanColumnConfig[] {
+  return statuses.map((s) => ({
+    id: s,
+    label: formatStatusLabel(s),
+    filter: (issue: Issue) =>
+      s === 'open' ? issue.status === s || issue.status === undefined : issue.status === s,
+    targetStatus: s,
+  }));
+}
 
 /**
  * KanbanBoard displays issues in a horizontal drag-and-drop layout.
- * Issues are grouped by status into columns, and can be dragged between columns.
+ * Issues are grouped by columns (which may be status-based or computed from dependencies).
  * The board uses @dnd-kit for accessible drag-and-drop functionality.
  */
 export function KanbanBoard({
   issues,
-  statuses = DEFAULT_STATUSES,
+  columns: propColumns,
+  statuses,
   filters,
   onIssueClick,
   onDragEnd,
@@ -72,6 +92,14 @@ export function KanbanBoard({
   showBlocked = true,
 }: KanbanBoardProps): JSX.Element {
   const [activeIssue, setActiveIssue] = useState<Issue | null>(null);
+  const [sourceColumnId, setSourceColumnId] = useState<string | null>(null);
+
+  // Resolve columns: props.columns > props.statuses (legacy) > DEFAULT_COLUMNS
+  const columns = useMemo(() => {
+    if (propColumns) return propColumns;
+    if (statuses) return statusesToColumns(statuses);
+    return DEFAULT_COLUMNS;
+  }, [propColumns, statuses]);
 
   // Configure drag sensors with activation constraints
   const sensors = useSensors(
@@ -124,57 +152,85 @@ export function KanbanBoard({
     });
   }, [issues, filters, showBlocked, blockedIssues]);
 
-  // Group issues by status for efficient rendering
-  const issuesByStatus = useMemo(() => {
-    const grouped = new Map<Status, Issue[]>();
-    // Initialize all statuses with empty arrays
-    for (const status of statuses) {
-      grouped.set(status, []);
+  // Group issues by column using filter functions
+  const issuesByColumn = useMemo(() => {
+    const grouped = new Map<string, Issue[]>();
+    // Initialize all columns with empty arrays
+    for (const col of columns) {
+      grouped.set(col.id, []);
     }
-    // Group filtered issues into their respective status buckets
+    // Group filtered issues - issue belongs to first matching column
     for (const issue of filteredIssues) {
-      const status = issue.status ?? 'open';
-      const existing = grouped.get(status);
-      if (existing) {
-        existing.push(issue);
+      const blockedInfo = blockedIssues?.get(issue.id);
+      for (const col of columns) {
+        if (col.filter(issue, blockedInfo)) {
+          grouped.get(col.id)?.push(issue);
+          break; // Issue belongs to first matching column only
+        }
       }
     }
     return grouped;
-  }, [filteredIssues, statuses]);
+  }, [filteredIssues, columns, blockedIssues]);
 
-  // Handle drag start - store the dragged issue for DragOverlay
-  const handleDragStart = useCallback((event: DragStartEvent) => {
-    const issue = event.active.data.current?.issue as Issue | undefined;
-    if (issue) {
-      setActiveIssue(issue);
-    }
-  }, []);
+  // Handle drag start - store the dragged issue and source column for DragOverlay
+  const handleDragStart = useCallback(
+    (event: DragStartEvent) => {
+      const issue = event.active.data.current?.issue as Issue | undefined;
+      if (issue) {
+        setActiveIssue(issue);
+        // Find which column this issue belongs to
+        const blockedInfo = blockedIssues?.get(issue.id);
+        for (const col of columns) {
+          if (col.filter(issue, blockedInfo)) {
+            setSourceColumnId(col.id);
+            break;
+          }
+        }
+      }
+    },
+    [blockedIssues, columns]
+  );
 
-  // Handle drag end - notify parent of status change
+  // Handle drag end - enforce restrictions and notify parent of status change
   const handleDragEnd = useCallback(
     (event: DragEndEvent) => {
+      const currentSourceColumnId = sourceColumnId;
       setActiveIssue(null);
+      setSourceColumnId(null);
 
       const { active, over } = event;
       if (!over || !onDragEnd) return;
 
       const issue = active.data.current?.issue as Issue | undefined;
-      if (!issue) return;
+      if (!issue || !currentSourceColumnId) return;
 
-      const newStatus = over.id as Status;
-      const oldStatus = issue.status ?? 'open';
+      const targetColumnId = over.id as string;
+      const sourceColumn = columns.find((c) => c.id === currentSourceColumnId);
+      const targetColumn = columns.find((c) => c.id === targetColumnId);
 
-      // Only call callback if status actually changed
-      if (newStatus !== oldStatus) {
-        onDragEnd(issue.id, newStatus, oldStatus);
+      // Enforce drag restrictions
+      if (
+        sourceColumn?.allowedDropTargets &&
+        !sourceColumn.allowedDropTargets.includes(targetColumnId)
+      ) {
+        return; // Drop not allowed
+      }
+
+      // Only process if target column has a targetStatus defined
+      if (targetColumn?.targetStatus) {
+        const newStatus = targetColumn.targetStatus;
+        const oldStatus = issue.status ?? 'open';
+
+        // Only call callback if status actually changed
+        if (newStatus !== oldStatus) {
+          onDragEnd(issue.id, newStatus, oldStatus);
+        }
       }
     },
-    [onDragEnd]
+    [onDragEnd, columns, sourceColumnId]
   );
 
-  const rootClassName = className
-    ? `${styles.board} ${className}`
-    : styles.board;
+  const rootClassName = className ? `${styles.board} ${className}` : styles.board;
 
   return (
     <DndContext
@@ -184,23 +240,36 @@ export function KanbanBoard({
       onDragEnd={handleDragEnd}
     >
       <div className={rootClassName}>
-        {statuses.map((status) => {
-          const statusIssues = issuesByStatus.get(status) ?? [];
+        {columns.map((col) => {
+          const colIssues = issuesByColumn.get(col.id) ?? [];
+          const columnClassName =
+            col.style === 'muted'
+              ? styles.mutedColumn
+              : col.style === 'highlighted'
+                ? styles.highlightedColumn
+                : undefined;
+
+          // Build props conditionally to satisfy exactOptionalPropertyTypes
+          const statusColumnProps = {
+            status: col.id,
+            statusLabel: col.label,
+            count: colIssues.length,
+            ...(col.droppableDisabled !== undefined && { droppableDisabled: col.droppableDisabled }),
+            ...(columnClassName !== undefined && { className: columnClassName }),
+          };
+
           return (
-            <StatusColumn
-              key={status}
-              status={status}
-              count={statusIssues.length}
-            >
-              {statusIssues.length === 0 ? (
-                <EmptyColumn status={status} />
+            <StatusColumn key={col.id} {...statusColumnProps}>
+              {colIssues.length === 0 ? (
+                <EmptyColumn status={col.id} />
               ) : (
-                statusIssues.map((issue) => {
+                colIssues.map((issue) => {
                   const blockedInfo = blockedIssues?.get(issue.id);
                   return (
                     <DraggableIssueCard
                       key={issue.id}
                       issue={issue}
+                      columnId={col.id}
                       {...(onIssueClick !== undefined && { onClick: onIssueClick })}
                       {...(blockedInfo !== undefined && {
                         blockedByCount: blockedInfo.blockedByCount,
@@ -215,19 +284,20 @@ export function KanbanBoard({
         })}
       </div>
       <DragOverlay dropAnimation={null}>
-        {activeIssue && (() => {
-          const blockedInfo = blockedIssues?.get(activeIssue.id);
-          return (
-            <DraggableIssueCard
-              issue={activeIssue}
-              isOverlay
-              {...(blockedInfo !== undefined && {
-                blockedByCount: blockedInfo.blockedByCount,
-                blockedBy: blockedInfo.blockedBy,
-              })}
-            />
-          );
-        })()}
+        {activeIssue &&
+          (() => {
+            const blockedInfo = blockedIssues?.get(activeIssue.id);
+            return (
+              <DraggableIssueCard
+                issue={activeIssue}
+                isOverlay
+                {...(blockedInfo !== undefined && {
+                  blockedByCount: blockedInfo.blockedByCount,
+                  blockedBy: blockedInfo.blockedBy,
+                })}
+              />
+            );
+          })()}
       </DragOverlay>
     </DndContext>
   );
