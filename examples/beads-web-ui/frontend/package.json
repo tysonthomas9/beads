@@ -21,7 +21,17 @@
     "test:e2e:debug": "playwright test --debug",
     "test:visual": "playwright test visual-regression",
     "test:visual:update": "playwright test visual-regression --update-snapshots",
-    "test:e2e:integration": "RUN_INTEGRATION_TESTS=1 playwright test --project=integration"
+    "test:e2e:integration": "RUN_INTEGRATION_TESTS=1 playwright test --project=integration",
+    "prepare": "cd ../../.. && husky examples/beads-web-ui/frontend/.husky"
+  },
+  "lint-staged": {
+    "src/**/*.{ts,tsx}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "src/**/*.{css,json,md}": [
+      "prettier --write"
+    ]
   },
   "dependencies": {
     "@dagrejs/dagre": "^1.1.8",
@@ -48,7 +58,9 @@
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^7.0.1",
+    "husky": "^9.1.7",
     "jsdom": "^27.4.0",
+    "lint-staged": "^16.2.7",
     "prettier": "^3.8.1",
     "typescript": "~5.6.2",
     "typescript-eslint": "^8.54.0",
