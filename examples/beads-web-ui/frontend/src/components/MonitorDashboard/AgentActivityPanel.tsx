@@ -5,7 +5,7 @@
 
 import { useMemo } from 'react';
 import { AgentCard } from '../AgentCard';
-import type { LoomAgentStatus, LoomSyncInfo, LoomTaskInfo, ParsedLoomStatus } from '@/types';
+import type { LoomAgentStatus, LoomSyncInfo, LoomTaskInfo, LoomConnectionState, ParsedLoomStatus } from '@/types';
 import { parseLoomStatus } from '@/types';
 import styles from './AgentActivityPanel.module.css';
 
@@ -23,12 +23,18 @@ export interface AgentActivityPanelProps {
   isLoading: boolean;
   /** Whether connected to loom server */
   isConnected: boolean;
+  /** Connection state for detailed UI feedback */
+  connectionState: LoomConnectionState;
+  /** Seconds until next auto-retry */
+  retryCountdown: number;
   /** Last update timestamp */
   lastUpdated: Date | null;
   /** Additional CSS class name */
   className?: string;
   /** Handler when an agent card is clicked */
   onAgentClick?: (agentName: string) => void;
+  /** Handler for retry button */
+  onRetry?: () => void;
 }
 
 /**
@@ -75,28 +81,39 @@ export function AgentActivityPanel({
   sync: _sync,
   isLoading,
   isConnected,
+  connectionState,
+  retryCountdown,
   lastUpdated: _lastUpdated,
   className,
   onAgentClick,
+  onRetry,
 }: AgentActivityPanelProps): JSX.Element {
   // Note: _sync and _lastUpdated are passed for future use (e.g., displaying sync warnings)
   const summary = useMemo(() => computeSummary(agents), [agents]);
 
   const rootClassName = [styles.panel, className].filter(Boolean).join(' ');
 
-  // Disconnected state
-  if (!isConnected && !isLoading) {
+  // Scenario 1: Never connected - show "Start loom serve" message
+  if (connectionState === 'never_connected' && !isLoading) {
     return (
       <div className={rootClassName} data-testid="agent-activity-panel">
         <div className={styles.empty} role="status" aria-live="polite">
-          <span className={styles.emptyIcon}>⚠️</span>
-          <span className={styles.emptyText}>Loom server not available</span>
+          <span className={styles.emptyIcon}>🔌</span>
+          <span className={styles.emptyText}>Loom server not running</span>
+          <span className={styles.emptyHint}>
+            Start with: <code className={styles.code}>loom serve --port 9000</code>
+          </span>
+          {onRetry && (
+            <button className={styles.retryButton} onClick={onRetry}>
+              Check Connection
+            </button>
+          )}
         </div>
       </div>
     );
   }
 
-  // Loading state (no agents yet)
+  // Loading state (no agents yet, but was connected before)
   if (isLoading && agents.length === 0) {
     return (
       <div className={rootClassName} data-testid="agent-activity-panel">
@@ -105,8 +122,45 @@ export function AgentActivityPanel({
     );
   }
 
-  // No agents state
-  if (agents.length === 0) {
+  // Scenario 3: Reconnecting - show spinner overlay with countdown
+  if (connectionState === 'reconnecting' && agents.length === 0) {
+    return (
+      <div className={rootClassName} data-testid="agent-activity-panel">
+        <div className={styles.reconnecting} role="status" aria-live="polite">
+          <span className={styles.spinner} aria-hidden="true" />
+          <span className={styles.emptyText}>Reconnecting to loom server...</span>
+          {retryCountdown > 0 && (
+            <span className={styles.countdown}>Retry in {retryCountdown}s</span>
+          )}
+          {onRetry && (
+            <button className={styles.retryButton} onClick={onRetry}>
+              Retry Now
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // Scenario 2: Disconnected (no cache) - show empty state with retry
+  if (!isConnected && agents.length === 0) {
+    return (
+      <div className={rootClassName} data-testid="agent-activity-panel">
+        <div className={styles.empty} role="status" aria-live="polite">
+          <span className={styles.emptyIcon}>⚠️</span>
+          <span className={styles.emptyText}>Loom server not available</span>
+          {onRetry && (
+            <button className={styles.retryButton} onClick={onRetry}>
+              Retry Connection
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // No agents state (connected but no agents found)
+  if (isConnected && agents.length === 0) {
     return (
       <div className={rootClassName} data-testid="agent-activity-panel">
         <div className={styles.empty} role="status" aria-live="polite">

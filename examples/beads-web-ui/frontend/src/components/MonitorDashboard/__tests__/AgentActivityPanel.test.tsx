@@ -11,7 +11,7 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import '@testing-library/jest-dom';
 
 import { AgentActivityPanel } from '../AgentActivityPanel';
-import type { LoomAgentStatus, LoomSyncInfo, LoomTaskInfo } from '@/types';
+import type { LoomAgentStatus, LoomSyncInfo, LoomTaskInfo, LoomConnectionState } from '@/types';
 
 /**
  * Create a mock agent status for testing.
@@ -68,6 +68,8 @@ const defaultProps = {
   sync: createSyncInfo(),
   isLoading: false,
   isConnected: true,
+  connectionState: 'connected' as LoomConnectionState,
+  retryCountdown: 0,
   lastUpdated: new Date(),
 };
 
@@ -159,12 +161,28 @@ describe('AgentActivityPanel', () => {
   });
 
   describe('disconnected state', () => {
-    it('shows disconnected state when not connected', () => {
+    it('shows "never connected" state when server never reached', () => {
       render(
         <AgentActivityPanel
           {...defaultProps}
           isConnected={false}
           isLoading={false}
+          connectionState="never_connected"
+        />
+      );
+
+      expect(screen.getByText('Loom server not running')).toBeInTheDocument();
+      expect(screen.getByText(/loom serve/)).toBeInTheDocument();
+      expect(screen.getByTestId('agent-activity-panel')).toBeInTheDocument();
+    });
+
+    it('shows disconnected state when connection lost and no cached agents', () => {
+      render(
+        <AgentActivityPanel
+          {...defaultProps}
+          isConnected={false}
+          isLoading={false}
+          connectionState="disconnected"
         />
       );
 
@@ -172,7 +190,7 @@ describe('AgentActivityPanel', () => {
       expect(screen.getByTestId('agent-activity-panel')).toBeInTheDocument();
     });
 
-    it('shows disconnected state even with agents when not connected', () => {
+    it('shows agents with stale data when disconnected but have cached agents', () => {
       const agents = [createAgent({ name: 'nova' })];
 
       render(
@@ -181,11 +199,45 @@ describe('AgentActivityPanel', () => {
           agents={agents}
           isConnected={false}
           isLoading={false}
+          connectionState="disconnected"
         />
       );
 
-      expect(screen.getByText('Loom server not available')).toBeInTheDocument();
-      expect(screen.queryByText('nova')).not.toBeInTheDocument();
+      // Should still show cached agents (stale data scenario)
+      expect(screen.getByText('nova')).toBeInTheDocument();
+    });
+
+    it('shows reconnecting state with countdown', () => {
+      render(
+        <AgentActivityPanel
+          {...defaultProps}
+          isConnected={false}
+          isLoading={false}
+          connectionState="reconnecting"
+          retryCountdown={10}
+        />
+      );
+
+      expect(screen.getByText('Reconnecting to loom server...')).toBeInTheDocument();
+      expect(screen.getByText('Retry in 10s')).toBeInTheDocument();
+    });
+
+    it('shows retry button in never connected state', () => {
+      const onRetry = vi.fn();
+      render(
+        <AgentActivityPanel
+          {...defaultProps}
+          isConnected={false}
+          isLoading={false}
+          connectionState="never_connected"
+          onRetry={onRetry}
+        />
+      );
+
+      const retryButton = screen.getByRole('button', { name: /check connection/i });
+      expect(retryButton).toBeInTheDocument();
+      fireEvent.click(retryButton);
+      expect(onRetry).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -480,7 +532,7 @@ describe('AgentActivityPanel', () => {
 
       // Disconnected state
       rerender(
-        <AgentActivityPanel {...defaultProps} isConnected={false} />
+        <AgentActivityPanel {...defaultProps} isConnected={false} connectionState="disconnected" />
       );
       expect(screen.getByTestId('agent-activity-panel')).toBeInTheDocument();
 

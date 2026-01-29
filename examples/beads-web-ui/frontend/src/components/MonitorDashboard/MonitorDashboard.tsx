@@ -11,6 +11,7 @@
 import { useAgents, useBlockedIssues, useIssues, useViewState } from '@/hooks';
 import type { Issue } from '@/types';
 import { AgentActivityPanel } from './AgentActivityPanel';
+import { ConnectionBanner } from './ConnectionBanner';
 import { ProjectHealthPanel } from './ProjectHealthPanel';
 import { WorkPipelinePanel } from './WorkPipelinePanel';
 import { MiniDependencyGraph } from './MiniDependencyGraph';
@@ -32,7 +33,23 @@ export function MonitorDashboard({
   className,
 }: MonitorDashboardProps): JSX.Element {
   // Fetch agent status and stats
-  const { agents, agentTasks, tasks, taskLists, sync, stats, isLoading, isConnected, lastUpdated } = useAgents({ pollInterval: 5000 });
+  const {
+    agents,
+    agentTasks,
+    tasks,
+    taskLists,
+    sync,
+    stats,
+    isLoading,
+    isConnected,
+    connectionState,
+    retryCountdown,
+    lastUpdated,
+    retryNow,
+  } = useAgents({ pollInterval: 5000 });
+
+  // Show stale data warning when disconnected but have cached data
+  const showStaleBanner = !isConnected && agents.length > 0;
 
   // Fetch blocked issues for bottleneck detection
   const { data: blockedIssues, loading: isLoadingBlocked } = useBlockedIssues({
@@ -74,6 +91,17 @@ export function MonitorDashboard({
 
   return (
     <div className={rootClassName} data-testid="monitor-dashboard">
+      {/* Connection banner for stale data warning */}
+      {showStaleBanner && lastUpdated && (
+        <ConnectionBanner
+          className={styles.connectionBanner ?? ''}
+          lastUpdated={lastUpdated}
+          retryCountdown={retryCountdown}
+          isReconnecting={connectionState === 'reconnecting'}
+          onRetry={retryNow}
+        />
+      )}
+
       {/* Top-left: Agent Activity */}
       <section
         className={`${styles.panel} ${styles.agentActivity}`}
@@ -92,8 +120,11 @@ export function MonitorDashboard({
             sync={sync}
             isLoading={isLoading}
             isConnected={isConnected}
+            connectionState={connectionState}
+            retryCountdown={retryCountdown}
             lastUpdated={lastUpdated}
             onAgentClick={handleAgentClick}
+            onRetry={retryNow}
           />
         </div>
       </section>

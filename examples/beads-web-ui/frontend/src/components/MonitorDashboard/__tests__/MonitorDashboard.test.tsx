@@ -20,9 +20,13 @@ vi.mock('@/hooks', () => ({
     sync: { db_synced: true, db_last_sync: '', git_needs_push: 0, git_needs_pull: 0 },
     isLoading: false,
     isConnected: true,
+    connectionState: 'connected',
+    wasEverConnected: true,
+    retryCountdown: 0,
     error: null,
     lastUpdated: new Date(),
     refetch: vi.fn(),
+    retryNow: vi.fn(),
   }),
   useBlockedIssues: () => ({
     data: [],

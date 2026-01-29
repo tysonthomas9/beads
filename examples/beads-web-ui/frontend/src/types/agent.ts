@@ -60,6 +60,16 @@ export const WorkTypeOpenCompetition: WorkType = 'open_competition';
 // ============================================================================
 
 /**
+ * Connection state for the loom server.
+ * Used to provide appropriate UI feedback for different connection scenarios.
+ */
+export type LoomConnectionState =
+  | 'never_connected'  // Initial state before first successful fetch
+  | 'connected'        // Healthy connection
+  | 'disconnected'     // Lost connection (may have cached data)
+  | 'reconnecting';    // Actively trying to reconnect
+
+/**
  * Agent status from the loom server.
  */
 export interface LoomAgentStatus {

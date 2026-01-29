@@ -6,13 +6,24 @@
 .dashboard {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  grid-template-rows: 1fr 1fr;
+  grid-template-rows: auto 1fr 1fr;
   gap: var(--space-4);
   padding: var(--space-4);
   width: 100%;
   height: 100%;
   min-height: 0;
   overflow: auto;
+}
+
+/* Connection banner spans full width */
+.connectionBanner {
+  grid-column: 1 / -1;
+  grid-row: 1;
+}
+
+/* When no banner, panels use normal grid rows */
+.dashboard:not(:has(.connectionBanner)) {
+  grid-template-rows: 1fr 1fr;
 }
 
 /* Panel base styles */
@@ -96,23 +107,35 @@
 }
 
 /* Grid placement for specific panels */
+/* When banner is present, panels shift down one row */
 .agentActivity {
-  grid-column: 1;
-  grid-row: 1;
-}
-
-.workPipeline {
-  grid-column: 2;
-  grid-row: 1;
-}
-
-.projectHealth {
   grid-column: 1;
   grid-row: 2;
 }
 
+.workPipeline {
+  grid-column: 2;
+  grid-row: 2;
+}
+
+.projectHealth {
+  grid-column: 1;
+  grid-row: 3;
+}
+
 .miniGraph {
   grid-column: 2;
+  grid-row: 3;
+}
+
+/* When no banner, panels use rows 1-2 */
+.dashboard:not(:has(.connectionBanner)) .agentActivity,
+.dashboard:not(:has(.connectionBanner)) .workPipeline {
+  grid-row: 1;
+}
+
+.dashboard:not(:has(.connectionBanner)) .projectHealth,
+.dashboard:not(:has(.connectionBanner)) .miniGraph {
   grid-row: 2;
 }
 
@@ -136,28 +159,53 @@
 @media (max-width: 768px) {
   .dashboard {
     grid-template-columns: 1fr;
-    grid-template-rows: repeat(4, minmax(250px, auto));
+    grid-template-rows: auto repeat(4, minmax(250px, auto));
     gap: var(--space-3);
     padding: var(--space-3);
   }
 
-  .agentActivity {
+  .dashboard:not(:has(.connectionBanner)) {
+    grid-template-rows: repeat(4, minmax(250px, auto));
+  }
+
+  .connectionBanner {
     grid-column: 1;
     grid-row: 1;
   }
 
-  .workPipeline {
+  .agentActivity {
     grid-column: 1;
     grid-row: 2;
   }
 
-  .projectHealth {
+  .workPipeline {
     grid-column: 1;
     grid-row: 3;
   }
 
+  .projectHealth {
+    grid-column: 1;
+    grid-row: 4;
+  }
+
   .miniGraph {
     grid-column: 1;
+    grid-row: 5;
+  }
+
+  .dashboard:not(:has(.connectionBanner)) .agentActivity {
+    grid-row: 1;
+  }
+
+  .dashboard:not(:has(.connectionBanner)) .workPipeline {
+    grid-row: 2;
+  }
+
+  .dashboard:not(:has(.connectionBanner)) .projectHealth {
+    grid-row: 3;
+  }
+
+  .dashboard:not(:has(.connectionBanner)) .miniGraph {
     grid-row: 4;
   }
 

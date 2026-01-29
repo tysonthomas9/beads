@@ -76,9 +76,13 @@ vi.mock('@/hooks', () => ({
     stats: { open: 0, closed: 0, total: 0, completion: 0 },
     isLoading: false,
     isConnected: true,
+    connectionState: 'connected',
+    wasEverConnected: true,
+    retryCountdown: 0,
     error: null,
     lastUpdated: null,
     refetch: vi.fn(),
+    retryNow: vi.fn(),
   })),
 }));
 

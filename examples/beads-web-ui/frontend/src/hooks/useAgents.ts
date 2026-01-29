@@ -5,7 +5,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { fetchStatus, fetchTasks } from '@/api';
-import type { LoomAgentStatus, LoomTaskSummary, LoomTaskInfo, LoomTaskLists, LoomSyncInfo, LoomStats } from '@/types';
+import type { LoomAgentStatus, LoomTaskSummary, LoomTaskInfo, LoomTaskLists, LoomSyncInfo, LoomStats, LoomConnectionState } from '@/types';
 
 /**
  * Options for the useAgents hook.
@@ -37,12 +37,20 @@ export interface UseAgentsResult {
   isLoading: boolean;
   /** Whether the loom server is available */
   isConnected: boolean;
+  /** Connection state for detailed UI feedback */
+  connectionState: LoomConnectionState;
+  /** Whether we've ever successfully connected */
+  wasEverConnected: boolean;
+  /** Seconds until next auto-retry (0 if not waiting) */
+  retryCountdown: number;
   /** Error from the last fetch attempt, null if successful */
   error: Error | null;
   /** Last successful update time */
   lastUpdated: Date | null;
   /** Function to manually trigger a refetch */
   refetch: () => Promise<void>;
+  /** Function to retry immediately (skips countdown) */
+  retryNow: () => void;
 }
 
 /**
@@ -103,6 +111,11 @@ const DEFAULT_TASK_LISTS: LoomTaskLists = {
   blocked: [],
 };
 
+// Retry backoff configuration
+const INITIAL_RETRY_DELAY = 5; // seconds
+const MAX_RETRY_DELAY = 60; // seconds
+const BACKOFF_MULTIPLIER = 2;
+
 export function useAgents(options?: UseAgentsOptions): UseAgentsResult {
   const { pollInterval = 5000, enabled = true } = options ?? {};
 
@@ -114,6 +127,8 @@ export function useAgents(options?: UseAgentsOptions): UseAgentsResult {
   const [stats, setStats] = useState<LoomStats>(DEFAULT_STATS);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isConnected, setIsConnected] = useState<boolean>(false);
+  const [wasEverConnected, setWasEverConnected] = useState<boolean>(false);
+  const [retryCountdown, setRetryCountdown] = useState<number>(0);
   const [error, setError] = useState<Error | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
@@ -123,7 +138,39 @@ export function useAgents(options?: UseAgentsOptions): UseAgentsResult {
   // Track if the component is mounted for cleanup
   const mountedRef = useRef<boolean>(true);
 
+  // Track retry state
+  const retryTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const retryIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const currentRetryDelayRef = useRef<number>(INITIAL_RETRY_DELAY);
+  const wasEverConnectedRef = useRef<boolean>(false);
+
+  // Keep ref in sync with state
+  wasEverConnectedRef.current = wasEverConnected;
+
+  // Compute connection state from other state values
+  const connectionState: LoomConnectionState = (() => {
+    if (isConnected) return 'connected';
+    if (isLoading && !wasEverConnected) return 'never_connected';
+    if (retryCountdown > 0) return 'reconnecting';
+    if (!wasEverConnected) return 'never_connected';
+    return 'disconnected';
+  })();
+
+  // Clear any pending retry timers
+  const clearRetryTimers = useCallback(() => {
+    if (retryTimeoutRef.current) {
+      clearTimeout(retryTimeoutRef.current);
+      retryTimeoutRef.current = null;
+    }
+    if (retryIntervalRef.current) {
+      clearInterval(retryIntervalRef.current);
+      retryIntervalRef.current = null;
+    }
+    setRetryCountdown(0);
+  }, []);
+
   // Stable fetch function using useCallback
+  // Note: scheduleRetry is defined after but uses fetchDataRef to avoid circular deps
   const fetchData = useCallback(async () => {
     // Skip if already fetching
     if (fetchInProgressRef.current) {
@@ -132,6 +179,7 @@ export function useAgents(options?: UseAgentsOptions): UseAgentsResult {
 
     fetchInProgressRef.current = true;
     setIsLoading(true);
+    clearRetryTimers();
 
     try {
       // Fetch status and task lists in parallel
@@ -148,8 +196,11 @@ export function useAgents(options?: UseAgentsOptions): UseAgentsResult {
         setAgentTasks(statusResult.agentTasks);
         setSync(statusResult.sync);
         setStats(statusResult.stats);
-        // Consider connected if we got any agents or valid stats
-        setIsConnected(statusResult.agents.length > 0 || statusResult.stats.total > 0);
+        // Connected if we successfully got a response (no error thrown)
+        setIsConnected(true);
+        setWasEverConnected(true);
+        // Reset retry delay on successful connection
+        currentRetryDelayRef.current = INITIAL_RETRY_DELAY;
         setError(null);
         setLastUpdated(new Date());
       }
@@ -158,7 +209,7 @@ export function useAgents(options?: UseAgentsOptions): UseAgentsResult {
       if (mountedRef.current) {
         setError(err instanceof Error ? err : new Error(String(err)));
         setIsConnected(false);
-        // Keep stale data on error
+        // Keep stale data on error - retry scheduling handled by effect
       }
     } finally {
       if (mountedRef.current) {
@@ -166,12 +217,80 @@ export function useAgents(options?: UseAgentsOptions): UseAgentsResult {
       }
       fetchInProgressRef.current = false;
     }
-  }, []);
+  }, [clearRetryTimers]);
+
+  // Schedule retry when disconnected after being connected
+  useEffect(() => {
+    // Only schedule retry if we were connected and now have an error, and no retry is in progress
+    if (!error || !wasEverConnected || isConnected || fetchInProgressRef.current) {
+      return;
+    }
+
+    // Don't schedule if timers are already set (retryCountdown > 0 means we already scheduled)
+    if (retryTimeoutRef.current || retryIntervalRef.current) {
+      return;
+    }
+
+    const delay = currentRetryDelayRef.current;
+    setRetryCountdown(delay);
+
+    // Store interval ID locally to ensure we clear the right one
+    const intervalId = setInterval(() => {
+      if (!mountedRef.current) {
+        clearInterval(intervalId);
+        return;
+      }
+      setRetryCountdown((prev) => {
+        if (prev <= 1) {
+          clearInterval(intervalId);
+          if (retryIntervalRef.current === intervalId) {
+            retryIntervalRef.current = null;
+          }
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    retryIntervalRef.current = intervalId;
+
+    // Store timeout ID locally
+    const timeoutId = setTimeout(() => {
+      if (!mountedRef.current) return;
+      clearRetryTimers();
+      // Increase delay for next retry (exponential backoff)
+      currentRetryDelayRef.current = Math.min(
+        currentRetryDelayRef.current * BACKOFF_MULTIPLIER,
+        MAX_RETRY_DELAY
+      );
+      void fetchData();
+    }, delay * 1000);
+    retryTimeoutRef.current = timeoutId;
+
+    // Cleanup: clear timers if effect dependencies change or component unmounts
+    return () => {
+      clearInterval(intervalId);
+      clearTimeout(timeoutId);
+      if (retryIntervalRef.current === intervalId) {
+        retryIntervalRef.current = null;
+      }
+      if (retryTimeoutRef.current === timeoutId) {
+        retryTimeoutRef.current = null;
+      }
+    };
+  }, [error, wasEverConnected, isConnected, clearRetryTimers, fetchData]);
 
   // Refetch function exposed to consumers
   const refetch = useCallback(async () => {
     await fetchData();
   }, [fetchData]);
+
+  // Retry immediately (skips countdown)
+  const retryNow = useCallback(() => {
+    clearRetryTimers();
+    // Reset retry delay when user manually retries
+    currentRetryDelayRef.current = INITIAL_RETRY_DELAY;
+    void fetchData();
+  }, [clearRetryTimers, fetchData]);
 
   // Initial fetch and polling setup
   useEffect(() => {
@@ -199,6 +318,13 @@ export function useAgents(options?: UseAgentsOptions): UseAgentsResult {
       if (intervalId) {
         clearInterval(intervalId);
       }
+      // Clear retry timers on unmount
+      if (retryTimeoutRef.current) {
+        clearTimeout(retryTimeoutRef.current);
+      }
+      if (retryIntervalRef.current) {
+        clearInterval(retryIntervalRef.current);
+      }
     };
   }, [enabled, pollInterval, fetchData]);
 
@@ -211,8 +337,12 @@ export function useAgents(options?: UseAgentsOptions): UseAgentsResult {
     stats,
     isLoading,
     isConnected,
+    connectionState,
+    wasEverConnected,
+    retryCountdown,
     error,
     lastUpdated,
     refetch,
+    retryNow,
   };
 }
