@@ -66,31 +66,6 @@ export async function checkLoomHealth(): Promise<boolean> {
 }
 
 /**
- * Default values for status response when server unavailable.
- */
-const DEFAULT_TASK_SUMMARY: LoomTaskSummary = {
-  needs_planning: 0,
-  ready_to_implement: 0,
-  in_progress: 0,
-  need_review: 0,
-  blocked: 0,
-};
-
-const DEFAULT_SYNC_INFO: LoomSyncInfo = {
-  db_synced: true,
-  db_last_sync: '',
-  git_needs_push: 0,
-  git_needs_pull: 0,
-};
-
-const DEFAULT_STATS: LoomStats = {
-  open: 0,
-  closed: 0,
-  total: 0,
-  completion: 0,
-};
-
-/**
  * Fetched status result type.
  */
 export interface FetchStatusResult {
@@ -104,91 +79,53 @@ export interface FetchStatusResult {
 
 /**
  * Fetch full status from the loom server.
- * Returns default values if the server is unavailable.
+ * Throws on network errors or invalid responses so callers can handle connection state.
  */
 export async function fetchStatus(): Promise<FetchStatusResult> {
-  try {
-    const response = await fetch(`${LOOM_SERVER_URL}/api/status`, {
-      method: 'GET',
-      headers: {
-        Accept: 'application/json',
-      },
-    });
+  const response = await fetch(`${LOOM_SERVER_URL}/api/status`, {
+    method: 'GET',
+    headers: {
+      Accept: 'application/json',
+    },
+  });
 
-    if (!response.ok) {
-      console.warn(`Loom server returned ${response.status}: ${response.statusText}`);
-      return {
-        agents: [],
-        tasks: DEFAULT_TASK_SUMMARY,
-        agentTasks: {},
-        sync: DEFAULT_SYNC_INFO,
-        stats: DEFAULT_STATS,
-        timestamp: new Date().toISOString(),
-      };
-    }
-
-    const data: LoomStatusResponse = await response.json();
-    return {
-      agents: data.agents ?? [],
-      tasks: data.tasks,
-      agentTasks: data.agent_tasks ?? {},
-      sync: data.sync,
-      stats: data.stats,
-      timestamp: data.timestamp,
-    };
-  } catch (error) {
-    // Loom server not available - this is expected when not running agents
-    console.warn('Loom server not available:', error instanceof Error ? error.message : 'Unknown error');
-    return {
-      agents: [],
-      tasks: DEFAULT_TASK_SUMMARY,
-      agentTasks: {},
-      sync: DEFAULT_SYNC_INFO,
-      stats: DEFAULT_STATS,
-      timestamp: new Date().toISOString(),
-    };
+  if (!response.ok) {
+    throw new Error(`Loom server returned ${response.status}: ${response.statusText}`);
   }
+
+  const data: LoomStatusResponse = await response.json();
+  return {
+    agents: data.agents ?? [],
+    tasks: data.tasks,
+    agentTasks: data.agent_tasks ?? {},
+    sync: data.sync,
+    stats: data.stats,
+    timestamp: data.timestamp,
+  };
 }
 
 /**
- * Default empty task lists.
- */
-const DEFAULT_TASK_LISTS: LoomTaskLists = {
-  needsPlanning: [],
-  readyToImplement: [],
-  needsReview: [],
-  inProgress: [],
-  blocked: [],
-};
-
-/**
  * Fetch task lists from the loom server.
- * Returns empty lists if the server is unavailable.
+ * Throws on network errors or invalid responses so callers can handle connection state.
  */
 export async function fetchTasks(): Promise<LoomTaskLists> {
-  try {
-    const response = await fetch(`${LOOM_SERVER_URL}/api/tasks`, {
-      method: 'GET',
-      headers: {
-        Accept: 'application/json',
-      },
-    });
+  const response = await fetch(`${LOOM_SERVER_URL}/api/tasks`, {
+    method: 'GET',
+    headers: {
+      Accept: 'application/json',
+    },
+  });
 
-    if (!response.ok) {
-      console.warn(`Loom server returned ${response.status}: ${response.statusText}`);
-      return DEFAULT_TASK_LISTS;
-    }
-
-    const data: LoomTasksResponse = await response.json();
-    return {
-      needsPlanning: data.needs_planning ?? [],
-      readyToImplement: data.ready_to_implement ?? [],
-      needsReview: data.needs_review ?? [],
-      inProgress: data.in_progress ?? [],
-      blocked: data.blocked ?? [],
-    };
-  } catch (error) {
-    console.warn('Failed to fetch tasks:', error instanceof Error ? error.message : 'Unknown error');
-    return DEFAULT_TASK_LISTS;
+  if (!response.ok) {
+    throw new Error(`Loom server returned ${response.status}: ${response.statusText}`);
   }
+
+  const data: LoomTasksResponse = await response.json();
+  return {
+    needsPlanning: data.needs_planning ?? [],
+    readyToImplement: data.ready_to_implement ?? [],
+    needsReview: data.needs_review ?? [],
+    inProgress: data.in_progress ?? [],
+    blocked: data.blocked ?? [],
+  };
 }

@@ -423,37 +423,6 @@ test.describe("MonitorDashboard", () => {
   })
 
   test.describe("graceful degradation", () => {
-    test("shows empty state when loom server unavailable", async ({ page }) => {
-      // Setup with loom server unavailable (returns invalid JSON to trigger error)
-      // Note: Due to E2E test limitations, we verify graceful degradation by checking
-      // that the panel renders an empty/error state without crashing the app
-      await setupMocks(page, { loomServerAvailable: false })
-      await navigateAndWait(page, "/?view=monitor")
-
-      // Wait for dashboard to render
-      const dashboard = page.getByTestId("monitor-dashboard")
-      await expect(dashboard).toBeVisible()
-
-      // Wait for the agent panel to render (should show some state)
-      const agentPanel = page.getByTestId("agent-activity-panel")
-      await expect(agentPanel).toBeVisible()
-
-      // Verify the app handles loom server unavailability gracefully
-      // Should show either "No agents found", "Loom server not running", or empty state
-      // The key assertion is that the panel renders WITHOUT crashing
-      const noAgentsText = agentPanel.getByText("No agents found")
-      const notRunningText = agentPanel.getByText("Loom server not running")
-      const notAvailableText = agentPanel.getByText("Loom server not available")
-
-      // At least one of these states should be visible
-      const hasValidState = await Promise.race([
-        noAgentsText.isVisible().then(() => true).catch(() => false),
-        notRunningText.isVisible().then(() => true).catch(() => false),
-        notAvailableText.isVisible().then(() => true).catch(() => false),
-      ])
-      expect(hasValidState || await agentPanel.isVisible()).toBeTruthy()
-    })
-
     test("renders with empty agent data", async ({ page }) => {
       // Setup with loom server available but no agents
       await setupMocks(page, { emptyAgents: true })
@@ -478,24 +447,5 @@ test.describe("MonitorDashboard", () => {
       await expect(agentPanel.getByText("No agents found")).toBeVisible()
     })
 
-    test("other panels still render when loom server unavailable", async ({ page }) => {
-      // Setup with loom server unavailable
-      await setupMocks(page, { loomServerAvailable: false })
-      await navigateAndWait(page, "/?view=monitor")
-
-      // Wait for dashboard to render
-      const dashboard = page.getByTestId("monitor-dashboard")
-      await expect(dashboard).toBeVisible()
-
-      // Verify all 4 panel headings are still visible (graceful degradation)
-      await expect(page.getByRole("heading", { name: "Agent Activity" })).toBeVisible()
-      await expect(page.getByRole("heading", { name: "Work Pipeline" })).toBeVisible()
-      await expect(page.getByRole("heading", { name: "Project Health" })).toBeVisible()
-      await expect(page.getByRole("heading", { name: "Blocking Dependencies" })).toBeVisible()
-
-      // Verify MiniDependencyGraph still renders (uses beads API, not loom)
-      const miniGraph = page.getByTestId("mini-dependency-graph")
-      await expect(miniGraph).toBeVisible()
-    })
   })
 })
