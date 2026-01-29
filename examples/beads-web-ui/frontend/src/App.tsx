@@ -8,7 +8,8 @@
 
 import { useState, useCallback, useEffect, useRef, useMemo, lazy, Suspense } from 'react';
 import type { Issue, Status } from '@/types';
-import { useIssues, useViewState, useFilterState, useIssueFilter, useDebounce, useBlockedIssues, useIssueDetail, useToast, useStats } from '@/hooks';
+import { useIssues, useViewState, useFilterState, useIssueFilter, useDebounce, useBlockedIssues, useIssueDetail, useToast, useStats, useRecentAssignees } from '@/hooks';
+import { updateIssue } from '@/api';
 import type { BlockedInfo } from '@/components/KanbanBoard';
 import styles from './App.module.css';
 import {
@@ -26,6 +27,7 @@ import {
   IssueDetailPanel,
   AgentsSidebar,
   StatsHeader,
+  AssigneePrompt,
 } from '@/components';
 
 // Lazy load GraphView (React Flow ~100KB)
@@ -111,6 +113,14 @@ function App() {
   const [selectedIssueId, setSelectedIssueId] = useState<string | null>(null);
   const { issueDetails, isLoading: isLoadingDetails, error: detailError, fetchIssue, clearIssue } = useIssueDetail();
 
+  // Assignee prompt state for Ready → In Progress drag
+  const { recentAssignees, addRecentAssignee } = useRecentAssignees();
+  const [pendingDragData, setPendingDragData] = useState<{
+    issueId: string;
+    newStatus: Status;
+    oldStatus: Status;
+  } | null>(null);
+
   // Track mount state for async operations (must set true in setup for StrictMode compatibility)
   useEffect(() => {
     mountedRef.current = true;
@@ -120,7 +130,15 @@ function App() {
   }, []);
 
   const handleDragEnd = useCallback(
-    async (issueId: string, newStatus: Status, _oldStatus: Status) => {
+    async (issueId: string, newStatus: Status, oldStatus: Status) => {
+      // Check if dragging from Ready (open) to In Progress (in_progress)
+      // If so, show the assignee prompt instead of updating immediately
+      if (oldStatus === 'open' && newStatus === 'in_progress') {
+        setPendingDragData({ issueId, newStatus, oldStatus });
+        return;
+      }
+
+      // Normal drag - update status directly
       try {
         await updateIssueStatus(issueId, newStatus);
       } catch (err) {
@@ -132,6 +150,49 @@ function App() {
     },
     [updateIssueStatus, showToast]
   );
+
+  // Handle assignee prompt confirmation
+  const handleAssigneeConfirm = useCallback(
+    async (assignee: string) => {
+      if (!pendingDragData) return;
+
+      const { issueId, newStatus } = pendingDragData;
+      setPendingDragData(null);
+
+      // Extract the name without [H] prefix for storing in recent (we add it back when selecting)
+      const nameWithoutPrefix = assignee.replace(/^\[H\]\s*/, '');
+      addRecentAssignee(nameWithoutPrefix);
+
+      try {
+        // Update both status and assignee
+        await updateIssue(issueId, { status: newStatus, assignee });
+      } catch (err) {
+        if (!mountedRef.current) return;
+        const message =
+          err instanceof Error ? err.message : 'Failed to update status';
+        showToast(message, { type: 'error' });
+      }
+    },
+    [pendingDragData, addRecentAssignee, showToast]
+  );
+
+  // Handle assignee prompt skip
+  const handleAssigneeSkip = useCallback(async () => {
+    if (!pendingDragData) return;
+
+    const { issueId, newStatus } = pendingDragData;
+    setPendingDragData(null);
+
+    try {
+      // Update status only (no assignee)
+      await updateIssueStatus(issueId, newStatus);
+    } catch (err) {
+      if (!mountedRef.current) return;
+      const message =
+        err instanceof Error ? err.message : 'Failed to update status';
+      showToast(message, { type: 'error' });
+    }
+  }, [pendingDragData, updateIssueStatus, showToast]);
 
   // Handle search clear to sync both local and filter state
   const handleSearchClear = useCallback(() => {
@@ -333,6 +394,12 @@ function App() {
         isLoading={isLoadingDetails}
         error={detailError}
         onClose={handlePanelClose}
+      />
+      <AssigneePrompt
+        isOpen={pendingDragData !== null}
+        onConfirm={handleAssigneeConfirm}
+        onSkip={handleAssigneeSkip}
+        recentNames={recentAssignees}
       />
     </AppLayout>
   );

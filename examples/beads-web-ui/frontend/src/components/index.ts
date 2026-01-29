@@ -39,3 +39,4 @@ export * from './AgentsSidebar';
 export * from './TaskDrawer';
 export * from './Toast'
 export * from './StatsHeader';
+export * from './AssigneePrompt';

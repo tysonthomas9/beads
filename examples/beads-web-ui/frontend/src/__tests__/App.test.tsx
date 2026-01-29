@@ -160,6 +160,11 @@ vi.mock('@/hooks', () => ({
     error: null,
     refetch: vi.fn(),
   })),
+  useRecentAssignees: vi.fn(() => ({
+    recentAssignees: [],
+    addRecentAssignee: vi.fn(),
+    clearRecentAssignees: vi.fn(),
+  })),
 }));
 
 // Import the mocked module
