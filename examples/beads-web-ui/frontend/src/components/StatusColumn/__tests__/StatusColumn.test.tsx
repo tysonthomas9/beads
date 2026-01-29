@@ -170,17 +170,17 @@ describe('StatusColumn', () => {
   });
 
   describe('columnType prop', () => {
-    it('renders with data-column-type="pending" when columnType is pending', () => {
+    it('renders with data-column-type="backlog" when columnType is backlog', () => {
       const { container } = render(
-        <StatusColumn status="open" count={1} columnType="pending" />
+        <StatusColumn status="open" count={1} columnType="backlog" />
       );
 
       const section = container.querySelector('section');
-      expect(section).toHaveAttribute('data-column-type', 'pending');
+      expect(section).toHaveAttribute('data-column-type', 'backlog');
     });
 
     it('renders with data-column-type for each column type', () => {
-      const columnTypes = ['ready', 'pending', 'review', 'default'] as const;
+      const columnTypes = ['ready', 'backlog', 'review', 'default'] as const;
 
       columnTypes.forEach((columnType) => {
         const { container, unmount } = render(

@@ -740,8 +740,8 @@ describe('SwimLane', () => {
         />
       );
 
-      // The hourglass icon should be rendered in the backlog column header
-      expect(screen.getByText('⏳')).toBeInTheDocument();
+      // The package icon should be rendered in the backlog column header
+      expect(screen.getByText('📦')).toBeInTheDocument();
     });
   });
 

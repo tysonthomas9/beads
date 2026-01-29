@@ -502,6 +502,40 @@ describe('IssueCard', () => {
     });
   });
 
+  describe('deferred badge', () => {
+    it('renders deferred badge when issue status is "deferred"', () => {
+      const issue = createTestIssue({ status: 'deferred' });
+      render(<IssueCard issue={issue} />);
+
+      const badge = screen.getByLabelText('Deferred');
+      expect(badge).toBeInTheDocument();
+      expect(badge).toHaveTextContent('Deferred');
+      expect(screen.getByText('⏸')).toBeInTheDocument();
+    });
+
+    it('does not render deferred badge for non-deferred status', () => {
+      const issue = createTestIssue({ status: 'open' });
+      render(<IssueCard issue={issue} />);
+
+      expect(screen.queryByLabelText('Deferred')).not.toBeInTheDocument();
+    });
+
+    it('deferred badge has aria-label="Deferred"', () => {
+      const issue = createTestIssue({ status: 'deferred' });
+      render(<IssueCard issue={issue} />);
+
+      expect(screen.getByLabelText('Deferred')).toBeInTheDocument();
+    });
+
+    it('deferred badge icon has aria-hidden', () => {
+      const issue = createTestIssue({ status: 'deferred' });
+      render(<IssueCard issue={issue} />);
+
+      const icon = screen.getByText('⏸');
+      expect(icon).toHaveAttribute('aria-hidden', 'true');
+    });
+  });
+
   describe('review type badge', () => {
     describe('getReviewType logic', () => {
       it('returns plan when title contains [Need Review]', () => {
@@ -936,7 +970,7 @@ describe('IssueCard', () => {
     });
 
     describe('column-specific behavior', () => {
-      it.each(['open', 'in_progress', 'blocked', 'done', 'pending'])(
+      it.each(['open', 'in_progress', 'blocked', 'done', 'backlog'])(
         'does not show action buttons for columnId="%s"',
         (columnId) => {
           const issue = createTestIssue();

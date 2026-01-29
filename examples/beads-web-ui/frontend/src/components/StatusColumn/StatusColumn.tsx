@@ -33,7 +33,7 @@ export interface StatusColumnProps {
   droppableDisabled?: boolean;
   /** Column type for visual styling (defaults to 'default') */
   columnType?: ColumnType;
-  /** Icon to display in header (e.g., '⏳' for pending) */
+  /** Icon to display in header (e.g., '📦' for backlog) */
   headerIcon?: string;
 }
 
