@@ -57,7 +57,7 @@
   border-bottom-color: var(--color-status-ready);
 }
 
-.statusColumn[data-status='pending'] .header {
+.statusColumn[data-status='backlog'] .header {
   border-bottom-color: var(--color-status-pending);
 }
 

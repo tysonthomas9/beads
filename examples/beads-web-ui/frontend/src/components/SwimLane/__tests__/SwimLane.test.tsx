@@ -609,6 +609,142 @@ describe('SwimLane', () => {
     });
   });
 
+  describe('backlog column (Pending→Backlog rename)', () => {
+    it('passes columnType="backlog" to StatusColumn for backlog column', () => {
+      const columns: KanbanColumnConfig[] = [
+        ...statusesToColumns(['open', 'in_progress']),
+        {
+          id: 'backlog',
+          label: 'Backlog',
+          filter: (issue: Issue) => issue.status === 'blocked' || issue.status === 'deferred',
+          targetStatus: 'blocked',
+        },
+      ];
+
+      const { container } = renderWithDndContext(
+        <SwimLane
+          id="test-lane"
+          title="Test Lane"
+          issues={[]}
+          columns={columns}
+        />
+      );
+
+      // The backlog column should have data-column-type="backlog"
+      const backlogSection = container.querySelector('[data-column-type="backlog"]');
+      expect(backlogSection).toBeInTheDocument();
+    });
+
+    it('passes isBacklog=true to DraggableIssueCard in backlog column', () => {
+      const blockedIssue = createMockIssue({
+        id: 'blocked-1',
+        title: 'Blocked Issue',
+        status: 'blocked',
+      });
+
+      const columns: KanbanColumnConfig[] = [
+        ...statusesToColumns(['open', 'in_progress']),
+        {
+          id: 'backlog',
+          label: 'Backlog',
+          filter: (issue: Issue) => issue.status === 'blocked' || issue.status === 'deferred',
+          targetStatus: 'blocked',
+        },
+      ];
+
+      renderWithDndContext(
+        <SwimLane
+          id="test-lane"
+          title="Test Lane"
+          issues={[blockedIssue]}
+          columns={columns}
+        />
+      );
+
+      // IssueCard with isBacklog=true sets data-in-backlog="true"
+      const card = screen.getByText('Blocked Issue').closest('[data-in-backlog="true"]');
+      expect(card).toBeInTheDocument();
+    });
+
+    it('does not pass isBacklog to cards in non-backlog columns', () => {
+      const openIssue = createMockIssue({
+        id: 'open-1',
+        title: 'Open Issue',
+        status: 'open',
+      });
+
+      const columns: KanbanColumnConfig[] = [
+        ...statusesToColumns(['open', 'in_progress']),
+        {
+          id: 'backlog',
+          label: 'Backlog',
+          filter: (issue: Issue) => issue.status === 'blocked' || issue.status === 'deferred',
+          targetStatus: 'blocked',
+        },
+      ];
+
+      renderWithDndContext(
+        <SwimLane
+          id="test-lane"
+          title="Test Lane"
+          issues={[openIssue]}
+          columns={columns}
+        />
+      );
+
+      // Card in open column should not have data-in-backlog
+      const card = screen.getByText('Open Issue').closest('article');
+      expect(card).not.toHaveAttribute('data-in-backlog');
+    });
+
+    it('renders EmptyColumn with backlog status for empty backlog column', () => {
+      const columns: KanbanColumnConfig[] = [
+        ...statusesToColumns(['open']),
+        {
+          id: 'backlog',
+          label: 'Backlog',
+          filter: (issue: Issue) => issue.status === 'blocked' || issue.status === 'deferred',
+          targetStatus: 'blocked',
+        },
+      ];
+
+      renderWithDndContext(
+        <SwimLane
+          id="test-lane"
+          title="Test Lane"
+          issues={[]}
+          columns={columns}
+        />
+      );
+
+      // EmptyColumn with status="backlog" should show backlog-specific message
+      expect(screen.getByText('No blocked or deferred issues')).toBeInTheDocument();
+    });
+
+    it('sets headerIcon to hourglass for backlog column', () => {
+      const columns: KanbanColumnConfig[] = [
+        {
+          id: 'backlog',
+          label: 'Backlog',
+          filter: (issue: Issue) => issue.status === 'blocked' || issue.status === 'deferred',
+          targetStatus: 'blocked',
+        },
+      ];
+
+      renderWithDndContext(
+        <SwimLane
+          id="test-lane"
+          title="Test Lane"
+          issues={[]}
+          columns={columns}
+        />
+      );
+
+      // The hourglass icon should be rendered in the backlog column header
+      expect(screen.getByText('⏳')).toBeInTheDocument();
+    });
+  });
+
   describe('blocked badge display', () => {
     it('passes blockedInfo to DraggableIssueCard for blocked issues', () => {
       const issues = [

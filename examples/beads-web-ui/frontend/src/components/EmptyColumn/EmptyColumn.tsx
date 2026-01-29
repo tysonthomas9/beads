@@ -47,8 +47,8 @@ function getDefaultMessage(status?: Status | string): string {
     // New 5-column layout column IDs
     case 'ready':
       return 'No ready issues';
-    case 'pending':
-      return 'No pending issues';
+    case 'backlog':
+      return 'No blocked or deferred issues';
     case 'done':
       return 'No completed issues';
     default:
