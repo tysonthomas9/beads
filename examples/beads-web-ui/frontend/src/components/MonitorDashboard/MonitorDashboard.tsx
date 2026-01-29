@@ -8,6 +8,9 @@
  * - Mini Dependency Graph (bottom-right)
  */
 
+import { useAgents, useBlockedIssues } from '@/hooks';
+import type { Issue } from '@/types';
+import { ProjectHealthPanel } from './ProjectHealthPanel';
 import styles from './MonitorDashboard.module.css';
 
 /**
@@ -25,6 +28,20 @@ export interface MonitorDashboardProps {
 export function MonitorDashboard({
   className,
 }: MonitorDashboardProps): JSX.Element {
+  // Fetch agent status and stats
+  const { stats } = useAgents({ pollInterval: 5000 });
+
+  // Fetch blocked issues for bottleneck detection
+  const { data: blockedIssues, loading: isLoadingBlocked } = useBlockedIssues({
+    pollInterval: 30000,
+  });
+
+  // Handler for bottleneck clicks - placeholder for navigation
+  const handleBottleneckClick = (issue: Pick<Issue, 'id' | 'title'>) => {
+    // TODO: Integrate with IssueDetailPanel when available
+    console.log('Bottleneck clicked:', issue.id);
+  };
+
   const rootClassName = className
     ? `${styles.dashboard} ${className}`
     : styles.dashboard;
@@ -80,9 +97,12 @@ export function MonitorDashboard({
           </h2>
         </header>
         <div className={styles.panelContent}>
-          <div className={styles.placeholder}>
-            ProjectHealthPanel placeholder
-          </div>
+          <ProjectHealthPanel
+            stats={stats}
+            blockedIssues={blockedIssues}
+            isLoading={isLoadingBlocked}
+            onBottleneckClick={handleBottleneckClick}
+          />
         </div>
       </section>
 
