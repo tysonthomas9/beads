@@ -1,11 +1,15 @@
 /**
  * IssueHeader component styles.
- * Header area with ID, status badge, and close button.
+ * Header area with ID, status badge, priority, and close button.
  */
 
 .issueHeader {
-  padding: 16px 20px;
-  border-bottom: 1px solid var(--color-border-light);
+  padding: 16px 20px 12px;
+}
+
+/* Sticky mode - no bottom border, handled by wrapper */
+.issueHeader.sticky {
+  border-bottom: none;
 }
 
 .topRow {
@@ -13,6 +17,45 @@
   align-items: center;
   gap: 8px;
   margin-bottom: 8px;
+}
+
+/* Priority badge in header */
+.priorityBadge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 6px;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  border-radius: var(--radius-sm);
+  background-color: var(--color-bg-tertiary);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  border: none;
+  transition: background-color var(--transition-fast);
+}
+
+.priorityBadge:hover {
+  background-color: var(--color-bg-active);
+}
+
+.priorityBadge[data-priority="0"],
+.priorityBadge[data-priority="1"] {
+  background-color: var(--color-danger-bg);
+  color: var(--color-danger);
+}
+
+.priorityBadge[data-priority="0"]:hover,
+.priorityBadge[data-priority="1"]:hover {
+  background-color: #fecaca;
+}
+
+.priorityBadge[data-priority="2"] {
+  background-color: var(--color-warning-bg);
+  color: var(--color-warning);
+}
+
+.priorityBadge[data-priority="2"]:hover {
+  background-color: #fde68a;
 }
 
 .issueId {

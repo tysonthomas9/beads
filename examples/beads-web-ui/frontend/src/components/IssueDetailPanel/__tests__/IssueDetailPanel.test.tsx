@@ -7,11 +7,18 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, within } from '@testing-library/react';
 import '@testing-library/jest-dom';
 
 import { IssueDetailPanel } from '../IssueDetailPanel';
-import type { Issue } from '@/types';
+import type { Issue, IssueDetails, IssueWithDependencyMetadata } from '@/types';
+
+// Mock the API module
+vi.mock('@/api', () => ({
+  updateIssue: vi.fn(),
+  addDependency: vi.fn(),
+  removeDependency: vi.fn(),
+}));
 
 /**
  * Create a minimal test issue with required fields.
@@ -23,6 +30,39 @@ function createTestIssue(overrides: Partial<Issue> = {}): Issue {
     priority: 2,
     created_at: '2026-01-23T00:00:00Z',
     updated_at: '2026-01-23T00:00:00Z',
+    ...overrides,
+  };
+}
+
+/**
+ * Create a test issue with full details (IssueDetails type).
+ */
+function createTestIssueDetails(overrides: Partial<IssueDetails> = {}): IssueDetails {
+  return {
+    id: 'test-123',
+    title: 'Test Issue',
+    priority: 2,
+    created_at: '2026-01-23T00:00:00Z',
+    updated_at: '2026-01-23T00:00:00Z',
+    comments: [],
+    dependencies: [],
+    dependents: [],
+    ...overrides,
+  };
+}
+
+/**
+ * Create a test dependency issue.
+ */
+function createTestDependency(overrides: Partial<IssueWithDependencyMetadata> = {}): IssueWithDependencyMetadata {
+  return {
+    id: 'dep-456',
+    title: 'Dependency Issue',
+    priority: 2,
+    created_at: '2026-01-23T00:00:00Z',
+    updated_at: '2026-01-23T00:00:00Z',
+    status: 'open',
+    dependency_type: 'blocks',
     ...overrides,
   };
 }
@@ -304,6 +344,294 @@ describe('IssueDetailPanel', () => {
       // Click on the panel itself - should not close
       fireEvent.click(screen.getByTestId('issue-detail-panel'));
       expect(onClose).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('CollapsibleSection', () => {
+    it('renders design section expanded by default for short content', () => {
+      const mockIssue = createTestIssueDetails({
+        design: 'Short design text',
+      });
+      render(
+        <IssueDetailPanel isOpen={true} issue={mockIssue} onClose={() => {}} />
+      );
+      const designSection = screen.getByTestId('design-section');
+      const button = within(designSection).getByRole('button');
+      expect(button).toHaveAttribute('aria-expanded', 'true');
+    });
+
+    it('renders design section collapsed by default for long content', () => {
+      const longDesign = 'A'.repeat(250); // More than 200 chars
+      const mockIssue = createTestIssueDetails({
+        design: longDesign,
+      });
+      render(
+        <IssueDetailPanel isOpen={true} issue={mockIssue} onClose={() => {}} />
+      );
+      const designSection = screen.getByTestId('design-section');
+      const button = within(designSection).getByRole('button');
+      expect(button).toHaveAttribute('aria-expanded', 'false');
+    });
+
+    it('toggles expanded state when section header is clicked', () => {
+      const mockIssue = createTestIssueDetails({
+        design: 'Some design content',
+      });
+      render(
+        <IssueDetailPanel isOpen={true} issue={mockIssue} onClose={() => {}} />
+      );
+      const designSection = screen.getByTestId('design-section');
+      const button = within(designSection).getByRole('button');
+
+      // Initially expanded
+      expect(button).toHaveAttribute('aria-expanded', 'true');
+
+      // Click to collapse
+      fireEvent.click(button);
+      expect(button).toHaveAttribute('aria-expanded', 'false');
+
+      // Click to expand again
+      fireEvent.click(button);
+      expect(button).toHaveAttribute('aria-expanded', 'true');
+    });
+
+    it('shows collapsible section title', () => {
+      const mockIssue = createTestIssueDetails({
+        design: 'Design content',
+      });
+      render(
+        <IssueDetailPanel isOpen={true} issue={mockIssue} onClose={() => {}} />
+      );
+      const designSection = screen.getByTestId('design-section');
+      expect(within(designSection).getByText('Design')).toBeInTheDocument();
+    });
+
+    it('hides content when collapsed', () => {
+      const mockIssue = createTestIssueDetails({
+        design: 'Visible design content',
+      });
+      render(
+        <IssueDetailPanel isOpen={true} issue={mockIssue} onClose={() => {}} />
+      );
+      const designSection = screen.getByTestId('design-section');
+      const button = within(designSection).getByRole('button');
+
+      // Content visible when expanded
+      expect(screen.getByText('Visible design content')).toBeInTheDocument();
+
+      // Collapse the section
+      fireEvent.click(button);
+
+      // Content should be hidden
+      expect(screen.queryByText('Visible design content')).not.toBeInTheDocument();
+    });
+
+    it('renders notes section when notes provided', () => {
+      const mockIssue = createTestIssueDetails({
+        notes: 'Some notes content',
+      });
+      render(
+        <IssueDetailPanel isOpen={true} issue={mockIssue} onClose={() => {}} />
+      );
+      expect(screen.getByTestId('notes-section')).toBeInTheDocument();
+      expect(screen.getByText('Notes')).toBeInTheDocument();
+    });
+  });
+
+  describe('BlockingBanner', () => {
+    it('shows blocking banner when issue has open dependencies', () => {
+      const mockIssue = createTestIssueDetails({
+        dependencies: [
+          createTestDependency({ id: 'dep-1', status: 'open' }),
+          createTestDependency({ id: 'dep-2', status: 'open' }),
+        ],
+      });
+      render(
+        <IssueDetailPanel isOpen={true} issue={mockIssue} onClose={() => {}} />
+      );
+      const banner = screen.getByTestId('blocking-banner');
+      expect(banner).toBeInTheDocument();
+      expect(banner).toHaveTextContent('Blocked by 2 issues');
+    });
+
+    it('shows singular text when blocked by 1 issue', () => {
+      const mockIssue = createTestIssueDetails({
+        dependencies: [createTestDependency({ id: 'dep-1', status: 'open' })],
+      });
+      render(
+        <IssueDetailPanel isOpen={true} issue={mockIssue} onClose={() => {}} />
+      );
+      const banner = screen.getByTestId('blocking-banner');
+      expect(banner).toHaveTextContent('Blocked by 1 issue');
+    });
+
+    it('does not show banner when all dependencies are closed', () => {
+      const mockIssue = createTestIssueDetails({
+        dependencies: [
+          createTestDependency({ id: 'dep-1', status: 'closed' }),
+          createTestDependency({ id: 'dep-2', status: 'closed' }),
+        ],
+      });
+      render(
+        <IssueDetailPanel isOpen={true} issue={mockIssue} onClose={() => {}} />
+      );
+      expect(screen.queryByTestId('blocking-banner')).not.toBeInTheDocument();
+    });
+
+    it('does not show banner when no dependencies', () => {
+      const mockIssue = createTestIssueDetails({
+        dependencies: [],
+      });
+      render(
+        <IssueDetailPanel isOpen={true} issue={mockIssue} onClose={() => {}} />
+      );
+      expect(screen.queryByTestId('blocking-banner')).not.toBeInTheDocument();
+    });
+
+    it('counts only open dependencies (excludes closed)', () => {
+      const mockIssue = createTestIssueDetails({
+        dependencies: [
+          createTestDependency({ id: 'dep-1', status: 'open' }),
+          createTestDependency({ id: 'dep-2', status: 'closed' }),
+          createTestDependency({ id: 'dep-3', status: 'in_progress' }),
+        ],
+      });
+      render(
+        <IssueDetailPanel isOpen={true} issue={mockIssue} onClose={() => {}} />
+      );
+      const banner = screen.getByTestId('blocking-banner');
+      // Only open and in_progress count as blockers (not closed)
+      expect(banner).toHaveTextContent('Blocked by 2 issues');
+    });
+  });
+
+  describe('Metadata bar', () => {
+    it('renders issue type', () => {
+      const mockIssue = createTestIssueDetails({
+        issue_type: 'bug',
+      });
+      render(
+        <IssueDetailPanel isOpen={true} issue={mockIssue} onClose={() => {}} />
+      );
+      const typeItem = screen.getByTestId('metadata-type');
+      expect(typeItem).toHaveTextContent('Bug');
+    });
+
+    it('defaults to Task when issue_type is undefined', () => {
+      const mockIssue = createTestIssueDetails({
+        issue_type: undefined,
+      });
+      render(
+        <IssueDetailPanel isOpen={true} issue={mockIssue} onClose={() => {}} />
+      );
+      const typeItem = screen.getByTestId('metadata-type');
+      expect(typeItem).toHaveTextContent('Task');
+    });
+
+    it('renders owner when provided', () => {
+      const mockIssue = createTestIssueDetails({
+        owner: 'john-doe',
+      });
+      render(
+        <IssueDetailPanel isOpen={true} issue={mockIssue} onClose={() => {}} />
+      );
+      const ownerItem = screen.getByTestId('metadata-owner');
+      expect(ownerItem).toHaveTextContent('john-doe');
+    });
+
+    it('does not render owner when not provided', () => {
+      const mockIssue = createTestIssueDetails({
+        owner: undefined,
+      });
+      render(
+        <IssueDetailPanel isOpen={true} issue={mockIssue} onClose={() => {}} />
+      );
+      expect(screen.queryByTestId('metadata-owner')).not.toBeInTheDocument();
+    });
+
+    it('renders assignee with @ prefix', () => {
+      const mockIssue = createTestIssueDetails({
+        assignee: 'jane-smith',
+      });
+      render(
+        <IssueDetailPanel isOpen={true} issue={mockIssue} onClose={() => {}} />
+      );
+      const assigneeItem = screen.getByTestId('metadata-assignee');
+      expect(assigneeItem).toHaveTextContent('@jane-smith');
+    });
+
+    it('does not render assignee when not provided', () => {
+      const mockIssue = createTestIssueDetails({
+        assignee: undefined,
+      });
+      render(
+        <IssueDetailPanel isOpen={true} issue={mockIssue} onClose={() => {}} />
+      );
+      expect(screen.queryByTestId('metadata-assignee')).not.toBeInTheDocument();
+    });
+
+    it('renders created date formatted correctly', () => {
+      const mockIssue = createTestIssueDetails({
+        created_at: '2026-01-15T10:30:00Z',
+      });
+      render(
+        <IssueDetailPanel isOpen={true} issue={mockIssue} onClose={() => {}} />
+      );
+      const createdItem = screen.getByTestId('metadata-created');
+      expect(createdItem).toHaveTextContent('Created: Jan 15, 2026');
+    });
+
+    it('renders all issue types correctly', () => {
+      const testCases = [
+        { type: 'epic', expected: 'Epic' },
+        { type: 'feature', expected: 'Feature' },
+        { type: 'bug', expected: 'Bug' },
+        { type: 'task', expected: 'Task' },
+      ] as const;
+
+      for (const { type, expected } of testCases) {
+        const mockIssue = createTestIssueDetails({ issue_type: type });
+        const { unmount } = render(
+          <IssueDetailPanel isOpen={true} issue={mockIssue} onClose={() => {}} />
+        );
+        expect(screen.getByTestId('metadata-type')).toHaveTextContent(expected);
+        unmount();
+      }
+    });
+  });
+
+  describe('Design section with MarkdownRenderer', () => {
+    it('renders design content using MarkdownRenderer', () => {
+      const mockIssue = createTestIssueDetails({
+        design: 'Some **bold** design text',
+      });
+      render(
+        <IssueDetailPanel isOpen={true} issue={mockIssue} onClose={() => {}} />
+      );
+      // MarkdownRenderer uses data-testid="markdown-content"
+      expect(screen.getByTestId('markdown-content')).toBeInTheDocument();
+    });
+
+    it('does not render design section when design is empty', () => {
+      const mockIssue = createTestIssueDetails({
+        design: undefined,
+      });
+      render(
+        <IssueDetailPanel isOpen={true} issue={mockIssue} onClose={() => {}} />
+      );
+      expect(screen.queryByTestId('design-section')).not.toBeInTheDocument();
+    });
+
+    it('renders markdown formatting in design content', () => {
+      const mockIssue = createTestIssueDetails({
+        design: '# Heading\n\n- List item 1\n- List item 2',
+      });
+      render(
+        <IssueDetailPanel isOpen={true} issue={mockIssue} onClose={() => {}} />
+      );
+      const designSection = screen.getByTestId('design-section');
+      // Check that markdown was rendered (heading becomes h1)
+      expect(within(designSection).getByRole('heading', { level: 1 })).toHaveTextContent('Heading');
     });
   });
 });

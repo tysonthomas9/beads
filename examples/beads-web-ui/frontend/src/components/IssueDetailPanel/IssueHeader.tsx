@@ -1,14 +1,25 @@
 /**
  * IssueHeader component.
- * Header area with ID, status badge, and close button for IssueDetailPanel.
+ * Header area with ID, status badge, priority, and close button for IssueDetailPanel.
  */
 
-import type { Issue, IssueDetails } from '@/types';
+import type { Issue, IssueDetails, Priority } from '@/types';
 import type { Status } from '@/types/status';
 import { EditableTitle } from '../EditableTitle';
 import { StatusDropdown } from '../StatusDropdown';
 import { formatStatusLabel } from '../StatusColumn/utils';
 import styles from './IssueHeader.module.css';
+
+/**
+ * Priority display info.
+ */
+const PRIORITY_LABELS: Record<number, { short: string; full: string }> = {
+  0: { short: 'P0', full: 'Critical' },
+  1: { short: 'P1', full: 'High' },
+  2: { short: 'P2', full: 'Medium' },
+  3: { short: 'P3', full: 'Normal' },
+  4: { short: 'P4', full: 'Backlog' },
+};
 
 /**
  * Props for the IssueHeader component.
@@ -26,6 +37,12 @@ export interface IssueHeaderProps {
   onStatusChange?: (status: Status) => Promise<void>;
   /** Whether status is being saved */
   isSavingStatus?: boolean;
+  /** Whether to show priority badge in header */
+  showPriority?: boolean;
+  /** Callback when priority badge is clicked */
+  onPriorityClick?: () => void;
+  /** Enable sticky mode styling */
+  sticky?: boolean;
   /** Additional CSS class name */
   className?: string;
 }
@@ -43,6 +60,7 @@ function formatStatus(status?: string): string {
  * Contains:
  * - Issue ID
  * - Status badge with semantic colors
+ * - Priority badge (optional)
  * - Close button
  * - Title (editable when onTitleSave provided)
  */
@@ -53,9 +71,20 @@ export function IssueHeader({
   isSavingTitle,
   onStatusChange,
   isSavingStatus,
+  showPriority,
+  onPriorityClick,
+  sticky,
   className,
 }: IssueHeaderProps): JSX.Element {
-  const rootClassName = [styles.issueHeader, className].filter(Boolean).join(' ');
+  const rootClassName = [
+    styles.issueHeader,
+    sticky && styles.sticky,
+    className,
+  ].filter(Boolean).join(' ');
+
+  const priority = issue.priority as Priority;
+  const defaultPriorityInfo = { short: 'P2', full: 'Medium' };
+  const priorityInfo = PRIORITY_LABELS[priority] ?? defaultPriorityInfo;
 
   return (
     <header className={rootClassName} data-testid="issue-header">
@@ -78,6 +107,18 @@ export function IssueHeader({
           >
             {formatStatus(issue.status)}
           </span>
+        )}
+        {showPriority && (
+          <button
+            type="button"
+            className={styles.priorityBadge}
+            data-priority={priority}
+            onClick={onPriorityClick}
+            aria-label={`Priority: ${priorityInfo.short} - ${priorityInfo.full}`}
+            data-testid="header-priority-badge"
+          >
+            {priorityInfo.short}
+          </button>
         )}
         <button
           className={styles.closeButton}

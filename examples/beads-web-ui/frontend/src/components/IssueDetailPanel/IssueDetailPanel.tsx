@@ -1,6 +1,8 @@
 /**
  * IssueDetailPanel component.
  * Slide-out side panel that displays detailed information about a selected issue.
+ * Features improved information hierarchy with sticky header, collapsible sections,
+ * and markdown rendering for design field.
  */
 
 import { useEffect, useRef, useState, useCallback } from 'react';
@@ -9,6 +11,7 @@ import type { Status } from '@/types/status';
 import { updateIssue, addDependency, removeDependency } from '@/api';
 import { IssueHeader } from './IssueHeader';
 import { EditableDescription } from './EditableDescription';
+import { MarkdownRenderer } from './MarkdownRenderer';
 import { PriorityDropdown } from './PriorityDropdown';
 import { TypeDropdown } from './TypeDropdown';
 import { DependencySection } from './DependencySection';
@@ -16,6 +19,126 @@ import { CommentsSection } from './CommentsSection';
 import { CommentForm } from './CommentForm';
 import { ErrorToast } from '../ErrorToast';
 import styles from './IssueDetailPanel.module.css';
+
+/**
+ * Props for CollapsibleSection.
+ */
+interface CollapsibleSectionProps {
+  title: string;
+  count?: number;
+  defaultExpanded?: boolean;
+  children: React.ReactNode;
+  testId?: string;
+}
+
+/**
+ * Collapsible section with chevron indicator.
+ */
+function CollapsibleSection({
+  title,
+  count,
+  defaultExpanded = true,
+  children,
+  testId,
+}: CollapsibleSectionProps): JSX.Element {
+  const [isExpanded, setIsExpanded] = useState(defaultExpanded);
+
+  return (
+    <section className={styles.collapsibleSection} data-testid={testId}>
+      <button
+        type="button"
+        className={styles.collapsibleHeader}
+        onClick={() => setIsExpanded(!isExpanded)}
+        aria-expanded={isExpanded}
+      >
+        <span className={styles.collapsibleTitle}>
+          {title}
+          {count !== undefined && (
+            <span className={styles.collapsibleCount}>({count})</span>
+          )}
+        </span>
+        <svg
+          className={`${styles.chevron} ${isExpanded ? styles.chevronExpanded : ''}`}
+          viewBox="0 0 16 16"
+          fill="none"
+          aria-hidden="true"
+        >
+          <path
+            d="M6 4l4 4-4 4"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+      </button>
+      {isExpanded && (
+        <div className={styles.collapsibleContent}>{children}</div>
+      )}
+    </section>
+  );
+}
+
+/**
+ * Blocking banner component - shows when issue has open dependencies.
+ * Displays as a visual indicator (non-interactive).
+ */
+interface BlockingBannerProps {
+  openBlockerCount: number;
+}
+
+function BlockingBanner({ openBlockerCount }: BlockingBannerProps): JSX.Element | null {
+  if (openBlockerCount === 0) return null;
+
+  return (
+    <div
+      className={styles.blockingBanner}
+      role="alert"
+      data-testid="blocking-banner"
+    >
+      <svg viewBox="0 0 16 16" fill="none" aria-hidden="true">
+        <path
+          d="M8 1L1 15h14L8 1z"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        <path
+          d="M8 6v3M8 11.5v.5"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          strokeLinecap="round"
+        />
+      </svg>
+      Blocked by {openBlockerCount} {openBlockerCount === 1 ? 'issue' : 'issues'}
+    </div>
+  );
+}
+
+/**
+ * Format issue type for display.
+ */
+function formatIssueType(type: IssueType | undefined): string {
+  if (!type) return 'Task';
+  if (type === 'epic') return 'Epic';
+  if (type === 'task') return 'Task';
+  if (type === 'bug') return 'Bug';
+  if (type === 'feature') return 'Feature';
+  return type;
+}
+
+/**
+ * Format date for display.
+ */
+function formatDate(dateString: string): string {
+  const date = new Date(dateString);
+  return date.toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
+}
 
 /**
  * Props for the IssueDetailPanel component.
@@ -224,126 +347,169 @@ function DefaultContent({
   const dependencies = issueHasDetails ? issue.dependencies : undefined;
   const dependents = issueHasDetails ? issue.dependents : undefined;
 
+  // Calculate open blocker count for banner
+  const openBlockerCount = dependencies?.filter(d => d.status !== 'closed').length ?? 0;
+
+  // Auto-collapse logic for Design/Notes (collapse if long)
+  const shouldCollapseDesign = issue.design &&
+    (issue.design.length > 200 || issue.design.split('\n').length > 5);
+  const shouldCollapseNotes = issue.notes &&
+    (issue.notes.length > 200 || issue.notes.split('\n').length > 5);
+
   return (
     <>
-      {/* Header with ID, status dropdown, close button, and title */}
-      <IssueHeader
-        issue={issue}
-        onClose={onClose}
-        onTitleSave={handleTitleSave}
-        isSavingTitle={isSavingTitle}
-        onStatusChange={handleStatusChange}
-        isSavingStatus={isSavingStatus}
-      />
-
-      <div className={styles.detailContent}>
-        {/* Status Row (priority and type dropdowns, status moved to header) */}
-        <div className={styles.statusRow}>
-          <PriorityDropdown
-            priority={issue.priority as Priority}
-            onSave={handlePrioritySave}
-            isSaving={isSavingPriority}
-          />
-          <TypeDropdown
-            type={issue.issue_type}
-            onSave={handleTypeSave}
-            isSaving={isSavingType}
-          />
-        </div>
-
-        {/* Description */}
-        <section className={styles.section}>
-          <h3 className={styles.sectionTitle}>Description</h3>
-          <EditableDescription
-            description={issue.description}
-            isEditable={true}
-            onSave={async (newDescription) => {
-              const updatedIssue = await updateIssue(issue.id, { description: newDescription });
-              onIssueUpdate?.(updatedIssue);
-            }}
-          />
-        </section>
-
-        {/* Comments */}
-        <CommentsSection comments={localComments} />
-        <CommentForm
-          issueId={issue.id}
-          onCommentAdded={handleCommentAdded}
+      {/* Sticky Header Wrapper */}
+      <div className={styles.stickyHeaderWrapper}>
+        {/* Header with ID, status dropdown, priority badge, close button, and title */}
+        <IssueHeader
+          issue={issue}
+          onClose={onClose}
+          onTitleSave={handleTitleSave}
+          isSavingTitle={isSavingTitle}
+          onStatusChange={handleStatusChange}
+          isSavingStatus={isSavingStatus}
+          showPriority={true}
+          sticky={true}
         />
 
-        {/* Assignment */}
-        {(issue.assignee || issue.owner) && (
-          <section className={styles.section}>
-            <h3 className={styles.sectionTitle}>Assignment</h3>
-            <dl className={styles.metadata}>
-              {issue.assignee && (
-                <>
-                  <dt>Assignee</dt>
-                  <dd>{issue.assignee}</dd>
-                </>
-              )}
-              {issue.owner && (
-                <>
-                  <dt>Owner</dt>
-                  <dd>{issue.owner}</dd>
-                </>
-              )}
-            </dl>
-          </section>
-        )}
+        {/* Metadata Bar */}
+        <div className={styles.metadataBar}>
+          <span className={styles.metadataItem} data-testid="metadata-type">
+            <svg viewBox="0 0 16 16" fill="none" aria-hidden="true">
+              <path
+                d="M2 4h12M2 8h12M2 12h8"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+              />
+            </svg>
+            {formatIssueType(issue.issue_type)}
+          </span>
+          {issue.owner && (
+            <span className={styles.metadataItem} data-testid="metadata-owner">
+              <svg viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                <circle cx="8" cy="5" r="3" stroke="currentColor" strokeWidth="1.5" />
+                <path d="M2 14c0-2.5 2.5-4 6-4s6 1.5 6 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+              </svg>
+              {issue.owner}
+            </span>
+          )}
+          {issue.assignee && (
+            <span className={styles.metadataItem} data-testid="metadata-assignee">
+              <svg viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                <circle cx="8" cy="5" r="3" stroke="currentColor" strokeWidth="1.5" />
+                <path d="M2 14c0-2.5 2.5-4 6-4s6 1.5 6 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+              </svg>
+              @{issue.assignee}
+            </span>
+          )}
+          {issue.created_at && (
+            <span className={styles.metadataItem} data-testid="metadata-created">
+              Created: {formatDate(issue.created_at)}
+            </span>
+          )}
+        </div>
+      </div>
 
-        {/* Labels */}
-        {issue.labels && issue.labels.length > 0 && (
-          <section className={styles.section}>
-            <h3 className={styles.sectionTitle}>Labels</h3>
-            <div className={styles.labels}>
-              {issue.labels.map((label) => (
-                <span key={label} className={styles.label}>
-                  {label}
-                </span>
-              ))}
-            </div>
-          </section>
-        )}
+      {/* Blocking Banner */}
+      <BlockingBanner openBlockerCount={openBlockerCount} />
 
-        {/* Dependencies (blocking this issue) - editable */}
-        {hasDetails && (
-          <DependencySection
+      {/* Scrollable Content */}
+      <div className={styles.scrollableContent}>
+        <div className={styles.detailContent}>
+          {/* Priority/Type dropdowns for editing */}
+          <div className={styles.statusRow}>
+            <PriorityDropdown
+              priority={issue.priority as Priority}
+              onSave={handlePrioritySave}
+              isSaving={isSavingPriority}
+            />
+            <TypeDropdown
+              type={issue.issue_type}
+              onSave={handleTypeSave}
+              isSaving={isSavingType}
+            />
+          </div>
+
+          {/* Description */}
+          <section className={styles.section}>
+            <h3 className={styles.sectionTitle}>Description</h3>
+            <EditableDescription
+              description={issue.description}
+              isEditable={true}
+              onSave={async (newDescription) => {
+                const updatedIssue = await updateIssue(issue.id, { description: newDescription });
+                onIssueUpdate?.(updatedIssue);
+              }}
+            />
+          </section>
+
+          {/* Design (collapsible, markdown rendered) */}
+          {issue.design && (
+            <CollapsibleSection
+              title="Design"
+              defaultExpanded={!shouldCollapseDesign}
+              testId="design-section"
+            >
+              <MarkdownRenderer content={issue.design} />
+            </CollapsibleSection>
+          )}
+
+          {/* Notes (collapsible) */}
+          {issue.notes && (
+            <CollapsibleSection
+              title="Notes"
+              defaultExpanded={!shouldCollapseNotes}
+              testId="notes-section"
+            >
+              <MarkdownRenderer content={issue.notes} />
+            </CollapsibleSection>
+          )}
+
+          {/* Dependencies (blocking this issue) - editable */}
+          {hasDetails && (
+            <DependencySection
+              issueId={issue.id}
+              dependencies={dependencies ?? []}
+              onAddDependency={handleAddDependency}
+              onRemoveDependency={handleRemoveDependency}
+              disabled={isLoading}
+            />
+          )}
+
+          {/* Dependents (this issue blocks) */}
+          {dependents && dependents.length > 0 && (
+            <section className={styles.section}>
+              <h3 className={styles.sectionTitle}>
+                Blocks ({dependents.length})
+              </h3>
+              <ul className={styles.dependencyList}>
+                {dependents.map(renderDependencyItem)}
+              </ul>
+            </section>
+          )}
+
+          {/* Comments */}
+          <CommentsSection comments={localComments} />
+          <CommentForm
             issueId={issue.id}
-            dependencies={dependencies ?? []}
-            onAddDependency={handleAddDependency}
-            onRemoveDependency={handleRemoveDependency}
-            disabled={isLoading}
+            onCommentAdded={handleCommentAdded}
           />
-        )}
 
-        {/* Dependents (this issue blocks) */}
-        {dependents && dependents.length > 0 && (
-          <section className={styles.section}>
-            <h3 className={styles.sectionTitle}>
-              Blocks ({dependents.length})
-            </h3>
-            <ul className={styles.dependencyList}>
-              {dependents.map(renderDependencyItem)}
-            </ul>
-          </section>
-        )}
-
-        {/* Design (if present) */}
-        {issue.design && (
-          <section className={styles.section}>
-            <h3 className={styles.sectionTitle}>Design</h3>
-            <pre className={styles.design}>{issue.design}</pre>
-          </section>
-        )}
-
-        {/* Notes (if present) */}
-        {issue.notes && (
-          <section className={styles.section}>
-            <h3 className={styles.sectionTitle}>Notes</h3>
-            <p className={styles.notes}>{issue.notes}</p>
-          </section>
-        )}
+          {/* Labels */}
+          {issue.labels && issue.labels.length > 0 && (
+            <section className={styles.section}>
+              <h3 className={styles.sectionTitle}>Labels</h3>
+              <div className={styles.labels}>
+                {issue.labels.map((label) => (
+                  <span key={label} className={styles.label}>
+                    {label}
+                  </span>
+                ))}
+              </div>
+            </section>
+          )}
+        </div>
       </div>
 
       {/* Error toast for status change failures */}
