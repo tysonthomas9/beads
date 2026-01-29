@@ -3,33 +3,33 @@
  * Provides memoized filtering with type-safe criteria.
  */
 
-import { useMemo } from 'react'
-import type { Issue, Status, Priority, IssueType } from '@/types'
+import { useMemo } from 'react';
+import type { Issue, Status, Priority, IssueType } from '@/types';
 
 /**
  * Options for the useIssueFilter hook.
  */
 export interface UseIssueFilterOptions {
   /** Search term for text matching (title/description/notes) */
-  searchTerm?: string
+  searchTerm?: string;
   /** Filter by status */
-  status?: Status
+  status?: Status;
   /** Filter by priority (exact match) */
-  priority?: Priority
+  priority?: Priority;
   /** Filter by priority range (minimum) */
-  priorityMin?: Priority
+  priorityMin?: Priority;
   /** Filter by priority range (maximum) */
-  priorityMax?: Priority
+  priorityMax?: Priority;
   /** Filter by issue type */
-  issueType?: IssueType
+  issueType?: IssueType;
   /** Filter by assignee (exact match) */
-  assignee?: string
+  assignee?: string;
   /** Only show unassigned issues */
-  unassigned?: boolean
+  unassigned?: boolean;
   /** Filter by labels (all must match) */
-  labels?: string[]
+  labels?: string[];
   /** Filter by labels (any must match) */
-  labelsAny?: string[]
+  labelsAny?: string[];
 }
 
 /**
@@ -37,15 +37,15 @@ export interface UseIssueFilterOptions {
  */
 export interface UseIssueFilterReturn {
   /** Filtered array of issues */
-  filteredIssues: Issue[]
+  filteredIssues: Issue[];
   /** Count of filtered issues */
-  count: number
+  count: number;
   /** Total count before filtering */
-  totalCount: number
+  totalCount: number;
   /** Whether any filters are active */
-  hasActiveFilters: boolean
+  hasActiveFilters: boolean;
   /** List of active filter names for UI display */
-  activeFilters: string[]
+  activeFilters: string[];
 }
 
 /**
@@ -54,24 +54,27 @@ export interface UseIssueFilterReturn {
  * Defensively handles null/undefined values that may occur at runtime.
  */
 function matchesSearchTerm(issue: Issue, term: string): boolean {
-  const normalizedTerm = term.toLowerCase()
+  const normalizedTerm = term.toLowerCase();
 
   // Check title (guard against null/undefined)
   if (typeof issue.title === 'string' && issue.title.toLowerCase().includes(normalizedTerm)) {
-    return true
+    return true;
   }
 
   // Check description (guard against null/undefined)
-  if (typeof issue.description === 'string' && issue.description.toLowerCase().includes(normalizedTerm)) {
-    return true
+  if (
+    typeof issue.description === 'string' &&
+    issue.description.toLowerCase().includes(normalizedTerm)
+  ) {
+    return true;
   }
 
   // Check notes (guard against null/undefined)
   if (typeof issue.notes === 'string' && issue.notes.toLowerCase().includes(normalizedTerm)) {
-    return true
+    return true;
   }
 
-  return false
+  return false;
 }
 
 /**
@@ -80,97 +83,97 @@ function matchesSearchTerm(issue: Issue, term: string): boolean {
 function matchesFilters(issue: Issue, options: UseIssueFilterOptions): boolean {
   // Status filter
   if (options.status !== undefined && issue.status !== options.status) {
-    return false
+    return false;
   }
 
   // Priority exact match
   if (options.priority !== undefined && issue.priority !== options.priority) {
-    return false
+    return false;
   }
 
   // Priority range (min)
   if (options.priorityMin !== undefined && issue.priority < options.priorityMin) {
-    return false
+    return false;
   }
 
   // Priority range (max)
   if (options.priorityMax !== undefined && issue.priority > options.priorityMax) {
-    return false
+    return false;
   }
 
   // Issue type filter
   if (options.issueType !== undefined && issue.issue_type !== options.issueType) {
-    return false
+    return false;
   }
 
   // Assignee filter (exact takes precedence over unassigned)
   if (options.assignee !== undefined) {
     if (issue.assignee !== options.assignee) {
-      return false
+      return false;
     }
   } else if (options.unassigned === true) {
     // Only check unassigned if assignee filter is not set
     if (issue.assignee !== undefined && issue.assignee !== '') {
-      return false
+      return false;
     }
   }
 
   // Labels filter (all must match)
   if (options.labels !== undefined && options.labels.length > 0) {
-    const issueLabels = issue.labels ?? []
-    const allLabelsMatch = options.labels.every((label) => issueLabels.includes(label))
+    const issueLabels = issue.labels ?? [];
+    const allLabelsMatch = options.labels.every((label) => issueLabels.includes(label));
     if (!allLabelsMatch) {
-      return false
+      return false;
     }
   }
 
   // Labels filter (any must match)
   if (options.labelsAny !== undefined && options.labelsAny.length > 0) {
-    const issueLabels = issue.labels ?? []
-    const anyLabelMatches = options.labelsAny.some((label) => issueLabels.includes(label))
+    const issueLabels = issue.labels ?? [];
+    const anyLabelMatches = options.labelsAny.some((label) => issueLabels.includes(label));
     if (!anyLabelMatches) {
-      return false
+      return false;
     }
   }
 
-  return true
+  return true;
 }
 
 /**
  * Get list of active filter names for UI display.
  */
 function getActiveFilters(options: UseIssueFilterOptions): string[] {
-  const active: string[] = []
+  const active: string[] = [];
 
   if (options.searchTerm && options.searchTerm.trim() !== '') {
-    active.push('search')
+    active.push('search');
   }
   if (options.status !== undefined) {
-    active.push('status')
+    active.push('status');
   }
   if (options.priority !== undefined) {
-    active.push('priority')
+    active.push('priority');
   }
   if (options.priorityMin !== undefined || options.priorityMax !== undefined) {
-    active.push('priorityRange')
+    active.push('priorityRange');
   }
   if (options.issueType !== undefined) {
-    active.push('type')
+    active.push('type');
   }
   if (options.assignee !== undefined) {
-    active.push('assignee')
+    active.push('assignee');
   }
   if (options.unassigned === true) {
-    active.push('unassigned')
+    active.push('unassigned');
   }
   if (options.labels !== undefined && options.labels.length > 0) {
-    active.push('labels')
+    active.push('labels');
   }
   if (options.labelsAny !== undefined && options.labelsAny.length > 0) {
-    active.push('labelsAny')
+    active.push('labelsAny');
   }
 
-  return active
+  return active;
 }
 
 /**
@@ -207,72 +210,38 @@ export function useIssueFilter(
   issues: Issue[],
   options: UseIssueFilterOptions
 ): UseIssueFilterReturn {
-  // Destructure options for stable memoization dependencies
-  const {
-    searchTerm,
-    status,
-    priority,
-    priorityMin,
-    priorityMax,
-    issueType,
-    assignee,
-    unassigned,
-    labels,
-    labelsAny,
-  } = options
+  // Destructure searchTerm for normalization
+  const { searchTerm } = options;
 
   // Calculate active filters first (used for memoization key and return value)
-  // Using specific dependencies instead of entire options object to prevent unnecessary re-computations
-  const activeFilters = useMemo(
-    () => getActiveFilters(options),
-    [searchTerm, status, priority, priorityMin, priorityMax, issueType, assignee, unassigned, labels, labelsAny]
-  )
+  const activeFilters = useMemo(() => getActiveFilters(options), [options]);
 
-  const hasActiveFilters = activeFilters.length > 0
+  const hasActiveFilters = activeFilters.length > 0;
 
   // Normalize search term
   const normalizedSearchTerm = useMemo(() => {
-    return searchTerm?.trim() ?? ''
-  }, [searchTerm])
+    return searchTerm?.trim() ?? '';
+  }, [searchTerm]);
 
   // Memoized filtered issues
-  // Using specific dependencies to avoid re-filtering when options object reference changes
-  // Note: labels and labelsAny arrays may cause re-computation if their reference changes,
-  // but this is acceptable as the cost of JSON.stringify comparison would be higher
   const filteredIssues = useMemo(() => {
     // If no filters active, return original array
     if (!hasActiveFilters) {
-      return issues
+      return issues;
     }
 
     return issues.filter((issue) => {
       // Check search term first (if provided)
       if (normalizedSearchTerm !== '') {
         if (!matchesSearchTerm(issue, normalizedSearchTerm)) {
-          return false
+          return false;
         }
       }
 
       // Check all other filters
-      return matchesFilters(issue, options)
-    })
-  }, [
-    issues,
-    normalizedSearchTerm,
-    hasActiveFilters,
-    status,
-    priority,
-    priorityMin,
-    priorityMax,
-    issueType,
-    assignee,
-    unassigned,
-    labels,
-    labelsAny,
-    // Note: options is still passed to matchesFilters for convenience, but the
-    // individual properties above control memoization
-    options,
-  ])
+      return matchesFilters(issue, options);
+    });
+  }, [issues, normalizedSearchTerm, hasActiveFilters, options]);
 
   return {
     filteredIssues,
@@ -280,5 +249,5 @@ export function useIssueFilter(
     totalCount: issues.length,
     hasActiveFilters,
     activeFilters,
-  }
+  };
 }
