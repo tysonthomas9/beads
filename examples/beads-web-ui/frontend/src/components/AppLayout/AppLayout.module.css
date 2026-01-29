@@ -43,7 +43,7 @@
 
 .navigation {
   flex: 1;
-  min-width: 0; /* Allows flex item to shrink below content width */
+  min-width: 200px; /* Prevent excessive shrinking */
   display: flex;
   justify-content: center;
 }
@@ -53,6 +53,8 @@
   display: flex;
   align-items: center;
   gap: var(--space-3);
+  padding-left: var(--space-3);
+  border-left: 1px solid var(--color-border); /* Visual separator */
 }
 
 .contentWrapper {
@@ -70,12 +72,49 @@
   padding: var(--space-4);
 }
 
+/* Responsive: tablet adjustments */
+@media (max-width: 1024px) {
+  .headerContent {
+    gap: var(--space-3);
+  }
+
+  .navigation {
+    min-width: 150px;
+  }
+}
+
+/* Responsive: small tablet adjustments */
+@media (max-width: 768px) {
+  .headerContent {
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-3);
+  }
+
+  .navigation {
+    min-width: 100px;
+  }
+
+  .actions {
+    padding-left: var(--space-2);
+    gap: var(--space-2);
+  }
+}
+
 /* Responsive: mobile adjustments */
 @media (max-width: 640px) {
   .headerContent {
     padding: var(--space-2) var(--space-3);
     height: 48px;
     gap: var(--space-2);
+  }
+
+  .navigation {
+    min-width: min-content; /* Prevent full collapse while allowing shrinking */
+  }
+
+  .actions {
+    border-left: none; /* Remove separator on mobile */
+    padding-left: 0;
   }
 
   .title {

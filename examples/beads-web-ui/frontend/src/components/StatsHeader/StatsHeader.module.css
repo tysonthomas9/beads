@@ -23,6 +23,8 @@
   font-size: var(--font-size-xs);
   border-radius: var(--radius-sm);
   white-space: nowrap;
+  min-width: 40px; /* Prevent collapse with large numbers */
+  border: 1px solid transparent; /* Prevents layout shift when variant borders applied */
 }
 
 .value {
@@ -38,38 +40,42 @@
  * Variant Colors
  * =========================== */
 .open {
-  background-color: color-mix(in srgb, var(--color-status-open) 15%, transparent);
+  background-color: color-mix(in srgb, var(--color-status-open) 20%, transparent);
   color: var(--color-status-open);
+  border-color: color-mix(in srgb, var(--color-status-open) 30%, transparent);
 }
 
 .open .label {
   color: var(--color-status-open);
-  opacity: 0.8;
+  opacity: 0.9;
 }
 
 .progress {
-  background-color: color-mix(in srgb, var(--color-warning) 15%, transparent);
+  background-color: color-mix(in srgb, var(--color-warning) 20%, transparent);
   color: var(--color-warning);
+  border-color: color-mix(in srgb, var(--color-warning) 30%, transparent);
 }
 
 .progress .label {
   color: var(--color-warning);
-  opacity: 0.8;
+  opacity: 0.9;
 }
 
 .ready {
-  background-color: color-mix(in srgb, var(--color-success) 15%, transparent);
+  background-color: color-mix(in srgb, var(--color-success) 20%, transparent);
   color: var(--color-success);
+  border-color: color-mix(in srgb, var(--color-success) 30%, transparent);
 }
 
 .ready .label {
   color: var(--color-success);
-  opacity: 0.8;
+  opacity: 0.9;
 }
 
 .closed {
   background-color: var(--color-bg-tertiary);
   color: var(--color-text-muted);
+  border-color: var(--color-border);
 }
 
 .closed .label {
@@ -88,8 +94,13 @@
 }
 
 @keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.5; }
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
 }
 
 /* ===========================

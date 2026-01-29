@@ -44,7 +44,8 @@
   border-radius: var(--radius-md);
   cursor: pointer;
   appearance: none;
-  transition: border-color var(--transition-fast),
+  transition:
+    border-color var(--transition-fast),
     background-color var(--transition-fast),
     box-shadow var(--transition-fast);
 }
@@ -71,7 +72,8 @@
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   cursor: pointer;
-  transition: color var(--transition-fast),
+  transition:
+    color var(--transition-fast),
     background-color var(--transition-fast),
     border-color var(--transition-fast);
 }
@@ -106,7 +108,8 @@
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   cursor: pointer;
-  transition: border-color var(--transition-fast),
+  transition:
+    border-color var(--transition-fast),
     background-color var(--transition-fast);
 }
 
@@ -157,7 +160,7 @@
   background-color: var(--color-bg-secondary);
 }
 
-.dropdownItem input[type="checkbox"] {
+.dropdownItem input[type='checkbox'] {
   width: 16px;
   height: 16px;
   accent-color: var(--color-primary);
@@ -173,9 +176,11 @@
   color: var(--color-text-secondary);
   cursor: pointer;
   user-select: none;
+  white-space: nowrap; /* Prevent text wrapping */
+  min-width: fit-content; /* Ensure adequate space */
 }
 
-.checkboxLabel input[type="checkbox"] {
+.checkboxLabel input[type='checkbox'] {
   width: 16px;
   height: 16px;
   accent-color: var(--color-blocked);

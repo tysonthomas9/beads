@@ -8,7 +8,8 @@
  * Used for transient states (connecting/reconnecting)
  * =========================== */
 @keyframes pulse {
-  0%, 100% {
+  0%,
+  100% {
     opacity: 1;
   }
   50% {
@@ -25,11 +26,13 @@
 
 /* Status indicator dot */
 .indicator {
-  width: 8px;
-  height: 8px;
+  width: 10px;
+  height: 10px;
   border-radius: var(--radius-full);
   flex-shrink: 0;
-  transition: background-color var(--transition-fast);
+  transition:
+    background-color var(--transition-fast),
+    box-shadow var(--transition-fast);
 }
 
 /* Status text */
@@ -80,9 +83,12 @@
   animation: pulse 1.5s ease-in-out infinite;
 }
 
-/* Disconnected - danger red */
+/* Disconnected - danger red with glow for visibility */
 .connectionStatus[data-state='disconnected'] .indicator {
   background-color: var(--color-danger);
+  box-shadow:
+    0 0 0 2px color-mix(in srgb, var(--color-danger) 25%, transparent),
+    0 0 6px 1px color-mix(in srgb, var(--color-danger) 40%, transparent);
 }
 
 /* Fallback for unknown state */
@@ -103,7 +109,8 @@
   font-family: var(--font-family-base);
   font-size: var(--font-size-xs);
   cursor: pointer;
-  transition: background-color var(--transition-fast),
+  transition:
+    background-color var(--transition-fast),
     border-color var(--transition-fast);
 }
 
