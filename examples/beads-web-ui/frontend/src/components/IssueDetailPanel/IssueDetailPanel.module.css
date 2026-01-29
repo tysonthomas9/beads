@@ -262,20 +262,16 @@
   text-decoration: line-through;
 }
 
-/* Design & Notes */
-.design {
-  font-family: var(--font-mono);
-  font-size: var(--font-xs);
-  background-color: var(--color-bg-subtle);
-  padding: 12px;
-  border-radius: var(--radius-sm);
-  overflow-x: auto;
-  white-space: pre-wrap;
-  word-break: break-word;
-  margin: 0;
-  max-height: 300px;
+/* Design Content */
+.designContent {
+  max-height: 400px;
   overflow-y: auto;
+  padding: 12px;
+  background-color: var(--color-bg-subtle);
+  border-radius: var(--radius-sm);
 }
+
+/* Notes */
 
 .notes {
   font-size: var(--font-sm);

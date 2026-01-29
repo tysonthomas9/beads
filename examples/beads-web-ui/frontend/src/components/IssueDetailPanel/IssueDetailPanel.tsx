@@ -9,6 +9,7 @@ import type { Status } from '@/types/status';
 import { updateIssue, addDependency, removeDependency } from '@/api';
 import { IssueHeader } from './IssueHeader';
 import { EditableDescription } from './EditableDescription';
+import { MarkdownRenderer } from './MarkdownRenderer';
 import { PriorityDropdown } from './PriorityDropdown';
 import { TypeDropdown } from './TypeDropdown';
 import { DependencySection } from './DependencySection';
@@ -333,7 +334,9 @@ function DefaultContent({
         {issue.design && (
           <section className={styles.section}>
             <h3 className={styles.sectionTitle}>Design</h3>
-            <pre className={styles.design}>{issue.design}</pre>
+            <div className={styles.designContent}>
+              <MarkdownRenderer content={issue.design} />
+            </div>
           </section>
         )}
 
