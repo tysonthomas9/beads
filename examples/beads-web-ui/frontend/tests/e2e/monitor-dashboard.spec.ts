@@ -293,6 +293,38 @@ test.describe("MonitorDashboard", () => {
       const dashboard = page.getByTestId("monitor-dashboard")
       await expect(dashboard).toBeVisible()
     })
+
+    test("monitor view persists after page reload", async ({ page }) => {
+      await setupMocks(page)
+      await navigateAndWait(page, "/")
+
+      // Click Monitor tab to switch view
+      const monitorTab = page.getByTestId("view-tab-monitor")
+      await monitorTab.click()
+
+      // Verify Monitor tab is selected
+      await expect(monitorTab).toHaveAttribute("aria-selected", "true")
+
+      // Verify URL has ?view=monitor
+      expect(page.url()).toContain("view=monitor")
+
+      // Reload the page (re-setup mocks since route handlers may be cleared)
+      await setupMocks(page)
+      const [response] = await Promise.all([
+        page.waitForResponse(
+          (res) => res.url().includes("/api/ready") && res.status() === 200
+        ),
+        page.reload(),
+      ])
+      expect(response.ok()).toBe(true)
+
+      // Verify Monitor tab is still selected after reload
+      await expect(monitorTab).toHaveAttribute("aria-selected", "true")
+
+      // Verify MonitorDashboard is still visible
+      const dashboard = page.getByTestId("monitor-dashboard")
+      await expect(dashboard).toBeVisible()
+    })
   })
 
   test.describe("panel rendering", () => {
@@ -366,6 +398,33 @@ test.describe("MonitorDashboard", () => {
       // Verify expand button exists
       const expandButton = page.getByRole("button", { name: "Expand to full graph view" })
       await expect(expandButton).toBeVisible()
+    })
+
+    test("ProjectHealthPanel shows completion percentage", async ({ page }) => {
+      await setupMocks(page)
+      await navigateAndWait(page, "/?view=monitor")
+
+      // Wait for dashboard and loom status to load
+      const dashboard = page.getByTestId("monitor-dashboard")
+      await expect(dashboard).toBeVisible()
+
+      await page.waitForResponse(
+        (res) => res.url().includes("/api/status") && res.status() === 200,
+        { timeout: 10000 }
+      )
+      await page.waitForTimeout(500)
+
+      // Verify ProjectHealthPanel is visible
+      const healthPanel = page.getByTestId("project-health-panel")
+      await expect(healthPanel).toBeVisible()
+
+      // Verify completion progress bar exists with correct value (33% from mockLoomStatus.stats.completion)
+      const progressBar = healthPanel.getByRole("progressbar", { name: /project completion/i })
+      await expect(progressBar).toBeVisible()
+      await expect(progressBar).toHaveAttribute("aria-valuenow", "33")
+
+      // Verify percentage text is displayed
+      await expect(healthPanel.getByText("33%")).toBeVisible()
     })
   })
 
