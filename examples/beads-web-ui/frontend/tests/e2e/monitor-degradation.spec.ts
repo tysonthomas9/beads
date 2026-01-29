@@ -368,3 +368,221 @@ test.describe("Monitor Dashboard Reconnection & Stale Data", () => {
     await expect(page.getByTestId("pipeline-stage-blocked")).not.toBeVisible()
   })
 })
+
+/**
+ * Set up mocks with ALL data sources returning empty results.
+ * Loom server is available but reports zero agents, zero tasks, zero stats.
+ */
+async function setupEmptyMocks(
+  page: Page,
+  options?: {
+    graphIssues?: object[]
+  }
+) {
+  const graphIssues = options?.graphIssues ?? []
+
+  // Mock beads backend API - all empty
+  await page.route("**/api/ready", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ success: true, data: [] }),
+    })
+  })
+
+  await page.route("**/api/blocked", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ success: true, data: [] }),
+    })
+  })
+
+  await page.route("**/api/issues/graph", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ success: true, data: graphIssues }),
+    })
+  })
+
+  await page.route("**/api/events", async (route) => {
+    await route.abort()
+  })
+
+  await page.route("**/api/stats", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        success: true,
+        data: { open: 0, closed: 0, total: 0, completion: 0 },
+      }),
+    })
+  })
+
+  // Mock loom server - available but empty
+  await page.route("**/localhost:9000/api/status", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        agents: [],
+        tasks: {
+          needs_planning: 0,
+          ready_to_implement: 0,
+          in_progress: 0,
+          need_review: 0,
+          blocked: 0,
+        },
+        agent_tasks: {},
+        sync: {
+          db_synced: true,
+          db_last_sync: "2026-01-24T12:00:00Z",
+          git_needs_push: 0,
+          git_needs_pull: 0,
+        },
+        stats: {
+          open: 0,
+          closed: 0,
+          total: 0,
+          completion: 0,
+        },
+        timestamp: "2026-01-24T12:00:00Z",
+      }),
+    })
+  })
+
+  await page.route("**/localhost:9000/api/tasks", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        needs_planning: [],
+        ready_to_implement: [],
+        in_progress: [],
+        needs_review: [],
+        blocked: [],
+      }),
+    })
+  })
+}
+
+/**
+ * Navigate to monitor view and wait for beads API response (empty mocks version).
+ */
+async function navigateEmptyAndWait(page: Page) {
+  const [response] = await Promise.all([
+    page.waitForResponse(
+      (res) => res.url().includes("/api/ready") && res.status() === 200
+    ),
+    page.goto("/?view=monitor"),
+  ])
+  expect(response.ok()).toBe(true)
+}
+
+test.describe("Monitor Dashboard Empty States", () => {
+  test("empty agents shows No agents found message", async ({ page }) => {
+    await setupEmptyMocks(page)
+    await navigateEmptyAndWait(page)
+
+    // Wait for loom status to load
+    await page.waitForResponse(
+      (res) => res.url().includes("/api/status") && res.status() === 200,
+      { timeout: 10000 }
+    )
+    await page.waitForTimeout(500)
+
+    // Verify agent panel shows empty state
+    const agentPanel = page.getByTestId("agent-activity-panel")
+    await expect(agentPanel).toBeVisible()
+    await expect(agentPanel.getByText("No agents found")).toBeVisible()
+  })
+
+  test("all panels show empty state messages when no data", async ({ page }) => {
+    await setupEmptyMocks(page)
+    await navigateEmptyAndWait(page)
+
+    // Wait for loom APIs to load
+    await page.waitForResponse(
+      (res) => res.url().includes("/api/status") && res.status() === 200,
+      { timeout: 10000 }
+    )
+    await page.waitForResponse(
+      (res) => res.url().includes("/api/tasks") && res.status() === 200,
+      { timeout: 10000 }
+    )
+    await page.waitForTimeout(500)
+
+    // Verify all 4 panel headings render
+    await expect(page.getByRole("heading", { name: "Agent Activity" })).toBeVisible()
+    await expect(page.getByRole("heading", { name: "Work Pipeline" })).toBeVisible()
+    await expect(page.getByRole("heading", { name: "Project Health" })).toBeVisible()
+    await expect(page.getByRole("heading", { name: "Blocking Dependencies" })).toBeVisible()
+
+    // AgentActivityPanel: shows "No agents found"
+    const agentPanel = page.getByTestId("agent-activity-panel")
+    await expect(agentPanel.getByText("No agents found")).toBeVisible()
+
+    // ProjectHealthPanel: shows "No bottlenecks detected" in bottleneck section
+    const healthPanel = page.getByTestId("project-health-panel")
+    await expect(healthPanel.getByText("No bottlenecks detected")).toBeVisible()
+
+    // MiniDependencyGraph: shows "No blocking dependencies"
+    const miniGraph = page.getByTestId("mini-dependency-graph")
+    await expect(miniGraph.getByText("No blocking dependencies")).toBeVisible()
+
+    // WorkPipelinePanel: stages render with 0 counts
+    await expect(page.getByTestId("pipeline-stage-plan")).toBeVisible()
+    await expect(page.getByTestId("pipeline-stage-plan")).toContainText("0")
+    await expect(page.getByTestId("pipeline-stage-ready")).toBeVisible()
+    await expect(page.getByTestId("pipeline-stage-ready")).toContainText("0")
+    await expect(page.getByTestId("pipeline-stage-inProgress")).toBeVisible()
+    await expect(page.getByTestId("pipeline-stage-inProgress")).toContainText("0")
+    await expect(page.getByTestId("pipeline-stage-review")).toBeVisible()
+    await expect(page.getByTestId("pipeline-stage-review")).toContainText("0")
+  })
+
+  test("empty graph shows No blocking dependencies with checkmark icon", async ({ page }) => {
+    // Provide issues that have NO depends_on relationships
+    const issuesWithoutDeps = [
+      {
+        id: "orphan-1",
+        title: "Standalone task",
+        status: "open",
+        priority: 2,
+        issue_type: "task",
+        created_at: "2026-01-24T10:00:00Z",
+        updated_at: "2026-01-24T10:00:00Z",
+        depends_on: [],
+      },
+      {
+        id: "orphan-2",
+        title: "Another standalone",
+        status: "open",
+        priority: 3,
+        issue_type: "feature",
+        created_at: "2026-01-24T11:00:00Z",
+        updated_at: "2026-01-24T11:00:00Z",
+        depends_on: [],
+      },
+    ]
+    await setupEmptyMocks(page, { graphIssues: issuesWithoutDeps })
+    await navigateEmptyAndWait(page)
+
+    // Wait for graph data to load
+    await page.waitForResponse(
+      (res) => res.url().includes("/api/issues/graph") && res.status() === 200,
+      { timeout: 10000 }
+    )
+    await page.waitForTimeout(1000)
+
+    // Verify empty state in mini dependency graph
+    const miniGraph = page.getByTestId("mini-dependency-graph")
+    await expect(miniGraph).toBeVisible()
+    await expect(miniGraph.getByText("No blocking dependencies")).toBeVisible()
+
+    // Verify checkmark icon is visible
+    await expect(miniGraph.getByText("✓")).toBeVisible()
+  })
+})
