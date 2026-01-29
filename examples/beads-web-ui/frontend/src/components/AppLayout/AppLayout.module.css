@@ -43,6 +43,7 @@
 
 .navigation {
   flex: 1;
+  min-width: 0; /* Allows flex item to shrink below content width */
   display: flex;
   justify-content: center;
 }

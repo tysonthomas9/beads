@@ -40,4 +40,5 @@
   align-items: center;
   gap: var(--space-3);
   flex-shrink: 0;
+  margin-left: var(--space-2); /* Visual separation from navigation */
 }
