@@ -20,7 +20,8 @@
     "test:e2e:headed": "playwright test --headed",
     "test:e2e:debug": "playwright test --debug",
     "test:visual": "playwright test visual-regression",
-    "test:visual:update": "playwright test visual-regression --update-snapshots"
+    "test:visual:update": "playwright test visual-regression --update-snapshots",
+    "test:e2e:integration": "RUN_INTEGRATION_TESTS=1 playwright test --project=integration"
   },
   "dependencies": {
     "@dagrejs/dagre": "^1.1.8",

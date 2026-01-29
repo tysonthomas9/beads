@@ -1,6 +1,7 @@
 import { defineConfig, devices } from "@playwright/test"
 
 const isCI = !!process.env.CI
+const isIntegration = !!process.env.RUN_INTEGRATION_TESTS
 
 export default defineConfig({
   testDir: "./tests/e2e",
@@ -37,6 +38,16 @@ export default defineConfig({
     {
       name: "chromium",
       use: { ...devices["Desktop Chrome"] },
+      // Exclude integration tests from regular runs
+      testIgnore: isIntegration ? undefined : "**/*-integration.spec.ts",
+    },
+    {
+      name: "integration",
+      use: { ...devices["Desktop Chrome"] },
+      // Only run integration tests when enabled
+      testMatch: "**/*-integration.spec.ts",
+      // Integration tests hit the actual backend
+      timeout: 60000,
     },
   ],
 
