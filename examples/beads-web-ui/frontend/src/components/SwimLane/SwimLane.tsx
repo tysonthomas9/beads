@@ -138,7 +138,7 @@ export function SwimLane({
 
           // Determine column type and icon for pending column
           const isPendingColumn = col.id === 'pending';
-          const columnType = isPendingColumn ? ('pending' as const) : undefined;
+          const columnType = isPendingColumn ? ('backlog' as const) : undefined;
           const headerIcon = isPendingColumn ? '⏳' : undefined;
 
           // Build props conditionally to satisfy exactOptionalPropertyTypes
