@@ -12,7 +12,7 @@ import '@testing-library/jest-dom';
 
 import App from '../App';
 import type { Issue, Status } from '@/types';
-import type { ConnectionState } from '@/api/websocket';
+import type { ConnectionState } from '@/api/sse';
 
 // Create hoisted mocks that can be shared across mock definitions
 const { mockUseIssues, mockUseIssueDetail, mockUseToast } = vi.hoisted(() => ({
@@ -42,9 +42,7 @@ vi.mock('@/components/GraphView', () => ({
 
 // Mock MonitorDashboard to avoid complex dependencies in jsdom
 vi.mock('@/components/MonitorDashboard', () => ({
-  MonitorDashboard: () => (
-    <div data-testid="monitor-dashboard">Monitor Dashboard</div>
-  ),
+  MonitorDashboard: () => <div data-testid="monitor-dashboard">Monitor Dashboard</div>,
 }));
 
 // Create hoisted mock for useViewState to allow per-test control

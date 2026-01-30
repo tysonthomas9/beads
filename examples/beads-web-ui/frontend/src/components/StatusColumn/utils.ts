@@ -34,7 +34,7 @@ export function getStatusColor(status: string): string {
   const kebabStatus = status.replace(/_/g, '-');
 
   // Known statuses and column IDs have specific color variables
-  const knownStatuses = ['open', 'in-progress', 'review', 'closed', 'ready', 'pending', 'done'];
+  const knownStatuses = ['open', 'in-progress', 'review', 'closed', 'ready', 'backlog', 'done'];
 
   if (knownStatuses.includes(kebabStatus)) {
     return `var(--color-status-${kebabStatus})`;

@@ -420,10 +420,18 @@ func TestHandleGetIssue_Success(t *testing.T) {
 		t.Errorf("Content-Type = %q, want %q", contentType, "application/json")
 	}
 
-	// Check response body matches expected issue
-	var response map[string]interface{}
-	if err := json.NewDecoder(w.Body).Decode(&response); err != nil {
+	// Check response body is wrapped in standard envelope
+	var envelope IssuesResponse
+	if err := json.NewDecoder(w.Body).Decode(&envelope); err != nil {
 		t.Fatalf("failed to decode response: %v", err)
+	}
+	if !envelope.Success {
+		t.Error("expected success = true")
+	}
+
+	var response map[string]interface{}
+	if err := json.Unmarshal(envelope.Data, &response); err != nil {
+		t.Fatalf("failed to unmarshal data: %v", err)
 	}
 
 	if response["id"] != expectedIssue["id"] {

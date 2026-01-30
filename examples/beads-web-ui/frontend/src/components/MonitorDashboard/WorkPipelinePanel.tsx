@@ -1,6 +1,6 @@
 /**
  * WorkPipelinePanel displays the task flow through pipeline stages.
- * Shows Plan → Ready → In Progress → Review → Done with Blocked as branch.
+ * Shows Plan → Ready → In Progress → Review → Done with Backlog as branch.
  */
 
 import { useCallback, useState } from 'react';
@@ -39,17 +39,29 @@ interface StageConfig {
 
 const MAIN_STAGES: StageConfig[] = [
   { id: 'plan', label: 'Plan', countKey: 'needs_planning', listKey: 'needsPlanning', icon: '📝' },
-  { id: 'ready', label: 'Ready', countKey: 'ready_to_implement', listKey: 'readyToImplement', icon: '✅' },
-  { id: 'inProgress', label: 'In Progress', countKey: 'in_progress', listKey: 'inProgress', icon: '🔄' },
+  {
+    id: 'ready',
+    label: 'Ready',
+    countKey: 'ready_to_implement',
+    listKey: 'readyToImplement',
+    icon: '✅',
+  },
+  {
+    id: 'inProgress',
+    label: 'In Progress',
+    countKey: 'in_progress',
+    listKey: 'inProgress',
+    icon: '🔄',
+  },
   { id: 'review', label: 'Review', countKey: 'need_review', listKey: 'needsReview', icon: '👀' },
 ];
 
 const BLOCKED_STAGE: StageConfig = {
   id: 'blocked',
-  label: 'Blocked',
+  label: 'Backlog',
   countKey: 'blocked',
   listKey: 'blocked',
-  icon: '🚫',
+  icon: '📦',
 };
 
 export function WorkPipelinePanel({
@@ -82,7 +94,7 @@ export function WorkPipelinePanel({
       case 'inProgress':
         return { title: 'In Progress', tasks: taskLists.inProgress };
       case 'blocked':
-        return { title: 'Blocked', tasks: taskLists.blocked };
+        return { title: 'Backlog', tasks: taskLists.blocked };
       default:
         return { title: '', tasks: [] };
     }
@@ -90,9 +102,7 @@ export function WorkPipelinePanel({
 
   const drawerData = getDrawerData();
 
-  const rootClassName = className
-    ? `${styles.panel} ${className}`
-    : styles.panel;
+  const rootClassName = className ? `${styles.panel} ${className}` : styles.panel;
 
   return (
     <div className={rootClassName} data-testid="work-pipeline-panel">
@@ -109,13 +119,17 @@ export function WorkPipelinePanel({
               onClick={handleStageClick}
             />
             {index < MAIN_STAGES.length - 1 && (
-              <span className={styles.arrow} aria-hidden="true">→</span>
+              <span className={styles.arrow} aria-hidden="true">
+                →
+              </span>
             )}
           </div>
         ))}
         {/* Done stage (no tasks to show, just visual end) */}
         <div className={styles.stageWrapper}>
-          <span className={styles.arrow} aria-hidden="true">→</span>
+          <span className={styles.arrow} aria-hidden="true">
+            →
+          </span>
           <div className={styles.doneStage}>
             <span className={styles.doneIcon}>✓</span>
             <span className={styles.doneLabel}>Done</span>
@@ -126,7 +140,9 @@ export function WorkPipelinePanel({
       {/* Blocked branch */}
       {tasks.blocked > 0 && (
         <div className={styles.blockedBranch}>
-          <span className={styles.branchLine} aria-hidden="true">↳</span>
+          <span className={styles.branchLine} aria-hidden="true">
+            ↳
+          </span>
           <PipelineStage
             id={BLOCKED_STAGE.id}
             label={BLOCKED_STAGE.label}

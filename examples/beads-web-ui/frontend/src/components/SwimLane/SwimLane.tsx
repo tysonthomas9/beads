@@ -136,10 +136,10 @@ export function SwimLane({
                 ? styles.highlightedColumn
                 : undefined;
 
-          // Determine column type and icon for pending column
-          const isPendingColumn = col.id === 'pending';
-          const columnType = isPendingColumn ? ('pending' as const) : undefined;
-          const headerIcon = isPendingColumn ? '⏳' : undefined;
+          // Determine column type and icon for backlog column
+          const isBacklogColumn = col.id === 'backlog';
+          const columnType = isBacklogColumn ? ('backlog' as const) : undefined;
+          const headerIcon = isBacklogColumn ? '📦' : undefined;
 
           // Build props conditionally to satisfy exactOptionalPropertyTypes
           const isDropDisabled = isCollapsed || col.droppableDisabled === true;
@@ -168,7 +168,7 @@ export function SwimLane({
                       blockedByCount: blockedInfo.blockedByCount,
                       blockedBy: blockedInfo.blockedBy,
                     }),
-                    ...(isPendingColumn && { isPending: true }),
+                    ...(isBacklogColumn && { isBacklog: true }),
                     ...(onApprove !== undefined && { onApprove }),
                     ...(onReject !== undefined && { onReject }),
                   };

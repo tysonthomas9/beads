@@ -170,7 +170,8 @@ func main() {
 
 	// Wrap with CORS middleware if enabled
 	corsMiddleware := NewCORSMiddleware(corsConfig)
-	handler := corsMiddleware(mux)
+	securityMiddleware := NewSecurityHeadersMiddleware()
+	handler := securityMiddleware(corsMiddleware(mux))
 
 	server := &http.Server{
 		Addr:         fmt.Sprintf(":%d", actualPort),

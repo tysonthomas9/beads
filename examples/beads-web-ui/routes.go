@@ -46,9 +46,6 @@ func setupRoutes(mux *http.ServeMux, pool *daemon.ConnectionPool, hub *SSEHub, g
 	// Graph endpoint for dependency visualization
 	mux.HandleFunc("GET /api/issues/graph", handleGraph(pool))
 
-	// WebSocket endpoint for real-time mutation events (deprecated, use SSE)
-	mux.HandleFunc("/ws", handleWebSocket(pool))
-
 	// Server-Sent Events endpoint for real-time push notifications
 	if hub != nil {
 		mux.HandleFunc("GET /api/events", handleSSE(hub, getMutationsSince))

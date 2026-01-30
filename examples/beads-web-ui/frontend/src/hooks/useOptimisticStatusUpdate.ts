@@ -258,12 +258,12 @@ export function useOptimisticStatusUpdate(
         if (error instanceof ApiError) {
           if (error.status === 404) {
             // Issue was deleted - don't report as error, just log
-            // The issue should be removed from state by WebSocket mutation handler
+            // The issue should be removed from state by SSE mutation handler
             console.warn(`Issue ${issueId} not found (404) - may have been deleted`);
             errorToReport = new Error('Issue no longer exists');
           } else if (error.status === 409) {
             // Conflict - server has different state
-            // WebSocket mutation handler will eventually sync correct state
+            // SSE mutation handler will eventually sync correct state
             errorToReport = new Error('Conflict with server state');
           } else if (error.status === 0) {
             // Network error or timeout from API client

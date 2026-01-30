@@ -216,11 +216,14 @@ func handleGetIssueWithPool(pool connectionGetter) http.HandlerFunc {
 			return
 		}
 
-		// Return the issue details (resp.Data already contains JSON-serialized IssueDetails)
+		// Return the issue details wrapped in standard {success, data} envelope
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		if _, err := w.Write(resp.Data); err != nil {
-			log.Printf("Failed to write response: %v", err)
+		if err := json.NewEncoder(w).Encode(IssuesResponse{
+			Success: true,
+			Data:    resp.Data,
+		}); err != nil {
+			log.Printf("Failed to encode issue response: %v", err)
 		}
 	}
 }

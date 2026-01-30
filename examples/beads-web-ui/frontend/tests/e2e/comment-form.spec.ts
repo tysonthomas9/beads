@@ -96,11 +96,6 @@ async function setupMocks(
   // Track POST calls
   const postCalls: { url: string; body: { text: string } }[] = []
 
-  // Mock WebSocket
-  await page.route("**/ws", async (route) => {
-    await route.abort()
-  })
-
   // Mock /api/ready to return our test issues
   await page.route("**/api/ready", async (route) => {
     await route.fulfill({
@@ -687,7 +682,6 @@ test.describe("CommentForm", () => {
       let shouldFail = true
 
       // Custom mock: first fails, second succeeds
-      await page.route("**/ws", async (route) => await route.abort())
 
       // Mock /api/ready for navigateToApp
       await page.route("**/api/ready", async (route) => {

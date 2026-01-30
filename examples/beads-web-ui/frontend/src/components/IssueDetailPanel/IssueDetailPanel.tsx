@@ -323,7 +323,7 @@ function DefaultContent({
     async (dependsOnId: string, type: DependencyType) => {
       if (!issue) return;
       await addDependency(issue.id, dependsOnId, type);
-      // The parent component should refresh issue details via WebSocket or manual refetch
+      // The parent component should refresh issue details via SSE or manual refetch
     },
     [issue]
   );
@@ -332,7 +332,7 @@ function DefaultContent({
     async (dependsOnId: string) => {
       if (!issue) return;
       await removeDependency(issue.id, dependsOnId);
-      // The parent component should refresh issue details via WebSocket or manual refetch
+      // The parent component should refresh issue details via SSE or manual refetch
     },
     [issue]
   );
@@ -536,7 +536,11 @@ function DefaultContent({
                     onSave={handlePrioritySave}
                     isSaving={isSavingPriority}
                   />
-                  <TypeDropdown type={issue.issue_type} onSave={handleTypeSave} isSaving={isSavingType} />
+                  <TypeDropdown
+                    type={issue.issue_type}
+                    onSave={handleTypeSave}
+                    isSaving={isSavingType}
+                  />
                 </div>
 
                 {/* Description */}
@@ -546,7 +550,9 @@ function DefaultContent({
                     description={issue.description}
                     isEditable={true}
                     onSave={async (newDescription) => {
-                      const updatedIssue = await updateIssue(issue.id, { description: newDescription });
+                      const updatedIssue = await updateIssue(issue.id, {
+                        description: newDescription,
+                      });
                       onIssueUpdate?.(updatedIssue);
                     }}
                   />
@@ -567,7 +573,9 @@ function DefaultContent({
                 {dependents && dependents.length > 0 && (
                   <section className={styles.section}>
                     <h3 className={styles.sectionTitle}>Blocks ({dependents.length})</h3>
-                    <ul className={styles.dependencyList}>{dependents.map(renderDependencyItem)}</ul>
+                    <ul className={styles.dependencyList}>
+                      {dependents.map(renderDependencyItem)}
+                    </ul>
                   </section>
                 )}
 
@@ -618,7 +626,11 @@ function DefaultContent({
                 onSave={handlePrioritySave}
                 isSaving={isSavingPriority}
               />
-              <TypeDropdown type={issue.issue_type} onSave={handleTypeSave} isSaving={isSavingType} />
+              <TypeDropdown
+                type={issue.issue_type}
+                onSave={handleTypeSave}
+                isSaving={isSavingType}
+              />
             </div>
 
             {/* Description */}
@@ -789,7 +801,12 @@ export function IssueDetailPanel({
   }, [isOpen]);
 
   // Build root class name
-  const rootClassName = [styles.overlay, isOpen && styles.open, isFullscreen && styles.fullscreen, className]
+  const rootClassName = [
+    styles.overlay,
+    isOpen && styles.open,
+    isFullscreen && styles.fullscreen,
+    className,
+  ]
     .filter(Boolean)
     .join(' ');
 

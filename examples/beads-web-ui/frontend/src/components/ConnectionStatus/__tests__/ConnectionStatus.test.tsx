@@ -11,7 +11,7 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import '@testing-library/jest-dom';
 
 import { ConnectionStatus } from '../ConnectionStatus';
-import type { ConnectionState } from '@/api/websocket';
+import type { ConnectionState } from '@/api/sse';
 
 describe('ConnectionStatus', () => {
   describe('rendering', () => {
@@ -56,16 +56,14 @@ describe('ConnectionStatus', () => {
   });
 
   describe('data attributes', () => {
-    it.each<ConnectionState>([
-      'connected',
-      'connecting',
-      'reconnecting',
-      'disconnected',
-    ])('data-state attribute reflects "%s" state', (state) => {
-      const { container } = render(<ConnectionStatus state={state} />);
-      const root = container.firstChild as HTMLElement;
-      expect(root).toHaveAttribute('data-state', state);
-    });
+    it.each<ConnectionState>(['connected', 'connecting', 'reconnecting', 'disconnected'])(
+      'data-state attribute reflects "%s" state',
+      (state) => {
+        const { container } = render(<ConnectionStatus state={state} />);
+        const root = container.firstChild as HTMLElement;
+        expect(root).toHaveAttribute('data-state', state);
+      }
+    );
 
     it('data-variant attribute reflects "inline" variant (default)', () => {
       const { container } = render(<ConnectionStatus state="connected" />);
@@ -74,9 +72,7 @@ describe('ConnectionStatus', () => {
     });
 
     it('data-variant attribute reflects "badge" variant', () => {
-      const { container } = render(
-        <ConnectionStatus state="connected" variant="badge" />
-      );
+      const { container } = render(<ConnectionStatus state="connected" variant="badge" />);
       const root = container.firstChild as HTMLElement;
       expect(root).toHaveAttribute('data-variant', 'badge');
     });
@@ -84,17 +80,13 @@ describe('ConnectionStatus', () => {
 
   describe('props', () => {
     it('applies className prop to root element', () => {
-      const { container } = render(
-        <ConnectionStatus state="connected" className="custom-class" />
-      );
+      const { container } = render(<ConnectionStatus state="connected" className="custom-class" />);
       const root = container.firstChild as HTMLElement;
       expect(root).toHaveClass('custom-class');
     });
 
     it('variant="badge" applies badge styles', () => {
-      const { container } = render(
-        <ConnectionStatus state="connected" variant="badge" />
-      );
+      const { container } = render(<ConnectionStatus state="connected" variant="badge" />);
       const root = container.firstChild as HTMLElement;
       expect(root.className).toContain('badge');
     });
@@ -116,9 +108,7 @@ describe('ConnectionStatus', () => {
     });
 
     it('showText=false still renders indicator', () => {
-      const { container } = render(
-        <ConnectionStatus state="connected" showText={false} />
-      );
+      const { container } = render(<ConnectionStatus state="connected" showText={false} />);
       const indicator = container.querySelector('[aria-hidden="true"]');
       expect(indicator).toBeInTheDocument();
     });
@@ -138,9 +128,7 @@ describe('ConnectionStatus', () => {
 
     it('has aria-label with full status description', () => {
       render(<ConnectionStatus state="connected" />);
-      expect(
-        screen.getByLabelText('Connection status: Connected')
-      ).toBeInTheDocument();
+      expect(screen.getByLabelText('Connection status: Connected')).toBeInTheDocument();
     });
 
     it('indicator has aria-hidden="true"', () => {
@@ -178,19 +166,13 @@ describe('ConnectionStatus', () => {
       );
       expect(screen.getByText('Connected')).toBeInTheDocument();
 
-      rerender(
-        <ConnectionStatus state="connected" variant="inline" showText={false} />
-      );
+      rerender(<ConnectionStatus state="connected" variant="inline" showText={false} />);
       expect(screen.queryByText('Connected')).not.toBeInTheDocument();
 
-      rerender(
-        <ConnectionStatus state="connected" variant="badge" showText={true} />
-      );
+      rerender(<ConnectionStatus state="connected" variant="badge" showText={true} />);
       expect(screen.getByText('Connected')).toBeInTheDocument();
 
-      rerender(
-        <ConnectionStatus state="connected" variant="badge" showText={false} />
-      );
+      rerender(<ConnectionStatus state="connected" variant="badge" showText={false} />);
       expect(screen.queryByText('Connected')).not.toBeInTheDocument();
     });
   });
@@ -198,9 +180,7 @@ describe('ConnectionStatus', () => {
   describe('reconnect counter and retry button', () => {
     it('shows attempt count when reconnecting with attempts > 0', () => {
       render(<ConnectionStatus state="reconnecting" reconnectAttempts={3} />);
-      expect(
-        screen.getByText('Reconnecting (attempt 3)...')
-      ).toBeInTheDocument();
+      expect(screen.getByText('Reconnecting (attempt 3)...')).toBeInTheDocument();
     });
 
     it('shows simple reconnecting text when attempts is 0', () => {
@@ -215,25 +195,13 @@ describe('ConnectionStatus', () => {
 
     it('shows retry button when reconnecting with onRetry callback', () => {
       const onRetry = vi.fn();
-      render(
-        <ConnectionStatus
-          state="reconnecting"
-          reconnectAttempts={2}
-          onRetry={onRetry}
-        />
-      );
+      render(<ConnectionStatus state="reconnecting" reconnectAttempts={2} onRetry={onRetry} />);
       expect(screen.getByRole('button', { name: /retry/i })).toBeInTheDocument();
     });
 
     it('calls onRetry when retry button clicked', () => {
       const onRetry = vi.fn();
-      render(
-        <ConnectionStatus
-          state="reconnecting"
-          reconnectAttempts={2}
-          onRetry={onRetry}
-        />
-      );
+      render(<ConnectionStatus state="reconnecting" reconnectAttempts={2} onRetry={onRetry} />);
       fireEvent.click(screen.getByRole('button', { name: /retry/i }));
       expect(onRetry).toHaveBeenCalledTimes(1);
     });
@@ -251,46 +219,23 @@ describe('ConnectionStatus', () => {
     });
 
     it('hides retry button when not in reconnecting state', () => {
-      render(
-        <ConnectionStatus
-          state="connected"
-          reconnectAttempts={2}
-          onRetry={() => {}}
-        />
-      );
+      render(<ConnectionStatus state="connected" reconnectAttempts={2} onRetry={() => {}} />);
       expect(screen.queryByRole('button')).not.toBeInTheDocument();
     });
 
     it('hides retry button when reconnectAttempts is 0', () => {
-      render(
-        <ConnectionStatus
-          state="reconnecting"
-          reconnectAttempts={0}
-          onRetry={() => {}}
-        />
-      );
+      render(<ConnectionStatus state="reconnecting" reconnectAttempts={0} onRetry={() => {}} />);
       expect(screen.queryByRole('button')).not.toBeInTheDocument();
     });
 
     it('hides retry button when onRetry is not provided', () => {
-      render(
-        <ConnectionStatus state="reconnecting" reconnectAttempts={2} />
-      );
+      render(<ConnectionStatus state="reconnecting" reconnectAttempts={2} />);
       expect(screen.queryByRole('button')).not.toBeInTheDocument();
     });
 
     it('retry button has accessible label', () => {
-      render(
-        <ConnectionStatus
-          state="reconnecting"
-          reconnectAttempts={1}
-          onRetry={() => {}}
-        />
-      );
-      expect(screen.getByRole('button')).toHaveAttribute(
-        'aria-label',
-        'Retry connection now'
-      );
+      render(<ConnectionStatus state="reconnecting" reconnectAttempts={1} onRetry={() => {}} />);
+      expect(screen.getByRole('button')).toHaveAttribute('aria-label', 'Retry connection now');
     });
 
     it('updates aria-label when reconnect attempts shown', () => {

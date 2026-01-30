@@ -70,11 +70,6 @@ async function setupMocks(
   // Mutable issue state for persistence tests
   let currentDescription = testIssueWithDescription.description
 
-  // Mock WebSocket to prevent connection errors
-  await page.route("**/ws", async (route) => {
-    await route.abort()
-  })
-
   // Mock GET and PATCH /api/issues/{id}
   await page.route("**/api/issues/*", async (route) => {
     const request = route.request()
@@ -617,11 +612,6 @@ test.describe("EditableDescription", () => {
     test("can retry after error", async ({ page }) => {
       let patchCallCount = 0
 
-      // Mock WebSocket to prevent connection errors
-      await page.route("**/ws", async (route) => {
-        await route.abort()
-      })
-
       // Setup mocks: first PATCH fails, second succeeds
       let shouldFail = true
       await page.route("**/api/issues/*", async (route) => {
@@ -750,7 +740,6 @@ test.describe("EditableDescription", () => {
         description: longDescription,
       }
 
-      await page.route("**/ws", async (route) => await route.abort())
       await page.route("**/api/issues/*", async (route) => {
         const method = route.request().method()
         if (method === "GET") {
@@ -792,7 +781,6 @@ test.describe("EditableDescription", () => {
         description: "<script>alert('xss')</script> &amp; entities",
       }
 
-      await page.route("**/ws", async (route) => await route.abort())
       await page.route("**/api/issues/*", async (route) => {
         const method = route.request().method()
         if (method === "GET") {

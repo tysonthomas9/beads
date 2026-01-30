@@ -59,7 +59,8 @@ function statusesToColumns(statuses: Status[]): KanbanColumnConfig[] {
   return statuses.map((s) => ({
     id: s,
     label: s.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()),
-    filter: (issue: Issue) => (s === 'open' ? issue.status === s || issue.status === undefined : issue.status === s),
+    filter: (issue: Issue) =>
+      s === 'open' ? issue.status === s || issue.status === undefined : issue.status === s,
     targetStatus: s,
   }));
 }
@@ -94,12 +95,7 @@ describe('SwimLane', () => {
       const issues = createMockIssues(['open', 'open', 'in_progress', 'closed']);
 
       renderWithDndContext(
-        <SwimLane
-          id="test-lane"
-          title="Test Lane"
-          issues={issues}
-          columns={defaultColumns}
-        />
+        <SwimLane id="test-lane" title="Test Lane" issues={issues} columns={defaultColumns} />
       );
 
       // The count badge should show 4 issues total
@@ -111,12 +107,7 @@ describe('SwimLane', () => {
       const columns = statusesToColumns(['open', 'in_progress', 'closed', 'blocked']);
 
       renderWithDndContext(
-        <SwimLane
-          id="test-lane"
-          title="Test Lane"
-          issues={[]}
-          columns={columns}
-        />
+        <SwimLane id="test-lane" title="Test Lane" issues={[]} columns={columns} />
       );
 
       // Each column should be present
@@ -135,12 +126,7 @@ describe('SwimLane', () => {
       ];
 
       renderWithDndContext(
-        <SwimLane
-          id="test-lane"
-          title="Test Lane"
-          issues={issues}
-          columns={defaultColumns}
-        />
+        <SwimLane id="test-lane" title="Test Lane" issues={issues} columns={defaultColumns} />
       );
 
       // Verify issues are in correct columns
@@ -291,14 +277,10 @@ describe('SwimLane', () => {
       const cardB = screen.getByRole('button', { name: /Issue: Issue B/i });
 
       fireEvent.click(cardB);
-      expect(handleIssueClick).toHaveBeenLastCalledWith(
-        expect.objectContaining({ id: 'issue-b' })
-      );
+      expect(handleIssueClick).toHaveBeenLastCalledWith(expect.objectContaining({ id: 'issue-b' }));
 
       fireEvent.click(cardA);
-      expect(handleIssueClick).toHaveBeenLastCalledWith(
-        expect.objectContaining({ id: 'issue-a' })
-      );
+      expect(handleIssueClick).toHaveBeenLastCalledWith(expect.objectContaining({ id: 'issue-a' }));
 
       expect(handleIssueClick).toHaveBeenCalledTimes(2);
     });
@@ -308,9 +290,7 @@ describe('SwimLane', () => {
     /**
      * Create a blockedIssues map for testing.
      */
-    function createBlockedIssuesMap(
-      blockedIds: string[]
-    ): Map<string, BlockedInfo> {
+    function createBlockedIssuesMap(blockedIds: string[]): Map<string, BlockedInfo> {
       const map = new Map<string, BlockedInfo>();
       blockedIds.forEach((id) => {
         map.set(id, { blockedByCount: 1, blockedBy: ['blocker-id'] });
@@ -444,12 +424,7 @@ describe('SwimLane', () => {
 
     it('renders with aria-labelledby pointing to header', () => {
       const { container } = renderWithDndContext(
-        <SwimLane
-          id="test-lane"
-          title="Test Lane"
-          issues={[]}
-          columns={defaultColumns}
-        />
+        <SwimLane id="test-lane" title="Test Lane" issues={[]} columns={defaultColumns} />
       );
 
       const section = container.querySelector('section');
@@ -465,12 +440,7 @@ describe('SwimLane', () => {
   describe('edge cases', () => {
     it('renders empty columns with EmptyColumn component', () => {
       renderWithDndContext(
-        <SwimLane
-          id="test-lane"
-          title="Test Lane"
-          issues={[]}
-          columns={defaultColumns}
-        />
+        <SwimLane id="test-lane" title="Test Lane" issues={[]} columns={defaultColumns} />
       );
 
       // Each empty column should show EmptyColumn message
@@ -530,12 +500,7 @@ describe('SwimLane', () => {
       );
 
       renderWithDndContext(
-        <SwimLane
-          id="test-lane"
-          title="Test Lane"
-          issues={manyIssues}
-          columns={defaultColumns}
-        />
+        <SwimLane id="test-lane" title="Test Lane" issues={manyIssues} columns={defaultColumns} />
       );
 
       // Should render without crashing
@@ -544,9 +509,7 @@ describe('SwimLane', () => {
     });
 
     it('isCollapsed disables droppable on columns', () => {
-      const issues = [
-        createMockIssue({ id: 'open-1', title: 'Open Issue', status: 'open' }),
-      ];
+      const issues = [createMockIssue({ id: 'open-1', title: 'Open Issue', status: 'open' })];
 
       renderWithDndContext(
         <SwimLane
@@ -559,7 +522,8 @@ describe('SwimLane', () => {
       );
 
       // The lane content should still render but with aria-hidden
-      const content = screen.getByRole('heading', { name: 'Test Lane' })
+      const content = screen
+        .getByRole('heading', { name: 'Test Lane' })
         .closest('section')
         ?.querySelector('[aria-hidden="true"]');
       expect(content).toBeInTheDocument();
@@ -569,12 +533,7 @@ describe('SwimLane', () => {
   describe('droppable functionality', () => {
     it('each column has a droppable zone', () => {
       renderWithDndContext(
-        <SwimLane
-          id="test-lane"
-          title="Test Lane"
-          issues={[]}
-          columns={defaultColumns}
-        />
+        <SwimLane id="test-lane" title="Test Lane" issues={[]} columns={defaultColumns} />
       );
 
       // Check droppable zones exist for each column
@@ -588,18 +547,8 @@ describe('SwimLane', () => {
       const twoColumns = statusesToColumns(['open', 'closed']);
       render(
         <DndContext>
-          <SwimLane
-            id="lane-1"
-            title="Lane 1"
-            issues={[]}
-            columns={twoColumns}
-          />
-          <SwimLane
-            id="lane-2"
-            title="Lane 2"
-            issues={[]}
-            columns={twoColumns}
-          />
+          <SwimLane id="lane-1" title="Lane 1" issues={[]} columns={twoColumns} />
+          <SwimLane id="lane-2" title="Lane 2" issues={[]} columns={twoColumns} />
         </DndContext>
       );
 
@@ -609,13 +558,127 @@ describe('SwimLane', () => {
     });
   });
 
+  describe('backlog column (Pending→Backlog rename)', () => {
+    it('passes columnType="backlog" to StatusColumn for backlog column', () => {
+      const columns: KanbanColumnConfig[] = [
+        ...statusesToColumns(['open', 'in_progress']),
+        {
+          id: 'backlog',
+          label: 'Backlog',
+          filter: (issue: Issue) => issue.status === 'blocked' || issue.status === 'deferred',
+          targetStatus: 'blocked',
+        },
+      ];
+
+      const { container } = renderWithDndContext(
+        <SwimLane id="test-lane" title="Test Lane" issues={[]} columns={columns} />
+      );
+
+      // The backlog column should have data-column-type="backlog"
+      const backlogSection = container.querySelector('[data-column-type="backlog"]');
+      expect(backlogSection).toBeInTheDocument();
+    });
+
+    it('passes isBacklog=true to DraggableIssueCard in backlog column', () => {
+      const blockedIssue = createMockIssue({
+        id: 'blocked-1',
+        title: 'Blocked Issue',
+        status: 'blocked',
+      });
+
+      const columns: KanbanColumnConfig[] = [
+        ...statusesToColumns(['open', 'in_progress']),
+        {
+          id: 'backlog',
+          label: 'Backlog',
+          filter: (issue: Issue) => issue.status === 'blocked' || issue.status === 'deferred',
+          targetStatus: 'blocked',
+        },
+      ];
+
+      renderWithDndContext(
+        <SwimLane id="test-lane" title="Test Lane" issues={[blockedIssue]} columns={columns} />
+      );
+
+      // IssueCard with isBacklog=true sets data-in-backlog="true"
+      const card = screen.getByText('Blocked Issue').closest('[data-in-backlog="true"]');
+      expect(card).toBeInTheDocument();
+    });
+
+    it('does not pass isBacklog to cards in non-backlog columns', () => {
+      const openIssue = createMockIssue({
+        id: 'open-1',
+        title: 'Open Issue',
+        status: 'open',
+      });
+
+      const columns: KanbanColumnConfig[] = [
+        ...statusesToColumns(['open', 'in_progress']),
+        {
+          id: 'backlog',
+          label: 'Backlog',
+          filter: (issue: Issue) => issue.status === 'blocked' || issue.status === 'deferred',
+          targetStatus: 'blocked',
+        },
+      ];
+
+      renderWithDndContext(
+        <SwimLane id="test-lane" title="Test Lane" issues={[openIssue]} columns={columns} />
+      );
+
+      // Card in open column should not have data-in-backlog
+      const card = screen.getByText('Open Issue').closest('article');
+      expect(card).not.toHaveAttribute('data-in-backlog');
+    });
+
+    it('renders EmptyColumn with backlog status for empty backlog column', () => {
+      const columns: KanbanColumnConfig[] = [
+        ...statusesToColumns(['open']),
+        {
+          id: 'backlog',
+          label: 'Backlog',
+          filter: (issue: Issue) => issue.status === 'blocked' || issue.status === 'deferred',
+          targetStatus: 'blocked',
+        },
+      ];
+
+      renderWithDndContext(
+        <SwimLane id="test-lane" title="Test Lane" issues={[]} columns={columns} />
+      );
+
+      // EmptyColumn with status="backlog" should show backlog-specific message
+      expect(screen.getByText('No blocked or deferred issues')).toBeInTheDocument();
+    });
+
+    it('sets headerIcon to hourglass for backlog column', () => {
+      const columns: KanbanColumnConfig[] = [
+        {
+          id: 'backlog',
+          label: 'Backlog',
+          filter: (issue: Issue) => issue.status === 'blocked' || issue.status === 'deferred',
+          targetStatus: 'blocked',
+        },
+      ];
+
+      renderWithDndContext(
+        <SwimLane id="test-lane" title="Test Lane" issues={[]} columns={columns} />
+      );
+
+      // The package icon should be rendered in the backlog column header
+      expect(screen.getByText('📦')).toBeInTheDocument();
+    });
+  });
+
   describe('blocked badge display', () => {
     it('passes blockedInfo to DraggableIssueCard for blocked issues', () => {
       const issues = [
         createMockIssue({ id: 'blocked-issue', title: 'Blocked Issue', status: 'open' }),
       ];
       const blockedIssues = new Map<string, BlockedInfo>([
-        ['blocked-issue', { blockedByCount: 3, blockedBy: ['blocker-1', 'blocker-2', 'blocker-3'] }],
+        [
+          'blocked-issue',
+          { blockedByCount: 3, blockedBy: ['blocker-1', 'blocker-2', 'blocker-3'] },
+        ],
       ]);
 
       renderWithDndContext(

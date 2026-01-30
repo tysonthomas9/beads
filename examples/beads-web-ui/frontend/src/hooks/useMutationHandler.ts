@@ -1,41 +1,41 @@
 /**
- * React hook for reconciling WebSocket mutation events with client-side issue state.
+ * React hook for reconciling SSE mutation events with client-side issue state.
  * Processes create, update, delete, status, and other mutation types to keep the UI in sync.
  */
 
-import { useCallback, useEffect, useRef, useState } from 'react'
-import { produce } from 'immer'
-import type { Issue } from '../types/issue'
-import type { MutationPayload } from '../api/websocket'
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { produce } from 'immer';
+import type { Issue } from '../types/issue';
+import type { MutationPayload } from '../api/sse';
 import {
   MutationCreate,
   MutationUpdate,
   MutationDelete,
   MutationStatus,
   MutationBonded,
-} from '../types/mutation'
+} from '../types/mutation';
 
 /**
  * Options for the useMutationHandler hook.
  */
 export interface UseMutationHandlerOptions {
   /** Current issue state as a Map for O(1) lookups */
-  issues: Map<string, Issue>
+  issues: Map<string, Issue>;
 
   /** Callback to update issue state */
-  setIssues: (issues: Map<string, Issue>) => void
+  setIssues: (issues: Map<string, Issue>) => void;
 
   /** Callback when an issue is created */
-  onIssueCreated?: (issue: Issue) => void
+  onIssueCreated?: (issue: Issue) => void;
 
   /** Callback when an issue is updated */
-  onIssueUpdated?: (issue: Issue, previousIssue: Issue) => void
+  onIssueUpdated?: (issue: Issue, previousIssue: Issue) => void;
 
   /** Callback when an issue is deleted */
-  onIssueDeleted?: (issueId: string) => void
+  onIssueDeleted?: (issueId: string) => void;
 
   /** Callback when mutation cannot be applied (missing issue) */
-  onMutationSkipped?: (mutation: MutationPayload, reason: string) => void
+  onMutationSkipped?: (mutation: MutationPayload, reason: string) => void;
 }
 
 /**
@@ -43,16 +43,16 @@ export interface UseMutationHandlerOptions {
  */
 export interface UseMutationHandlerReturn {
   /** Process a single mutation event */
-  handleMutation: (mutation: MutationPayload) => void
+  handleMutation: (mutation: MutationPayload) => void;
 
   /** Process multiple mutation events */
-  handleMutations: (mutations: MutationPayload[]) => void
+  handleMutations: (mutations: MutationPayload[]) => void;
 
   /** Number of mutations processed since mount */
-  mutationCount: number
+  mutationCount: number;
 
   /** Timestamp of last processed mutation */
-  lastMutationAt: string | null
+  lastMutationAt: string | null;
 }
 
 /**
@@ -61,15 +61,15 @@ export interface UseMutationHandlerReturn {
  * Invalid timestamps are treated as stale (fail-safe).
  */
 function isStaleMutation(mutation: MutationPayload, issue: Issue): boolean {
-  const mutationTime = Date.parse(mutation.timestamp)
-  const issueTime = Date.parse(issue.updated_at)
+  const mutationTime = Date.parse(mutation.timestamp);
+  const issueTime = Date.parse(issue.updated_at);
 
   // Invalid timestamps should be considered stale (fail-safe)
   if (isNaN(mutationTime) || isNaN(issueTime)) {
-    return true
+    return true;
   }
 
-  return mutationTime < issueTime
+  return mutationTime < issueTime;
 }
 
 /**
@@ -77,23 +77,23 @@ function isStaleMutation(mutation: MutationPayload, issue: Issue): boolean {
  * Uses only the fields available in MutationPayload.
  */
 function createIssueFromMutation(mutation: MutationPayload): Issue {
-  const now = mutation.timestamp
+  const now = mutation.timestamp;
   const issue: Issue = {
     id: mutation.issue_id,
     title: mutation.title ?? 'Untitled',
     priority: 2, // Default priority
     created_at: now,
     updated_at: now,
-  }
+  };
   // Only set optional fields if they have values (exactOptionalPropertyTypes)
   // Use != null to handle both undefined and null consistently
   if (mutation.assignee != null) {
-    issue.assignee = mutation.assignee
+    issue.assignee = mutation.assignee;
   }
   if (mutation.new_status != null) {
-    issue.status = mutation.new_status
+    issue.status = mutation.new_status;
   }
-  return issue
+  return issue;
 }
 
 /**
@@ -103,16 +103,16 @@ function createIssueFromMutation(mutation: MutationPayload): Issue {
 function applyUpdateToIssue(issue: Issue, mutation: MutationPayload): Issue {
   return produce(issue, (draft) => {
     // Update timestamp
-    draft.updated_at = mutation.timestamp
+    draft.updated_at = mutation.timestamp;
 
     // Update fields if present in mutation (use != null for consistency)
     if (mutation.title != null) {
-      draft.title = mutation.title
+      draft.title = mutation.title;
     }
     if (mutation.assignee != null) {
-      draft.assignee = mutation.assignee
+      draft.assignee = mutation.assignee;
     }
-  })
+  });
 }
 
 /**
@@ -120,11 +120,11 @@ function applyUpdateToIssue(issue: Issue, mutation: MutationPayload): Issue {
  */
 function applyStatusToIssue(issue: Issue, mutation: MutationPayload): Issue {
   return produce(issue, (draft) => {
-    draft.updated_at = mutation.timestamp
+    draft.updated_at = mutation.timestamp;
     if (mutation.new_status != null) {
-      draft.status = mutation.new_status
+      draft.status = mutation.new_status;
     }
-  })
+  });
 }
 
 /**
@@ -133,15 +133,15 @@ function applyStatusToIssue(issue: Issue, mutation: MutationPayload): Issue {
  */
 function applyBondedToIssue(issue: Issue, mutation: MutationPayload): Issue {
   return produce(issue, (draft) => {
-    draft.updated_at = mutation.timestamp
+    draft.updated_at = mutation.timestamp;
     // Bonded mutations may update parent relationship
     // The parent_id and step_count are for the parent's reference
     // but the child issue may need to track its bonded state
-  })
+  });
 }
 
 /**
- * React hook for handling WebSocket mutation events.
+ * React hook for handling SSE mutation events.
  *
  * @example
  * ```tsx
@@ -155,57 +155,54 @@ function applyBondedToIssue(issue: Issue, mutation: MutationPayload): Issue {
  *     onIssueDeleted: (id) => console.log('Deleted:', id),
  *   })
  *
- *   const { subscribe } = useWebSocket({
+ *   const { connect } = useSSE({
  *     onMutation: handleMutation,
- *     subscribeOnConnect: true,
  *   })
  *
  *   return <div>Processed {mutationCount} mutations</div>
  * }
  * ```
  */
-export function useMutationHandler(
-  options: UseMutationHandlerOptions
-): UseMutationHandlerReturn {
+export function useMutationHandler(options: UseMutationHandlerOptions): UseMutationHandlerReturn {
   const { issues, setIssues, onIssueCreated, onIssueUpdated, onIssueDeleted, onMutationSkipped } =
-    options
+    options;
 
   // Track mutation stats
-  const [mutationCount, setMutationCount] = useState(0)
-  const [lastMutationAt, setLastMutationAt] = useState<string | null>(null)
+  const [mutationCount, setMutationCount] = useState(0);
+  const [lastMutationAt, setLastMutationAt] = useState<string | null>(null);
 
   // Track mounted state to prevent state updates after unmount
-  const mountedRef = useRef(true)
+  const mountedRef = useRef(true);
 
   // Store callbacks in refs to avoid stale closures
-  const onIssueCreatedRef = useRef(onIssueCreated)
-  const onIssueUpdatedRef = useRef(onIssueUpdated)
-  const onIssueDeletedRef = useRef(onIssueDeleted)
-  const onMutationSkippedRef = useRef(onMutationSkipped)
+  const onIssueCreatedRef = useRef(onIssueCreated);
+  const onIssueUpdatedRef = useRef(onIssueUpdated);
+  const onIssueDeletedRef = useRef(onIssueDeleted);
+  const onMutationSkippedRef = useRef(onMutationSkipped);
 
-  // Update refs when callbacks change (following useWebSocket pattern)
+  // Update refs when callbacks change (following useSSE pattern)
   useEffect(() => {
-    onIssueCreatedRef.current = onIssueCreated
-  }, [onIssueCreated])
-
-  useEffect(() => {
-    onIssueUpdatedRef.current = onIssueUpdated
-  }, [onIssueUpdated])
+    onIssueCreatedRef.current = onIssueCreated;
+  }, [onIssueCreated]);
 
   useEffect(() => {
-    onIssueDeletedRef.current = onIssueDeleted
-  }, [onIssueDeleted])
+    onIssueUpdatedRef.current = onIssueUpdated;
+  }, [onIssueUpdated]);
 
   useEffect(() => {
-    onMutationSkippedRef.current = onMutationSkipped
-  }, [onMutationSkipped])
+    onIssueDeletedRef.current = onIssueDeleted;
+  }, [onIssueDeleted]);
+
+  useEffect(() => {
+    onMutationSkippedRef.current = onMutationSkipped;
+  }, [onMutationSkipped]);
 
   // Cleanup on unmount
   useEffect(() => {
     return () => {
-      mountedRef.current = false
-    }
-  }, [])
+      mountedRef.current = false;
+    };
+  }, []);
 
   /**
    * Process a single mutation event.
@@ -213,106 +210,109 @@ export function useMutationHandler(
   const handleMutation = useCallback(
     (mutation: MutationPayload) => {
       // Guard against state updates after unmount
-      if (!mountedRef.current) return
+      if (!mountedRef.current) return;
 
-      const { issue_id, type } = mutation
+      const { issue_id, type } = mutation;
 
       // Handle create mutation
       if (type === MutationCreate) {
         // If issue already exists, treat as update (handles duplicate/replayed events)
-        const existingIssue = issues.get(issue_id)
+        const existingIssue = issues.get(issue_id);
         if (existingIssue) {
           // Check for stale mutation
           if (isStaleMutation(mutation, existingIssue)) {
-            onMutationSkippedRef.current?.(mutation, 'Stale create mutation (issue already exists with newer timestamp)')
-            return
+            onMutationSkippedRef.current?.(
+              mutation,
+              'Stale create mutation (issue already exists with newer timestamp)'
+            );
+            return;
           }
           // Apply as update
-          const updatedIssue = applyUpdateToIssue(existingIssue, mutation)
-          const newIssues = new Map(issues)
-          newIssues.set(issue_id, updatedIssue)
-          setIssues(newIssues)
-          onIssueUpdatedRef.current?.(updatedIssue, existingIssue)
+          const updatedIssue = applyUpdateToIssue(existingIssue, mutation);
+          const newIssues = new Map(issues);
+          newIssues.set(issue_id, updatedIssue);
+          setIssues(newIssues);
+          onIssueUpdatedRef.current?.(updatedIssue, existingIssue);
         } else {
           // Create new issue
-          const newIssue = createIssueFromMutation(mutation)
-          const newIssues = new Map(issues)
-          newIssues.set(issue_id, newIssue)
-          setIssues(newIssues)
-          onIssueCreatedRef.current?.(newIssue)
+          const newIssue = createIssueFromMutation(mutation);
+          const newIssues = new Map(issues);
+          newIssues.set(issue_id, newIssue);
+          setIssues(newIssues);
+          onIssueCreatedRef.current?.(newIssue);
         }
-        setMutationCount((c) => c + 1)
-        setLastMutationAt(mutation.timestamp)
-        return
+        setMutationCount((c) => c + 1);
+        setLastMutationAt(mutation.timestamp);
+        return;
       }
 
       // Handle delete mutation
       if (type === MutationDelete) {
-        const existingIssueForDelete = issues.get(issue_id)
+        const existingIssueForDelete = issues.get(issue_id);
         if (!existingIssueForDelete) {
-          onMutationSkippedRef.current?.(mutation, 'Issue not found for delete mutation')
-          return
+          onMutationSkippedRef.current?.(mutation, 'Issue not found for delete mutation');
+          return;
         }
         // Check for stale delete mutation
         if (isStaleMutation(mutation, existingIssueForDelete)) {
-          onMutationSkippedRef.current?.(mutation, 'Stale delete mutation')
-          return
+          onMutationSkippedRef.current?.(mutation, 'Stale delete mutation');
+          return;
         }
-        const newIssues = new Map(issues)
-        newIssues.delete(issue_id)
-        setIssues(newIssues)
-        onIssueDeletedRef.current?.(issue_id)
-        setMutationCount((c) => c + 1)
-        setLastMutationAt(mutation.timestamp)
-        return
+        const newIssues = new Map(issues);
+        newIssues.delete(issue_id);
+        setIssues(newIssues);
+        onIssueDeletedRef.current?.(issue_id);
+        setMutationCount((c) => c + 1);
+        setLastMutationAt(mutation.timestamp);
+        return;
       }
 
       // For all other mutations, issue must exist
-      const existingIssue = issues.get(issue_id)
+      const existingIssue = issues.get(issue_id);
       if (!existingIssue) {
-        onMutationSkippedRef.current?.(mutation, `Issue not found for ${type} mutation`)
-        return
+        onMutationSkippedRef.current?.(mutation, `Issue not found for ${type} mutation`);
+        return;
       }
 
       // Check for stale mutation
       if (isStaleMutation(mutation, existingIssue)) {
-        onMutationSkippedRef.current?.(mutation, 'Stale mutation (older than current issue)')
-        return
+        onMutationSkippedRef.current?.(mutation, 'Stale mutation (older than current issue)');
+        return;
       }
 
-      let updatedIssue: Issue
+      let updatedIssue: Issue;
 
       switch (type) {
         case MutationUpdate:
-          updatedIssue = applyUpdateToIssue(existingIssue, mutation)
-          break
+          updatedIssue = applyUpdateToIssue(existingIssue, mutation);
+          break;
 
         case MutationStatus:
-          updatedIssue = applyStatusToIssue(existingIssue, mutation)
-          break
+          updatedIssue = applyStatusToIssue(existingIssue, mutation);
+          break;
 
         case MutationBonded:
-          updatedIssue = applyBondedToIssue(existingIssue, mutation)
-          break
+          updatedIssue = applyBondedToIssue(existingIssue, mutation);
+          break;
 
         default:
           // For unsupported mutation types (squashed, burned, comment),
           // just update the timestamp to mark the issue as modified
           updatedIssue = produce(existingIssue, (draft) => {
-            draft.updated_at = mutation.timestamp
-          })
-          break
+            draft.updated_at = mutation.timestamp;
+          });
+          break;
       }
 
-      const newIssues = new Map(issues)
-      newIssues.set(issue_id, updatedIssue)
-      setIssues(newIssues)
-      onIssueUpdatedRef.current?.(updatedIssue, existingIssue)
-      setMutationCount((c) => c + 1)
-      setLastMutationAt(mutation.timestamp)
+      const newIssues = new Map(issues);
+      newIssues.set(issue_id, updatedIssue);
+      setIssues(newIssues);
+      onIssueUpdatedRef.current?.(updatedIssue, existingIssue);
+      setMutationCount((c) => c + 1);
+      setLastMutationAt(mutation.timestamp);
     },
     [issues, setIssues]
-  )
+  );
 
   /**
    * Process multiple mutation events in order.
@@ -320,16 +320,16 @@ export function useMutationHandler(
   const handleMutations = useCallback(
     (mutations: MutationPayload[]) => {
       mutations.forEach((mutation) => {
-        handleMutation(mutation)
-      })
+        handleMutation(mutation);
+      });
     },
     [handleMutation]
-  )
+  );
 
   return {
     handleMutation,
     handleMutations,
     mutationCount,
     lastMutationAt,
-  }
+  };
 }

@@ -85,11 +85,6 @@ async function setupMocks(page: Page, options?: SetupMocksOptions) {
   // Track patch calls
   const patchCalls: { id: string; body: { title?: string } }[] = []
 
-  // Mock WebSocket to prevent connection errors
-  await page.route("**/ws", async (route) => {
-    await route.abort()
-  })
-
   // Mock /api/ready to return our test issues
   await page.route("**/api/ready", async (route) => {
     // Return issues with current title state if titleRef is provided

@@ -295,7 +295,7 @@ export function KanbanBoard({
                         blockedByCount: blockedInfo.blockedByCount,
                         blockedBy: blockedInfo.blockedBy,
                       })}
-                      {...(isBacklogColumn && { isPending: true })}
+                      {...(isBacklogColumn && { isBacklog: true })}
                       {...(onApprove !== undefined && { onApprove })}
                       {...(onReject !== undefined && { onReject })}
                     />
@@ -319,7 +319,7 @@ export function KanbanBoard({
                   blockedByCount: blockedInfo.blockedByCount,
                   blockedBy: blockedInfo.blockedBy,
                 })}
-                {...(isBacklogCard && { isPending: true })}
+                {...(isBacklogCard && { isBacklog: true })}
               />
             );
           })()}

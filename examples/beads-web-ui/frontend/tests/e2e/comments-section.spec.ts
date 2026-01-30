@@ -105,10 +105,6 @@ async function setupMocks(
     apiDelay?: number
   }
 ) {
-  // Mock WebSocket to prevent connection errors
-  await page.route("**/ws", async (route) => {
-    await route.abort()
-  })
 
   // Mock /api/ready to return our test issues
   await page.route("**/api/ready", async (route) => {

@@ -70,9 +70,6 @@ async function setupMocks(page: Page) {
       body: JSON.stringify({ success: true, data: mockIssues }),
     })
   })
-  await page.route("**/ws", async (route) => {
-    await route.abort()
-  })
 }
 
 /**
@@ -395,9 +392,6 @@ test.describe("GroupBy Dropdown", () => {
           contentType: "application/json",
           body: JSON.stringify({ success: true, data: [] }),
         })
-      })
-      await page.route("**/ws", async (route) => {
-        await route.abort()
       })
 
       await navigateAndWait(page, "/")

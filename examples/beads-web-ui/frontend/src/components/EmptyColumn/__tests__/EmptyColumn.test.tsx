@@ -134,6 +134,27 @@ describe('EmptyColumn', () => {
     });
   });
 
+  describe('backlog status (Pending→Backlog rename)', () => {
+    it('renders correct message for backlog status', () => {
+      render(<EmptyColumn status="backlog" />);
+
+      expect(screen.getByText('No blocked or deferred issues')).toBeInTheDocument();
+    });
+
+    it('renders backlog message in aria-label', () => {
+      render(<EmptyColumn status="backlog" />);
+
+      const statusElement = screen.getByRole('status');
+      expect(statusElement).toHaveAttribute('aria-label', 'No blocked or deferred issues');
+    });
+
+    it('pending status falls through to default message after rename', () => {
+      render(<EmptyColumn status="pending" />);
+
+      expect(screen.getByText('No issues')).toBeInTheDocument();
+    });
+  });
+
   describe('edge cases', () => {
     it('renders with all props provided', () => {
       const { container } = render(
@@ -161,7 +182,7 @@ describe('EmptyColumn', () => {
         'pinned',
         'hooked',
       ] as const;
-      const expectedMessages: Record<typeof statuses[number], string> = {
+      const expectedMessages: Record<(typeof statuses)[number], string> = {
         open: 'No open issues',
         in_progress: 'No issues in progress',
         closed: 'No closed issues',

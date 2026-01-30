@@ -118,9 +118,6 @@ async function setupMocks(page: Page, issues: object[] = mockIssues) {
     }
   })
 
-  await page.route("**/ws", async (route) => {
-    await route.abort()
-  })
 }
 
 /**
@@ -415,10 +412,6 @@ test.describe("groupBy Priority Swim Lanes", () => {
         } else {
           await route.continue()
         }
-      })
-
-      await page.route("**/ws", async (route) => {
-        await route.abort()
       })
 
       await navigateAndWait(page, "/?groupBy=priority")

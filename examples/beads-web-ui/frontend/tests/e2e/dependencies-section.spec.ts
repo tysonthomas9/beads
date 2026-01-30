@@ -220,11 +220,6 @@ async function setupMocks(
   // Track current issue details (mutable for add/remove operations)
   const issueDetailsCache: Record<string, ReturnType<typeof getMockIssueDetails>> = {}
 
-  // Mock WebSocket to prevent connection errors
-  await page.route("**/ws", async (route) => {
-    await route.abort()
-  })
-
   // Mock /api/ready to return our test issues
   await page.route("**/api/ready", async (route) => {
     await route.fulfill({
