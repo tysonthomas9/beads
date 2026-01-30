@@ -509,7 +509,17 @@ func handleBlockedWithPool(pool blockedConnectionGetter) http.HandlerFunc {
 		}
 
 		// Parse query parameters into BlockedArgs
-		args := parseBlockedParams(r)
+		args, err := parseBlockedParams(r)
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			if err := json.NewEncoder(w).Encode(BlockedResponse{
+				Success: false,
+				Error:   err.Error(),
+			}); err != nil {
+				log.Printf("Failed to encode blocked response: %v", err)
+			}
+			return
+		}
 
 		// Acquire connection with 5-second timeout
 		ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
@@ -742,16 +752,47 @@ func handleGraphWithPool(pool graphConnectionGetter) http.HandlerFunc {
 }
 
 // parseBlockedParams parses query parameters into rpc.BlockedArgs.
-func parseBlockedParams(r *http.Request) *rpc.BlockedArgs {
+func parseBlockedParams(r *http.Request) (*rpc.BlockedArgs, error) {
 	args := &rpc.BlockedArgs{}
 	q := r.URL.Query()
 
-	// Parse optional parent_id parameter
+	// String parameters
 	if v := q.Get("parent_id"); v != "" {
 		args.ParentID = v
 	}
+	if v := q.Get("assignee"); v != "" {
+		args.Assignee = v
+	}
+	if v := q.Get("type"); v != "" {
+		args.Type = v
+	}
 
-	return args
+	// Integer parameters
+	if v := q.Get("priority"); v != "" {
+		p, err := strconv.Atoi(v)
+		if err != nil {
+			return nil, fmt.Errorf("invalid priority value: %s (must be an integer 0-4)", v)
+		}
+		if p < 0 || p > 4 {
+			return nil, fmt.Errorf("priority must be between 0 and 4 (got %d)", p)
+		}
+		args.Priority = &p
+	}
+	if v := q.Get("limit"); v != "" {
+		l, err := strconv.Atoi(v)
+		if err != nil {
+			return nil, fmt.Errorf("invalid limit value: %s (must be a non-negative integer)", v)
+		}
+		if l < 0 {
+			return nil, fmt.Errorf("limit must be non-negative (got %d)", l)
+		}
+		if l > MaxListLimit {
+			l = MaxListLimit
+		}
+		args.Limit = l
+	}
+
+	return args, nil
 }
 
 // parseGraphParams parses query parameters for the graph endpoint.

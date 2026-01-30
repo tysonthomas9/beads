@@ -125,6 +125,14 @@ export async function getStats(): Promise<Statistics> {
 export interface BlockedFilter {
   /** Filter to descendants of this parent issue/epic */
   parent_id?: string;
+  /** Filter by priority (0-4) */
+  priority?: number;
+  /** Filter by issue type */
+  type?: string;
+  /** Filter by assignee */
+  assignee?: string;
+  /** Max results to return */
+  limit?: number;
 }
 
 /**
@@ -134,6 +142,18 @@ export async function getBlockedIssues(options?: BlockedFilter): Promise<Blocked
   const params: Record<string, unknown> = {};
   if (options?.parent_id) {
     params.parent_id = options.parent_id;
+  }
+  if (options?.priority !== undefined) {
+    params.priority = options.priority;
+  }
+  if (options?.type) {
+    params.type = options.type;
+  }
+  if (options?.assignee) {
+    params.assignee = options.assignee;
+  }
+  if (options?.limit !== undefined) {
+    params.limit = options.limit;
   }
   const query = buildQueryString(params);
   const response = await get<ApiResult<BlockedIssue[]>>(`/api/blocked${query}`);

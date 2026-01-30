@@ -13,6 +13,14 @@ import type { BlockedIssue } from '@/types';
 export interface UseBlockedIssuesOptions {
   /** Optional: filter to descendants of this issue/epic */
   parentId?: string;
+  /** Optional: filter by priority (0-4) */
+  priority?: number;
+  /** Optional: filter by issue type */
+  type?: string;
+  /** Optional: filter by assignee */
+  assignee?: string;
+  /** Optional: max results to return */
+  limit?: number;
   /** Optional: poll interval in ms (default: no polling) */
   pollInterval?: number;
   /** Optional: whether to fetch (default: true) */
@@ -59,7 +67,7 @@ export interface UseBlockedIssuesResult {
  * ```
  */
 export function useBlockedIssues(options?: UseBlockedIssuesOptions): UseBlockedIssuesResult {
-  const { parentId, pollInterval, enabled = true } = options ?? {};
+  const { parentId, priority, type, assignee, limit, pollInterval, enabled = true } = options ?? {};
 
   const [data, setData] = useState<BlockedIssue[] | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
@@ -86,6 +94,18 @@ export function useBlockedIssues(options?: UseBlockedIssuesOptions): UseBlockedI
       if (parentId) {
         filter.parent_id = parentId;
       }
+      if (priority !== undefined) {
+        filter.priority = priority;
+      }
+      if (type) {
+        filter.type = type;
+      }
+      if (assignee) {
+        filter.assignee = assignee;
+      }
+      if (limit !== undefined) {
+        filter.limit = limit;
+      }
 
       const result = await getBlockedIssues(filter);
 
@@ -106,7 +126,7 @@ export function useBlockedIssues(options?: UseBlockedIssuesOptions): UseBlockedI
       }
       fetchInProgressRef.current = false;
     }
-  }, [parentId]);
+  }, [parentId, priority, type, assignee, limit]);
 
   // Refetch function exposed to consumers
   const refetch = useCallback(async () => {
@@ -143,7 +163,7 @@ export function useBlockedIssues(options?: UseBlockedIssuesOptions): UseBlockedI
 
     // it has fetchInProgressRef guard preventing overlapping requests, and including it
     // causes interval stacking when parentId changes (fetchData recreated → effect reruns)
-  }, [enabled, pollInterval, parentId]);
+  }, [enabled, pollInterval, parentId, priority, type, assignee, limit]);
 
   return {
     data,

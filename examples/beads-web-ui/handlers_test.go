@@ -1792,7 +1792,10 @@ var _ = func() bool {
 func TestParseBlockedParams_EmptyQuery(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/api/blocked", nil)
 
-	args := parseBlockedParams(req)
+	args, err := parseBlockedParams(req)
+	if err != nil {
+		t.Errorf("parseBlockedParams() unexpected error: %v", err)
+	}
 
 	// Verify default values
 	if args.ParentID != "" {
@@ -1803,7 +1806,10 @@ func TestParseBlockedParams_EmptyQuery(t *testing.T) {
 func TestParseBlockedParams_ParentID(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/api/blocked?parent_id=epic-123", nil)
 
-	args := parseBlockedParams(req)
+	args, err := parseBlockedParams(req)
+	if err != nil {
+		t.Errorf("parseBlockedParams() unexpected error: %v", err)
+	}
 
 	if args.ParentID != "epic-123" {
 		t.Errorf("ParentID = %q, want %q", args.ParentID, "epic-123")
@@ -6698,5 +6704,262 @@ func TestHandleAddComment_ClientReturnedToPoolOnError(t *testing.T) {
 	// Verify we got an error response
 	if w.Code != http.StatusInternalServerError {
 		t.Errorf("status = %d, want %d", w.Code, http.StatusInternalServerError)
+	}
+}
+
+func TestParseBlockedParams_Priority(t *testing.T) {
+	tests := []struct {
+		name      string
+		query     string
+		wantVal   *int
+		wantErr   bool
+		errSubstr string
+	}{
+		{
+			name:    "valid priority 0",
+			query:   "priority=0",
+			wantVal: intPtr(0),
+			wantErr: false,
+		},
+		{
+			name:    "valid priority 2",
+			query:   "priority=2",
+			wantVal: intPtr(2),
+			wantErr: false,
+		},
+		{
+			name:    "valid priority 4",
+			query:   "priority=4",
+			wantVal: intPtr(4),
+			wantErr: false,
+		},
+		{
+			name:      "invalid priority not a number",
+			query:     "priority=high",
+			wantErr:   true,
+			errSubstr: "invalid priority value",
+		},
+		{
+			name:      "invalid priority negative",
+			query:     "priority=-1",
+			wantErr:   true,
+			errSubstr: "priority must be between 0 and 4",
+		},
+		{
+			name:      "invalid priority too high",
+			query:     "priority=5",
+			wantErr:   true,
+			errSubstr: "priority must be between 0 and 4",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, "/api/blocked?"+tt.query, nil)
+
+			args, err := parseBlockedParams(req)
+
+			if tt.wantErr {
+				if err == nil {
+					t.Error("parseBlockedParams() expected error, got nil")
+					return
+				}
+				if tt.errSubstr != "" && !containsSubstring(err.Error(), tt.errSubstr) {
+					t.Errorf("error = %q, want to contain %q", err.Error(), tt.errSubstr)
+				}
+				return
+			}
+
+			if err != nil {
+				t.Errorf("parseBlockedParams() unexpected error: %v", err)
+				return
+			}
+
+			if tt.wantVal == nil {
+				if args.Priority != nil {
+					t.Errorf("Priority = %v, want nil", args.Priority)
+				}
+			} else {
+				if args.Priority == nil {
+					t.Errorf("Priority = nil, want %d", *tt.wantVal)
+				} else if *args.Priority != *tt.wantVal {
+					t.Errorf("Priority = %d, want %d", *args.Priority, *tt.wantVal)
+				}
+			}
+		})
+	}
+}
+
+func TestParseBlockedParams_Limit(t *testing.T) {
+	tests := []struct {
+		name      string
+		query     string
+		wantVal   int
+		wantErr   bool
+		errSubstr string
+	}{
+		{
+			name:    "valid limit 0",
+			query:   "limit=0",
+			wantVal: 0,
+			wantErr: false,
+		},
+		{
+			name:    "valid limit 10",
+			query:   "limit=10",
+			wantVal: 10,
+			wantErr: false,
+		},
+		{
+			name:    "valid limit 100",
+			query:   "limit=100",
+			wantVal: 100,
+			wantErr: false,
+		},
+		{
+			name:      "invalid limit not a number",
+			query:     "limit=ten",
+			wantErr:   true,
+			errSubstr: "invalid limit value",
+		},
+		{
+			name:      "invalid limit negative",
+			query:     "limit=-5",
+			wantErr:   true,
+			errSubstr: "limit must be non-negative",
+		},
+		{
+			name:    "limit exceeding MaxListLimit capped at 1000",
+			query:   "limit=5000",
+			wantVal: MaxListLimit,
+			wantErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, "/api/blocked?"+tt.query, nil)
+
+			args, err := parseBlockedParams(req)
+
+			if tt.wantErr {
+				if err == nil {
+					t.Error("parseBlockedParams() expected error, got nil")
+					return
+				}
+				if tt.errSubstr != "" && !containsSubstring(err.Error(), tt.errSubstr) {
+					t.Errorf("error = %q, want to contain %q", err.Error(), tt.errSubstr)
+				}
+				return
+			}
+
+			if err != nil {
+				t.Errorf("parseBlockedParams() unexpected error: %v", err)
+				return
+			}
+
+			if args.Limit != tt.wantVal {
+				t.Errorf("Limit = %d, want %d", args.Limit, tt.wantVal)
+			}
+		})
+	}
+}
+
+func TestParseBlockedParams_Type(t *testing.T) {
+	req := httptest.NewRequest(http.MethodGet, "/api/blocked?type=bug", nil)
+
+	args, err := parseBlockedParams(req)
+	if err != nil {
+		t.Errorf("parseBlockedParams() unexpected error: %v", err)
+	}
+
+	if args.Type != "bug" {
+		t.Errorf("Type = %q, want %q", args.Type, "bug")
+	}
+}
+
+func TestParseBlockedParams_Assignee(t *testing.T) {
+	req := httptest.NewRequest(http.MethodGet, "/api/blocked?assignee=alice", nil)
+
+	args, err := parseBlockedParams(req)
+	if err != nil {
+		t.Errorf("parseBlockedParams() unexpected error: %v", err)
+	}
+
+	if args.Assignee != "alice" {
+		t.Errorf("Assignee = %q, want %q", args.Assignee, "alice")
+	}
+}
+
+func TestParseBlockedParams_AllParams(t *testing.T) {
+	req := httptest.NewRequest(http.MethodGet, "/api/blocked?assignee=bob&type=feature&priority=3&limit=50&parent_id=abc123", nil)
+
+	args, err := parseBlockedParams(req)
+	if err != nil {
+		t.Errorf("parseBlockedParams() unexpected error: %v", err)
+		return
+	}
+
+	if args.Assignee != "bob" {
+		t.Errorf("Assignee = %q, want %q", args.Assignee, "bob")
+	}
+	if args.Type != "feature" {
+		t.Errorf("Type = %q, want %q", args.Type, "feature")
+	}
+	if args.Priority == nil {
+		t.Error("Priority = nil, want 3")
+	} else if *args.Priority != 3 {
+		t.Errorf("Priority = %d, want %d", *args.Priority, 3)
+	}
+	if args.Limit != 50 {
+		t.Errorf("Limit = %d, want %d", args.Limit, 50)
+	}
+	if args.ParentID != "abc123" {
+		t.Errorf("ParentID = %q, want %q", args.ParentID, "abc123")
+	}
+}
+
+func TestParseBlockedParams_InvalidParams(t *testing.T) {
+	tests := []struct {
+		name      string
+		query     string
+		errSubstr string
+	}{
+		{
+			name:      "bad priority non-int",
+			query:     "priority=high",
+			errSubstr: "invalid priority value",
+		},
+		{
+			name:      "bad priority out of range",
+			query:     "priority=5",
+			errSubstr: "priority must be between 0 and 4",
+		},
+		{
+			name:      "bad limit non-int",
+			query:     "limit=ten",
+			errSubstr: "invalid limit value",
+		},
+		{
+			name:      "bad limit negative",
+			query:     "limit=-1",
+			errSubstr: "limit must be non-negative",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, "/api/blocked?"+tt.query, nil)
+
+			_, err := parseBlockedParams(req)
+
+			if err == nil {
+				t.Error("parseBlockedParams() expected error, got nil")
+				return
+			}
+			if !containsSubstring(err.Error(), tt.errSubstr) {
+				t.Errorf("error = %q, want to contain %q", err.Error(), tt.errSubstr)
+			}
+		})
 	}
 }

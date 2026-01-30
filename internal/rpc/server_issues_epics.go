@@ -1760,7 +1760,14 @@ func (s *Server) handleBlocked(req *Request) Response {
 		}
 	}
 
-	var wf types.WorkFilter
+	wf := types.WorkFilter{
+		Type:     blockedArgs.Type,
+		Priority: blockedArgs.Priority,
+		Limit:    blockedArgs.Limit,
+	}
+	if blockedArgs.Assignee != "" {
+		wf.Assignee = &blockedArgs.Assignee
+	}
 	if blockedArgs.ParentID != "" {
 		wf.ParentID = &blockedArgs.ParentID
 	}
