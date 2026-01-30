@@ -14,10 +14,6 @@ const TOAST_FIXTURE = "/test/toast"
 
 test.describe("Toast Notifications", () => {
   test.beforeEach(async ({ page }) => {
-    // Mock WebSocket to prevent connection errors
-    await page.route("**/ws", async (route) => {
-      await route.abort()
-    })
   })
 
   test.describe("Display", () => {

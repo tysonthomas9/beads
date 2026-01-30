@@ -152,9 +152,6 @@ async function setupMocks(page: Page, issues: object[]) {
       body: JSON.stringify({ success: true, data: issues }),
     })
   })
-  await page.route("**/ws", async (route) => {
-    await route.abort()
-  })
 }
 
 /**

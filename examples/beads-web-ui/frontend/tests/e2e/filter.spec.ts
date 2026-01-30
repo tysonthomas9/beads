@@ -107,9 +107,6 @@ async function setupMocks(page: Page, issues = mockIssues) {
       body: JSON.stringify({ success: true, data: issues }),
     })
   })
-  await page.route("**/ws", async (route) => {
-    await route.abort()
-  })
   // Mock stats endpoint to prevent "Stats unavailable" overlay
   await page.route("**/api/stats", async (route) => {
     await route.fulfill({

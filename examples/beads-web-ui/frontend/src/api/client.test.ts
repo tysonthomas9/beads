@@ -264,8 +264,108 @@ describe('API Client', () => {
     });
   });
 
-  describe('AbortSignal event listener cleanup', () => {
-    it('removes event listener on successful request', async () => {
+  describe('Combined signal behavior (AbortSignal.any)', () => {
+    it('timeout works when caller provides their own signal', async () => {
+      vi.useRealTimers();
+
+      const abortError = new DOMException('The operation was aborted.', 'AbortError');
+
+      global.fetch = vi.fn().mockImplementation((_url, options) => {
+        return new Promise((_, reject) => {
+          if (options?.signal) {
+            options.signal.addEventListener('abort', () => {
+              reject(abortError);
+            });
+          }
+        });
+      });
+
+      const callerController = new AbortController();
+      const requestPromise = get('/api/slow', {
+        timeout: 10,
+        signal: callerController.signal,
+      });
+
+      await expect(requestPromise).rejects.toThrow(ApiError);
+
+      // Verify it was a timeout error, not a caller abort
+      global.fetch = vi.fn().mockImplementation((_url, options) => {
+        return new Promise((_, reject) => {
+          if (options?.signal) {
+            options.signal.addEventListener('abort', () => {
+              reject(abortError);
+            });
+          }
+        });
+      });
+
+      const callerController2 = new AbortController();
+      const requestPromise2 = get('/api/slow', {
+        timeout: 10,
+        signal: callerController2.signal,
+      });
+
+      try {
+        await requestPromise2;
+        throw new Error('Should have thrown');
+      } catch (e) {
+        expect(e).toMatchObject({
+          status: 0,
+          statusText: 'Request timeout',
+        });
+      }
+
+      vi.useFakeTimers();
+    });
+
+    it('caller signal abort works when timeout is also configured', async () => {
+      vi.useRealTimers();
+
+      const abortError = new DOMException('The operation was aborted.', 'AbortError');
+
+      global.fetch = vi.fn().mockImplementation((_url, options) => {
+        return new Promise((_, reject) => {
+          if (options?.signal) {
+            options.signal.addEventListener('abort', () => {
+              reject(abortError);
+            });
+          }
+        });
+      });
+
+      const callerController = new AbortController();
+      const requestPromise = get('/api/slow', {
+        timeout: 5000,
+        signal: callerController.signal,
+      });
+
+      // Abort from caller before timeout fires
+      callerController.abort();
+
+      await expect(requestPromise).rejects.toThrow(DOMException);
+      await expect(
+        // Need a fresh request for the second assertion
+        (async () => {
+          global.fetch = vi.fn().mockImplementation((_url, options) => {
+            return new Promise((_, reject) => {
+              if (options?.signal) {
+                options.signal.addEventListener('abort', () => {
+                  reject(abortError);
+                });
+              }
+            });
+          });
+          const ctrl = new AbortController();
+          const p = get('/api/slow', { timeout: 5000, signal: ctrl.signal });
+          ctrl.abort();
+          return p;
+        })()
+      ).rejects.not.toThrow(ApiError);
+
+      vi.useFakeTimers();
+    });
+
+    it('passes combined signal to fetch when caller provides signal', async () => {
       const mockData = { id: 1 };
       global.fetch = vi.fn().mockResolvedValue({
         ok: true,
@@ -273,57 +373,16 @@ describe('API Client', () => {
         json: () => Promise.resolve(mockData),
       });
 
-      const controller = new AbortController();
-      const addEventListenerSpy = vi.spyOn(controller.signal, 'addEventListener');
-      const removeEventListenerSpy = vi.spyOn(controller.signal, 'removeEventListener');
+      const callerController = new AbortController();
+      await get('/api/test', { signal: callerController.signal });
 
-      await get('/api/test', { signal: controller.signal });
-
-      expect(addEventListenerSpy).toHaveBeenCalledWith('abort', expect.any(Function));
-      expect(removeEventListenerSpy).toHaveBeenCalledWith('abort', expect.any(Function));
-      // Verify the same handler was added and removed
-      const addedHandler = addEventListenerSpy.mock.calls[0][1];
-      const removedHandler = removeEventListenerSpy.mock.calls[0][1];
-      expect(addedHandler).toBe(removedHandler);
-    });
-
-    it('removes event listener on failed request (ApiError)', async () => {
-      global.fetch = vi.fn().mockResolvedValue({
-        ok: false,
-        status: 404,
-        statusText: 'Not Found',
-        text: () => Promise.resolve('{}'),
-      });
-
-      const controller = new AbortController();
-      const addEventListenerSpy = vi.spyOn(controller.signal, 'addEventListener');
-      const removeEventListenerSpy = vi.spyOn(controller.signal, 'removeEventListener');
-
-      await expect(get('/api/test', { signal: controller.signal })).rejects.toThrow(ApiError);
-
-      expect(addEventListenerSpy).toHaveBeenCalledWith('abort', expect.any(Function));
-      expect(removeEventListenerSpy).toHaveBeenCalledWith('abort', expect.any(Function));
-      // Verify the same handler was added and removed
-      const addedHandler = addEventListenerSpy.mock.calls[0][1];
-      const removedHandler = removeEventListenerSpy.mock.calls[0][1];
-      expect(addedHandler).toBe(removedHandler);
-    });
-
-    it('removes event listener when request errors (network error)', async () => {
-      global.fetch = vi.fn().mockRejectedValue(new TypeError('Failed to fetch'));
-
-      const controller = new AbortController();
-      const addEventListenerSpy = vi.spyOn(controller.signal, 'addEventListener');
-      const removeEventListenerSpy = vi.spyOn(controller.signal, 'removeEventListener');
-
-      await expect(get('/api/test', { signal: controller.signal })).rejects.toThrow(ApiError);
-
-      expect(addEventListenerSpy).toHaveBeenCalledWith('abort', expect.any(Function));
-      expect(removeEventListenerSpy).toHaveBeenCalledWith('abort', expect.any(Function));
-      // Verify the same handler was added and removed
-      const addedHandler = addEventListenerSpy.mock.calls[0][1];
-      const removedHandler = removeEventListenerSpy.mock.calls[0][1];
-      expect(addedHandler).toBe(removedHandler);
+      const mockFn = global.fetch as ReturnType<typeof vi.fn>;
+      const call = mockFn.mock.calls[0];
+      const options = call?.[1] as { signal: AbortSignal };
+      // The signal should NOT be the caller's signal directly (it should be a combined signal)
+      expect(options.signal).not.toBe(callerController.signal);
+      // But it should still be an AbortSignal
+      expect(options.signal).toBeInstanceOf(AbortSignal);
     });
   });
 

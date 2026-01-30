@@ -53,9 +53,6 @@ async function setupMocks(page: Page, issues: object[] = mockIssues) {
       body: JSON.stringify({ success: true, data: issues }),
     })
   })
-  await page.route("**/ws", async (route) => {
-    await route.abort()
-  })
 }
 
 /**
@@ -231,10 +228,6 @@ test.describe("Swim Lane Wiring in App.tsx", () => {
         } else {
           await route.continue()
         }
-      })
-
-      await page.route("**/ws", async (route) => {
-        await route.abort()
       })
 
       await navigateAndWait(page, "/?groupBy=epic")

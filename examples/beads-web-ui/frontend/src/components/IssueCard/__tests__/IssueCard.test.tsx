@@ -455,50 +455,84 @@ describe('IssueCard', () => {
     });
   });
 
-  describe('isPending prop', () => {
-    it('renders with data-in-pending="true" when isPending is true', () => {
+  describe('isBacklog prop', () => {
+    it('renders with data-in-backlog="true" when isBacklog is true', () => {
       const issue = createTestIssue();
-      const { container } = render(<IssueCard issue={issue} isPending={true} />);
+      const { container } = render(<IssueCard issue={issue} isBacklog={true} />);
 
       const article = container.querySelector('article');
-      expect(article).toHaveAttribute('data-in-pending', 'true');
+      expect(article).toHaveAttribute('data-in-backlog', 'true');
     });
 
-    it('does not render data-in-pending attribute when isPending is false', () => {
+    it('does not render data-in-backlog attribute when isBacklog is false', () => {
       const issue = createTestIssue();
-      const { container } = render(<IssueCard issue={issue} isPending={false} />);
+      const { container } = render(<IssueCard issue={issue} isBacklog={false} />);
 
       const article = container.querySelector('article');
-      expect(article).not.toHaveAttribute('data-in-pending');
+      expect(article).not.toHaveAttribute('data-in-backlog');
     });
 
-    it('does not render data-in-pending attribute when isPending is undefined', () => {
+    it('does not render data-in-backlog attribute when isBacklog is undefined', () => {
       const issue = createTestIssue();
       const { container } = render(<IssueCard issue={issue} />);
 
       const article = container.querySelector('article');
-      expect(article).not.toHaveAttribute('data-in-pending');
+      expect(article).not.toHaveAttribute('data-in-backlog');
     });
 
-    it('includes (pending) in aria-label when isPending is true', () => {
-      const issue = createTestIssue({ title: 'Pending Issue' });
-      render(<IssueCard issue={issue} isPending={true} />);
+    it('includes (backlog) in aria-label when isBacklog is true', () => {
+      const issue = createTestIssue({ title: 'Backlog Issue' });
+      render(<IssueCard issue={issue} isBacklog={true} />);
 
-      expect(screen.getByLabelText('Issue: Pending Issue (pending)')).toBeInTheDocument();
+      expect(screen.getByLabelText('Issue: Backlog Issue (backlog)')).toBeInTheDocument();
     });
 
-    it('aria-label does not include (pending) when isPending is false', () => {
+    it('aria-label does not include (backlog) when isBacklog is false', () => {
       const issue = createTestIssue({ title: 'Normal Issue' });
-      render(<IssueCard issue={issue} isPending={false} />);
+      render(<IssueCard issue={issue} isBacklog={false} />);
 
       expect(screen.getByLabelText('Issue: Normal Issue')).toBeInTheDocument();
     });
 
-    it('aria-label includes both (blocked) and (pending) when both are true', () => {
+    it('aria-label includes both (blocked) and (backlog) when both are true', () => {
       const issue = createTestIssue({ title: 'Complex Issue' });
-      render(<IssueCard issue={issue} blockedByCount={1} isPending={true} />);
+      render(<IssueCard issue={issue} blockedByCount={1} isBacklog={true} />);
 
-      expect(screen.getByLabelText('Issue: Complex Issue (blocked) (pending)')).toBeInTheDocument();
+      expect(screen.getByLabelText('Issue: Complex Issue (blocked) (backlog)')).toBeInTheDocument();
+    });
+  });
+
+  describe('deferred badge', () => {
+    it('renders deferred badge when issue status is "deferred"', () => {
+      const issue = createTestIssue({ status: 'deferred' });
+      render(<IssueCard issue={issue} />);
+
+      const badge = screen.getByLabelText('Deferred');
+      expect(badge).toBeInTheDocument();
+      expect(badge).toHaveTextContent('Deferred');
+      expect(screen.getByText('⏸')).toBeInTheDocument();
+    });
+
+    it('does not render deferred badge for non-deferred status', () => {
+      const issue = createTestIssue({ status: 'open' });
+      render(<IssueCard issue={issue} />);
+
+      expect(screen.queryByLabelText('Deferred')).not.toBeInTheDocument();
+    });
+
+    it('deferred badge has aria-label="Deferred"', () => {
+      const issue = createTestIssue({ status: 'deferred' });
+      render(<IssueCard issue={issue} />);
+
+      expect(screen.getByLabelText('Deferred')).toBeInTheDocument();
+    });
+
+    it('deferred badge icon has aria-hidden', () => {
+      const issue = createTestIssue({ status: 'deferred' });
+      render(<IssueCard issue={issue} />);
+
+      const icon = screen.getByText('⏸');
+      expect(icon).toHaveAttribute('aria-hidden', 'true');
     });
   });
 
@@ -936,7 +970,7 @@ describe('IssueCard', () => {
     });
 
     describe('column-specific behavior', () => {
-      it.each(['open', 'in_progress', 'blocked', 'done', 'pending'])(
+      it.each(['open', 'in_progress', 'blocked', 'done', 'backlog'])(
         'does not show action buttons for columnId="%s"',
         (columnId) => {
           const issue = createTestIssue();

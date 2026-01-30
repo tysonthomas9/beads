@@ -33,9 +33,7 @@ describe('StatusColumn', () => {
     it('renders status label correctly formatted', () => {
       render(<StatusColumn status="in_progress" count={3} />);
 
-      expect(
-        screen.getByRole('heading', { name: 'In Progress' })
-      ).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'In Progress' })).toBeInTheDocument();
     });
 
     it('renders count badge with correct number', () => {
@@ -71,23 +69,17 @@ describe('StatusColumn', () => {
 
     it('formats snake_case status to title case', () => {
       render(<StatusColumn status="in_progress" count={1} />);
-      expect(
-        screen.getByRole('heading', { name: 'In Progress' })
-      ).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'In Progress' })).toBeInTheDocument();
     });
 
     it('formats blocked status', () => {
       render(<StatusColumn status="blocked" count={1} />);
-      expect(
-        screen.getByRole('heading', { name: 'Blocked' })
-      ).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'Blocked' })).toBeInTheDocument();
     });
 
     it('formats custom status correctly', () => {
       render(<StatusColumn status="custom_status_name" count={1} />);
-      expect(
-        screen.getByRole('heading', { name: 'Custom Status Name' })
-      ).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'Custom Status Name' })).toBeInTheDocument();
     });
   });
 
@@ -127,9 +119,7 @@ describe('StatusColumn', () => {
 
   describe('props', () => {
     it('custom statusLabel overrides formatted status', () => {
-      render(
-        <StatusColumn status="in_progress" statusLabel="WIP" count={3} />
-      );
+      render(<StatusColumn status="in_progress" statusLabel="WIP" count={3} />);
 
       expect(screen.getByRole('heading', { name: 'WIP' })).toBeInTheDocument();
       expect(screen.queryByText('In Progress')).not.toBeInTheDocument();
@@ -145,9 +135,7 @@ describe('StatusColumn', () => {
     });
 
     it('data-status attribute matches status prop', () => {
-      const { container } = render(
-        <StatusColumn status="in_progress" count={1} />
-      );
+      const { container } = render(<StatusColumn status="in_progress" count={1} />);
 
       const section = container.querySelector('section');
       expect(section).toHaveAttribute('data-status', 'in_progress');
@@ -157,9 +145,7 @@ describe('StatusColumn', () => {
       const statuses = ['open', 'in_progress', 'closed', 'blocked', 'deferred'];
 
       statuses.forEach((status) => {
-        const { container, unmount } = render(
-          <StatusColumn status={status} count={1} />
-        );
+        const { container, unmount } = render(<StatusColumn status={status} count={1} />);
 
         const section = container.querySelector('section');
         expect(section).toHaveAttribute('data-status', status);
@@ -170,17 +156,15 @@ describe('StatusColumn', () => {
   });
 
   describe('columnType prop', () => {
-    it('renders with data-column-type="pending" when columnType is pending', () => {
-      const { container } = render(
-        <StatusColumn status="open" count={1} columnType="pending" />
-      );
+    it('renders with data-column-type="backlog" when columnType is backlog', () => {
+      const { container } = render(<StatusColumn status="open" count={1} columnType="backlog" />);
 
       const section = container.querySelector('section');
-      expect(section).toHaveAttribute('data-column-type', 'pending');
+      expect(section).toHaveAttribute('data-column-type', 'backlog');
     });
 
     it('renders with data-column-type for each column type', () => {
-      const columnTypes = ['ready', 'pending', 'review', 'default'] as const;
+      const columnTypes = ['ready', 'backlog', 'review', 'default'] as const;
 
       columnTypes.forEach((columnType) => {
         const { container, unmount } = render(
@@ -195,9 +179,7 @@ describe('StatusColumn', () => {
     });
 
     it('does not set data-column-type when columnType is undefined', () => {
-      const { container } = render(
-        <StatusColumn status="open" count={1} />
-      );
+      const { container } = render(<StatusColumn status="open" count={1} />);
 
       const section = container.querySelector('section');
       // When columnType is undefined, the attribute value should be undefined/null
@@ -207,9 +189,7 @@ describe('StatusColumn', () => {
 
   describe('headerIcon prop', () => {
     it('displays headerIcon when provided', () => {
-      render(
-        <StatusColumn status="open" count={1} headerIcon="⏳" />
-      );
+      render(<StatusColumn status="open" count={1} headerIcon="⏳" />);
 
       // Icon should be in the document
       const icon = screen.getByText('⏳');
@@ -218,9 +198,7 @@ describe('StatusColumn', () => {
     });
 
     it('does not show headerIcon when not provided', () => {
-      const { container } = render(
-        <StatusColumn status="open" count={1} />
-      );
+      const { container } = render(<StatusColumn status="open" count={1} />);
 
       // Should not have any columnIcon span
       const iconSpan = container.querySelector('[aria-hidden="true"]');
@@ -228,9 +206,7 @@ describe('StatusColumn', () => {
     });
 
     it('headerIcon is inside the header element', () => {
-      const { container } = render(
-        <StatusColumn status="open" count={1} headerIcon="🔍" />
-      );
+      const { container } = render(<StatusColumn status="open" count={1} headerIcon="🔍" />);
 
       const header = container.querySelector('header');
       const icon = screen.getByText('🔍');
@@ -241,9 +217,7 @@ describe('StatusColumn', () => {
       const icons = ['⏳', '✅', '🔍', '📝'];
 
       icons.forEach((icon) => {
-        const { unmount } = render(
-          <StatusColumn status="open" count={1} headerIcon={icon} />
-        );
+        const { unmount } = render(<StatusColumn status="open" count={1} headerIcon={icon} />);
 
         expect(screen.getByText(icon)).toBeInTheDocument();
 
@@ -254,45 +228,35 @@ describe('StatusColumn', () => {
 
   describe('data-has-items attribute', () => {
     it('renders data-has-items="true" when count > 0', () => {
-      const { container } = render(
-        <StatusColumn status="open" count={5} />
-      );
+      const { container } = render(<StatusColumn status="open" count={5} />);
 
       const section = container.querySelector('section');
       expect(section).toHaveAttribute('data-has-items', 'true');
     });
 
     it('does not render data-has-items when count = 0', () => {
-      const { container } = render(
-        <StatusColumn status="open" count={0} />
-      );
+      const { container } = render(<StatusColumn status="open" count={0} />);
 
       const section = container.querySelector('section');
       expect(section).not.toHaveAttribute('data-has-items');
     });
 
     it('renders data-has-items="true" when count = 1', () => {
-      const { container } = render(
-        <StatusColumn status="open" count={1} />
-      );
+      const { container } = render(<StatusColumn status="open" count={1} />);
 
       const section = container.querySelector('section');
       expect(section).toHaveAttribute('data-has-items', 'true');
     });
 
     it('renders data-has-items="true" for large counts', () => {
-      const { container } = render(
-        <StatusColumn status="open" count={999} />
-      );
+      const { container } = render(<StatusColumn status="open" count={999} />);
 
       const section = container.querySelector('section');
       expect(section).toHaveAttribute('data-has-items', 'true');
     });
 
     it('data-has-items attribute is on section element with other data attributes', () => {
-      const { container } = render(
-        <StatusColumn status="review" count={3} columnType="review" />
-      );
+      const { container } = render(<StatusColumn status="review" count={3} columnType="review" />);
 
       const section = container.querySelector('section');
       expect(section).toHaveAttribute('data-status', 'review');
@@ -336,9 +300,7 @@ describe('StatusColumn', () => {
       const statuses = ['open', 'in_progress', 'closed', 'blocked', 'deferred'];
 
       statuses.forEach((status) => {
-        const { unmount } = renderWithDndContext(
-          <StatusColumn status={status} count={0} />
-        );
+        const { unmount } = renderWithDndContext(<StatusColumn status={status} count={0} />);
 
         const content = document.querySelector(`[data-droppable-id="${status}"]`);
         expect(content).toBeInTheDocument();
@@ -378,9 +340,7 @@ describe('StatusColumn', () => {
     });
 
     it('droppableDisabled prop can disable dropping', () => {
-      renderWithDndContext(
-        <StatusColumn status="closed" count={0} droppableDisabled={true} />
-      );
+      renderWithDndContext(<StatusColumn status="closed" count={0} droppableDisabled={true} />);
 
       // Component should still render with droppable ID
       const content = document.querySelector('[data-droppable-id="closed"]');
@@ -469,9 +429,7 @@ describe('StatusColumn', () => {
       );
 
       // Verify component structure is intact
-      expect(
-        screen.getByRole('heading', { name: 'In Progress' })
-      ).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'In Progress' })).toBeInTheDocument();
       expect(screen.getByText('55')).toBeInTheDocument();
 
       // Content area should contain all children
@@ -518,9 +476,7 @@ describe('formatStatusLabel', () => {
   });
 
   it('formats multi-word snake_case status', () => {
-    expect(formatStatusLabel('some_long_custom_status')).toBe(
-      'Some Long Custom Status'
-    );
+    expect(formatStatusLabel('some_long_custom_status')).toBe('Some Long Custom Status');
   });
 
   it('handles single character', () => {

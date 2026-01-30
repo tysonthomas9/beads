@@ -1,13 +1,13 @@
 /**
- * Mutation types for real-time sync via WebSocket.
+ * Mutation types for real-time sync via SSE.
  * Provides strongly-typed representation of mutation events for the React layer.
  */
 
 import type { ISODateString } from './common';
 
-// Re-export mutation types from websocket for convenient imports
-export type { MutationType, MutationPayload } from '../api/websocket';
-import type { MutationType, MutationPayload } from '../api/websocket';
+// Re-export mutation types from SSE for convenient imports
+export type { MutationType, MutationPayload } from '../api/sse';
+import type { MutationType, MutationPayload } from '../api/sse';
 
 /**
  * Mutation type constants.
@@ -27,7 +27,7 @@ export const MutationBurned: MutationType = 'burned';
  * Wraps MutationPayload with client-side metadata.
  */
 export interface MutationEvent {
-  /** Core mutation data from WebSocket */
+  /** Core mutation data from SSE */
   mutation: MutationPayload;
 
   /** When the client received this event (ISO 8601) */

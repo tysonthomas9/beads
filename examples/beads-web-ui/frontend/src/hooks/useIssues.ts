@@ -1,39 +1,39 @@
 /**
  * React hook for managing issue state with real-time updates.
- * Composes useWebSocket + useMutationHandler + API fetch.
+ * Composes useSSE + useMutationHandler + API fetch.
  *
  * This hook is the single source of truth for issue data across the application,
- * handling initial data fetching, real-time updates via WebSocket, and optimistic updates.
+ * handling initial data fetching, real-time updates via SSE, and optimistic updates.
  */
 
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
-import type { Issue, WorkFilter, Status } from '@/types'
-import type { ConnectionState, GraphFilter } from '@/api'
-import { getReadyIssues, updateIssue as apiUpdateIssue, fetchGraphIssues } from '@/api'
-import { useSSE } from './useSSE'
-import { useMutationHandler } from './useMutationHandler'
-import { useToast } from './useToast'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import type { Issue, WorkFilter, Status } from '@/types';
+import type { ConnectionState, GraphFilter } from '@/api';
+import { getReadyIssues, updateIssue as apiUpdateIssue, fetchGraphIssues } from '@/api';
+import { useSSE } from './useSSE';
+import { useMutationHandler } from './useMutationHandler';
+import { useToast } from './useToast';
 
 // Threshold for triggering a full refetch after reconnection
 // If we had this many consecutive reconnect attempts, assume we may have missed events
-const TOO_FAR_BEHIND_THRESHOLD = 3
+const TOO_FAR_BEHIND_THRESHOLD = 3;
 
 /**
  * Options for the useIssues hook.
  */
 export interface UseIssuesOptions {
   /** Initial filter for fetching issues (default: all ready issues) */
-  filter?: WorkFilter
+  filter?: WorkFilter;
   /** Data source mode: 'ready' for ready issues, 'graph' for all issues with deps */
-  mode?: 'ready' | 'graph'
+  mode?: 'ready' | 'graph';
   /** Filter options when mode is 'graph' */
-  graphFilter?: GraphFilter
+  graphFilter?: GraphFilter;
   /** Auto-fetch on mount (default: true) */
-  autoFetch?: boolean
-  /** Auto-connect WebSocket (default: true) */
-  autoConnect?: boolean
+  autoFetch?: boolean;
+  /** Auto-connect SSE (default: true) */
+  autoConnect?: boolean;
   /** Subscribe to mutations on connect (default: true) */
-  subscribeOnConnect?: boolean
+  subscribeOnConnect?: boolean;
 }
 
 /**
@@ -41,31 +41,31 @@ export interface UseIssuesOptions {
  */
 export interface UseIssuesReturn {
   /** Issues as array for rendering */
-  issues: Issue[]
+  issues: Issue[];
   /** Issues as Map for O(1) lookups */
-  issuesMap: Map<string, Issue>
+  issuesMap: Map<string, Issue>;
   /** Loading state for initial fetch */
-  isLoading: boolean
-  /** Error from fetch or WebSocket */
-  error: string | null
-  /** WebSocket connection state */
-  connectionState: ConnectionState
-  /** Whether WebSocket is connected */
-  isConnected: boolean
+  isLoading: boolean;
+  /** Error from fetch or SSE */
+  error: string | null;
+  /** SSE connection state */
+  connectionState: ConnectionState;
+  /** Whether SSE is connected */
+  isConnected: boolean;
   /** Current number of reconnection attempts */
-  reconnectAttempts: number
+  reconnectAttempts: number;
   /** Last event ID received from SSE (for debugging/monitoring) */
-  lastEventId: number | undefined
+  lastEventId: number | undefined;
   /** Refetch issues from API */
-  refetch: () => Promise<void>
+  refetch: () => Promise<void>;
   /** Update an issue's status (optimistic + API call) */
-  updateIssueStatus: (issueId: string, newStatus: Status) => Promise<void>
+  updateIssueStatus: (issueId: string, newStatus: Status) => Promise<void>;
   /** Get a single issue by ID */
-  getIssue: (id: string) => Issue | undefined
+  getIssue: (id: string) => Issue | undefined;
   /** Number of mutations processed */
-  mutationCount: number
-  /** Immediately retry WebSocket connection */
-  retryConnection: () => void
+  mutationCount: number;
+  /** Immediately retry SSE connection */
+  retryConnection: () => void;
 }
 
 /**
@@ -105,16 +105,16 @@ export function useIssues(options: UseIssuesOptions = {}): UseIssuesReturn {
     autoFetch = true,
     autoConnect = true,
     // Note: subscribeOnConnect is deprecated with SSE - connection equals subscription
-  } = options
+  } = options;
 
   // Primary state: Map for O(1) lookups
-  const [issuesMap, setIssuesMap] = useState<Map<string, Issue>>(new Map())
-  const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [issuesMap, setIssuesMap] = useState<Map<string, Issue>>(new Map());
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   // Track fetch timestamp for subscription (catch-up on reconnect)
-  const fetchTimestampRef = useRef<number>(0)
-  const mountedRef = useRef(true)
+  const fetchTimestampRef = useRef<number>(0);
+  const mountedRef = useRef(true);
 
   // Mutation handler setup
   const { handleMutation, mutationCount } = useMutationHandler({
@@ -123,10 +123,10 @@ export function useIssues(options: UseIssuesOptions = {}): UseIssuesReturn {
     onMutationSkipped: (mutation, reason) => {
       // Debug logging for development
       if (process.env.NODE_ENV === 'development') {
-        console.debug('[useIssues] Mutation skipped:', mutation.issue_id, reason)
+        console.debug('[useIssues] Mutation skipped:', mutation.issue_id, reason);
       }
     },
-  })
+  });
 
   // SSE setup - connection equals subscription (no separate subscribe message)
   // The 'since' parameter is passed on connect for catch-up events
@@ -141,67 +141,67 @@ export function useIssues(options: UseIssuesOptions = {}): UseIssuesReturn {
     autoConnect,
     since: fetchTimestampRef.current > 0 ? fetchTimestampRef.current : undefined,
     onMutation: handleMutation,
-  })
+  });
 
   // Toast for user notifications
-  const { showToast } = useToast()
+  const { showToast } = useToast();
 
   // Track previous state for detecting reconnection
-  const prevStateRef = useRef<ConnectionState>('disconnected')
-  const maxReconnectAttemptsRef = useRef<number>(0)
+  const prevStateRef = useRef<ConnectionState>('disconnected');
+  const maxReconnectAttemptsRef = useRef<number>(0);
 
   // Fetch issues from API
   const refetch = useCallback(async () => {
-    if (!mountedRef.current) return
+    if (!mountedRef.current) return;
 
-    setIsLoading(true)
-    setError(null)
-    fetchTimestampRef.current = Date.now()
+    setIsLoading(true);
+    setError(null);
+    fetchTimestampRef.current = Date.now();
 
     try {
-      let data: Issue[]
+      let data: Issue[];
       if (mode === 'graph') {
-        data = await fetchGraphIssues(graphFilter)
+        data = await fetchGraphIssues(graphFilter);
       } else {
-        data = await getReadyIssues(filter)
+        data = await getReadyIssues(filter);
       }
-      if (!mountedRef.current) return
+      if (!mountedRef.current) return;
 
       // Convert array to Map
-      const newMap = new Map<string, Issue>()
+      const newMap = new Map<string, Issue>();
       for (const issue of data) {
-        newMap.set(issue.id, issue)
+        newMap.set(issue.id, issue);
       }
-      setIssuesMap(newMap)
+      setIssuesMap(newMap);
     } catch (err) {
-      if (!mountedRef.current) return
-      const message = err instanceof Error ? err.message : 'Failed to fetch issues'
-      setError(message)
+      if (!mountedRef.current) return;
+      const message = err instanceof Error ? err.message : 'Failed to fetch issues';
+      setError(message);
     } finally {
       if (mountedRef.current) {
-        setIsLoading(false)
+        setIsLoading(false);
       }
     }
-  }, [filter, mode, graphFilter])
+  }, [filter, mode, graphFilter]);
 
   // Auto-fetch on mount
   useEffect(() => {
     if (autoFetch) {
-      void refetch()
+      void refetch();
     }
-  }, [autoFetch, refetch])
+  }, [autoFetch, refetch]);
 
   // Track max reconnect attempts to detect prolonged disconnection
   useEffect(() => {
     if (reconnectAttempts > maxReconnectAttemptsRef.current) {
-      maxReconnectAttemptsRef.current = reconnectAttempts
+      maxReconnectAttemptsRef.current = reconnectAttempts;
     }
-  }, [reconnectAttempts])
+  }, [reconnectAttempts]);
 
   // Too-far-behind detection: refetch when recovering from prolonged disconnection
   useEffect(() => {
-    const prevState = prevStateRef.current
-    prevStateRef.current = connectionState
+    const prevState = prevStateRef.current;
+    prevStateRef.current = connectionState;
 
     // Detect transition from reconnecting → connected
     if (prevState === 'reconnecting' && connectionState === 'connected') {
@@ -212,70 +212,70 @@ export function useIssues(options: UseIssuesOptions = {}): UseIssuesReturn {
             '[useIssues] Connection restored after',
             maxReconnectAttemptsRef.current,
             'attempts. Triggering full refetch.'
-          )
+          );
         }
         showToast('Connection restored. Refreshing data...', {
           type: 'info',
           duration: 3000,
-        })
-        void refetch()
+        });
+        void refetch();
       }
       // Reset max attempts counter after successful reconnection
-      maxReconnectAttemptsRef.current = 0
+      maxReconnectAttemptsRef.current = 0;
     }
-  }, [connectionState, showToast, refetch])
+  }, [connectionState, showToast, refetch]);
 
   // Cleanup on unmount
   useEffect(() => {
-    mountedRef.current = true
+    mountedRef.current = true;
     return () => {
-      mountedRef.current = false
-    }
-  }, [])
+      mountedRef.current = false;
+    };
+  }, []);
 
   // Optimistic status update
   const updateIssueStatus = useCallback(
     async (issueId: string, newStatus: Status) => {
-      const existingIssue = issuesMap.get(issueId)
+      const existingIssue = issuesMap.get(issueId);
       if (!existingIssue) {
-        throw new Error(`Issue ${issueId} not found`)
+        throw new Error(`Issue ${issueId} not found`);
       }
 
       // Capture state for rollback BEFORE optimistic update to avoid race conditions
-      // with WebSocket mutations that might arrive during the API call
-      const preUpdateMap = new Map(issuesMap)
+      // with SSE mutations that might arrive during the API call
+      const preUpdateMap = new Map(issuesMap);
 
       // Optimistic update
       const optimisticIssue: Issue = {
         ...existingIssue,
         status: newStatus,
         updated_at: new Date().toISOString(),
-      }
-      const newMap = new Map(issuesMap)
-      newMap.set(issueId, optimisticIssue)
-      setIssuesMap(newMap)
+      };
+      const newMap = new Map(issuesMap);
+      newMap.set(issueId, optimisticIssue);
+      setIssuesMap(newMap);
 
       try {
-        await apiUpdateIssue(issueId, { status: newStatus })
+        await apiUpdateIssue(issueId, { status: newStatus });
       } catch (err) {
         // Rollback on failure using pre-update state
-        if (!mountedRef.current) return
-        preUpdateMap.set(issueId, existingIssue)
-        setIssuesMap(preUpdateMap)
-        throw err
+        if (!mountedRef.current) return;
+        preUpdateMap.set(issueId, existingIssue);
+        setIssuesMap(preUpdateMap);
+        throw err;
       }
     },
     [issuesMap]
-  )
+  );
 
   // Get single issue by ID
-  const getIssue = useCallback((id: string) => issuesMap.get(id), [issuesMap])
+  const getIssue = useCallback((id: string) => issuesMap.get(id), [issuesMap]);
 
   // Derive array from Map (memoized)
-  const issues = useMemo(() => Array.from(issuesMap.values()), [issuesMap])
+  const issues = useMemo(() => Array.from(issuesMap.values()), [issuesMap]);
 
-  // Combine errors (fetch error takes priority, then WebSocket error)
-  const combinedError = error ?? wsError
+  // Combine errors (fetch error takes priority, then SSE error)
+  const combinedError = error ?? wsError;
 
   return {
     issues,
@@ -291,5 +291,5 @@ export function useIssues(options: UseIssuesOptions = {}): UseIssuesReturn {
     getIssue,
     mutationCount,
     retryConnection: retryNow,
-  }
+  };
 }

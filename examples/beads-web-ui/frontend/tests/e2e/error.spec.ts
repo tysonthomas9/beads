@@ -17,10 +17,6 @@ const mockIssues = [
 
 test.describe("ErrorDisplay and Retry", () => {
   test.beforeEach(async ({ page }) => {
-    // Mock WebSocket to prevent connection errors (standard pattern)
-    await page.route("**/ws", async (route) => {
-      await route.abort()
-    })
   })
 
   test("displays error when API fails", async ({ page }) => {

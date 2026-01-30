@@ -134,10 +134,6 @@ async function setupMocks(
     })
   })
 
-  // Mock WebSocket
-  await page.route("**/ws", async (route) => {
-    await route.abort()
-  })
 }
 
 /**

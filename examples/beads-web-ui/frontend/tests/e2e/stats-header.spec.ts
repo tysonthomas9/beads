@@ -58,11 +58,6 @@ async function setupMocks(
     })
   })
 
-  // Mock WebSocket to prevent side effects
-  await page.route("**/ws", async (route) => {
-    await route.abort()
-  })
-
   // Mock /api/blocked endpoint
   await page.route("**/api/blocked", async (route) => {
     await route.fulfill({
@@ -355,10 +350,6 @@ test.describe("StatsHeader Error State", () => {
         contentType: "application/json",
         body: JSON.stringify({ success: true, data: mockIssues }),
       })
-    })
-
-    await page.route("**/ws", async (route) => {
-      await route.abort()
     })
 
     // Mock blocked endpoint (must be present to prevent app errors)

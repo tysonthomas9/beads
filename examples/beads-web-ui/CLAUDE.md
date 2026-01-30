@@ -10,7 +10,7 @@ This file provides guidance to Claude Code when working with the beads-web-ui pr
 
 - **Backend**: Go HTTP server with embedded frontend assets
 - **Frontend**: React + TypeScript + Vite
-- **Communication**: REST API + WebSocket for real-time updates
+- **Communication**: REST API + SSE for real-time updates
 - **Daemon Integration**: Connects to beads daemon via RPC connection pool
 
 ## Testing
@@ -64,7 +64,7 @@ Then use `mcp__claude-in-chrome__computer` with `action: screenshot` to capture 
 When performing UI verification, don't just check that elements exist or operations succeed:
 
 1. **Verify content renders, not just containers** - Confirm that actual content (text, badges, icons) is visible, not just empty placeholder boxes or skeleton states
-2. **Check all aspects of real-time updates** - When testing WebSocket/live updates, verify both structural changes (item counts, column moves) AND content changes (titles, field values)
+2. **Check all aspects of real-time updates** - When testing SSE/live updates, verify both structural changes (item counts, column moves) AND content changes (titles, field values)
 3. **Compare expected vs actual visual output** - If a card should show a title, priority badge, and type icon, explicitly verify each is visible
 4. **Flag rendering anomalies immediately** - Empty boxes, missing text, or skeleton states that persist after data loads indicate bugs worth reporting
 5. **Don't assume partial success means full success** - A count updating correctly doesn't mean the underlying cards are rendering properly
@@ -74,7 +74,6 @@ When performing UI verification, don't just check that elements exist or operati
 - `routes.go` - HTTP route definitions
 - `handlers.go` - API endpoint handlers
 - `embed.go` - Frontend asset embedding
-- `websocket.go` - WebSocket handler for real-time updates
 - `daemon/` - Connection pool for beads daemon RPC
 
 ## API Endpoints
@@ -86,7 +85,7 @@ When performing UI verification, don't just check that elements exist or operati
 - `POST /api/issues` - Create new issue
 - `GET /api/ready` - Get issues ready to work on
 - `GET /api/stats` - Project statistics
-- `/ws` - WebSocket for real-time mutation events
+- `GET /api/events` - SSE for real-time mutation events
 
 ## Merge Conflicts
 

@@ -19,10 +19,6 @@ const CUSTOM_ERROR_URL = `${FIXTURE_BASE}?throw=true&errorMessage=Custom%20test%
 
 test.describe("ErrorBoundary", () => {
   test.beforeEach(async ({ page }) => {
-    // Mock WebSocket to prevent connection errors
-    await page.route("**/ws", async (route) => {
-      await route.abort()
-    })
   })
 
   test.describe("Catch", () => {

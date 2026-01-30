@@ -35,10 +35,9 @@ async function fetchApi<T>(
 
   const clearTimeoutCleanup = () => clearTimeout(timeoutId);
 
-  // If user provides their own signal, clear timeout when it aborts
-  if (options.signal) {
-    options.signal.addEventListener('abort', clearTimeoutCleanup);
-  }
+  const signal = options.signal
+    ? AbortSignal.any([controller.signal, options.signal])
+    : controller.signal;
 
   try {
     const headers: Record<string, string> = {
@@ -56,13 +55,10 @@ async function fetchApi<T>(
       method,
       headers,
       body: requestBody,
-      signal: options.signal ?? controller.signal,
+      signal,
     });
 
     clearTimeoutCleanup();
-    if (options.signal) {
-      options.signal.removeEventListener('abort', clearTimeoutCleanup);
-    }
 
     if (!response.ok) {
       let errorBody: unknown;
@@ -82,9 +78,6 @@ async function fetchApi<T>(
     return (await response.json()) as T;
   } catch (error) {
     clearTimeoutCleanup();
-    if (options.signal) {
-      options.signal.removeEventListener('abort', clearTimeoutCleanup);
-    }
     if (error instanceof ApiError) throw error;
     if (error instanceof DOMException && error.name === 'AbortError') {
       if (timedOut) {

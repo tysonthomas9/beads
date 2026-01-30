@@ -47,8 +47,8 @@ function getDefaultMessage(status?: Status | string): string {
     // New 5-column layout column IDs
     case 'ready':
       return 'No ready issues';
-    case 'pending':
-      return 'No pending issues';
+    case 'backlog':
+      return 'No blocked or deferred issues';
     case 'done':
       return 'No completed issues';
     default:
@@ -68,28 +68,13 @@ export function EmptyColumn({
 }: EmptyColumnProps): JSX.Element {
   const displayMessage = message ?? getDefaultMessage(status);
 
-  const rootClassName = className
-    ? `${styles.emptyColumn} ${className}`
-    : styles.emptyColumn;
+  const rootClassName = className ? `${styles.emptyColumn} ${className}` : styles.emptyColumn;
 
   return (
     <div className={rootClassName} role="status" aria-label={displayMessage}>
       {showIcon && (
-        <svg
-          className={styles.icon}
-          viewBox="0 0 24 24"
-          fill="none"
-          aria-hidden="true"
-        >
-          <rect
-            x="3"
-            y="5"
-            width="18"
-            height="14"
-            rx="2"
-            stroke="currentColor"
-            strokeWidth="1.5"
-          />
+        <svg className={styles.icon} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <rect x="3" y="5" width="18" height="14" rx="2" stroke="currentColor" strokeWidth="1.5" />
           <path d="M3 10h18" stroke="currentColor" strokeWidth="1.5" />
         </svg>
       )}

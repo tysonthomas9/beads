@@ -33,7 +33,7 @@ export interface StatusColumnProps {
   droppableDisabled?: boolean;
   /** Column type for visual styling (defaults to 'default') */
   columnType?: ColumnType;
-  /** Icon to display in header (e.g., '⏳' for pending) */
+  /** Icon to display in header (e.g., '📦' for backlog) */
   headerIcon?: string;
 }
 
@@ -61,9 +61,7 @@ export function StatusColumn({
   const displayLabel = statusLabel ?? formatStatusLabel(status);
   const issueWord = count === 1 ? 'issue' : 'issues';
 
-  const rootClassName = className
-    ? `${styles.statusColumn} ${className}`
-    : styles.statusColumn;
+  const rootClassName = className ? `${styles.statusColumn} ${className}` : styles.statusColumn;
 
   // Build content class with drop state
   // Note: isOver is only true during an active drag operation
@@ -87,10 +85,7 @@ export function StatusColumn({
           </span>
         )}
         <h2 className={styles.title}>{displayLabel}</h2>
-        <span
-          className={styles.count}
-          aria-label={`${count} ${issueWord}`}
-        >
+        <span className={styles.count} aria-label={`${count} ${issueWord}`}>
           {count}
         </span>
       </header>

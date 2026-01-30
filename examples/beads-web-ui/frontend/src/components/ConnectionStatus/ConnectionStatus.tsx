@@ -1,16 +1,16 @@
 /**
- * ConnectionStatus component displays the current WebSocket connection state.
+ * ConnectionStatus component displays the current connection state.
  * Provides visual feedback about whether the application is connected to the beads daemon.
  */
 
-import type { ConnectionState } from '@/api/websocket';
+import type { ConnectionState } from '@/api/sse';
 import styles from './ConnectionStatus.module.css';
 
 /**
  * Props for the ConnectionStatus component.
  */
 export interface ConnectionStatusProps {
-  /** Current connection state from useWebSocket */
+  /** Current connection state from useSSE */
   state: ConnectionState;
   /** Additional CSS class name */
   className?: string;
@@ -18,7 +18,7 @@ export interface ConnectionStatusProps {
   variant?: 'badge' | 'inline';
   /** Show status text (default: true) */
   showText?: boolean;
-  /** Current reconnect attempt count (from useWebSocket) */
+  /** Current reconnect attempt count (from useSSE) */
   reconnectAttempts?: number;
   /** Callback when retry button is clicked */
   onRetry?: () => void;
@@ -29,10 +29,7 @@ export interface ConnectionStatusProps {
 /**
  * Map connection state to user-friendly display text.
  */
-function getStatusText(
-  state: ConnectionState,
-  reconnectAttempts?: number
-): string {
+function getStatusText(state: ConnectionState, reconnectAttempts?: number): string {
   switch (state) {
     case 'connected':
       return 'Connected';
@@ -51,7 +48,7 @@ function getStatusText(
 }
 
 /**
- * ConnectionStatus displays the current WebSocket connection state.
+ * ConnectionStatus displays the current connection state.
  * Shows a status indicator dot and optional status text.
  */
 export function ConnectionStatus({

@@ -119,9 +119,6 @@ async function setupMocks(page: Page, issues: object[] = mockIssues) {
     }
   })
 
-  await page.route("**/ws", async (route) => {
-    await route.abort()
-  })
 }
 
 /**
@@ -424,10 +421,6 @@ test.describe("groupBy Epic Swim Lanes", () => {
         }
       })
 
-      await page.route("**/ws", async (route) => {
-        await route.abort()
-      })
-
       await navigateToEpicView(page)
 
       const epicOneLane = getEpicLane(page, "epic-1")
@@ -550,10 +543,6 @@ test.describe("groupBy Epic Swim Lanes", () => {
         } else {
           await route.continue()
         }
-      })
-
-      await page.route("**/ws", async (route) => {
-        await route.abort()
       })
 
       await navigateToEpicView(page)
