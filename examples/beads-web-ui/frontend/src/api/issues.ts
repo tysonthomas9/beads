@@ -231,14 +231,14 @@ export async function fetchGraphIssues(options?: GraphFilter): Promise<Issue[]> 
     const result: Issue = {
       id: issue.id,
       title: issue.title,
-      status: issue.status as Issue['status'],
-      priority: issue.priority as Issue['priority'],
-      issue_type: issue.issue_type as Issue['issue_type'],
-      labels: issue.labels,
+      status: issue.status as Status,
+      priority: issue.priority as Priority,
+      issue_type: issue.issue_type as IssueType,
+      labels: issue.labels ?? [],
       created_at: '', // Not available in slim payload
       updated_at: '', // Not available in slim payload
-      defer_until: issue.defer_until ?? undefined,
-      due_at: issue.due_at ?? undefined,
+      defer_until: issue.defer_until ?? null,
+      due_at: issue.due_at ?? null,
     };
     if (issue.dependencies) {
       result.dependencies = issue.dependencies.map((dep) => ({

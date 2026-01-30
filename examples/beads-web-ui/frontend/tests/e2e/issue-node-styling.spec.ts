@@ -56,11 +56,11 @@ const mockIssues = [
  * Set up API mocks for IssueNode styling tests.
  */
 async function setupMocks(page: Page, issues: object[] = mockIssues) {
-  await page.route("**/api/ready", async (route) => {
+  await page.route("**/api/issues/graph**", async (route) => {
     await route.fulfill({
       status: 200,
       contentType: "application/json",
-      body: JSON.stringify({ success: true, data: issues }),
+      body: JSON.stringify({ success: true, issues }),
     })
   })
 }
@@ -71,7 +71,7 @@ async function setupMocks(page: Page, issues: object[] = mockIssues) {
 async function navigateToGraphView(page: Page) {
   const [response] = await Promise.all([
     page.waitForResponse(
-      (res) => res.url().includes("/api/ready") && res.status() === 200
+      (res) => res.url().includes("/api/issues/graph") && res.status() === 200
     ),
     page.goto("/?view=graph"),
   ])
