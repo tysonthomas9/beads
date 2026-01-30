@@ -37,41 +37,65 @@ const mockIssues = [
   },
 ]
 
+/**
+ * All 4 agent states for visual regression coverage:
+ * working, idle, error, planning+needs-push
+ */
+const mockAllAgents = [
+  {
+    name: "dev1",
+    status: "working",
+    branch: "feature-x",
+    task: "bd-001",
+    ahead: 0,
+    behind: 0,
+    last_seen: "2026-01-24T12:00:00Z",
+  },
+  {
+    name: "dev2",
+    status: "idle",
+    branch: "main",
+    task: "",
+    ahead: 0,
+    behind: 0,
+    last_seen: "2026-01-24T11:30:00Z",
+  },
+  {
+    name: "dev3",
+    status: "error",
+    branch: "bugfix-y",
+    task: "bd-003",
+    ahead: 0,
+    behind: 0,
+    last_seen: "2026-01-24T11:00:00Z",
+  },
+  {
+    name: "dev4",
+    status: "planning",
+    branch: "feature-z",
+    task: "bd-004",
+    ahead: 2,
+    behind: 0,
+    last_seen: "2026-01-24T12:05:00Z",
+  },
+]
+
+const mockAllAgentTasks: Record<string, { id: string; title: string; priority: number }> = {
+  dev1: { id: "bd-001", title: "Implement feature X", priority: 2 },
+  dev3: { id: "bd-003", title: "Fix critical bug in authentication module", priority: 0 },
+  dev4: { id: "bd-004", title: "Plan architecture redesign for scalability improvements", priority: 1 },
+}
+
 const mockLoomStatus = {
-  agents: [
-    {
-      name: "dev1",
-      status: "working",
-      branch: "feature-1",
-      task: "bd-001",
-      ahead: 0,
-      behind: 0,
-      last_seen: "2026-01-24T12:00:00Z",
-    },
-    {
-      name: "dev2",
-      status: "idle",
-      branch: "main",
-      task: "",
-      ahead: 0,
-      behind: 0,
-      last_seen: "2026-01-24T11:30:00Z",
-    },
-  ],
+  agents: mockAllAgents,
   tasks: {
     needs_planning: 2,
     ready_to_implement: 3,
     in_progress: 1,
     need_review: 1,
-    blocked: 0,
+    blocked: 2,
   },
-  agent_tasks: {
-    dev1: {
-      id: "bd-001",
-      title: "Implement feature X",
-      priority: 2,
-    },
-  },
+  agent_tasks: mockAllAgentTasks,
   sync: {
     db_synced: true,
     db_last_sync: "2026-01-24T12:00:00Z",
@@ -99,7 +123,10 @@ const mockLoomTasks = {
   ],
   in_progress: [{ id: "bd-001", title: "Implement feature X", priority: 2 }],
   needs_review: [{ id: "bd-030", title: "Review PR", priority: 2 }],
-  blocked: [],
+  blocked: [
+    { id: "bd-040", title: "Blocked task A", priority: 1 },
+    { id: "bd-041", title: "Blocked task B", priority: 2 },
+  ],
 }
 
 const mockBlockedIssues = {
@@ -123,9 +150,14 @@ const mockBlockedIssues = {
  */
 async function setupMocks(
   page: Page,
-  options?: { loomServerAvailable?: boolean }
+  options?: {
+    loomServerAvailable?: boolean
+    emptyAgents?: boolean
+    customAgents?: typeof mockAllAgents
+    customAgentTasks?: typeof mockAllAgentTasks
+  }
 ) {
-  const { loomServerAvailable = true } = options ?? {}
+  const { loomServerAvailable = true, emptyAgents = false, customAgents, customAgentTasks } = options ?? {}
 
   // Mock beads backend API
   await page.route("**/api/ready", async (route) => {
@@ -170,10 +202,13 @@ async function setupMocks(
   // Mock loom server API
   if (loomServerAvailable) {
     await page.route("**/localhost:9000/api/status", async (route) => {
+      const agents = emptyAgents ? [] : (customAgents ?? mockAllAgents)
+      const agentTasks = emptyAgents ? {} : (customAgentTasks ?? mockAllAgentTasks)
+      const status = { ...mockLoomStatus, agents, agent_tasks: agentTasks }
       await route.fulfill({
         status: 200,
         contentType: "application/json",
-        body: JSON.stringify(mockLoomStatus),
+        body: JSON.stringify(status),
       })
     })
 
@@ -360,5 +395,232 @@ test.describe("Visual Regression - Monitor Dashboard Layout", () => {
         maxDiffPixels: 500,
       })
     })
+  })
+})
+
+test.describe("Visual Regression - Agent Activity Panel", () => {
+  test.use({ viewport: { width: 1280, height: 720 } })
+
+  test("multiple agent states with summary", async ({ page }) => {
+    await setupMocks(page)
+    await navigateAndWait(page)
+
+    // Wait for both loom APIs to load
+    await page.waitForResponse(
+      (res) => res.url().includes("/api/status") && res.status() === 200,
+      { timeout: 10000 }
+    )
+    await page.waitForResponse(
+      (res) => res.url().includes("/api/tasks") && res.status() === 200,
+      { timeout: 10000 }
+    )
+    await page.waitForTimeout(500)
+    await waitForStableContent(page)
+
+    // Verify summary bar shows all state categories
+    const agentPanel = page.getByTestId("agent-activity-panel")
+    await expect(agentPanel).toBeVisible()
+    await expect(agentPanel.getByText("active", { exact: true })).toBeVisible()
+    await expect(agentPanel.getByText("idle", { exact: true })).toBeVisible()
+    await expect(agentPanel.getByText("error", { exact: true })).toBeVisible()
+    await expect(agentPanel.getByText("need push", { exact: true })).toBeVisible()
+
+    await expect(page).toHaveScreenshot(
+      "monitor-agent-activity-multiple-states.png",
+      { maxDiffPixels: 500 }
+    )
+  })
+
+  test("no agents found state", async ({ page }) => {
+    await setupMocks(page, { emptyAgents: true })
+    await navigateAndWait(page)
+
+    await page.waitForResponse(
+      (res) => res.url().includes("/api/status") && res.status() === 200,
+      { timeout: 10000 }
+    )
+    await page.waitForResponse(
+      (res) => res.url().includes("/api/tasks") && res.status() === 200,
+      { timeout: 10000 }
+    )
+    await page.waitForTimeout(500)
+    await waitForStableContent(page)
+
+    const agentPanel = page.getByTestId("agent-activity-panel")
+    await expect(agentPanel).toBeVisible()
+    await expect(agentPanel.getByText("No agents found")).toBeVisible()
+
+    await expect(page).toHaveScreenshot(
+      "monitor-agent-activity-no-agents.png",
+      { maxDiffPixels: 500 }
+    )
+  })
+
+  test("loom server unavailable state", async ({ page }) => {
+    await setupMocks(page, { loomServerAvailable: false })
+    await navigateAndWait(page)
+
+    // Wait for the loom status fetch to complete (returns invalid JSON, triggering error state)
+    await page.waitForResponse(
+      (res) => res.url().includes("/api/status"),
+      { timeout: 10000 }
+    )
+    await page.waitForTimeout(500)
+    await waitForStableContent(page)
+
+    const agentPanel = page.getByTestId("agent-activity-panel")
+    await expect(agentPanel).toBeVisible()
+
+    await expect(page).toHaveScreenshot(
+      "monitor-agent-activity-loom-unavailable.png",
+      { maxDiffPixels: 500 }
+    )
+  })
+
+  test("agent cards with task details", async ({ page }) => {
+    // Use only agents with task assignments: dev1 (working) and dev4 (planning+ahead)
+    const taskAgents = [mockAllAgents[0], mockAllAgents[3]]
+    const taskAgentTasks = {
+      dev1: mockAllAgentTasks.dev1,
+      dev4: mockAllAgentTasks.dev4,
+    }
+
+    await setupMocks(page, {
+      customAgents: taskAgents,
+      customAgentTasks: taskAgentTasks,
+    })
+    await navigateAndWait(page)
+
+    await page.waitForResponse(
+      (res) => res.url().includes("/api/status") && res.status() === 200,
+      { timeout: 10000 }
+    )
+    await page.waitForResponse(
+      (res) => res.url().includes("/api/tasks") && res.status() === 200,
+      { timeout: 10000 }
+    )
+    await page.waitForTimeout(500)
+    await waitForStableContent(page)
+
+    const agentPanel = page.getByTestId("agent-activity-panel")
+    await expect(agentPanel).toBeVisible()
+
+    // Verify task titles appear in agent cards
+    await expect(agentPanel.getByText("Implement feature X")).toBeVisible()
+    await expect(
+      agentPanel.getByText(
+        "Plan architecture redesign for scalability improvements"
+      )
+    ).toBeVisible()
+
+    await expect(page).toHaveScreenshot(
+      "monitor-agent-cards-with-tasks.png",
+      { maxDiffPixels: 500 }
+    )
+  })
+})
+
+test.describe("Visual Regression - Work Pipeline Panel", () => {
+  test.use({ viewport: { width: 1280, height: 720 } })
+
+  test("pipeline stages with counts", async ({ page }) => {
+    await setupMocks(page)
+    await navigateAndWait(page)
+
+    await page.waitForResponse(
+      (res) => res.url().includes("/api/status") && res.status() === 200,
+      { timeout: 10000 }
+    )
+    await page.waitForResponse(
+      (res) => res.url().includes("/api/tasks") && res.status() === 200,
+      { timeout: 10000 }
+    )
+    await page.waitForTimeout(500)
+    await waitForStableContent(page)
+
+    // Verify all pipeline stages visible with correct counts
+    await expect(page.getByTestId("pipeline-stage-plan")).toBeVisible()
+    await expect(page.getByTestId("pipeline-stage-plan")).toContainText("2")
+    await expect(page.getByTestId("pipeline-stage-ready")).toBeVisible()
+    await expect(page.getByTestId("pipeline-stage-ready")).toContainText("3")
+    await expect(page.getByTestId("pipeline-stage-inProgress")).toBeVisible()
+    await expect(page.getByTestId("pipeline-stage-inProgress")).toContainText("1")
+    await expect(page.getByTestId("pipeline-stage-review")).toBeVisible()
+    await expect(page.getByTestId("pipeline-stage-review")).toContainText("1")
+
+    await expect(page).toHaveScreenshot(
+      "monitor-work-pipeline-stages.png",
+      { maxDiffPixels: 500 }
+    )
+  })
+
+  test("blocked branch visible", async ({ page }) => {
+    await setupMocks(page)
+    await navigateAndWait(page)
+
+    await page.waitForResponse(
+      (res) => res.url().includes("/api/status") && res.status() === 200,
+      { timeout: 10000 }
+    )
+    await page.waitForResponse(
+      (res) => res.url().includes("/api/tasks") && res.status() === 200,
+      { timeout: 10000 }
+    )
+    await page.waitForTimeout(500)
+    await waitForStableContent(page)
+
+    // Blocked stage should be visible (blocked: 2 in mock data)
+    const blockedStage = page.getByTestId("pipeline-stage-blocked")
+    await expect(blockedStage).toBeVisible()
+    await expect(blockedStage).toContainText("2")
+
+    // Branch line indicator
+    const pipelinePanel = page.getByTestId("work-pipeline-panel")
+    await expect(pipelinePanel.getByText("↳")).toBeVisible()
+
+    await expect(page).toHaveScreenshot(
+      "monitor-work-pipeline-blocked.png",
+      { maxDiffPixels: 500 }
+    )
+  })
+
+  test("oldest items table", async ({ page }) => {
+    await setupMocks(page)
+    await navigateAndWait(page)
+
+    await page.waitForResponse(
+      (res) => res.url().includes("/api/status") && res.status() === 200,
+      { timeout: 10000 }
+    )
+    await page.waitForResponse(
+      (res) => res.url().includes("/api/tasks") && res.status() === 200,
+      { timeout: 10000 }
+    )
+    await page.waitForTimeout(500)
+    await waitForStableContent(page)
+
+    const pipelinePanel = page.getByTestId("work-pipeline-panel")
+
+    // Verify table heading and structure
+    await expect(pipelinePanel.getByText("Oldest in Each Stage")).toBeVisible()
+
+    const table = pipelinePanel.locator("table")
+    const rows = table.locator("tbody tr")
+    await expect(rows).toHaveCount(4)
+
+    // Verify representative data in rows
+    await expect(rows.nth(0)).toContainText("Plan")
+    await expect(rows.nth(0)).toContainText("bd-010")
+    await expect(rows.nth(1)).toContainText("Ready")
+    await expect(rows.nth(1)).toContainText("bd-020")
+    await expect(rows.nth(2)).toContainText("In Progress")
+    await expect(rows.nth(2)).toContainText("bd-001")
+    await expect(rows.nth(3)).toContainText("Review")
+    await expect(rows.nth(3)).toContainText("bd-030")
+
+    // Panel-scoped screenshot for table focus
+    await expect(pipelinePanel).toHaveScreenshot(
+      "monitor-work-pipeline-oldest-table.png"
+    )
   })
 })
