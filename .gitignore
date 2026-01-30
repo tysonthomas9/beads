@@ -134,3 +134,4 @@ worktrees/
 
 # Agent lock files (prevent concurrent agents in worktrees)
 .agent.lock
+.loom/logs/
