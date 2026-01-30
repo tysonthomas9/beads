@@ -25,6 +25,9 @@ func setupRoutes(mux *http.ServeMux, pool *daemon.ConnectionPool, hub *SSEHub, g
 	// Stats endpoint for project statistics
 	mux.HandleFunc("GET /api/stats", handleStats(pool))
 
+	// SSE hub metrics endpoint
+	mux.HandleFunc("GET /api/metrics", handleMetrics(hub))
+
 	// Issue endpoints
 	mux.HandleFunc("GET /api/issues/{id}", handleGetIssue(pool))
 	mux.HandleFunc("GET /api/issues", handleListIssues(pool))

@@ -54,6 +54,7 @@ type SSEHub struct {
 	retryQueue   []*MutationPayload // Buffer when broadcast full
 	retryMu      sync.Mutex
 	droppedCount int64 // For metrics
+	startedAt    time.Time
 }
 
 // SSEClient represents a single SSE connection.
@@ -72,6 +73,7 @@ func NewSSEHub() *SSEHub {
 		unregister: make(chan *SSEClient, 16),
 		broadcast:  make(chan *MutationPayload, 256),
 		done:       make(chan struct{}),
+		startedAt:  time.Now(),
 	}
 }
 
@@ -167,6 +169,18 @@ func (h *SSEHub) ClientCount() int {
 // GetDroppedCount returns the number of mutations dropped due to queue overflow.
 func (h *SSEHub) GetDroppedCount() int64 {
 	return atomic.LoadInt64(&h.droppedCount)
+}
+
+// GetRetryQueueDepth returns the current number of mutations waiting in the retry queue.
+func (h *SSEHub) GetRetryQueueDepth() int {
+	h.retryMu.Lock()
+	defer h.retryMu.Unlock()
+	return len(h.retryQueue)
+}
+
+// GetUptime returns the duration since the hub was created.
+func (h *SSEHub) GetUptime() time.Duration {
+	return time.Since(h.startedAt)
 }
 
 // drainRetryQueue attempts to send queued mutations to the broadcast channel.

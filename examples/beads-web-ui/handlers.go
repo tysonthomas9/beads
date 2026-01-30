@@ -1760,3 +1760,48 @@ func handleRemoveDependencyWithPool(pool dependencyConnectionGetter) http.Handle
 		}
 	}
 }
+
+// SSEMetrics represents the runtime metrics for the SSE hub.
+type SSEMetrics struct {
+	ConnectedClients int     `json:"connected_clients"`
+	DroppedMutations int64   `json:"dropped_mutations"`
+	RetryQueueDepth  int     `json:"retry_queue_depth"`
+	UptimeSeconds    float64 `json:"uptime_seconds"`
+}
+
+// MetricsResponse wraps the SSE hub metrics for JSON response.
+type MetricsResponse struct {
+	Success bool        `json:"success"`
+	Data    *SSEMetrics `json:"data,omitempty"`
+	Error   string      `json:"error,omitempty"`
+}
+
+// handleMetrics returns a handler that exposes SSE hub runtime metrics.
+func handleMetrics(hub *SSEHub) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		if hub == nil {
+			w.WriteHeader(http.StatusServiceUnavailable)
+			if err := json.NewEncoder(w).Encode(MetricsResponse{
+				Success: false,
+				Error:   "SSE hub not initialized",
+			}); err != nil {
+				log.Printf("Failed to encode metrics response: %v", err)
+			}
+			return
+		}
+		metrics := &SSEMetrics{
+			ConnectedClients: hub.ClientCount(),
+			DroppedMutations: hub.GetDroppedCount(),
+			RetryQueueDepth:  hub.GetRetryQueueDepth(),
+			UptimeSeconds:    hub.GetUptime().Seconds(),
+		}
+		w.WriteHeader(http.StatusOK)
+		if err := json.NewEncoder(w).Encode(MetricsResponse{
+			Success: true,
+			Data:    metrics,
+		}); err != nil {
+			log.Printf("Failed to encode metrics response: %v", err)
+		}
+	}
+}
