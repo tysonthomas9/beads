@@ -1097,3 +1097,69 @@ func TestWriteSSEEvent_ConcurrentMonotonicIDs(t *testing.T) {
 		t.Errorf("expected %d unique IDs, got %d", goroutines*eventsPerGoroutine, len(seen))
 	}
 }
+
+// TestSSEHub_RegisterClientAfterStop verifies RegisterClient doesn't block after hub is stopped.
+func TestSSEHub_RegisterClientAfterStop(t *testing.T) {
+	hub := NewSSEHub()
+	go hub.Run()
+
+	// Stop the hub first
+	hub.Stop()
+	// Give Run() time to exit
+	time.Sleep(50 * time.Millisecond)
+
+	client := &SSEClient{
+		id:   1,
+		send: make(chan *MutationPayload, 64),
+		done: make(chan struct{}),
+	}
+
+	// RegisterClient should not block; it should close client.send instead
+	done := make(chan struct{})
+	go func() {
+		hub.RegisterClient(client)
+		close(done)
+	}()
+
+	select {
+	case <-done:
+		// Verify send channel was closed
+		_, ok := <-client.send
+		if ok {
+			t.Error("expected client.send to be closed after RegisterClient on stopped hub")
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("RegisterClient blocked after hub was stopped")
+	}
+}
+
+// TestSSEHub_UnregisterClientAfterStop verifies UnregisterClient doesn't block after hub is stopped.
+func TestSSEHub_UnregisterClientAfterStop(t *testing.T) {
+	hub := NewSSEHub()
+	go hub.Run()
+
+	// Stop the hub first
+	hub.Stop()
+	// Give Run() time to exit
+	time.Sleep(50 * time.Millisecond)
+
+	client := &SSEClient{
+		id:   1,
+		send: make(chan *MutationPayload, 64),
+		done: make(chan struct{}),
+	}
+
+	// UnregisterClient should not block
+	done := make(chan struct{})
+	go func() {
+		hub.UnregisterClient(client)
+		close(done)
+	}()
+
+	select {
+	case <-done:
+		// Success — did not block
+	case <-time.After(2 * time.Second):
+		t.Fatal("UnregisterClient blocked after hub was stopped")
+	}
+}

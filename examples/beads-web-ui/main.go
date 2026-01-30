@@ -173,12 +173,21 @@ func main() {
 	securityMiddleware := NewSecurityHeadersMiddleware()
 	handler := securityMiddleware(corsMiddleware(mux))
 
+	// Create a shutdown context that all request contexts will derive from.
+	// When cancelled, in-flight handlers' r.Context().Done() fires, causing
+	// them to abort quickly rather than waiting the full drain timeout.
+	shutdownCtx, shutdownCancel := context.WithCancel(context.Background())
+	defer shutdownCancel()
+
 	server := &http.Server{
 		Addr:         fmt.Sprintf(":%d", actualPort),
 		Handler:      handler,
 		ReadTimeout:  15 * time.Second,
 		WriteTimeout: 15 * time.Second,
 		IdleTimeout:  60 * time.Second,
+		BaseContext: func(_ net.Listener) context.Context {
+			return shutdownCtx
+		},
 	}
 
 	// Start server in a goroutine using the pre-acquired listener
@@ -197,19 +206,35 @@ func main() {
 
 	log.Println("Shutting down server...")
 
-	// Stop daemon subscriber first (before closing pool)
+	// Cancel the server-wide shutdown context so in-flight handlers' r.Context().Done()
+	// fires immediately, causing them to abort quickly (e.g., pool.Get(r.Context()) fails fast).
+	shutdownCancel()
+
+	// Drain in-flight HTTP requests first (up to 5s, but most abort quickly due to cancelled context).
+	// This ensures no handlers are running when we stop components below.
+	drainCtx, drainCancel := context.WithTimeout(context.Background(), defaultShutdownTimeout)
+	defer drainCancel()
+
+	if err := server.Shutdown(drainCtx); err != nil {
+		log.Fatalf("Server forced to shutdown: %v", err)
+	}
+	log.Println("Server stopped")
+
+	// Stop components in reverse-initialization order now that no handlers are running.
+
+	// Stop daemon subscriber (no more handlers need it)
 	if subscriber != nil {
 		subscriber.Stop()
 		log.Printf("Daemon subscriber stopped")
 	}
 
-	// Stop SSE hub
+	// Stop SSE hub (all SSE handlers have exited)
 	if hub != nil {
 		hub.Stop()
 		log.Printf("SSE hub stopped")
 	}
 
-	// Close daemon connection pool
+	// Close daemon connection pool last (subscriber/hub may have used it)
 	if pool != nil {
 		if err := pool.Close(); err != nil {
 			log.Printf("Warning: error closing connection pool: %v", err)
@@ -217,14 +242,4 @@ func main() {
 			log.Printf("Daemon connection pool closed")
 		}
 	}
-
-	// Create a deadline for shutdown
-	ctx, cancel := context.WithTimeout(context.Background(), defaultShutdownTimeout)
-	defer cancel()
-
-	if err := server.Shutdown(ctx); err != nil {
-		log.Fatalf("Server forced to shutdown: %v", err)
-	}
-
-	log.Println("Server stopped")
 }

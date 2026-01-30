@@ -132,13 +132,35 @@ func (h *SSEHub) Stop() {
 }
 
 // RegisterClient adds a new client to the hub.
+// Non-blocking if the hub has been stopped — closes the client's send channel instead.
 func (h *SSEHub) RegisterClient(client *SSEClient) {
-	h.register <- client
+	// Check done first to avoid writing to the buffered register channel
+	// after Run() has exited (nobody would process it).
+	select {
+	case <-h.done:
+		close(client.send)
+		return
+	default:
+	}
+	select {
+	case h.register <- client:
+	case <-h.done:
+		close(client.send)
+	}
 }
 
 // UnregisterClient removes a client from the hub.
+// Non-blocking if the hub has been stopped.
 func (h *SSEHub) UnregisterClient(client *SSEClient) {
-	h.unregister <- client
+	select {
+	case <-h.done:
+		return
+	default:
+	}
+	select {
+	case h.unregister <- client:
+	case <-h.done:
+	}
 }
 
 // Broadcast sends a mutation to all connected clients.
@@ -263,6 +285,14 @@ func handleSSE(hub *SSEHub, getMutationsSince func(since int64) []rpc.MutationEv
 			send:      make(chan *MutationPayload, 64),
 			done:      make(chan struct{}),
 			lastSince: lastSince,
+		}
+
+		// Check if shutting down before registering (r.Context() derives from
+		// the server's BaseContext, which is cancelled on shutdown signal).
+		select {
+		case <-r.Context().Done():
+			return
+		default:
 		}
 
 		// Register with hub
