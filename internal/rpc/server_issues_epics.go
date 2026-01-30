@@ -2102,6 +2102,136 @@ func (s *Server) handleGetParentIDs(req *Request) Response {
 	}
 }
 
+// handleGetGraphData fetches all issues with dependencies and labels in a single RPC call.
+// This eliminates the N+1 pattern of List + N×Show used by the web UI graph endpoint.
+// Internally it executes 3 queries: list issues + batch deps + batch labels.
+func (s *Server) handleGetGraphData(req *Request) Response {
+	var args GetGraphDataArgs
+	if err := json.Unmarshal(req.Args, &args); err != nil {
+		return Response{
+			Success: false,
+			Error:   fmt.Sprintf("invalid get_graph_data args: %v", err),
+		}
+	}
+
+	store := s.storage
+	if store == nil {
+		return Response{
+			Success: false,
+			Error:   "storage not available",
+		}
+	}
+
+	// Build filter from args with a cap to avoid excessive results
+	const maxGraphIssues = 1000
+	filter := types.IssueFilter{
+		Limit: maxGraphIssues,
+	}
+	if args.Status != "" && args.Status != "all" {
+		status := types.Status(args.Status)
+		filter.Status = &status
+	}
+	for _, s := range args.ExcludeStatus {
+		filter.ExcludeStatus = append(filter.ExcludeStatus, types.Status(s))
+	}
+	// Exclude templates by default
+	isTemplate := false
+	filter.IsTemplate = &isTemplate
+
+	ctx := s.reqCtx(req)
+	issues, err := store.SearchIssues(ctx, "", filter)
+	if err != nil {
+		return Response{
+			Success: false,
+			Error:   fmt.Sprintf("failed to list issues for graph: %v", err),
+		}
+	}
+
+	// Collect issue IDs for batch queries
+	issueIDs := make([]string, len(issues))
+	for i, issue := range issues {
+		issueIDs[i] = issue.ID
+	}
+
+	// Batch fetch dependencies and labels (2 queries instead of N)
+	var depsMap map[string][]*types.Dependency
+	var labelsMap map[string][]string
+
+	if sqliteStore, ok := store.(*sqlite.SQLiteStorage); ok {
+		depsMap, err = sqliteStore.GetDependenciesForIssues(ctx, issueIDs)
+		if err != nil {
+			return Response{
+				Success: false,
+				Error:   fmt.Sprintf("failed to get dependencies: %v", err),
+			}
+		}
+		labelsMap, err = sqliteStore.GetLabelsForIssues(ctx, issueIDs)
+		if err != nil {
+			return Response{
+				Success: false,
+				Error:   fmt.Sprintf("failed to get labels: %v", err),
+			}
+		}
+	} else {
+		// Fallback: fetch individually (preserves N+1 but works with any storage)
+		depsMap = make(map[string][]*types.Dependency)
+		labelsMap = make(map[string][]string)
+		for _, id := range issueIDs {
+			depIssues, _ := store.GetDependencies(ctx, id)
+			// Convert []*types.Issue to []*types.Dependency
+			fallbackDeps := make([]*types.Dependency, len(depIssues))
+			for j, di := range depIssues {
+				fallbackDeps[j] = &types.Dependency{
+					IssueID:     id,
+					DependsOnID: di.ID,
+					Type:        types.DepBlocks, // default
+				}
+			}
+			depsMap[id] = fallbackDeps
+			labels, _ := store.GetLabels(ctx, id)
+			labelsMap[id] = labels
+		}
+	}
+
+	// Build slim response
+	result := make([]GraphIssueSummary, 0, len(issues))
+	for _, issue := range issues {
+		summary := GraphIssueSummary{
+			ID:        issue.ID,
+			Title:     issue.Title,
+			Status:    string(issue.Status),
+			Priority:  issue.Priority,
+			IssueType: string(issue.IssueType),
+			Labels:    labelsMap[issue.ID],
+		}
+		if issue.DeferUntil != nil {
+			summary.DeferUntil = issue.DeferUntil.Format(time.RFC3339)
+		}
+		if issue.DueAt != nil {
+			summary.DueAt = issue.DueAt.Format(time.RFC3339)
+		}
+		// Convert dependencies
+		if deps, ok := depsMap[issue.ID]; ok && len(deps) > 0 {
+			graphDeps := make([]GraphDependency, len(deps))
+			for i, dep := range deps {
+				graphDeps[i] = GraphDependency{
+					DependsOnID: dep.DependsOnID,
+					Type:        string(dep.Type),
+				}
+			}
+			summary.Dependencies = graphDeps
+		}
+		result = append(result, summary)
+	}
+
+	resp := GetGraphDataResponse{Issues: result}
+	data, _ := json.Marshal(resp)
+	return Response{
+		Success: true,
+		Data:    data,
+	}
+}
+
 // Gate handlers
 
 func (s *Server) handleGateCreate(req *Request) Response {

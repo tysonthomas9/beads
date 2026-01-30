@@ -516,8 +516,6 @@ describe('issues API', () => {
             priority: 'high',
             status: 'open',
             labels: [],
-            created_at: '2024-01-01T00:00:00Z',
-            updated_at: '2024-01-01T00:00:00Z',
             dependencies: [
               { depends_on_id: 'issue-2', type: 'blocks' },
               { depends_on_id: 'issue-3', type: 'related' },
@@ -535,13 +533,13 @@ describe('issues API', () => {
         issue_id: 'issue-1',
         depends_on_id: 'issue-2',
         type: 'blocks',
-        created_at: '2024-01-01T00:00:00Z',
+        created_at: '', // Not available in slim graph payload
       });
       expect(result[0].dependencies![1]).toEqual({
         issue_id: 'issue-1',
         depends_on_id: 'issue-3',
         type: 'related',
-        created_at: '2024-01-01T00:00:00Z',
+        created_at: '', // Not available in slim graph payload
       });
     });
 
@@ -595,23 +593,19 @@ describe('issues API', () => {
       expect(result[0].dependencies).toEqual([]);
     });
 
-    it('preserves all issue fields during transformation', async () => {
+    it('preserves slim issue fields during transformation', async () => {
       const graphApiResponse = {
         success: true,
         issues: [
           {
             id: 'issue-123',
             title: 'Full Issue',
-            description: 'A complete issue',
             issue_type: 'task',
-            priority: 'high',
+            priority: 2,
             status: 'in_progress',
             labels: ['urgent', 'frontend'],
-            assignee: 'dev1',
-            owner: 'pm1',
-            created_at: '2024-01-01T00:00:00Z',
-            updated_at: '2024-01-02T00:00:00Z',
             due_at: '2024-02-01T00:00:00Z',
+            defer_until: '2024-01-15T00:00:00Z',
             dependencies: [{ depends_on_id: 'issue-456', type: 'blocks' }],
           },
         ],
@@ -622,16 +616,18 @@ describe('issues API', () => {
 
       expect(result).toHaveLength(1);
       const issue = result[0];
+      // Slim payload fields
       expect(issue.id).toBe('issue-123');
       expect(issue.title).toBe('Full Issue');
-      expect(issue.description).toBe('A complete issue');
       expect(issue.issue_type).toBe('task');
-      expect(issue.priority).toBe('high');
+      expect(issue.priority).toBe(2);
       expect(issue.status).toBe('in_progress');
       expect(issue.labels).toEqual(['urgent', 'frontend']);
-      expect(issue.assignee).toBe('dev1');
-      expect(issue.owner).toBe('pm1');
       expect(issue.due_at).toBe('2024-02-01T00:00:00Z');
+      expect(issue.defer_until).toBe('2024-01-15T00:00:00Z');
+      // Fields not in slim payload default to empty
+      expect(issue.created_at).toBe('');
+      expect(issue.updated_at).toBe('');
     });
 
     it('handles multiple issues with mixed dependency states', async () => {

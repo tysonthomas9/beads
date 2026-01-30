@@ -510,6 +510,21 @@ func (c *Client) GetParentIDs(args *GetParentIDsArgs) (*GetParentIDsResponse, er
 	return &result, nil
 }
 
+// GetGraphData fetches graph data (issues with dependencies and labels) in a single RPC call.
+func (c *Client) GetGraphData(args *GetGraphDataArgs) (*GetGraphDataResponse, error) {
+	resp, err := c.Execute(OpGetGraphData, args)
+	if err != nil {
+		return nil, err
+	}
+
+	var result GetGraphDataResponse
+	if err := json.Unmarshal(resp.Data, &result); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal get_graph_data response: %w", err)
+	}
+
+	return &result, nil
+}
+
 // cleanupStaleDaemonArtifacts removes stale daemon.pid file when socket is missing and lock is free.
 // This prevents stale artifacts from accumulating after daemon crashes.
 // Only removes pid file - lock file is managed by OS (released on process exit).

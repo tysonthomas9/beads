@@ -4469,22 +4469,14 @@ func TestHandleCloseIssue_ResponseError(t *testing.T) {
 
 // mockGraphClient implements graphClient for testing
 type mockGraphClient struct {
-	listFunc func(args *rpc.ListArgs) (*rpc.Response, error)
-	showFunc func(args *rpc.ShowArgs) (*rpc.Response, error)
+	getGraphDataFunc func(args *rpc.GetGraphDataArgs) (*rpc.GetGraphDataResponse, error)
 }
 
-func (m *mockGraphClient) List(args *rpc.ListArgs) (*rpc.Response, error) {
-	if m.listFunc != nil {
-		return m.listFunc(args)
+func (m *mockGraphClient) GetGraphData(args *rpc.GetGraphDataArgs) (*rpc.GetGraphDataResponse, error) {
+	if m.getGraphDataFunc != nil {
+		return m.getGraphDataFunc(args)
 	}
-	return nil, errors.New("listFunc not implemented")
-}
-
-func (m *mockGraphClient) Show(args *rpc.ShowArgs) (*rpc.Response, error) {
-	if m.showFunc != nil {
-		return m.showFunc(args)
-	}
-	return nil, errors.New("showFunc not implemented")
+	return nil, errors.New("getGraphDataFunc not implemented")
 }
 
 // mockGraphPool implements graphConnectionGetter for testing
@@ -4567,6 +4559,7 @@ func TestHandleGraph_InvalidStatus(t *testing.T) {
 	}
 }
 
+
 // TestHandleGraph_PoolClosed tests that closed pool returns 503 Service Unavailable
 func TestHandleGraph_PoolClosed(t *testing.T) {
 	pool, err := daemon.NewConnectionPool("/tmp/test.sock", 1)
@@ -4630,7 +4623,7 @@ func TestHandleGraph_ConnectionTimeout(t *testing.T) {
 // TestHandleGraph_RPCError tests that RPC error returns 500 Internal Server Error
 func TestHandleGraph_RPCError(t *testing.T) {
 	client := &mockGraphClient{
-		listFunc: func(args *rpc.ListArgs) (*rpc.Response, error) {
+		getGraphDataFunc: func(args *rpc.GetGraphDataArgs) (*rpc.GetGraphDataResponse, error) {
 			return nil, errors.New("connection reset by peer")
 		},
 	}
@@ -4667,14 +4660,11 @@ func TestHandleGraph_RPCError(t *testing.T) {
 	}
 }
 
-// TestHandleGraph_DaemonError tests that daemon error (Success=false) returns 500
+// TestHandleGraph_DaemonError tests that daemon error returns 500
 func TestHandleGraph_DaemonError(t *testing.T) {
 	client := &mockGraphClient{
-		listFunc: func(args *rpc.ListArgs) (*rpc.Response, error) {
-			return &rpc.Response{
-				Success: false,
-				Error:   "database locked",
-			}, nil
+		getGraphDataFunc: func(args *rpc.GetGraphDataArgs) (*rpc.GetGraphDataResponse, error) {
+			return nil, errors.New("database locked")
 		},
 	}
 
@@ -4705,59 +4695,38 @@ func TestHandleGraph_DaemonError(t *testing.T) {
 	if resp.Success {
 		t.Error("Success = true, want false")
 	}
-	if resp.Error != "database locked" {
-		t.Errorf("Error = %q, want %q", resp.Error, "database locked")
+	if !containsSubstring(resp.Error, "database locked") {
+		t.Errorf("Error = %q, want to contain %q", resp.Error, "database locked")
 	}
 }
 
 // TestHandleGraph_Success tests successful response with issues and dependencies
 func TestHandleGraph_Success(t *testing.T) {
-	// Create mock issues response from List
-	issuesData := `[
-		{"id": "issue-1", "title": "First Issue", "status": "open", "priority": 1, "issue_type": "task"},
-		{"id": "issue-2", "title": "Second Issue", "status": "open", "priority": 2, "issue_type": "bug"}
-	]`
-
-	// Create mock issue details response from Show
-	issue1Details := `{
-		"id": "issue-1",
-		"title": "First Issue",
-		"status": "open",
-		"labels": ["urgent", "backend"],
-		"dependencies": [
-			{"id": "issue-2", "dependency_type": "blocks"}
-		]
-	}`
-	issue2Details := `{
-		"id": "issue-2",
-		"title": "Second Issue",
-		"status": "open",
-		"labels": ["frontend"],
-		"dependencies": []
-	}`
-
 	client := &mockGraphClient{
-		listFunc: func(args *rpc.ListArgs) (*rpc.Response, error) {
-			return &rpc.Response{
-				Success: true,
-				Data:    []byte(issuesData),
+		getGraphDataFunc: func(args *rpc.GetGraphDataArgs) (*rpc.GetGraphDataResponse, error) {
+			return &rpc.GetGraphDataResponse{
+				Issues: []rpc.GraphIssueSummary{
+					{
+						ID:        "issue-1",
+						Title:     "First Issue",
+						Status:    "open",
+						Priority:  1,
+						IssueType: "task",
+						Labels:    []string{"urgent", "backend"},
+						Dependencies: []rpc.GraphDependency{
+							{DependsOnID: "issue-2", Type: "blocks"},
+						},
+					},
+					{
+						ID:        "issue-2",
+						Title:     "Second Issue",
+						Status:    "open",
+						Priority:  2,
+						IssueType: "bug",
+						Labels:    []string{"frontend"},
+					},
+				},
 			}, nil
-		},
-		showFunc: func(args *rpc.ShowArgs) (*rpc.Response, error) {
-			switch args.ID {
-			case "issue-1":
-				return &rpc.Response{
-					Success: true,
-					Data:    []byte(issue1Details),
-				}, nil
-			case "issue-2":
-				return &rpc.Response{
-					Success: true,
-					Data:    []byte(issue2Details),
-				}, nil
-			default:
-				return nil, errors.New("issue not found")
-			}
 		},
 	}
 
@@ -4842,15 +4811,12 @@ func TestHandleGraph_Success(t *testing.T) {
 
 // TestHandleGraph_StatusFilterOpen tests that status=open filters correctly
 func TestHandleGraph_StatusFilterOpen(t *testing.T) {
-	var capturedListArgs *rpc.ListArgs
+	var capturedArgs *rpc.GetGraphDataArgs
 
 	client := &mockGraphClient{
-		listFunc: func(args *rpc.ListArgs) (*rpc.Response, error) {
-			capturedListArgs = args
-			return &rpc.Response{
-				Success: true,
-				Data:    []byte("[]"),
-			}, nil
+		getGraphDataFunc: func(args *rpc.GetGraphDataArgs) (*rpc.GetGraphDataResponse, error) {
+			capturedArgs = args
+			return &rpc.GetGraphDataResponse{Issues: []rpc.GraphIssueSummary{}}, nil
 		},
 	}
 
@@ -4872,17 +4838,17 @@ func TestHandleGraph_StatusFilterOpen(t *testing.T) {
 		t.Errorf("status code = %d, want %d", rr.Code, http.StatusOK)
 	}
 
-	if capturedListArgs == nil {
-		t.Fatal("List was not called")
+	if capturedArgs == nil {
+		t.Fatal("GetGraphData was not called")
 	}
 
 	// status=open should exclude closed and tombstone
-	if len(capturedListArgs.ExcludeStatus) != 2 {
-		t.Errorf("ExcludeStatus len = %d, want 2", len(capturedListArgs.ExcludeStatus))
+	if len(capturedArgs.ExcludeStatus) != 2 {
+		t.Errorf("ExcludeStatus len = %d, want 2", len(capturedArgs.ExcludeStatus))
 	}
 	hasExcludeClosed := false
 	hasExcludeTombstone := false
-	for _, s := range capturedListArgs.ExcludeStatus {
+	for _, s := range capturedArgs.ExcludeStatus {
 		if s == "closed" {
 			hasExcludeClosed = true
 		}
@@ -4900,15 +4866,12 @@ func TestHandleGraph_StatusFilterOpen(t *testing.T) {
 
 // TestHandleGraph_StatusFilterClosed tests that status=closed filters correctly
 func TestHandleGraph_StatusFilterClosed(t *testing.T) {
-	var capturedListArgs *rpc.ListArgs
+	var capturedArgs *rpc.GetGraphDataArgs
 
 	client := &mockGraphClient{
-		listFunc: func(args *rpc.ListArgs) (*rpc.Response, error) {
-			capturedListArgs = args
-			return &rpc.Response{
-				Success: true,
-				Data:    []byte("[]"),
-			}, nil
+		getGraphDataFunc: func(args *rpc.GetGraphDataArgs) (*rpc.GetGraphDataResponse, error) {
+			capturedArgs = args
+			return &rpc.GetGraphDataResponse{Issues: []rpc.GraphIssueSummary{}}, nil
 		},
 	}
 
@@ -4930,27 +4893,24 @@ func TestHandleGraph_StatusFilterClosed(t *testing.T) {
 		t.Errorf("status code = %d, want %d", rr.Code, http.StatusOK)
 	}
 
-	if capturedListArgs == nil {
-		t.Fatal("List was not called")
+	if capturedArgs == nil {
+		t.Fatal("GetGraphData was not called")
 	}
 
 	// status=closed should set Status filter
-	if capturedListArgs.Status != "closed" {
-		t.Errorf("Status = %q, want %q", capturedListArgs.Status, "closed")
+	if capturedArgs.Status != "closed" {
+		t.Errorf("Status = %q, want %q", capturedArgs.Status, "closed")
 	}
 }
 
 // TestHandleGraph_StatusFilterAll tests that status=all (default) works correctly
 func TestHandleGraph_StatusFilterAll(t *testing.T) {
-	var capturedListArgs *rpc.ListArgs
+	var capturedArgs *rpc.GetGraphDataArgs
 
 	client := &mockGraphClient{
-		listFunc: func(args *rpc.ListArgs) (*rpc.Response, error) {
-			capturedListArgs = args
-			return &rpc.Response{
-				Success: true,
-				Data:    []byte("[]"),
-			}, nil
+		getGraphDataFunc: func(args *rpc.GetGraphDataArgs) (*rpc.GetGraphDataResponse, error) {
+			capturedArgs = args
+			return &rpc.GetGraphDataResponse{Issues: []rpc.GraphIssueSummary{}}, nil
 		},
 	}
 
@@ -4972,27 +4932,24 @@ func TestHandleGraph_StatusFilterAll(t *testing.T) {
 		t.Errorf("status code = %d, want %d", rr.Code, http.StatusOK)
 	}
 
-	if capturedListArgs == nil {
-		t.Fatal("List was not called")
+	if capturedArgs == nil {
+		t.Fatal("GetGraphData was not called")
 	}
 
 	// status=all should only exclude tombstone
-	if len(capturedListArgs.ExcludeStatus) != 1 || capturedListArgs.ExcludeStatus[0] != "tombstone" {
-		t.Errorf("ExcludeStatus = %v, want [tombstone]", capturedListArgs.ExcludeStatus)
+	if len(capturedArgs.ExcludeStatus) != 1 || capturedArgs.ExcludeStatus[0] != "tombstone" {
+		t.Errorf("ExcludeStatus = %v, want [tombstone]", capturedArgs.ExcludeStatus)
 	}
 }
 
 // TestHandleGraph_IncludeClosedFalse tests that include_closed=false parameter works
 func TestHandleGraph_IncludeClosedFalse(t *testing.T) {
-	var capturedListArgs *rpc.ListArgs
+	var capturedArgs *rpc.GetGraphDataArgs
 
 	client := &mockGraphClient{
-		listFunc: func(args *rpc.ListArgs) (*rpc.Response, error) {
-			capturedListArgs = args
-			return &rpc.Response{
-				Success: true,
-				Data:    []byte("[]"),
-			}, nil
+		getGraphDataFunc: func(args *rpc.GetGraphDataArgs) (*rpc.GetGraphDataResponse, error) {
+			capturedArgs = args
+			return &rpc.GetGraphDataResponse{Issues: []rpc.GraphIssueSummary{}}, nil
 		},
 	}
 
@@ -5015,14 +4972,14 @@ func TestHandleGraph_IncludeClosedFalse(t *testing.T) {
 		t.Errorf("status code = %d, want %d", rr.Code, http.StatusOK)
 	}
 
-	if capturedListArgs == nil {
-		t.Fatal("List was not called")
+	if capturedArgs == nil {
+		t.Fatal("GetGraphData was not called")
 	}
 
 	// With status=all (default) and include_closed=false, should exclude both tombstone and closed
 	hasExcludeClosed := false
 	hasExcludeTombstone := false
-	for _, s := range capturedListArgs.ExcludeStatus {
+	for _, s := range capturedArgs.ExcludeStatus {
 		if s == "closed" {
 			hasExcludeClosed = true
 		}
@@ -5053,37 +5010,22 @@ func TestHandleGraph_ContentType(t *testing.T) {
 	}
 }
 
-// TestHandleGraph_ShowErrorSkipsIssue tests that Show errors skip individual issues without failing request
-func TestHandleGraph_ShowErrorSkipsIssue(t *testing.T) {
-	issuesData := `[
-		{"id": "issue-1", "title": "First Issue", "status": "open", "priority": 1, "issue_type": "task"},
-		{"id": "issue-2", "title": "Second Issue", "status": "open", "priority": 2, "issue_type": "bug"}
-	]`
-
-	issue1Details := `{
-		"id": "issue-1",
-		"title": "First Issue",
-		"status": "open",
-		"labels": [],
-		"dependencies": []
-	}`
-
+// TestHandleGraph_SlimPayload tests that the response contains slim issue data (not full Issue objects)
+func TestHandleGraph_SlimPayload(t *testing.T) {
 	client := &mockGraphClient{
-		listFunc: func(args *rpc.ListArgs) (*rpc.Response, error) {
-			return &rpc.Response{
-				Success: true,
-				Data:    []byte(issuesData),
+		getGraphDataFunc: func(args *rpc.GetGraphDataArgs) (*rpc.GetGraphDataResponse, error) {
+			return &rpc.GetGraphDataResponse{
+				Issues: []rpc.GraphIssueSummary{
+					{
+						ID:        "issue-1",
+						Title:     "First Issue",
+						Status:    "open",
+						Priority:  1,
+						IssueType: "task",
+						Labels:    []string{},
+					},
+				},
 			}, nil
-		},
-		showFunc: func(args *rpc.ShowArgs) (*rpc.Response, error) {
-			if args.ID == "issue-1" {
-				return &rpc.Response{
-					Success: true,
-					Data:    []byte(issue1Details),
-				}, nil
-			}
-			// issue-2 fails
-			return nil, errors.New("issue not found")
 		},
 	}
 
@@ -5101,7 +5043,6 @@ func TestHandleGraph_ShowErrorSkipsIssue(t *testing.T) {
 
 	handler.ServeHTTP(rr, req)
 
-	// Should still succeed even though one Show failed
 	if rr.Code != http.StatusOK {
 		t.Errorf("status code = %d, want %d", rr.Code, http.StatusOK)
 	}
@@ -5116,13 +5057,26 @@ func TestHandleGraph_ShowErrorSkipsIssue(t *testing.T) {
 		t.Error("Success = false, want true")
 	}
 
-	// Should have 1 issue (issue-2 was skipped due to Show error)
 	if len(resp.Issues) != 1 {
 		t.Errorf("len(Issues) = %d, want 1", len(resp.Issues))
+		return
 	}
 
+	// Verify slim fields are present
 	if resp.Issues[0].ID != "issue-1" {
 		t.Errorf("Issues[0].ID = %q, want %q", resp.Issues[0].ID, "issue-1")
+	}
+	if resp.Issues[0].Title != "First Issue" {
+		t.Errorf("Issues[0].Title = %q, want %q", resp.Issues[0].Title, "First Issue")
+	}
+	if resp.Issues[0].Status != "open" {
+		t.Errorf("Issues[0].Status = %q, want %q", resp.Issues[0].Status, "open")
+	}
+	if resp.Issues[0].Priority != 1 {
+		t.Errorf("Issues[0].Priority = %d, want 1", resp.Issues[0].Priority)
+	}
+	if resp.Issues[0].IssueType != "task" {
+		t.Errorf("Issues[0].IssueType = %q, want %q", resp.Issues[0].IssueType, "task")
 	}
 }
 
@@ -5131,7 +5085,7 @@ func TestHandleGraph_ClientReturnedToPoolOnError(t *testing.T) {
 	putCalled := false
 
 	client := &mockGraphClient{
-		listFunc: func(args *rpc.ListArgs) (*rpc.Response, error) {
+		getGraphDataFunc: func(args *rpc.GetGraphDataArgs) (*rpc.GetGraphDataResponse, error) {
 			return nil, errors.New("some error")
 		},
 	}
@@ -5160,11 +5114,8 @@ func TestHandleGraph_ClientReturnedToPoolOnError(t *testing.T) {
 // TestHandleGraph_EmptyIssuesList tests handling of empty issues list
 func TestHandleGraph_EmptyIssuesList(t *testing.T) {
 	client := &mockGraphClient{
-		listFunc: func(args *rpc.ListArgs) (*rpc.Response, error) {
-			return &rpc.Response{
-				Success: true,
-				Data:    []byte("[]"),
-			}, nil
+		getGraphDataFunc: func(args *rpc.GetGraphDataArgs) (*rpc.GetGraphDataResponse, error) {
+			return &rpc.GetGraphDataResponse{Issues: []rpc.GraphIssueSummary{}}, nil
 		},
 	}
 

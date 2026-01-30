@@ -46,6 +46,7 @@ const (
 	OpGetConfig           = "get_config"
 	OpMolStale            = "mol_stale"
 	OpGetParentIDs        = "get_parent_ids"
+	OpGetGraphData        = "get_graph_data"
 	OpWaitForMutations    = "wait_for_mutations"
 
 	// Gate operations
@@ -665,4 +666,37 @@ type ParentInfo struct {
 // GetParentIDsResponse represents the response from get_parent_ids operation
 type GetParentIDsResponse struct {
 	Parents map[string]*ParentInfo `json:"parents"` // childID -> ParentInfo
+}
+
+// GetGraphDataArgs represents arguments for the get_graph_data operation.
+// This fetches all issues with their dependencies and labels in a single RPC call,
+// avoiding the N+1 pattern of List + N×Show.
+type GetGraphDataArgs struct {
+	Status        string   `json:"status,omitempty"`         // "open", "closed", or "all" (default: "all")
+	ExcludeStatus []string `json:"exclude_status,omitempty"` // Statuses to exclude
+}
+
+// GraphIssueSummary is a slim issue representation for graph visualization.
+// Contains only the fields needed to render the dependency graph.
+type GraphIssueSummary struct {
+	ID           string              `json:"id"`
+	Title        string              `json:"title"`
+	Status       string              `json:"status"`
+	Priority     int                 `json:"priority"`
+	IssueType    string              `json:"issue_type"`
+	Labels       []string            `json:"labels,omitempty"`
+	Dependencies []GraphDependency   `json:"dependencies,omitempty"`
+	DeferUntil   string              `json:"defer_until,omitempty"`
+	DueAt        string              `json:"due_at,omitempty"`
+}
+
+// GraphDependency represents a dependency relationship for graph rendering.
+type GraphDependency struct {
+	DependsOnID string `json:"depends_on_id"`
+	Type        string `json:"type"`
+}
+
+// GetGraphDataResponse represents the response from get_graph_data operation.
+type GetGraphDataResponse struct {
+	Issues []GraphIssueSummary `json:"issues"`
 }

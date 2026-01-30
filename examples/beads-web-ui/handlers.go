@@ -144,8 +144,7 @@ func (p *closePoolAdapter) Put(client issueCloser) {
 // graphClient is an internal interface for testing graph operations.
 // The production code uses *rpc.Client which implements this interface.
 type graphClient interface {
-	List(args *rpc.ListArgs) (*rpc.Response, error)
-	Show(args *rpc.ShowArgs) (*rpc.Response, error)
+	GetGraphData(args *rpc.GetGraphDataArgs) (*rpc.GetGraphDataResponse, error)
 }
 
 // graphConnectionGetter is an internal interface for testing graph handler pool operations.
@@ -470,11 +469,17 @@ type GraphDependency struct {
 	Type        string `json:"type"`
 }
 
-// GraphIssue represents an issue with its full dependency data for graph visualization.
+// GraphIssue represents a slim issue with dependency data for graph visualization.
 type GraphIssue struct {
-	*types.Issue
+	ID           string             `json:"id"`
+	Title        string             `json:"title"`
+	Status       string             `json:"status"`
+	Priority     int                `json:"priority"`
+	IssueType    string             `json:"issue_type"`
 	Labels       []string           `json:"labels,omitempty"`
 	Dependencies []*GraphDependency `json:"dependencies,omitempty"`
+	DeferUntil   string             `json:"defer_until,omitempty"`
+	DueAt        string             `json:"due_at,omitempty"`
 }
 
 // GraphResponse wraps the graph data for JSON response.
@@ -650,23 +655,22 @@ func handleGraphWithPool(pool graphConnectionGetter) http.HandlerFunc {
 		}
 		defer pool.Put(client)
 
-		// Build list args based on status filter
-		listArgs := &rpc.ListArgs{}
+		// Build GetGraphData args based on status filter
+		graphArgs := &rpc.GetGraphDataArgs{}
 		if status == "open" {
-			listArgs.ExcludeStatus = []string{"closed", "tombstone"}
+			graphArgs.ExcludeStatus = []string{"closed", "tombstone"}
 		} else if status == "closed" {
-			listArgs.Status = "closed"
+			graphArgs.Status = "closed"
 		} else {
 			// "all" - exclude only tombstones
-			listArgs.ExcludeStatus = []string{"tombstone"}
+			graphArgs.ExcludeStatus = []string{"tombstone"}
 		}
 		// Don't include closed if explicitly disabled
 		if !includeClosed && status == "all" {
-			listArgs.ExcludeStatus = append(listArgs.ExcludeStatus, "closed")
+			graphArgs.ExcludeStatus = append(graphArgs.ExcludeStatus, "closed")
 		}
-
-		// Get issues via RPC
-		resp, err := client.List(listArgs)
+		// Single RPC call replaces List + N×Show
+		result, err := client.GetGraphData(graphArgs)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			if err := json.NewEncoder(w).Encode(GraphResponse{
@@ -678,66 +682,26 @@ func handleGraphWithPool(pool graphConnectionGetter) http.HandlerFunc {
 			return
 		}
 
-		if !resp.Success {
-			w.WriteHeader(http.StatusInternalServerError)
-			if err := json.NewEncoder(w).Encode(GraphResponse{
-				Success: false,
-				Error:   resp.Error,
-			}); err != nil {
-				log.Printf("Failed to encode graph response: %v", err)
-			}
-			return
-		}
-
-		// Parse issues from response
-		var issuesWithCounts []*types.IssueWithCounts
-		if err := json.Unmarshal(resp.Data, &issuesWithCounts); err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			if err := json.NewEncoder(w).Encode(GraphResponse{
-				Success: false,
-				Error:   fmt.Sprintf("failed to parse issues: %v", err),
-			}); err != nil {
-				log.Printf("Failed to encode graph response: %v", err)
-			}
-			return
-		}
-
-		// Build graph issues with dependencies
-		// For each issue, we need to fetch its dependencies
-		graphIssues := make([]*GraphIssue, 0, len(issuesWithCounts))
-
-		for _, iwc := range issuesWithCounts {
-			// Get dependencies for this issue using Show RPC (which returns full dependencies)
-			showResp, err := client.Show(&rpc.ShowArgs{ID: iwc.ID})
-			if err != nil {
-				// Skip issues we can't get details for
-				log.Printf("Failed to get details for issue %s: %v", iwc.ID, err)
-				continue
-			}
-			if !showResp.Success {
-				log.Printf("Show failed for issue %s: %s", iwc.ID, showResp.Error)
-				continue
-			}
-
-			var details types.IssueDetails
-			if err := json.Unmarshal(showResp.Data, &details); err != nil {
-				log.Printf("Failed to parse details for issue %s: %v", iwc.ID, err)
-				continue
-			}
-
-			// Convert dependencies to graph format
+		// Convert RPC response to HTTP response format
+		graphIssues := make([]*GraphIssue, 0, len(result.Issues))
+		for _, summary := range result.Issues {
 			var graphDeps []*GraphDependency
-			for _, dep := range details.Dependencies {
+			for _, dep := range summary.Dependencies {
 				graphDeps = append(graphDeps, &GraphDependency{
-					DependsOnID: dep.ID,
-					Type:        string(dep.DependencyType),
+					DependsOnID: dep.DependsOnID,
+					Type:        dep.Type,
 				})
 			}
-
 			graphIssues = append(graphIssues, &GraphIssue{
-				Issue:        iwc.Issue,
-				Labels:       details.Labels,
+				ID:           summary.ID,
+				Title:        summary.Title,
+				Status:       summary.Status,
+				Priority:     summary.Priority,
+				IssueType:    summary.IssueType,
+				Labels:       summary.Labels,
 				Dependencies: graphDeps,
+				DeferUntil:   summary.DeferUntil,
+				DueAt:        summary.DueAt,
 			})
 		}
 

@@ -183,19 +183,27 @@ interface GraphApiResponse {
 }
 
 /**
- * Issue as returned by the graph API (with simplified dependencies).
+ * Slim issue as returned by the graph API (only fields needed for rendering).
+ * The backend returns a slim payload to reduce bandwidth and latency.
  */
-interface GraphApiIssue extends Omit<Issue, 'dependencies'> {
+interface GraphApiIssue {
+  id: string;
+  title: string;
+  status: string;
+  priority: number;
+  issue_type: string;
+  labels?: string[];
   dependencies?: { depends_on_id: string; type: string }[];
+  defer_until?: string;
+  due_at?: string;
 }
 
 /**
- * Get all issues with full dependency data for graph visualization.
- * Transforms backend GraphDependency format to frontend Dependency format.
+ * Get all issues with dependency data for graph visualization.
+ * Transforms the slim backend response to full Issue objects for the frontend.
  *
- * NOTE: Dependency created_at timestamps use the parent issue's created_at
- * as a fallback since the graph API doesn't include individual dependency
- * creation times. Do not rely on these timestamps for precise ordering.
+ * NOTE: The backend returns a slim payload (id, title, status, priority,
+ * issue_type, labels, dependencies). Missing Issue fields are set to defaults.
  */
 export async function fetchGraphIssues(options?: GraphFilter): Promise<Issue[]> {
   const params: Record<string, unknown> = {};
@@ -217,18 +225,27 @@ export async function fetchGraphIssues(options?: GraphFilter): Promise<Issue[]> 
     console.warn('[fetchGraphIssues] Backend returned success without issues field');
   }
 
-  // Transform simplified dependencies to full Dependency format
+  // Transform slim graph API response to full Issue objects
   const issues = response.issues ?? [];
   return issues.map((issue): Issue => {
-    // Destructure to separate dependencies from other fields
-    const { dependencies: graphDeps, ...rest } = issue;
-    const result: Issue = rest as Issue;
-    if (graphDeps) {
-      result.dependencies = graphDeps.map((dep) => ({
+    const result: Issue = {
+      id: issue.id,
+      title: issue.title,
+      status: issue.status as Issue['status'],
+      priority: issue.priority as Issue['priority'],
+      issue_type: issue.issue_type as Issue['issue_type'],
+      labels: issue.labels,
+      created_at: '', // Not available in slim payload
+      updated_at: '', // Not available in slim payload
+      defer_until: issue.defer_until ?? undefined,
+      due_at: issue.due_at ?? undefined,
+    };
+    if (issue.dependencies) {
+      result.dependencies = issue.dependencies.map((dep) => ({
         issue_id: issue.id,
         depends_on_id: dep.depends_on_id,
         type: dep.type as DependencyType,
-        created_at: issue.created_at, // Use issue created_at as fallback
+        created_at: '', // Not available in slim payload
       }));
     }
     return result;

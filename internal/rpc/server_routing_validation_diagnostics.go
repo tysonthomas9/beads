@@ -233,6 +233,8 @@ func (s *Server) handleRequest(req *Request) Response {
 		resp = s.handleMolStale(req)
 	case OpGetParentIDs:
 		resp = s.handleGetParentIDs(req)
+	case OpGetGraphData:
+		resp = s.handleGetGraphData(req)
 	case OpShutdown:
 		resp = s.handleShutdown(req)
 	// Gate operations

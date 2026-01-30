@@ -132,16 +132,11 @@ func (p *contractMockStatsPool) Put(client statsClient) {}
 
 // contractMockGraphClient implements graphClient.
 type contractMockGraphClient struct {
-	listFunc func(args *rpc.ListArgs) (*rpc.Response, error)
-	showFunc func(args *rpc.ShowArgs) (*rpc.Response, error)
+	getGraphDataFunc func(args *rpc.GetGraphDataArgs) (*rpc.GetGraphDataResponse, error)
 }
 
-func (m *contractMockGraphClient) List(args *rpc.ListArgs) (*rpc.Response, error) {
-	return m.listFunc(args)
-}
-
-func (m *contractMockGraphClient) Show(args *rpc.ShowArgs) (*rpc.Response, error) {
-	return m.showFunc(args)
+func (m *contractMockGraphClient) GetGraphData(args *rpc.GetGraphDataArgs) (*rpc.GetGraphDataResponse, error) {
+	return m.getGraphDataFunc(args)
 }
 
 // contractMockGraphPool implements graphConnectionGetter.
@@ -357,18 +352,6 @@ func TestContractEnvelope_SuccessResponses(t *testing.T) {
 		Text: "hello", Author: "web-ui",
 	})
 
-	// Build issue details for graph (Show returns IssueDetails)
-	issueDetailsJSON, _ := json.Marshal(types.IssueDetails{
-		Issue:        types.Issue{ID: "test-1", Title: "Test", Status: "open"},
-		Dependencies: []*types.IssueWithDependencyMetadata{},
-		Labels:       []string{"bug"},
-	})
-
-	// IssueWithCounts for graph List response
-	iwcListJSON, _ := json.Marshal([]*types.IssueWithCounts{
-		{Issue: &types.Issue{ID: "test-1", Title: "Test", Status: "open"}, DependencyCount: 0, DependentCount: 0},
-	})
-
 	tests := []struct {
 		name           string
 		handler        http.HandlerFunc
@@ -431,11 +414,12 @@ func TestContractEnvelope_SuccessResponses(t *testing.T) {
 			name: "GET /api/issues/graph success",
 			handler: handleGraphWithPool(&contractMockGraphPool{
 				client: &contractMockGraphClient{
-					listFunc: func(args *rpc.ListArgs) (*rpc.Response, error) {
-						return &rpc.Response{Success: true, Data: iwcListJSON}, nil
-					},
-					showFunc: func(args *rpc.ShowArgs) (*rpc.Response, error) {
-						return &rpc.Response{Success: true, Data: issueDetailsJSON}, nil
+					getGraphDataFunc: func(args *rpc.GetGraphDataArgs) (*rpc.GetGraphDataResponse, error) {
+						return &rpc.GetGraphDataResponse{
+							Issues: []rpc.GraphIssueSummary{
+								{ID: "test-1", Title: "Test", Status: "open", Priority: 2, IssueType: "task"},
+							},
+						}, nil
 					},
 				},
 			}),
@@ -793,23 +777,14 @@ func TestContractEnvelope_GraphDeviation(t *testing.T) {
 
 	// The /api/issues/graph endpoint uses "issues" instead of "data" in its response.
 	// This test explicitly documents and validates this deviation.
-	issueDetailsJSON, _ := json.Marshal(types.IssueDetails{
-		Issue:        types.Issue{ID: "test-1", Title: "Test", Status: "open"},
-		Dependencies: []*types.IssueWithDependencyMetadata{},
-		Labels:       []string{},
-	})
-
-	iwcListJSON, _ := json.Marshal([]*types.IssueWithCounts{
-		{Issue: &types.Issue{ID: "test-1", Title: "Test", Status: "open"}, DependencyCount: 0, DependentCount: 0},
-	})
-
 	handler := handleGraphWithPool(&contractMockGraphPool{
 		client: &contractMockGraphClient{
-			listFunc: func(args *rpc.ListArgs) (*rpc.Response, error) {
-				return &rpc.Response{Success: true, Data: iwcListJSON}, nil
-			},
-			showFunc: func(args *rpc.ShowArgs) (*rpc.Response, error) {
-				return &rpc.Response{Success: true, Data: issueDetailsJSON}, nil
+			getGraphDataFunc: func(args *rpc.GetGraphDataArgs) (*rpc.GetGraphDataResponse, error) {
+				return &rpc.GetGraphDataResponse{
+					Issues: []rpc.GraphIssueSummary{
+						{ID: "test-1", Title: "Test", Status: "open", Priority: 2, IssueType: "task"},
+					},
+				}, nil
 			},
 		},
 	})
