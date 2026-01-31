@@ -16,7 +16,7 @@ export interface AppLayoutProps {
   navigation?: ReactNode;
   /** Optional element to render in the header actions area (right) */
   actions?: ReactNode;
-  /** Optional element to render in the right sidebar */
+  /** Optional element to render in the left sidebar */
   sidebar?: ReactNode;
   /** Application title displayed in header (defaults to "Beads") */
   title?: string;
@@ -37,9 +37,7 @@ export function AppLayout({
   title = 'Beads',
   className,
 }: AppLayoutProps): JSX.Element {
-  const rootClassName = className
-    ? `${styles.appLayout} ${className}`
-    : styles.appLayout;
+  const rootClassName = className ? `${styles.appLayout} ${className}` : styles.appLayout;
 
   return (
     <div className={rootClassName}>
@@ -56,18 +54,14 @@ export function AppLayout({
               {navigation}
             </nav>
           )}
-          {actions && (
-            <div className={styles.actions}>
-              {actions}
-            </div>
-          )}
+          {actions && <div className={styles.actions}>{actions}</div>}
         </div>
       </header>
       <div className={styles.contentWrapper}>
+        {sidebar}
         <main className={styles.main} role="main" id="main-content">
           {children}
         </main>
-        {sidebar}
       </div>
     </div>
   );

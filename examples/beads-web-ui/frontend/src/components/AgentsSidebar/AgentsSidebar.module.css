@@ -9,8 +9,10 @@
   width: 220px;
   min-width: 220px;
   background: var(--color-bg-primary);
-  border-left: 1px solid var(--color-border);
-  transition: width 0.2s ease, min-width 0.2s ease;
+  border-right: 1px solid var(--color-border);
+  transition:
+    width 0.2s ease,
+    min-width 0.2s ease;
   position: relative;
 }
 
@@ -196,7 +198,9 @@
   border: 1px solid transparent;
   border-radius: 4px;
   cursor: pointer;
-  transition: background 0.15s ease, border-color 0.15s ease;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease;
 }
 
 .queueItem:hover:not(:disabled) {

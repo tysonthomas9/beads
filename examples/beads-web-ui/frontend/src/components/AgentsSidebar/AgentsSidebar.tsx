@@ -55,9 +55,10 @@ export function AgentsSidebar({
   // Track which category drawer is open
   const [selectedCategory, setSelectedCategory] = useState<TaskCategory | null>(null);
 
-  const { agents, tasks, taskLists, agentTasks, sync, stats, isLoading, isConnected, lastUpdated } = useAgents({
-    pollInterval: 5000,
-  });
+  const { agents, tasks, taskLists, agentTasks, sync, stats, isLoading, isConnected, lastUpdated } =
+    useAgents({
+      pollInterval: 5000,
+    });
 
   // Persist collapsed state
   useEffect(() => {
@@ -113,17 +114,13 @@ export function AgentsSidebar({
 
   const drawerData = getDrawerData();
 
-  const rootClassName = [
-    styles.sidebar,
-    isCollapsed && styles.collapsed,
-    className,
-  ]
+  const rootClassName = [styles.sidebar, isCollapsed && styles.collapsed, className]
     .filter(Boolean)
     .join(' ');
 
   // Count active agents (working or planning)
-  const activeCount = agents.filter((a) =>
-    a.status.startsWith('working:') || a.status.startsWith('planning:')
+  const activeCount = agents.filter(
+    (a) => a.status.startsWith('working:') || a.status.startsWith('planning:')
   ).length;
 
   // Check if there are sync warnings
@@ -138,15 +135,13 @@ export function AgentsSidebar({
         aria-expanded={!isCollapsed}
         aria-label={isCollapsed ? 'Expand agents sidebar' : 'Collapse agents sidebar'}
       >
-        <span className={styles.toggleIcon}>{isCollapsed ? '>' : '<'}</span>
         {!isCollapsed && (
           <span className={styles.toggleText}>
             Agents
-            {activeCount > 0 && (
-              <span className={styles.activeCount}>{activeCount}</span>
-            )}
+            {activeCount > 0 && <span className={styles.activeCount}>{activeCount}</span>}
           </span>
         )}
+        <span className={styles.toggleIcon}>{isCollapsed ? '>' : '<'}</span>
       </button>
 
       {!isCollapsed && (
@@ -188,9 +183,7 @@ export function AgentsSidebar({
                 tabIndex={0}
                 onKeyDown={(e) => e.key === 'Enter' && handleWorkQueueToggle()}
               >
-                <span className={styles.workQueueToggle}>
-                  {isWorkQueueExpanded ? 'v' : '>'}
-                </span>
+                <span className={styles.workQueueToggle}>{isWorkQueueExpanded ? 'v' : '>'}</span>
                 <span>Work Queue</span>
               </div>
               {isWorkQueueExpanded && (
@@ -203,10 +196,7 @@ export function AgentsSidebar({
                       disabled={tasks.needs_planning === 0}
                     >
                       <span className={styles.queueLabel}>Plan</span>
-                      <span
-                        className={styles.queueCount}
-                        data-highlight={tasks.needs_planning > 0}
-                      >
+                      <span className={styles.queueCount} data-highlight={tasks.needs_planning > 0}>
                         {tasks.needs_planning}
                       </span>
                     </button>
@@ -231,10 +221,7 @@ export function AgentsSidebar({
                       disabled={tasks.need_review === 0}
                     >
                       <span className={styles.queueLabel}>Review</span>
-                      <span
-                        className={styles.queueCount}
-                        data-highlight={tasks.need_review > 0}
-                      >
+                      <span className={styles.queueCount} data-highlight={tasks.need_review > 0}>
                         {tasks.need_review}
                       </span>
                     </button>
@@ -245,9 +232,7 @@ export function AgentsSidebar({
                       disabled={tasks.blocked === 0}
                     >
                       <span className={styles.queueLabel}>Blocked</span>
-                      <span className={styles.queueCount}>
-                        {tasks.blocked}
-                      </span>
+                      <span className={styles.queueCount}>{tasks.blocked}</span>
                     </button>
                   </div>
                 </div>
@@ -280,32 +265,24 @@ export function AgentsSidebar({
             {isConnected && hasSyncWarning && (
               <div className={styles.syncStatus}>
                 {sync.git_needs_push > 0 && (
-                  <span className={styles.syncWarning}>
-                    {sync.git_needs_push} need push
-                  </span>
+                  <span className={styles.syncWarning}>{sync.git_needs_push} need push</span>
                 )}
                 {sync.git_needs_push > 0 && sync.git_needs_pull > 0 && (
                   <span className={styles.syncSeparator}>·</span>
                 )}
                 {sync.git_needs_pull > 0 && (
-                  <span className={styles.syncWarning}>
-                    {sync.git_needs_pull} need pull
-                  </span>
+                  <span className={styles.syncWarning}>{sync.git_needs_pull} need pull</span>
                 )}
                 {(sync.git_needs_push > 0 || sync.git_needs_pull > 0) && !sync.db_synced && (
                   <span className={styles.syncSeparator}>·</span>
                 )}
-                {!sync.db_synced && (
-                  <span className={styles.syncWarning}>DB not synced</span>
-                )}
+                {!sync.db_synced && <span className={styles.syncWarning}>DB not synced</span>}
               </div>
             )}
 
             {/* Timestamp */}
             {lastUpdated && (
-              <span className={styles.timestamp}>
-                Updated {lastUpdated.toLocaleTimeString()}
-              </span>
+              <span className={styles.timestamp}>Updated {lastUpdated.toLocaleTimeString()}</span>
             )}
           </div>
         </div>
