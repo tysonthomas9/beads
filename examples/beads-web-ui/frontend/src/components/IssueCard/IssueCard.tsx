@@ -167,6 +167,7 @@ export function IssueCard({
     <article
       className={rootClassName}
       data-priority={priority}
+      data-column={columnId}
       data-blocked={isBlocked ? 'true' : undefined}
       data-in-backlog={isBacklog ? 'true' : undefined}
       onClick={handleClick}

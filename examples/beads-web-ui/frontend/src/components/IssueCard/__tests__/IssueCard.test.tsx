@@ -292,6 +292,38 @@ describe('IssueCard', () => {
       const article = container.querySelector('article');
       expect(article).toHaveAttribute('data-priority', '3');
     });
+
+    it('renders data-column attribute with columnId prop value', () => {
+      const issue = createTestIssue();
+      const { container } = render(<IssueCard issue={issue} columnId="in_progress" />);
+
+      const article = container.querySelector('article');
+      expect(article).toHaveAttribute('data-column', 'in_progress');
+    });
+
+    it('renders data-column attribute with "review" columnId', () => {
+      const issue = createTestIssue();
+      const { container } = render(<IssueCard issue={issue} columnId="review" />);
+
+      const article = container.querySelector('article');
+      expect(article).toHaveAttribute('data-column', 'review');
+    });
+
+    it('renders data-column attribute with "done" columnId', () => {
+      const issue = createTestIssue();
+      const { container } = render(<IssueCard issue={issue} columnId="done" />);
+
+      const article = container.querySelector('article');
+      expect(article).toHaveAttribute('data-column', 'done');
+    });
+
+    it('data-column attribute is undefined when no columnId is provided', () => {
+      const issue = createTestIssue();
+      const { container } = render(<IssueCard issue={issue} />);
+
+      const article = container.querySelector('article');
+      expect(article).not.toHaveAttribute('data-column');
+    });
   });
 
   describe('edge cases', () => {
