@@ -12,6 +12,7 @@ import '@testing-library/jest-dom';
 
 import { IssueCard } from '../IssueCard';
 import type { Issue } from '@/types';
+import styles from '../IssueCard.module.css';
 
 /**
  * Create a minimal test issue with required fields.
@@ -765,6 +766,24 @@ describe('IssueCard', () => {
 
         expect(screen.getByText('Plan')).toBeInTheDocument();
       });
+    });
+  });
+
+  describe('CSS module classes', () => {
+    it('renders card with issueCard class from CSS module', () => {
+      const issue = createTestIssue();
+      const { container } = render(<IssueCard issue={issue} />);
+
+      const article = container.querySelector('article');
+      // CSS Modules hashes class names, so we check for the pattern
+      expect(article?.className).toMatch(/issueCard/);
+    });
+
+    it('selected class exists in CSS module styles object', () => {
+      // Verify that the .selected class is defined in the CSS module
+      // This ensures the CSS module exports the selected class that can be applied
+      expect(styles.selected).toBeDefined();
+      expect(styles.selected).toBeTruthy();
     });
   });
 
