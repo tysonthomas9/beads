@@ -42,6 +42,7 @@ import {
   StatsHeader,
   AssigneePrompt,
   BulkActionToolbar,
+  TalkToLeadButton,
 } from '@/components';
 
 // Lazy load GraphView (React Flow ~100KB)
@@ -471,6 +472,7 @@ function App() {
         onApprove={handleApprove}
         onReject={handleReject}
       />
+      <TalkToLeadButton />
       <AssigneePrompt
         isOpen={pendingDragData !== null}
         onConfirm={handleAssigneeConfirm}
