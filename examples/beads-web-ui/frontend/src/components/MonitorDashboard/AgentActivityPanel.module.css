@@ -42,6 +42,30 @@
   color: var(--color-text-tertiary);
 }
 
+/* Summary colored dots */
+.summaryDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.summaryDot[data-type='active'] {
+  background-color: var(--color-status-working);
+}
+
+.summaryDot[data-type='idle'] {
+  background-color: var(--color-status-done);
+}
+
+.summaryDot[data-type='error'] {
+  background-color: var(--color-status-error);
+}
+
+.summaryDot[data-type='sync'] {
+  background-color: var(--color-status-dirty);
+}
+
 /* Summary type colors */
 .summaryItem[data-type='active'] .summaryCount {
   color: var(--color-status-working);
@@ -62,7 +86,7 @@
 /* Agent grid */
 .agentGrid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  grid-template-columns: repeat(3, 1fr);
   gap: var(--space-2);
   overflow-y: auto;
   flex: 1;
@@ -117,7 +141,9 @@
   font-weight: var(--font-weight-medium);
   color: var(--color-text);
   cursor: pointer;
-  transition: background-color var(--transition-fast), border-color var(--transition-fast);
+  transition:
+    background-color var(--transition-fast),
+    border-color var(--transition-fast);
 }
 
 .retryButton:hover {
@@ -149,6 +175,13 @@
   font-size: var(--font-size-xs);
   color: var(--color-text-muted);
   font-variant-numeric: tabular-nums;
+}
+
+/* Tablet adjustments */
+@media (max-width: 1200px) and (min-width: 769px) {
+  .agentGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
 
 /* Mobile adjustments */

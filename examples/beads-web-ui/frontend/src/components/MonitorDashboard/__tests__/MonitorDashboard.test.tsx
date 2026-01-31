@@ -137,4 +137,10 @@ describe('MonitorDashboard', () => {
 
     expect(screen.getByText('↻ 5s')).toBeInTheDocument();
   });
+
+  it('renders settings button for agent activity', () => {
+    render(<MonitorDashboard />);
+
+    expect(screen.getByRole('button', { name: /agent activity settings/i })).toBeInTheDocument();
+  });
 });

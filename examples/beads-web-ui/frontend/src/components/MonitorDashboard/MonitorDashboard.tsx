@@ -124,6 +124,10 @@ export function MonitorDashboard({ className, onViewChange }: MonitorDashboardPr
             Agent Activity
           </h2>
           <span className={styles.refreshIndicator}>↻ 5s</span>
+          {/* TODO: Wire up agent configuration when available */}
+          <button className={styles.settingsButton} aria-label="Agent activity settings">
+            ⚙️
+          </button>
         </header>
         <div className={styles.panelContent}>
           <AgentActivityPanel
