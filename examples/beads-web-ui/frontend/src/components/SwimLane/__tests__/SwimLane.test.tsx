@@ -664,8 +664,8 @@ describe('SwimLane', () => {
         <SwimLane id="test-lane" title="Test Lane" issues={[]} columns={columns} />
       );
 
-      // The package icon should be rendered in the backlog column header
-      expect(screen.getByText('📦')).toBeInTheDocument();
+      // The hourglass icon should be rendered in the backlog column header
+      expect(screen.getByText('⏳')).toBeInTheDocument();
     });
   });
 

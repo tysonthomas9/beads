@@ -263,7 +263,7 @@ export function KanbanBoard({
             : isReviewColumn
               ? ('review' as const)
               : undefined;
-          const headerIcon = isBacklogColumn ? '📦' : isReviewColumn ? '👀' : undefined;
+          const headerIcon = isBacklogColumn ? '⏳' : isReviewColumn ? '👀' : undefined;
 
           // Build props conditionally to satisfy exactOptionalPropertyTypes
           const statusColumnProps = {

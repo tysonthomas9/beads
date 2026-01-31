@@ -243,7 +243,7 @@ test.describe("Backlog column filters", () => {
 })
 
 test.describe("Backlog column header and styling", () => {
-  test("Backlog column shows 📦 icon and 'Backlog' title", async ({
+  test("Backlog column shows ⏳ icon and 'Backlog' title", async ({
     page,
   }) => {
     const blockedIssue = makeIssue({
@@ -258,9 +258,9 @@ test.describe("Backlog column header and styling", () => {
     const backlogColumn = page.locator('section[data-status="backlog"]')
     await expect(backlogColumn).toBeVisible()
 
-    // V1: Column header shows 📦 icon
+    // V1: Column header shows ⏳ icon
     const headerIcon = backlogColumn.locator('[aria-hidden="true"]').first()
-    await expect(headerIcon).toHaveText("📦")
+    await expect(headerIcon).toHaveText("⏳")
 
     // V1: Column title says "Backlog"
     const title = backlogColumn.locator("h2")
@@ -458,7 +458,7 @@ test.describe("Backlog column header and styling", () => {
 
     // Header icon should still be visible
     const headerIcon = backlogColumn.locator('[aria-hidden="true"]').first()
-    await expect(headerIcon).toHaveText("📦")
+    await expect(headerIcon).toHaveText("⏳")
   })
 
   test("column order is Ready, Backlog, In Progress, Review, Done", async ({

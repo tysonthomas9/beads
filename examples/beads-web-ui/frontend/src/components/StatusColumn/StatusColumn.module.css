@@ -22,7 +22,7 @@
   align-items: center;
   justify-content: space-between;
   padding: var(--space-3) var(--space-4);
-  border-bottom: 2px solid var(--color-border);
+  border-bottom: 1px solid var(--color-border);
   flex-shrink: 0;
 }
 
@@ -85,11 +85,11 @@
 .count {
   flex-shrink: 0;
   min-width: 1.5rem;
-  padding: var(--space-1) var(--space-2);
+  padding: 2px 8px;
   font-size: var(--font-size-xs);
   font-weight: var(--font-weight-medium);
   color: var(--color-text-secondary);
-  background-color: var(--color-bg-tertiary);
+  background-color: rgba(0, 0, 0, 0.05);
   border-radius: var(--radius-full);
   text-align: center;
 }
