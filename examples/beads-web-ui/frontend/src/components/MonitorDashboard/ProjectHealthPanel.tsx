@@ -87,23 +87,17 @@ export function ProjectHealthPanel({
   onBottleneckClick,
   className,
 }: ProjectHealthPanelProps): JSX.Element {
-  const bottlenecks = useMemo(
-    () => deriveBottlenecks(blockedIssues),
-    [blockedIssues]
-  );
+  const bottlenecks = useMemo(() => deriveBottlenecks(blockedIssues), [blockedIssues]);
 
-  const rootClassName = className
-    ? `${styles.panel} ${className}`
-    : styles.panel;
+  const rootClassName = className ? `${styles.panel} ${className}` : styles.panel;
 
   // Calculate percentage for progress bar
   const completionPercent = Math.round(stats.completion);
 
   return (
     <div className={rootClassName} data-testid="project-health-panel">
-      {/* Progress Section */}
-      <section className={styles.section}>
-        <h3 className={styles.sectionLabel}>Completion</h3>
+      {/* Left Pane: Progress + Issue Counts */}
+      <div className={styles.leftPane}>
         <div className={styles.progressContainer}>
           <div className={styles.progressBar}>
             <div
@@ -118,11 +112,6 @@ export function ProjectHealthPanel({
           </div>
           <span className={styles.progressLabel}>{completionPercent}%</span>
         </div>
-      </section>
-
-      {/* Issue Counts Section */}
-      <section className={styles.section}>
-        <h3 className={styles.sectionLabel}>Issues</h3>
         <div className={styles.countsGrid}>
           <div className={styles.countItem}>
             <span className={styles.countValue}>{stats.open}</span>
@@ -137,10 +126,10 @@ export function ProjectHealthPanel({
             <span className={styles.countLabel}>Total</span>
           </div>
         </div>
-      </section>
+      </div>
 
-      {/* Bottlenecks Section */}
-      <section className={styles.section}>
+      {/* Right Pane: Bottlenecks */}
+      <div className={styles.rightPane}>
         <h3 className={styles.sectionLabel}>
           Bottlenecks
           {bottlenecks.length > 0 && (
@@ -153,13 +142,18 @@ export function ProjectHealthPanel({
           <div className={styles.emptyState}>No bottlenecks detected</div>
         ) : (
           <ul className={styles.bottleneckList}>
-            {bottlenecks.map((bottleneck) => (
+            {bottlenecks.map((bottleneck, index) => (
               <li key={bottleneck.id} className={styles.bottleneckItem}>
                 <button
                   type="button"
-                  className={styles.bottleneckButton}
-                  onClick={() => onBottleneckClick?.({ id: bottleneck.id, title: bottleneck.title })}
+                  className={
+                    index === 0 ? styles.bottleneckButtonHighlighted : styles.bottleneckButton
+                  }
+                  onClick={() =>
+                    onBottleneckClick?.({ id: bottleneck.id, title: bottleneck.title })
+                  }
                   disabled={!onBottleneckClick}
+                  aria-current={index === 0 ? 'true' : undefined}
                 >
                   <span className={styles.bottleneckId}>{bottleneck.id}</span>
                   <span className={styles.bottleneckBlockCount}>
@@ -170,7 +164,7 @@ export function ProjectHealthPanel({
             ))}
           </ul>
         )}
-      </section>
+      </div>
     </div>
   );
 }

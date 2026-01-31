@@ -4,16 +4,25 @@
 
 .panel {
   display: flex;
-  flex-direction: column;
-  gap: var(--space-4);
+  flex-direction: row;
+  gap: var(--space-6);
   height: 100%;
 }
 
-/* Section */
-.section {
+.leftPane {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  justify-content: center;
+}
+
+.rightPane {
+  flex: 1;
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
+  min-width: 0;
 }
 
 .sectionLabel {
@@ -51,7 +60,7 @@
 }
 
 .progressLabel {
-  font-size: var(--font-size-lg);
+  font-size: var(--font-size-2xl);
   font-weight: var(--font-weight-bold);
   color: var(--color-text);
   min-width: 48px;
@@ -69,7 +78,7 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: var(--space-2);
+  padding: var(--space-3);
   background-color: var(--color-bg-secondary);
   border-radius: var(--radius-md);
 }
@@ -98,6 +107,7 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-1);
+  overflow: auto;
 }
 
 .bottleneckItem {
@@ -110,23 +120,40 @@
   justify-content: space-between;
   width: 100%;
   padding: var(--space-2) var(--space-3);
-  background-color: var(--color-danger-bg);
+  background-color: var(--color-bg-secondary);
   border: none;
   border-radius: var(--radius-sm);
   cursor: pointer;
   transition: background-color var(--transition-fast);
 }
 
-.bottleneckButton:hover {
+.bottleneckButtonHighlighted {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  background-color: var(--color-danger-bg);
+  border: none;
+  border-left: 3px solid var(--color-danger);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background-color var(--transition-fast);
+}
+
+.bottleneckButton:hover,
+.bottleneckButtonHighlighted:hover {
   background-color: var(--color-bg-hover);
 }
 
-.bottleneckButton:focus-visible {
+.bottleneckButton:focus-visible,
+.bottleneckButtonHighlighted:focus-visible {
   outline: 2px solid var(--color-focus);
   outline-offset: 2px;
 }
 
-.bottleneckButton:disabled {
+.bottleneckButton:disabled,
+.bottleneckButtonHighlighted:disabled {
   cursor: default;
   opacity: 0.7;
 }
@@ -136,11 +163,15 @@
   font-size: var(--font-size-xs);
   color: var(--color-danger);
   font-weight: var(--font-weight-medium);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .bottleneckBlockCount {
   font-size: var(--font-size-xs);
   color: var(--color-text-muted);
+  white-space: nowrap;
 }
 
 /* States */
@@ -161,8 +192,8 @@
 
 /* Responsive */
 @media (max-width: 768px) {
-  .countsGrid {
-    grid-template-columns: repeat(3, 1fr);
+  .panel {
+    flex-direction: column;
   }
 
   .progressLabel {

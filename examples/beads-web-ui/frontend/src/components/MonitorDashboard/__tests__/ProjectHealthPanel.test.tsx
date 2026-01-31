@@ -179,11 +179,7 @@ describe('ProjectHealthPanel', () => {
       ];
 
       render(
-        <ProjectHealthPanel
-          stats={createStats()}
-          blockedIssues={blockedIssues}
-          isLoading={false}
-        />
+        <ProjectHealthPanel stats={createStats()} blockedIssues={blockedIssues} isLoading={false} />
       );
 
       // bottleneck-1 blocks 3 issues, bottleneck-2 blocks 2 issues
@@ -200,11 +196,7 @@ describe('ProjectHealthPanel', () => {
       ];
 
       render(
-        <ProjectHealthPanel
-          stats={createStats()}
-          blockedIssues={blockedIssues}
-          isLoading={false}
-        />
+        <ProjectHealthPanel stats={createStats()} blockedIssues={blockedIssues} isLoading={false} />
       );
 
       expect(screen.getByText('(1)')).toBeInTheDocument();
@@ -220,11 +212,7 @@ describe('ProjectHealthPanel', () => {
       ];
 
       render(
-        <ProjectHealthPanel
-          stats={createStats()}
-          blockedIssues={blockedIssues}
-          isLoading={false}
-        />
+        <ProjectHealthPanel stats={createStats()} blockedIssues={blockedIssues} isLoading={false} />
       );
 
       const listItems = screen.getAllByRole('listitem');
@@ -236,16 +224,18 @@ describe('ProjectHealthPanel', () => {
     it('limits bottlenecks to top 5', () => {
       // Create 6 different bottlenecks that each block 2+ issues
       const blockedIssues = [
-        createBlockedIssue({ id: 'b1', blocked_by: ['bn-1', 'bn-2', 'bn-3', 'bn-4', 'bn-5', 'bn-6'] }),
-        createBlockedIssue({ id: 'b2', blocked_by: ['bn-1', 'bn-2', 'bn-3', 'bn-4', 'bn-5', 'bn-6'] }),
+        createBlockedIssue({
+          id: 'b1',
+          blocked_by: ['bn-1', 'bn-2', 'bn-3', 'bn-4', 'bn-5', 'bn-6'],
+        }),
+        createBlockedIssue({
+          id: 'b2',
+          blocked_by: ['bn-1', 'bn-2', 'bn-3', 'bn-4', 'bn-5', 'bn-6'],
+        }),
       ];
 
       render(
-        <ProjectHealthPanel
-          stats={createStats()}
-          blockedIssues={blockedIssues}
-          isLoading={false}
-        />
+        <ProjectHealthPanel stats={createStats()} blockedIssues={blockedIssues} isLoading={false} />
       );
 
       const listItems = screen.getAllByRole('listitem');
@@ -255,25 +245,13 @@ describe('ProjectHealthPanel', () => {
 
   describe('empty bottleneck state', () => {
     it('shows "No bottlenecks detected" when there are no blocked issues', () => {
-      render(
-        <ProjectHealthPanel
-          stats={createStats()}
-          blockedIssues={[]}
-          isLoading={false}
-        />
-      );
+      render(<ProjectHealthPanel stats={createStats()} blockedIssues={[]} isLoading={false} />);
 
       expect(screen.getByText('No bottlenecks detected')).toBeInTheDocument();
     });
 
     it('shows "No bottlenecks detected" when blockedIssues is null', () => {
-      render(
-        <ProjectHealthPanel
-          stats={createStats()}
-          blockedIssues={null}
-          isLoading={false}
-        />
-      );
+      render(<ProjectHealthPanel stats={createStats()} blockedIssues={null} isLoading={false} />);
 
       expect(screen.getByText('No bottlenecks detected')).toBeInTheDocument();
     });
@@ -287,24 +265,14 @@ describe('ProjectHealthPanel', () => {
       ];
 
       render(
-        <ProjectHealthPanel
-          stats={createStats()}
-          blockedIssues={blockedIssues}
-          isLoading={false}
-        />
+        <ProjectHealthPanel stats={createStats()} blockedIssues={blockedIssues} isLoading={false} />
       );
 
       expect(screen.getByText('No bottlenecks detected')).toBeInTheDocument();
     });
 
     it('does not show bottleneck count when no bottlenecks exist', () => {
-      render(
-        <ProjectHealthPanel
-          stats={createStats()}
-          blockedIssues={[]}
-          isLoading={false}
-        />
-      );
+      render(<ProjectHealthPanel stats={createStats()} blockedIssues={[]} isLoading={false} />);
 
       expect(screen.queryByText(/\(\d+\)/)).not.toBeInTheDocument();
     });
@@ -344,11 +312,7 @@ describe('ProjectHealthPanel', () => {
       ];
 
       render(
-        <ProjectHealthPanel
-          stats={createStats()}
-          blockedIssues={blockedIssues}
-          isLoading={false}
-        />
+        <ProjectHealthPanel stats={createStats()} blockedIssues={blockedIssues} isLoading={false} />
       );
 
       const bottleneckButton = screen.getByRole('button', { name: /bottleneck-1/i });
@@ -362,11 +326,7 @@ describe('ProjectHealthPanel', () => {
       ];
 
       render(
-        <ProjectHealthPanel
-          stats={createStats()}
-          blockedIssues={blockedIssues}
-          isLoading={false}
-        />
+        <ProjectHealthPanel stats={createStats()} blockedIssues={blockedIssues} isLoading={false} />
       );
 
       const bottleneckButton = screen.getByRole('button', { name: /bottleneck-1/i });
@@ -396,25 +356,13 @@ describe('ProjectHealthPanel', () => {
 
   describe('loading state', () => {
     it('shows loading indicator in bottlenecks section when isLoading is true', () => {
-      render(
-        <ProjectHealthPanel
-          stats={createStats()}
-          blockedIssues={null}
-          isLoading={true}
-        />
-      );
+      render(<ProjectHealthPanel stats={createStats()} blockedIssues={null} isLoading={true} />);
 
       expect(screen.getByText('Loading...')).toBeInTheDocument();
     });
 
     it('does not show "No bottlenecks detected" while loading', () => {
-      render(
-        <ProjectHealthPanel
-          stats={createStats()}
-          blockedIssues={null}
-          isLoading={true}
-        />
-      );
+      render(<ProjectHealthPanel stats={createStats()} blockedIssues={null} isLoading={true} />);
 
       expect(screen.queryByText('No bottlenecks detected')).not.toBeInTheDocument();
     });
@@ -488,11 +436,7 @@ describe('ProjectHealthPanel', () => {
       ];
 
       render(
-        <ProjectHealthPanel
-          stats={createStats()}
-          blockedIssues={blockedIssues}
-          isLoading={false}
-        />
+        <ProjectHealthPanel stats={createStats()} blockedIssues={blockedIssues} isLoading={false} />
       );
 
       // Single blocker should not be shown as bottleneck
@@ -507,11 +451,7 @@ describe('ProjectHealthPanel', () => {
       ];
 
       render(
-        <ProjectHealthPanel
-          stats={createStats()}
-          blockedIssues={blockedIssues}
-          isLoading={false}
-        />
+        <ProjectHealthPanel stats={createStats()} blockedIssues={blockedIssues} isLoading={false} />
       );
 
       // Only 'bottleneck' should appear (blocks 2 issues)
@@ -521,16 +461,10 @@ describe('ProjectHealthPanel', () => {
     });
 
     it('handles empty blocked_by array', () => {
-      const blockedIssues = [
-        createBlockedIssue({ id: 'blocked-1', blocked_by: [] }),
-      ];
+      const blockedIssues = [createBlockedIssue({ id: 'blocked-1', blocked_by: [] })];
 
       render(
-        <ProjectHealthPanel
-          stats={createStats()}
-          blockedIssues={blockedIssues}
-          isLoading={false}
-        />
+        <ProjectHealthPanel stats={createStats()} blockedIssues={blockedIssues} isLoading={false} />
       );
 
       expect(screen.getByText('No bottlenecks detected')).toBeInTheDocument();
@@ -581,13 +515,7 @@ describe('ProjectHealthPanel', () => {
     });
 
     it('has data-testid for e2e tests', () => {
-      render(
-        <ProjectHealthPanel
-          stats={createStats()}
-          blockedIssues={[]}
-          isLoading={false}
-        />
-      );
+      render(<ProjectHealthPanel stats={createStats()} blockedIssues={[]} isLoading={false} />);
 
       expect(screen.getByTestId('project-health-panel')).toBeInTheDocument();
     });
@@ -613,40 +541,34 @@ describe('ProjectHealthPanel', () => {
   });
 
   describe('section headings', () => {
-    it('renders Completion heading', () => {
-      render(
-        <ProjectHealthPanel
-          stats={createStats()}
-          blockedIssues={[]}
-          isLoading={false}
-        />
-      );
-
-      expect(screen.getByText('Completion')).toBeInTheDocument();
-    });
-
-    it('renders Issues heading', () => {
-      render(
-        <ProjectHealthPanel
-          stats={createStats()}
-          blockedIssues={[]}
-          isLoading={false}
-        />
-      );
-
-      expect(screen.getByText('Issues')).toBeInTheDocument();
-    });
-
     it('renders Bottlenecks heading', () => {
-      render(
-        <ProjectHealthPanel
-          stats={createStats()}
-          blockedIssues={[]}
-          isLoading={false}
-        />
-      );
+      render(<ProjectHealthPanel stats={createStats()} blockedIssues={[]} isLoading={false} />);
 
       expect(screen.getByText('Bottlenecks')).toBeInTheDocument();
+    });
+
+    it('highlights the top bottleneck with distinct styling', () => {
+      const blockedIssues = [
+        { id: 'issue-1', title: 'Issue 1', blocked_by: ['blocker-a', 'blocker-b'] },
+        { id: 'issue-2', title: 'Issue 2', blocked_by: ['blocker-a', 'blocker-b'] },
+        { id: 'issue-3', title: 'Issue 3', blocked_by: ['blocker-a'] },
+      ];
+
+      render(
+        <ProjectHealthPanel
+          stats={createStats()}
+          blockedIssues={blockedIssues}
+          isLoading={false}
+          onBottleneckClick={() => {}}
+        />
+      );
+
+      const buttons = screen.getAllByRole('button');
+      // First bottleneck button should have highlighted class
+      expect(buttons[0].className).toContain('bottleneckButtonHighlighted');
+      // Second bottleneck button should have normal class
+      expect(buttons[1].className).toContain('bottleneckButton');
+      expect(buttons[1].className).not.toContain('Highlighted');
     });
   });
 });

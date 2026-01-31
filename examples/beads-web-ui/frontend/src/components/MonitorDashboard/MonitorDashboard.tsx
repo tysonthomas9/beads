@@ -102,6 +102,7 @@ export function MonitorDashboard({ className, onViewChange }: MonitorDashboardPr
           <h2 id="project-health-heading" className={styles.panelTitle}>
             Project Health
           </h2>
+          <span className={styles.refreshIndicator}>↻ 30s</span>
         </header>
         <div className={styles.panelContent}>
           <ProjectHealthPanel
