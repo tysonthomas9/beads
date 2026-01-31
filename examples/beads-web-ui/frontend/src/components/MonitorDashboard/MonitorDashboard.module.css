@@ -1,12 +1,12 @@
 /**
  * MonitorDashboard container styles.
- * Responsive 2x2 grid layout for monitoring panels.
+ * Single-column vertical stack layout for monitoring panels.
  */
 
 .dashboard {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  grid-template-rows: auto 1fr 1fr;
+  grid-template-columns: 1fr;
+  grid-template-rows: auto minmax(200px, 1fr) minmax(300px, 1fr) minmax(300px, 1fr);
   gap: var(--space-4);
   padding: var(--space-4);
   width: 100%;
@@ -17,13 +17,13 @@
 
 /* Connection banner spans full width */
 .connectionBanner {
-  grid-column: 1 / -1;
+  grid-column: 1;
   grid-row: 1;
 }
 
-/* When no banner, panels use normal grid rows */
+/* When no banner, panels use rows 1-3 */
 .dashboard:not(:has(.connectionBanner)) {
-  grid-template-rows: 1fr 1fr;
+  grid-template-rows: 1fr 1fr 1fr;
 }
 
 /* Panel base styles */
@@ -106,107 +106,46 @@
   border: 1px dashed var(--color-border);
 }
 
-/* Grid placement for specific panels */
-/* When banner is present, panels shift down one row */
-.agentActivity {
+/* Grid placement for panels */
+/* When banner is present, panels are in rows 2-4 */
+.projectHealth {
   grid-column: 1;
   grid-row: 2;
 }
 
-.workPipeline {
-  grid-column: 2;
-  grid-row: 2;
-}
-
-.projectHealth {
+.agentActivity {
   grid-column: 1;
   grid-row: 3;
 }
 
 .miniGraph {
-  grid-column: 2;
-  grid-row: 3;
+  grid-column: 1;
+  grid-row: 4;
 }
 
-/* When no banner, panels use rows 1-2 */
-.dashboard:not(:has(.connectionBanner)) .agentActivity,
-.dashboard:not(:has(.connectionBanner)) .workPipeline {
+/* When no banner, panels shift up to rows 1-3 */
+.dashboard:not(:has(.connectionBanner)) .projectHealth {
   grid-row: 1;
 }
 
-.dashboard:not(:has(.connectionBanner)) .projectHealth,
-.dashboard:not(:has(.connectionBanner)) .miniGraph {
+.dashboard:not(:has(.connectionBanner)) .agentActivity {
   grid-row: 2;
 }
 
-/* Tablet: Reduced padding and gaps */
-@media (max-width: 1200px) and (min-width: 769px) {
-  .dashboard {
-    gap: var(--space-3);
-    padding: var(--space-3);
-  }
-
-  .panelHeader {
-    padding: var(--space-2) var(--space-3);
-  }
-
-  .panelContent {
-    padding: var(--space-3);
-  }
+.dashboard:not(:has(.connectionBanner)) .miniGraph {
+  grid-row: 3;
 }
 
-/* Mobile: Stack vertically */
+/* Mobile: Adjust spacing */
 @media (max-width: 768px) {
   .dashboard {
-    grid-template-columns: 1fr;
-    grid-template-rows: auto repeat(4, minmax(250px, auto));
+    grid-template-rows: auto repeat(3, minmax(250px, auto));
     gap: var(--space-3);
     padding: var(--space-3);
   }
 
   .dashboard:not(:has(.connectionBanner)) {
-    grid-template-rows: repeat(4, minmax(250px, auto));
-  }
-
-  .connectionBanner {
-    grid-column: 1;
-    grid-row: 1;
-  }
-
-  .agentActivity {
-    grid-column: 1;
-    grid-row: 2;
-  }
-
-  .workPipeline {
-    grid-column: 1;
-    grid-row: 3;
-  }
-
-  .projectHealth {
-    grid-column: 1;
-    grid-row: 4;
-  }
-
-  .miniGraph {
-    grid-column: 1;
-    grid-row: 5;
-  }
-
-  .dashboard:not(:has(.connectionBanner)) .agentActivity {
-    grid-row: 1;
-  }
-
-  .dashboard:not(:has(.connectionBanner)) .workPipeline {
-    grid-row: 2;
-  }
-
-  .dashboard:not(:has(.connectionBanner)) .projectHealth {
-    grid-row: 3;
-  }
-
-  .dashboard:not(:has(.connectionBanner)) .miniGraph {
-    grid-row: 4;
+    grid-template-rows: repeat(3, minmax(250px, auto));
   }
 
   .placeholder {

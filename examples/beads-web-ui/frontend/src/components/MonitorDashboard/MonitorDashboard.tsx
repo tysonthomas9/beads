@@ -1,11 +1,10 @@
 /**
  * MonitorDashboard container component for multi-agent monitoring.
  *
- * Renders a responsive 2x2 grid layout containing:
- * - Agent Activity Panel (top-left)
- * - Work Pipeline Panel (top-right)
- * - Project Health Panel (bottom-left)
- * - Mini Dependency Graph (bottom-right)
+ * Renders a single-column vertical stack containing:
+ * - Project Health Panel (top)
+ * - Agent Activity Panel (middle)
+ * - Blocking Dependencies / Mini Dependency Graph (bottom)
  */
 
 import { useAgents, useBlockedIssues, useIssues } from '@/hooks';
@@ -14,7 +13,6 @@ import type { Issue } from '@/types';
 import { AgentActivityPanel } from './AgentActivityPanel';
 import { ConnectionBanner } from './ConnectionBanner';
 import { ProjectHealthPanel } from './ProjectHealthPanel';
-import { WorkPipelinePanel } from './WorkPipelinePanel';
 import { MiniDependencyGraph } from './MiniDependencyGraph';
 import styles from './MonitorDashboard.module.css';
 
@@ -29,16 +27,13 @@ export interface MonitorDashboardProps {
 }
 
 /**
- * MonitorDashboard renders the 2x2 grid layout for multi-agent monitoring.
- * Each panel is a placeholder that will be replaced by dedicated components.
+ * MonitorDashboard renders a single-column vertical stack for multi-agent monitoring.
  */
 export function MonitorDashboard({ className, onViewChange }: MonitorDashboardProps): JSX.Element {
   // Fetch agent status and stats
   const {
     agents,
     agentTasks,
-    tasks,
-    taskLists,
     sync,
     stats,
     isLoading,
@@ -98,7 +93,27 @@ export function MonitorDashboard({ className, onViewChange }: MonitorDashboardPr
         />
       )}
 
-      {/* Top-left: Agent Activity */}
+      {/* Top: Project Health */}
+      <section
+        className={`${styles.panel} ${styles.projectHealth}`}
+        aria-labelledby="project-health-heading"
+      >
+        <header className={styles.panelHeader}>
+          <h2 id="project-health-heading" className={styles.panelTitle}>
+            Project Health
+          </h2>
+        </header>
+        <div className={styles.panelContent}>
+          <ProjectHealthPanel
+            stats={stats}
+            blockedIssues={blockedIssues}
+            isLoading={isLoadingBlocked}
+            onBottleneckClick={handleBottleneckClick}
+          />
+        </div>
+      </section>
+
+      {/* Middle: Agent Activity */}
       <section
         className={`${styles.panel} ${styles.agentActivity}`}
         aria-labelledby="agent-activity-heading"
@@ -125,45 +140,7 @@ export function MonitorDashboard({ className, onViewChange }: MonitorDashboardPr
         </div>
       </section>
 
-      {/* Top-right: Work Pipeline */}
-      <section
-        className={`${styles.panel} ${styles.workPipeline}`}
-        aria-labelledby="work-pipeline-heading"
-      >
-        <header className={styles.panelHeader}>
-          <h2 id="work-pipeline-heading" className={styles.panelTitle}>
-            Work Pipeline
-          </h2>
-          <button className={styles.settingsButton} aria-label="Pipeline settings">
-            ⚙️
-          </button>
-        </header>
-        <div className={styles.panelContent}>
-          <WorkPipelinePanel tasks={tasks} taskLists={taskLists} />
-        </div>
-      </section>
-
-      {/* Bottom-left: Project Health */}
-      <section
-        className={`${styles.panel} ${styles.projectHealth}`}
-        aria-labelledby="project-health-heading"
-      >
-        <header className={styles.panelHeader}>
-          <h2 id="project-health-heading" className={styles.panelTitle}>
-            Project Health
-          </h2>
-        </header>
-        <div className={styles.panelContent}>
-          <ProjectHealthPanel
-            stats={stats}
-            blockedIssues={blockedIssues}
-            isLoading={isLoadingBlocked}
-            onBottleneckClick={handleBottleneckClick}
-          />
-        </div>
-      </section>
-
-      {/* Bottom-right: Mini Dependency Graph */}
+      {/* Bottom: Blocking Dependencies */}
       <section
         className={`${styles.panel} ${styles.miniGraph}`}
         aria-labelledby="mini-graph-heading"

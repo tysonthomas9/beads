@@ -15,7 +15,13 @@ vi.mock('@/hooks', () => ({
     stats: { open: 10, closed: 5, total: 15, completion: 33.3 },
     agents: [],
     tasks: { needs_planning: 0, ready_to_implement: 0, in_progress: 0, need_review: 0, blocked: 0 },
-    taskLists: { needsPlanning: [], readyToImplement: [], needsReview: [], inProgress: [], blocked: [] },
+    taskLists: {
+      needsPlanning: [],
+      readyToImplement: [],
+      needsReview: [],
+      inProgress: [],
+      blocked: [],
+    },
     agentTasks: {},
     sync: { db_synced: true, db_last_sync: '', git_needs_push: 0, git_needs_pull: 0 },
     isLoading: false,
@@ -52,13 +58,18 @@ vi.mock('@/hooks', () => ({
 }));
 
 describe('MonitorDashboard', () => {
-  it('renders all four panels', () => {
+  it('renders all three panels', () => {
     render(<MonitorDashboard />);
 
-    expect(screen.getByRole('heading', { name: /agent activity/i })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: /work pipeline/i })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: /project health/i })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /agent activity/i })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: /blocking dependencies/i })).toBeInTheDocument();
+  });
+
+  it('does not render Work Pipeline panel', () => {
+    render(<MonitorDashboard />);
+
+    expect(screen.queryByRole('heading', { name: /work pipeline/i })).not.toBeInTheDocument();
   });
 
   it('renders with testid for e2e tests', () => {
@@ -74,11 +85,12 @@ describe('MonitorDashboard', () => {
     expect(dashboard).toHaveClass('custom-class');
   });
 
-  it('renders settings button for work pipeline', () => {
+  it('renders panels in correct order: Project Health, Agent Activity, Blocking Dependencies', () => {
     render(<MonitorDashboard />);
 
-    const settingsButton = screen.getByRole('button', { name: /pipeline settings/i });
-    expect(settingsButton).toBeInTheDocument();
+    const headings = screen.getAllByRole('heading', { level: 2 });
+    const panelNames = headings.map((h) => h.textContent);
+    expect(panelNames).toEqual(['Project Health', 'Agent Activity', 'Blocking Dependencies']);
   });
 
   it('renders expand button for mini graph', () => {
@@ -96,11 +108,10 @@ describe('MonitorDashboard', () => {
     expect(screen.getByTestId('mini-dependency-graph')).toBeInTheDocument();
   });
 
-  it('renders WorkPipelinePanel', () => {
+  it('does not render WorkPipelinePanel', () => {
     render(<MonitorDashboard />);
 
-    // WorkPipelinePanel is now implemented
-    expect(screen.getByTestId('work-pipeline-panel')).toBeInTheDocument();
+    expect(screen.queryByTestId('work-pipeline-panel')).not.toBeInTheDocument();
   });
 
   it('renders AgentActivityPanel', () => {
