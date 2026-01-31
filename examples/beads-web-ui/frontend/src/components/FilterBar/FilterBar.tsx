@@ -6,11 +6,7 @@
 
 import { useState, useCallback, useEffect, useRef } from 'react';
 import type { Priority, IssueType } from '@/types';
-import {
-  type FilterState,
-  type FilterActions,
-  isEmptyFilter,
-} from '@/hooks/useFilterState';
+import { type FilterState, type FilterActions, isEmptyFilter } from '@/hooks/useFilterState';
 import styles from './FilterBar.module.css';
 
 /**
@@ -167,10 +163,7 @@ export function FilterBar({
   // Close dropdown on outside click
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
-      if (
-        labelDropdownRef.current &&
-        !labelDropdownRef.current.contains(event.target as Node)
-      ) {
+      if (labelDropdownRef.current && !labelDropdownRef.current.contains(event.target as Node)) {
         setLabelDropdownOpen(false);
       }
     }
@@ -197,14 +190,6 @@ export function FilterBar({
     setLabelDropdownOpen((prev) => !prev);
   }, []);
 
-  // Handle show blocked toggle
-  const handleShowBlockedChange = useCallback(
-    (event: React.ChangeEvent<HTMLInputElement>) => {
-      actions.setShowBlocked(event.target.checked ? true : undefined);
-    },
-    [actions]
-  );
-
   // Handle group by change
   const handleGroupByChange = useCallback(
     (event: React.ChangeEvent<HTMLSelectElement>) => {
@@ -214,9 +199,7 @@ export function FilterBar({
     [onGroupByChange]
   );
 
-  const rootClassName = className
-    ? `${styles.filterBar} ${className}`
-    : styles.filterBar;
+  const rootClassName = className ? `${styles.filterBar} ${className}` : styles.filterBar;
 
   return (
     <div className={rootClassName} data-testid="filter-bar">
@@ -235,10 +218,7 @@ export function FilterBar({
             data-testid="priority-filter"
           >
             {PRIORITY_OPTIONS.map((option) => (
-              <option
-                key={option.value ?? 'all'}
-                value={option.value ?? ''}
-              >
+              <option key={option.value ?? 'all'} value={option.value ?? ''}>
                 {option.label}
               </option>
             ))}
@@ -259,10 +239,7 @@ export function FilterBar({
             data-testid="type-filter"
           >
             {TYPE_OPTIONS.map((option) => (
-              <option
-                key={option.value ?? 'all'}
-                value={option.value ?? ''}
-              >
+              <option key={option.value ?? 'all'} value={option.value ?? ''}>
                 {option.label}
               </option>
             ))}
@@ -339,20 +316,6 @@ export function FilterBar({
             </select>
           </div>
         )}
-
-        {/* Show Blocked toggle */}
-        <div className={styles.filterGroup}>
-          <label className={styles.checkboxLabel}>
-            <input
-              type="checkbox"
-              checked={filters.showBlocked === true}
-              onChange={handleShowBlockedChange}
-              aria-label="Show blocked issues"
-              data-testid="show-blocked-toggle"
-            />
-            <span>Show Blocked</span>
-          </label>
-        </div>
       </div>
 
       {/* Clear button */}
