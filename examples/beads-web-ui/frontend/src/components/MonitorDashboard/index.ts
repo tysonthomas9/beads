@@ -10,3 +10,5 @@ export { PipelineStage } from './PipelineStage';
 export type { PipelineStageProps } from './PipelineStage';
 export { MiniDependencyGraph } from './MiniDependencyGraph';
 export type { MiniDependencyGraphProps } from './MiniDependencyGraph';
+export { BlockingDependenciesCanvas } from './BlockingDependenciesCanvas';
+export type { BlockingDependenciesCanvasProps } from './BlockingDependenciesCanvas';

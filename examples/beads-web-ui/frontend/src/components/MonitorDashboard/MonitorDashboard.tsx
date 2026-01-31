@@ -13,7 +13,7 @@ import type { Issue } from '@/types';
 import { AgentActivityPanel } from './AgentActivityPanel';
 import { ConnectionBanner } from './ConnectionBanner';
 import { ProjectHealthPanel } from './ProjectHealthPanel';
-import { MiniDependencyGraph } from './MiniDependencyGraph';
+import { BlockingDependenciesCanvas } from './BlockingDependenciesCanvas';
 import styles from './MonitorDashboard.module.css';
 
 /**
@@ -156,7 +156,7 @@ export function MonitorDashboard({ className, onViewChange }: MonitorDashboardPr
           </h2>
         </header>
         <div className={styles.panelContent}>
-          <MiniDependencyGraph
+          <BlockingDependenciesCanvas
             issues={graphIssues}
             onNodeClick={handleGraphNodeClick}
             onExpandClick={handleExpandGraph}

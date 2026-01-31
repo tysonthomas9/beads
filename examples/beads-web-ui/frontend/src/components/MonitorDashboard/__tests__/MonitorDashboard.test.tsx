@@ -101,11 +101,11 @@ describe('MonitorDashboard', () => {
     expect(expandButton).toBeInTheDocument();
   });
 
-  it('renders MiniDependencyGraph component', () => {
+  it('renders BlockingDependenciesCanvas component', () => {
     render(<MonitorDashboard />);
 
-    // MiniDependencyGraph is now implemented
-    expect(screen.getByTestId('mini-dependency-graph')).toBeInTheDocument();
+    // BlockingDependenciesCanvas replaces MiniDependencyGraph
+    expect(screen.getByTestId('blocking-dependencies-canvas')).toBeInTheDocument();
   });
 
   it('does not render WorkPipelinePanel', () => {
