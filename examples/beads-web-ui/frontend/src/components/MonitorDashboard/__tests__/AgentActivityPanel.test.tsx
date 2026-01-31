@@ -244,12 +244,7 @@ describe('AgentActivityPanel', () => {
   describe('loading state', () => {
     it('shows loading state', () => {
       render(
-        <AgentActivityPanel
-          {...defaultProps}
-          agents={[]}
-          isLoading={true}
-          isConnected={true}
-        />
+        <AgentActivityPanel {...defaultProps} agents={[]} isLoading={true} isConnected={true} />
       );
 
       expect(screen.getByText('Loading agents...')).toBeInTheDocument();
@@ -260,12 +255,7 @@ describe('AgentActivityPanel', () => {
       const agents = [createAgent({ name: 'nova' })];
 
       render(
-        <AgentActivityPanel
-          {...defaultProps}
-          agents={agents}
-          isLoading={true}
-          isConnected={true}
-        />
+        <AgentActivityPanel {...defaultProps} agents={agents} isLoading={true} isConnected={true} />
       );
 
       expect(screen.queryByText('Loading agents...')).not.toBeInTheDocument();
@@ -276,12 +266,7 @@ describe('AgentActivityPanel', () => {
   describe('empty state', () => {
     it('shows empty state when no agents', () => {
       render(
-        <AgentActivityPanel
-          {...defaultProps}
-          agents={[]}
-          isLoading={false}
-          isConnected={true}
-        />
+        <AgentActivityPanel {...defaultProps} agents={[]} isLoading={false} isConnected={true} />
       );
 
       expect(screen.getByText('No agents found')).toBeInTheDocument();
@@ -292,18 +277,9 @@ describe('AgentActivityPanel', () => {
   describe('agent click handling', () => {
     it('calls onAgentClick when agent card clicked', () => {
       const onAgentClick = vi.fn();
-      const agents = [
-        createAgent({ name: 'nova' }),
-        createAgent({ name: 'falcon' }),
-      ];
+      const agents = [createAgent({ name: 'nova' }), createAgent({ name: 'falcon' })];
 
-      render(
-        <AgentActivityPanel
-          {...defaultProps}
-          agents={agents}
-          onAgentClick={onAgentClick}
-        />
-      );
+      render(<AgentActivityPanel {...defaultProps} agents={agents} onAgentClick={onAgentClick} />);
 
       // Click on the nova agent card
       fireEvent.click(screen.getByText('nova'));
@@ -314,18 +290,9 @@ describe('AgentActivityPanel', () => {
 
     it('calls onAgentClick with correct agent name', () => {
       const onAgentClick = vi.fn();
-      const agents = [
-        createAgent({ name: 'nova' }),
-        createAgent({ name: 'falcon' }),
-      ];
+      const agents = [createAgent({ name: 'nova' }), createAgent({ name: 'falcon' })];
 
-      render(
-        <AgentActivityPanel
-          {...defaultProps}
-          agents={agents}
-          onAgentClick={onAgentClick}
-        />
-      );
+      render(<AgentActivityPanel {...defaultProps} agents={agents} onAgentClick={onAgentClick} />);
 
       // Click on the falcon agent card
       fireEvent.click(screen.getByText('falcon'));
@@ -353,24 +320,18 @@ describe('AgentActivityPanel', () => {
         falcon: { id: 'bd-456', title: 'Add new feature' },
       });
 
-      render(
-        <AgentActivityPanel {...defaultProps} agents={agents} agentTasks={agentTasks} />
-      );
+      render(<AgentActivityPanel {...defaultProps} agents={agents} agentTasks={agentTasks} />);
 
-      expect(screen.getByText('Fix the login bug')).toBeInTheDocument();
-      expect(screen.getByText('Add new feature')).toBeInTheDocument();
+      expect(screen.getByTitle('Fix the login bug')).toBeInTheDocument();
+      expect(screen.getByTitle('Add new feature')).toBeInTheDocument();
     });
 
     it('handles missing task info gracefully', () => {
-      const agents = [
-        createAgent({ name: 'nova', status: 'working: bd-123 (5m)' }),
-      ];
+      const agents = [createAgent({ name: 'nova', status: 'working: bd-123 (5m)' })];
       // Empty agentTasks - no task info for nova
       const agentTasks = {};
 
-      render(
-        <AgentActivityPanel {...defaultProps} agents={agents} agentTasks={agentTasks} />
-      );
+      render(<AgentActivityPanel {...defaultProps} agents={agents} agentTasks={agentTasks} />);
 
       // Should still render the agent card
       expect(screen.getByText('nova')).toBeInTheDocument();
@@ -381,9 +342,7 @@ describe('AgentActivityPanel', () => {
 
   describe('custom className', () => {
     it('applies custom className', () => {
-      render(
-        <AgentActivityPanel {...defaultProps} className="custom-class" />
-      );
+      render(<AgentActivityPanel {...defaultProps} className="custom-class" />);
 
       const panel = screen.getByTestId('agent-activity-panel');
       expect(panel).toHaveClass('custom-class');
@@ -429,9 +388,7 @@ describe('AgentActivityPanel', () => {
     });
 
     it('handles large number of agents', () => {
-      const agents = Array.from({ length: 20 }, (_, i) =>
-        createAgent({ name: `agent-${i}` })
-      );
+      const agents = Array.from({ length: 20 }, (_, i) => createAgent({ name: `agent-${i}` }));
 
       render(<AgentActivityPanel {...defaultProps} agents={agents} />);
 
@@ -441,12 +398,7 @@ describe('AgentActivityPanel', () => {
     });
 
     it('handles null lastUpdated', () => {
-      render(
-        <AgentActivityPanel
-          {...defaultProps}
-          lastUpdated={null}
-        />
-      );
+      render(<AgentActivityPanel {...defaultProps} lastUpdated={null} />);
 
       expect(screen.getByTestId('agent-activity-panel')).toBeInTheDocument();
     });
@@ -454,9 +406,7 @@ describe('AgentActivityPanel', () => {
 
   describe('summary computation', () => {
     it('counts working agents as active', () => {
-      const agents = [
-        createAgent({ name: 'agent-1', status: 'working: bd-1 (5m)' }),
-      ];
+      const agents = [createAgent({ name: 'agent-1', status: 'working: bd-1 (5m)' })];
 
       render(<AgentActivityPanel {...defaultProps} agents={agents} />);
 
@@ -465,9 +415,7 @@ describe('AgentActivityPanel', () => {
     });
 
     it('counts planning agents as active', () => {
-      const agents = [
-        createAgent({ name: 'agent-1', status: 'planning: bd-1 (5m)' }),
-      ];
+      const agents = [createAgent({ name: 'agent-1', status: 'planning: bd-1 (5m)' })];
 
       render(<AgentActivityPanel {...defaultProps} agents={agents} />);
 
@@ -476,9 +424,7 @@ describe('AgentActivityPanel', () => {
     });
 
     it('counts ready agents as idle', () => {
-      const agents = [
-        createAgent({ name: 'agent-1', status: 'ready' }),
-      ];
+      const agents = [createAgent({ name: 'agent-1', status: 'ready' })];
 
       render(<AgentActivityPanel {...defaultProps} agents={agents} />);
 
@@ -488,9 +434,7 @@ describe('AgentActivityPanel', () => {
     });
 
     it('counts done agents as idle', () => {
-      const agents = [
-        createAgent({ name: 'agent-1', status: 'done: bd-1 (10m)' }),
-      ];
+      const agents = [createAgent({ name: 'agent-1', status: 'done: bd-1 (10m)' })];
 
       render(<AgentActivityPanel {...defaultProps} agents={agents} />);
 
@@ -525,9 +469,7 @@ describe('AgentActivityPanel', () => {
 
     it('maintains testid in all states', () => {
       // Loading state
-      const { rerender } = render(
-        <AgentActivityPanel {...defaultProps} isLoading={true} />
-      );
+      const { rerender } = render(<AgentActivityPanel {...defaultProps} isLoading={true} />);
       expect(screen.getByTestId('agent-activity-panel')).toBeInTheDocument();
 
       // Disconnected state
@@ -537,15 +479,11 @@ describe('AgentActivityPanel', () => {
       expect(screen.getByTestId('agent-activity-panel')).toBeInTheDocument();
 
       // Empty state
-      rerender(
-        <AgentActivityPanel {...defaultProps} agents={[]} />
-      );
+      rerender(<AgentActivityPanel {...defaultProps} agents={[]} />);
       expect(screen.getByTestId('agent-activity-panel')).toBeInTheDocument();
 
       // With agents
-      rerender(
-        <AgentActivityPanel {...defaultProps} agents={[createAgent()]} />
-      );
+      rerender(<AgentActivityPanel {...defaultProps} agents={[createAgent()]} />);
       expect(screen.getByTestId('agent-activity-panel')).toBeInTheDocument();
     });
   });

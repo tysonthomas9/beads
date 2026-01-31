@@ -1,6 +1,6 @@
 /**
  * AgentCard component displays a single agent's status.
- * Shows name, branch, status, and sync information.
+ * Compact single-row layout with circular avatar, status dot, and commit count.
  */
 
 import type { LoomAgentStatus, ParsedLoomStatus } from '@/types';
@@ -22,72 +22,115 @@ export interface AgentCardProps {
 }
 
 /**
- * Get status indicator color based on parsed status type.
+ * Pastel color palette for agent avatars.
  */
-function getStatusColor(type: ParsedLoomStatus['type']): string {
+const AVATAR_COLORS = [
+  '#9DC08B', // sage green
+  '#F59E87', // peach
+  '#B6B2DF', // lavender
+  '#95CBE9', // sky blue
+  '#F5C28E', // apricot
+  '#E8A5B3', // rose
+  '#A5D4C8', // mint
+  '#D4A5D8', // orchid
+];
+
+/**
+ * Get a deterministic avatar background color from agent name.
+ */
+function getAvatarColor(name: string): string {
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) {
+    hash = ((hash << 5) - hash + name.charCodeAt(i)) | 0;
+  }
+  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length]!;
+}
+
+/**
+ * Determine if white text has sufficient contrast on the given background.
+ * Uses relative luminance approximation; returns true if bg is dark enough for white text.
+ */
+function shouldUseWhiteText(hex: string): boolean {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  // Perceived brightness (ITU-R BT.601)
+  const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+  return brightness < 160;
+}
+
+/**
+ * Get status dot color based on parsed status type.
+ */
+function getStatusDotColor(type: ParsedLoomStatus['type']): string {
   switch (type) {
     case 'working':
     case 'planning':
-      return 'var(--color-status-working)';
-    case 'done':
-      return 'var(--color-status-done)';
-    case 'review':
-      return 'var(--color-status-review)';
-    case 'idle':
-      return 'var(--color-status-idle)';
-    case 'error':
-      return 'var(--color-status-error)';
     case 'dirty':
     case 'changes':
-      return 'var(--color-status-dirty)';
+      return 'var(--color-status-working, #facc15)';
+    case 'error':
+      return 'var(--color-status-error, #ef4444)';
+    case 'done':
+      return 'var(--color-status-done, #22c55e)';
+    case 'review':
+      return 'var(--color-status-review, #3b82f6)';
+    case 'idle':
     case 'ready':
     default:
-      return 'var(--color-status-ready)';
+      return 'var(--color-status-idle, #9ca3af)';
   }
 }
 
 /**
- * Get human-readable status text.
+ * Build the status line text (e.g., "2 changes - webui/cobalt" or "Error - webui/ember").
  */
-function getStatusText(parsed: ParsedLoomStatus): string {
+function getStatusLine(parsed: ParsedLoomStatus, branch: string): string {
+  let label: string;
   switch (parsed.type) {
     case 'working':
-      return parsed.taskId ? `Working: ${parsed.taskId}` : 'Working...';
+      label = parsed.taskId ? `Working: ${parsed.taskId}` : 'Working...';
+      break;
     case 'planning':
-      return parsed.taskId ? `Planning: ${parsed.taskId}` : 'Planning...';
+      label = parsed.taskId ? `Planning: ${parsed.taskId}` : 'Planning...';
+      break;
     case 'done':
-      return parsed.taskId ? `Done: ${parsed.taskId}` : 'Done';
+      label = parsed.taskId ? `Done: ${parsed.taskId}` : 'Done';
+      break;
     case 'review':
-      return parsed.taskId ? `Review: ${parsed.taskId}` : 'Awaiting review';
+      label = parsed.taskId ? `Review: ${parsed.taskId}` : 'Awaiting review';
+      break;
     case 'idle':
-      return 'Idle';
+      label = 'Idle';
+      break;
     case 'error':
-      return parsed.taskId ? `Error: ${parsed.taskId}` : 'Error';
+      label = parsed.taskId ? `Error: ${parsed.taskId}` : 'Error';
+      break;
     case 'dirty':
-      return 'Uncommitted changes';
+      label = 'Uncommitted changes';
+      break;
     case 'changes':
-      return `${parsed.changeCount} change${parsed.changeCount === 1 ? '' : 's'}`;
+      label = `${parsed.changeCount ?? 0} change${parsed.changeCount === 1 ? '' : 's'}`;
+      break;
     case 'ready':
     default:
-      return 'Ready';
+      label = 'Ready';
   }
+
+  return `${label} \u2022 ${branch}`;
 }
 
 /**
- * AgentCard displays a single agent's status in a compact card format.
+ * AgentCard displays a single agent's status in a compact row with circular avatar.
  */
-export function AgentCard({
-  agent,
-  taskTitle,
-  className,
-  onClick,
-}: AgentCardProps): JSX.Element {
+export function AgentCard({ agent, taskTitle, className, onClick }: AgentCardProps): JSX.Element {
   const parsed = parseLoomStatus(agent.status);
-  const statusColor = getStatusColor(parsed.type);
-  const statusText = getStatusText(parsed);
-
-  // Show task title for active states (working, planning, review, done, error)
-  const showTaskTitle = taskTitle && ['working', 'planning', 'review', 'done', 'error'].includes(parsed.type);
+  const avatarColor = getAvatarColor(agent.name);
+  const dotColor = getStatusDotColor(parsed.type);
+  const statusLine = getStatusLine(parsed, agent.branch);
+  const isError = parsed.type === 'error';
+  const initial = agent.name.charAt(0) || '?';
+  const textColor = shouldUseWhiteText(avatarColor) ? '#fff' : '#1f2937';
 
   const rootClassName = [styles.card, className].filter(Boolean).join(' ');
 
@@ -98,47 +141,49 @@ export function AgentCard({
       onClick={onClick}
       role={onClick ? 'button' : undefined}
       tabIndex={onClick ? 0 : undefined}
-      onKeyDown={onClick ? (e) => e.key === 'Enter' && onClick() : undefined}
+      aria-label={onClick ? `Agent: ${agent.name}` : undefined}
+      onKeyDown={
+        onClick
+          ? (e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                onClick();
+              }
+            }
+          : undefined
+      }
     >
-      <div className={styles.header}>
-        <span className={styles.name}>{agent.name}</span>
+      <div className={styles.avatarContainer}>
+        <div
+          className={styles.avatar}
+          style={{ backgroundColor: avatarColor, color: textColor }}
+          aria-label={`${agent.name} avatar`}
+        >
+          {initial}
+        </div>
         <span
-          className={styles.indicator}
-          style={{ backgroundColor: statusColor }}
+          className={styles.statusDot}
+          style={{ backgroundColor: dotColor }}
           aria-hidden="true"
         />
       </div>
 
-      <div className={styles.status}>
-        <span className={styles.statusText}>{statusText}</span>
-        {parsed.duration && (
-          <span className={styles.duration}>{parsed.duration}</span>
-        )}
-      </div>
-
-      {showTaskTitle && (
-        <div className={styles.taskTitle} title={taskTitle}>
-          {taskTitle}
-        </div>
-      )}
-
-      <div className={styles.footer}>
-        <span className={styles.branch} title={agent.branch}>
-          {agent.branch}
+      <div className={styles.info}>
+        <span className={styles.name}>{agent.name}</span>
+        <span
+          className={styles.statusLine}
+          data-error={isError || undefined}
+          title={taskTitle || statusLine}
+        >
+          {statusLine}
         </span>
-        <div className={styles.sync}>
-          {agent.ahead > 0 && (
-            <span className={styles.ahead} title={`${agent.ahead} commits ahead`}>
-              +{agent.ahead}
-            </span>
-          )}
-          {agent.behind > 0 && (
-            <span className={styles.behind} title={`${agent.behind} commits behind`}>
-              -{agent.behind}
-            </span>
-          )}
-        </div>
       </div>
+
+      {agent.ahead > 0 && (
+        <span className={styles.commitCount} title={`${agent.ahead} commits ahead`}>
+          +{agent.ahead}
+        </span>
+      )}
     </div>
   );
 }
