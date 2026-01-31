@@ -34,18 +34,9 @@ describe('ViewSwitcher', () => {
     it('marks active tab with aria-selected=true', () => {
       render(<ViewSwitcher activeView="table" onChange={() => {}} />);
 
-      expect(screen.getByTestId('view-tab-kanban')).toHaveAttribute(
-        'aria-selected',
-        'false'
-      );
-      expect(screen.getByTestId('view-tab-table')).toHaveAttribute(
-        'aria-selected',
-        'true'
-      );
-      expect(screen.getByTestId('view-tab-graph')).toHaveAttribute(
-        'aria-selected',
-        'false'
-      );
+      expect(screen.getByTestId('view-tab-kanban')).toHaveAttribute('aria-selected', 'false');
+      expect(screen.getByTestId('view-tab-table')).toHaveAttribute('aria-selected', 'true');
+      expect(screen.getByTestId('view-tab-graph')).toHaveAttribute('aria-selected', 'false');
     });
 
     it('applies active class to current tab', () => {
@@ -60,13 +51,7 @@ describe('ViewSwitcher', () => {
     });
 
     it('applies custom className', () => {
-      render(
-        <ViewSwitcher
-          activeView="kanban"
-          onChange={() => {}}
-          className="custom-class"
-        />
-      );
+      render(<ViewSwitcher activeView="kanban" onChange={() => {}} className="custom-class" />);
 
       expect(screen.getByTestId('view-switcher')).toHaveClass('custom-class');
     });
@@ -103,9 +88,7 @@ describe('ViewSwitcher', () => {
     });
 
     it('disables all tabs when disabled prop is true', () => {
-      render(
-        <ViewSwitcher activeView="kanban" onChange={() => {}} disabled />
-      );
+      render(<ViewSwitcher activeView="kanban" onChange={() => {}} disabled />);
 
       expect(screen.getByTestId('view-tab-kanban')).toBeDisabled();
       expect(screen.getByTestId('view-tab-table')).toBeDisabled();
@@ -186,6 +169,40 @@ describe('ViewSwitcher', () => {
     });
   });
 
+  describe('CSS classes - header redesign', () => {
+    it('all tab buttons use tab CSS class', () => {
+      const { container } = render(<ViewSwitcher activeView="kanban" onChange={() => {}} />);
+
+      const tabs = container.querySelectorAll('[role="tab"]');
+      expect(tabs.length).toBe(4);
+
+      // CSS Modules mangles class names, so we check for partial match
+      tabs.forEach((tab) => {
+        expect(tab.className).toMatch(/tab/);
+      });
+    });
+
+    it('active tab has both tab and active CSS classes', () => {
+      render(<ViewSwitcher activeView="graph" onChange={() => {}} />);
+
+      const graphTab = screen.getByTestId('view-tab-graph');
+      expect(graphTab.className).toMatch(/tab/);
+      expect(graphTab.className).toMatch(/active/);
+    });
+
+    it('inactive tabs have tab class but not active class', () => {
+      render(<ViewSwitcher activeView="kanban" onChange={() => {}} />);
+
+      const tableTab = screen.getByTestId('view-tab-table');
+      const graphTab = screen.getByTestId('view-tab-graph');
+
+      expect(tableTab.className).toMatch(/tab/);
+      expect(tableTab.className).not.toMatch(/active/);
+      expect(graphTab.className).toMatch(/tab/);
+      expect(graphTab.className).not.toMatch(/active/);
+    });
+  });
+
   describe('accessibility', () => {
     it('has role=tablist', () => {
       render(<ViewSwitcher activeView="kanban" onChange={() => {}} />);
@@ -196,10 +213,7 @@ describe('ViewSwitcher', () => {
     it('has aria-label for the tab list', () => {
       render(<ViewSwitcher activeView="kanban" onChange={() => {}} />);
 
-      expect(screen.getByRole('tablist')).toHaveAttribute(
-        'aria-label',
-        'View selector'
-      );
+      expect(screen.getByRole('tablist')).toHaveAttribute('aria-label', 'View selector');
     });
 
     it('tabs have role=tab', () => {
@@ -221,18 +235,9 @@ describe('ViewSwitcher', () => {
     it('only active tab has tabIndex=0', () => {
       render(<ViewSwitcher activeView="table" onChange={() => {}} />);
 
-      expect(screen.getByTestId('view-tab-kanban')).toHaveAttribute(
-        'tabIndex',
-        '-1'
-      );
-      expect(screen.getByTestId('view-tab-table')).toHaveAttribute(
-        'tabIndex',
-        '0'
-      );
-      expect(screen.getByTestId('view-tab-graph')).toHaveAttribute(
-        'tabIndex',
-        '-1'
-      );
+      expect(screen.getByTestId('view-tab-kanban')).toHaveAttribute('tabIndex', '-1');
+      expect(screen.getByTestId('view-tab-table')).toHaveAttribute('tabIndex', '0');
+      expect(screen.getByTestId('view-tab-graph')).toHaveAttribute('tabIndex', '-1');
     });
   });
 

@@ -16,45 +16,46 @@
   top: 0;
   z-index: var(--z-sticky);
   background-color: var(--color-bg);
-  border-bottom: 1px solid var(--color-border);
-  box-shadow: var(--shadow-sm);
+  border-bottom: 1px solid #000;
+  height: 60px;
 }
 
 .headerContent {
   display: flex;
   align-items: center;
-  gap: var(--space-4);
-  max-width: 1400px;
-  margin: 0 auto;
-  padding: var(--space-3) var(--space-4);
-  height: 56px;
+  height: 100%;
 }
 
 .brand {
   flex-shrink: 0;
+  width: 280px;
+  border-right: 1px solid #000;
+  display: flex;
+  align-items: center;
+  padding-left: 24px;
+  height: 100%;
 }
 
 .title {
   margin: 0;
-  font-size: var(--font-size-lg);
-  font-weight: var(--font-weight-bold);
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
   color: var(--color-text);
 }
 
 .navigation {
-  flex: 1;
-  min-width: 200px; /* Prevent excessive shrinking */
   display: flex;
-  justify-content: center;
+  align-items: center;
+  height: 100%;
 }
 
 .actions {
-  flex-shrink: 0;
+  margin-left: auto;
   display: flex;
   align-items: center;
   gap: var(--space-3);
-  padding-left: var(--space-3);
-  border-left: 1px solid var(--color-border); /* Visual separator */
+  padding-right: 24px;
 }
 
 .contentWrapper {
@@ -74,51 +75,26 @@
 
 /* Responsive: tablet adjustments */
 @media (max-width: 1024px) {
-  .headerContent {
-    gap: var(--space-3);
-  }
-
-  .navigation {
-    min-width: 150px;
-  }
-}
-
-/* Responsive: small tablet adjustments */
-@media (max-width: 768px) {
-  .headerContent {
-    gap: var(--space-2);
-    padding: var(--space-2) var(--space-3);
-  }
-
-  .navigation {
-    min-width: 100px;
-  }
-
   .actions {
-    padding-left: var(--space-2);
     gap: var(--space-2);
   }
 }
 
 /* Responsive: mobile adjustments */
 @media (max-width: 640px) {
-  .headerContent {
-    padding: var(--space-2) var(--space-3);
-    height: 48px;
-    gap: var(--space-2);
-  }
-
-  .navigation {
-    min-width: min-content; /* Prevent full collapse while allowing shrinking */
-  }
-
-  .actions {
-    border-left: none; /* Remove separator on mobile */
-    padding-left: 0;
+  .brand {
+    width: auto;
+    padding-left: var(--space-3);
+    padding-right: var(--space-3);
   }
 
   .title {
     font-size: var(--font-size-base);
+  }
+
+  .actions {
+    padding-right: var(--space-3);
+    gap: var(--space-2);
   }
 
   .main {

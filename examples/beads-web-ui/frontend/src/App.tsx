@@ -382,32 +382,25 @@ function App() {
     );
   }
 
-  // Navigation element with view switcher, search, and filters (success state only)
-  const navigation = (
-    <div className={styles.navigationBar} data-testid="navigation-bar">
-      <ViewSwitcher activeView={activeView} onChange={setActiveView} />
-      <SearchInput
-        value={searchValue}
-        onChange={setSearchValue}
-        onClear={handleSearchClear}
-        placeholder="Search issues..."
-        size="sm"
-      />
-      <FilterBar
-        filters={filters}
-        actions={filterActions}
-        groupBy={filters.groupBy ?? DEFAULT_GROUP_BY}
-        onGroupByChange={filterActions.setGroupBy}
-      />
-    </div>
-  );
-
   // Success state: show view based on activeView with filtered issues
   return (
     <AppLayout
-      navigation={navigation}
+      navigation={<ViewSwitcher activeView={activeView} onChange={setActiveView} />}
       actions={
         <div className={styles.actionsContainer}>
+          <SearchInput
+            value={searchValue}
+            onChange={setSearchValue}
+            onClear={handleSearchClear}
+            placeholder="Search issues..."
+            size="sm"
+          />
+          <FilterBar
+            filters={filters}
+            actions={filterActions}
+            groupBy={filters.groupBy ?? DEFAULT_GROUP_BY}
+            onGroupByChange={filterActions.setGroupBy}
+          />
           <StatsHeader
             stats={stats}
             loading={statsLoading}
