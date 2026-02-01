@@ -6914,3 +6914,109 @@ func TestParseBlockedParams_InvalidParams(t *testing.T) {
 		})
 	}
 }
+
+// ============================================================================
+// MaxBytesReader tests - request body too large (413)
+// ============================================================================
+
+// TestHandlePatchIssue_RequestBodyTooLarge tests that a body exceeding 1MB returns 413
+func TestHandlePatchIssue_RequestBodyTooLarge(t *testing.T) {
+	pool := &mockPatchPool{
+		getFunc: func(ctx context.Context) (issueUpdater, error) {
+			return &mockClient{}, nil
+		},
+		putFunc: func(c issueUpdater) {},
+	}
+
+	handler := handlePatchIssueWithPool(pool)
+
+	// Create a JSON body larger than 1MB (maxRequestBody)
+	// Use valid JSON format so the decoder reads far enough to hit the limit
+	largeBody := strings.NewReader(`{"title":"` + strings.Repeat("a", 1<<20+1) + `"}`)
+	req := httptest.NewRequest(http.MethodPatch, "/api/issues/test-123", largeBody)
+	req.SetPathValue("id", "test-123")
+	w := httptest.NewRecorder()
+
+	handler.ServeHTTP(w, req)
+
+	if w.Code != http.StatusRequestEntityTooLarge {
+		t.Errorf("status = %d, want %d", w.Code, http.StatusRequestEntityTooLarge)
+	}
+
+	var resp PatchIssueResponse
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	if resp.Success {
+		t.Error("expected success=false")
+	}
+	if !strings.Contains(resp.Error, "request body too large") {
+		t.Errorf("error = %q, expected to contain %q", resp.Error, "request body too large")
+	}
+}
+
+// TestHandleCloseIssue_RequestBodyTooLarge tests that a body exceeding 1MB returns 413
+func TestHandleCloseIssue_RequestBodyTooLarge(t *testing.T) {
+	pool := &mockClosePool{}
+
+	handler := handleCloseIssueWithPool(pool)
+
+	// Create a JSON body larger than 1MB (maxRequestBody)
+	// Use valid JSON format so the decoder reads far enough to hit the limit
+	largeBody := strings.NewReader(`{"reason":"` + strings.Repeat("a", 1<<20+1) + `"}`)
+	req := httptest.NewRequest(http.MethodPost, "/api/issues/test-123/close", largeBody)
+	req.SetPathValue("id", "test-123")
+	w := httptest.NewRecorder()
+
+	handler.ServeHTTP(w, req)
+
+	if w.Code != http.StatusRequestEntityTooLarge {
+		t.Errorf("status = %d, want %d", w.Code, http.StatusRequestEntityTooLarge)
+	}
+
+	var resp map[string]string
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	if !strings.Contains(resp["error"], "request body too large") {
+		t.Errorf("error = %q, expected to contain %q", resp["error"], "request body too large")
+	}
+}
+
+// TestHandleAddDependency_RequestBodyTooLarge tests that a body exceeding 1MB returns 413
+func TestHandleAddDependency_RequestBodyTooLarge(t *testing.T) {
+	pool := &mockDependencyPool{
+		getFunc: func(ctx context.Context) (dependencyManager, error) {
+			return &mockDependencyClient{}, nil
+		},
+	}
+
+	handler := handleAddDependencyWithPool(pool)
+
+	// Create a JSON body larger than 1MB (maxRequestBody)
+	// Use valid JSON format so the decoder reads far enough to hit the limit
+	largeBody := strings.NewReader(`{"depends_on_id":"` + strings.Repeat("a", 1<<20+1) + `"}`)
+	req := httptest.NewRequest(http.MethodPost, "/api/issues/issue-1/dependencies", largeBody)
+	req.SetPathValue("id", "issue-1")
+	w := httptest.NewRecorder()
+
+	handler.ServeHTTP(w, req)
+
+	if w.Code != http.StatusRequestEntityTooLarge {
+		t.Errorf("status = %d, want %d", w.Code, http.StatusRequestEntityTooLarge)
+	}
+
+	var response DependencyResponse
+	if err := json.NewDecoder(w.Body).Decode(&response); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	if response.Success {
+		t.Errorf("Success = true, want false")
+	}
+	if !strings.Contains(response.Error, "request body too large") {
+		t.Errorf("Error = %q, expected to contain %q", response.Error, "request body too large")
+	}
+}

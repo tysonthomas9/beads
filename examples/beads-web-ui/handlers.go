@@ -1048,9 +1048,23 @@ func handlePatchIssueWithPool(pool patchConnectionGetter) http.HandlerFunc {
 			return
 		}
 
+		// Limit request body size to prevent DoS attacks
+		r.Body = http.MaxBytesReader(w, r.Body, maxRequestBody)
+
 		// Parse request body
 		var req PatchIssueRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			var maxBytesErr *http.MaxBytesError
+			if errors.As(err, &maxBytesErr) {
+				w.WriteHeader(http.StatusRequestEntityTooLarge)
+				if err := json.NewEncoder(w).Encode(PatchIssueResponse{
+					Success: false,
+					Error:   "request body too large (max 1MB)",
+				}); err != nil {
+					log.Printf("Failed to encode patch response: %v", err)
+				}
+				return
+			}
 			w.WriteHeader(http.StatusBadRequest)
 			if err := json.NewEncoder(w).Encode(PatchIssueResponse{
 				Success: false,
@@ -1376,10 +1390,18 @@ func handleCloseIssueWithPool(pool closeConnectionGetter) http.HandlerFunc {
 			return
 		}
 
+		// Limit request body size to prevent DoS attacks
+		r.Body = http.MaxBytesReader(w, r.Body, maxRequestBody)
+
 		// Parse optional JSON body
 		var req CloseRequest
 		if r.Body != nil && r.ContentLength > 0 {
 			if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+				var maxBytesErr *http.MaxBytesError
+				if errors.As(err, &maxBytesErr) {
+					writeErrorResponse(w, http.StatusRequestEntityTooLarge, "request body too large (max 1MB)")
+					return
+				}
 				writeErrorResponse(w, http.StatusBadRequest, "invalid request body: "+err.Error())
 				return
 			}
@@ -1528,9 +1550,23 @@ func handleAddDependencyWithPool(pool dependencyConnectionGetter) http.HandlerFu
 			return
 		}
 
+		// Limit request body size to prevent DoS attacks
+		r.Body = http.MaxBytesReader(w, r.Body, maxRequestBody)
+
 		// Parse JSON body
 		var req AddDependencyRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			var maxBytesErr *http.MaxBytesError
+			if errors.As(err, &maxBytesErr) {
+				w.WriteHeader(http.StatusRequestEntityTooLarge)
+				if err := json.NewEncoder(w).Encode(DependencyResponse{
+					Success: false,
+					Error:   "request body too large (max 1MB)",
+				}); err != nil {
+					log.Printf("Failed to encode add dependency response: %v", err)
+				}
+				return
+			}
 			w.WriteHeader(http.StatusBadRequest)
 			if err := json.NewEncoder(w).Encode(DependencyResponse{
 				Success: false,
