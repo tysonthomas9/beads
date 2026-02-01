@@ -909,36 +909,6 @@ func TestHandleListIssues_NilPool(t *testing.T) {
 	}
 }
 
-func TestSplitTrimmed(t *testing.T) {
-	tests := []struct {
-		input string
-		want  []string
-	}{
-		{"a,b,c", []string{"a", "b", "c"}},
-		{"a, b, c", []string{"a", "b", "c"}},
-		{" a , b , c ", []string{"a", "b", "c"}},
-		{"a,,b", []string{"a", "b"}},
-		{"", []string{}},
-		{",,,", []string{}},
-		{"single", []string{"single"}},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.input, func(t *testing.T) {
-			got := splitTrimmed(tt.input)
-			if len(got) != len(tt.want) {
-				t.Errorf("len mismatch: got %d, want %d", len(got), len(tt.want))
-				return
-			}
-			for i := range got {
-				if got[i] != tt.want[i] {
-					t.Errorf("index %d: got %q, want %q", i, got[i], tt.want[i])
-				}
-			}
-		})
-	}
-}
-
 func TestIssuesResponseJSON(t *testing.T) {
 	// Test success response structure
 	t.Run("success response", func(t *testing.T) {

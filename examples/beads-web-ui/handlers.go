@@ -799,7 +799,7 @@ func parseListParams(r *http.Request) *rpc.ListArgs {
 
 	// Labels (comma-separated)
 	if v := query.Get("labels"); v != "" {
-		args.Labels = splitTrimmed(v)
+		args.Labels = splitAndTrim(v)
 	}
 
 	// Limit (capped at MaxListLimit to prevent DoS)
@@ -937,19 +937,6 @@ func parseReadyParams(r *http.Request) (*rpc.ReadyArgs, error) {
 	}
 
 	return args, nil
-}
-
-// splitTrimmed splits a comma-separated string and trims whitespace.
-func splitTrimmed(s string) []string {
-	parts := strings.Split(s, ",")
-	result := make([]string, 0, len(parts))
-	for _, p := range parts {
-		p = strings.TrimSpace(p)
-		if p != "" {
-			result = append(result, p)
-		}
-	}
-	return result
 }
 
 // splitAndTrim splits a comma-separated string and trims whitespace from each element.
