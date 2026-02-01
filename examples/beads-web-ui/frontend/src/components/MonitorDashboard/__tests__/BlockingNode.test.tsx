@@ -207,6 +207,36 @@ describe('BlockingNode', () => {
       expect(screen.queryByText(/Blocking \d/)).not.toBeInTheDocument();
     });
 
+    it('re-renders when issue.dependencies change', () => {
+      const issue1 = createTestIssue({
+        dependencies: [{ depends_on_id: 'dep-aaa1111', type: 'blocks' }] as Issue['dependencies'],
+      });
+      const props1 = createTestProps({
+        data: createTestNodeData({ issue: issue1, isReady: false, isClosed: false }),
+      });
+
+      const { rerender } = render(
+        <ReactFlowProvider>
+          <BlockingNode {...props1} />
+        </ReactFlowProvider>
+      );
+      expect(screen.getByText(/aa1111/)).toBeInTheDocument();
+
+      const issue2 = createTestIssue({
+        dependencies: [{ depends_on_id: 'dep-bbb2222', type: 'blocks' }] as Issue['dependencies'],
+      });
+      const props2 = createTestProps({
+        data: createTestNodeData({ issue: issue2, isReady: false, isClosed: false }),
+      });
+
+      rerender(
+        <ReactFlowProvider>
+          <BlockingNode {...props2} />
+        </ReactFlowProvider>
+      );
+      expect(screen.getByText(/bb2222/)).toBeInTheDocument();
+    });
+
     it('shows "Blocked by" links for blocked nodes', () => {
       const issue = createTestIssue({
         dependencies: [

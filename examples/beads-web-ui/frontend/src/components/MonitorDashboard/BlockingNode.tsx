@@ -105,7 +105,8 @@ function arePropsEqual(prev: NodeProps<IssueNodeType>, next: NodeProps<IssueNode
     prev.data.isRootBlocker === next.data.isRootBlocker &&
     prev.data.isClosed === next.data.isClosed &&
     prev.data.issue.description === next.data.issue.description &&
-    prev.data.issue.notes === next.data.issue.notes
+    prev.data.issue.notes === next.data.issue.notes &&
+    prev.data.issue.dependencies === next.data.issue.dependencies
   );
 }
 
