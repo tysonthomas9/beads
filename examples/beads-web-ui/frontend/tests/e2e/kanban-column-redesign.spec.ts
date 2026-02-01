@@ -392,7 +392,7 @@ test.describe("Column Redesign: column backgrounds", () => {
     expect(backlogBg).toBe("rgb(243, 244, 246)")
   })
 
-  test("Review column uses warning/yellow background", async ({ page }) => {
+  test("Review column uses default secondary background", async ({ page }) => {
     const issues = [
       makeIssue({ id: "r-1", title: "Some Task", status: "open" }),
     ]
@@ -400,13 +400,12 @@ test.describe("Column Redesign: column backgrounds", () => {
     await navigateToKanban(page)
 
     const reviewColumn = page.locator('section[data-status="review"]')
-    await expect(reviewColumn).toHaveAttribute("data-column-type", "review")
 
     const reviewBg = await reviewColumn.evaluate(
       (el) => window.getComputedStyle(el).backgroundColor
     )
-    // --color-warning-bg: #fef3c7 → rgb(254, 243, 199)
-    expect(reviewBg).toBe("rgb(254, 243, 199)")
+    // --color-bg-secondary: #f9fafb → rgb(249, 250, 251)
+    expect(reviewBg).toBe("rgb(249, 250, 251)")
   })
 })
 
@@ -489,11 +488,11 @@ test.describe("Column Redesign: status badges and header accents", () => {
       .evaluate((el) => window.getComputedStyle(el).borderBottomColor)
     expect(ipBorderColor).toBe("rgb(245, 158, 11)")
 
-    // Review: overridden by data-column-type='review' → --color-warning (#f59e0b → rgb(245, 158, 11))
+    // Review: --color-status-review (#8b5cf6 → rgb(139, 92, 246))
     const reviewBorderColor = await page
       .locator('section[data-status="review"] > header')
       .evaluate((el) => window.getComputedStyle(el).borderBottomColor)
-    expect(reviewBorderColor).toBe("rgb(245, 158, 11)")
+    expect(reviewBorderColor).toBe("rgb(139, 92, 246)")
 
     // Done: --color-status-done (#10b981 → rgb(16, 185, 129))
     const doneBorderColor = await page

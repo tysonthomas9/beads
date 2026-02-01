@@ -160,6 +160,28 @@ describe('columnConfigs', () => {
   });
 
   // ---------------------------------------------------------------
+  // Column style configuration
+  // ---------------------------------------------------------------
+  describe('Column style configuration', () => {
+    it('review column has style "normal" (not highlighted)', () => {
+      const review = getColumn('review');
+      expect(review.style).toBe('normal');
+    });
+
+    it('backlog column has style "muted"', () => {
+      const backlog = getColumn('backlog');
+      expect(backlog.style).toBe('muted');
+    });
+
+    it('all non-backlog columns have style "normal"', () => {
+      const nonBacklog = DEFAULT_COLUMNS.filter((c) => c.id !== 'backlog');
+      for (const col of nonBacklog) {
+        expect(col.style).toBe('normal');
+      }
+    });
+  });
+
+  // ---------------------------------------------------------------
   // Epic exclusion from kanban columns
   // ---------------------------------------------------------------
   describe('Epic exclusion from kanban columns', () => {

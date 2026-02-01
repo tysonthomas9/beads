@@ -18,8 +18,7 @@ import type { KanbanColumnConfig } from './types';
 /**
  * Helper to check if issue needs review based on title.
  */
-const needsReviewByTitle = (title: string): boolean =>
-  title.includes('[Need Review]');
+const needsReviewByTitle = (title: string): boolean => title.includes('[Need Review]');
 
 export const DEFAULT_COLUMNS: KanbanColumnConfig[] = [
   {
@@ -52,8 +51,7 @@ export const DEFAULT_COLUMNS: KanbanColumnConfig[] = [
   {
     id: 'in_progress',
     label: 'In Progress',
-    filter: (issue) =>
-      issue.issue_type !== 'epic' && issue.status === 'in_progress',
+    filter: (issue) => issue.issue_type !== 'epic' && issue.status === 'in_progress',
     targetStatus: 'in_progress',
     allowedDropTargets: ['ready', 'in_progress', 'review', 'done'],
     style: 'normal',
@@ -62,12 +60,10 @@ export const DEFAULT_COLUMNS: KanbanColumnConfig[] = [
     id: 'review',
     label: 'Review',
     filter: (issue) =>
-      issue.issue_type !== 'epic' &&
-      (issue.status === 'review' ||
-       needsReviewByTitle(issue.title)),
+      issue.issue_type !== 'epic' && (issue.status === 'review' || needsReviewByTitle(issue.title)),
     targetStatus: 'review',
     allowedDropTargets: ['ready', 'in_progress', 'review', 'done'],
-    style: 'highlighted',
+    style: 'normal',
   },
   {
     id: 'done',
