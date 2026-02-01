@@ -241,6 +241,35 @@ describe('ViewSwitcher', () => {
     });
   });
 
+  describe('orientation', () => {
+    it('defaults to horizontal orientation', () => {
+      render(<ViewSwitcher activeView="kanban" onChange={() => {}} />);
+
+      const switcher = screen.getByTestId('view-switcher');
+      expect(switcher).toHaveAttribute('aria-orientation', 'horizontal');
+      expect(switcher.className).not.toMatch(/vertical/);
+    });
+
+    it('renders vertical class when orientation is vertical', () => {
+      render(<ViewSwitcher activeView="kanban" onChange={() => {}} orientation="vertical" />);
+
+      const switcher = screen.getByTestId('view-switcher');
+      expect(switcher.className).toMatch(/vertical/);
+    });
+
+    it('sets aria-orientation to vertical when orientation is vertical', () => {
+      render(<ViewSwitcher activeView="kanban" onChange={() => {}} orientation="vertical" />);
+
+      expect(screen.getByTestId('view-switcher')).toHaveAttribute('aria-orientation', 'vertical');
+    });
+
+    it('sets aria-orientation to horizontal when orientation is horizontal', () => {
+      render(<ViewSwitcher activeView="kanban" onChange={() => {}} orientation="horizontal" />);
+
+      expect(screen.getByTestId('view-switcher')).toHaveAttribute('aria-orientation', 'horizontal');
+    });
+  });
+
   describe('exports', () => {
     it('DEFAULT_VIEW is kanban', () => {
       expect(DEFAULT_VIEW).toBe('kanban');

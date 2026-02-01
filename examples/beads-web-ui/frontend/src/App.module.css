@@ -22,3 +22,8 @@
   gap: var(--space-3);
   flex-shrink: 0;
 }
+
+.searchWrapper {
+  flex: 1;
+  min-width: 0;
+}

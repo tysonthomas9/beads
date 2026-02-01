@@ -388,7 +388,6 @@ function App() {
   if (isLoading) {
     return (
       <AppLayout
-        navigation={<ViewSwitcher activeView={activeView} onChange={setActiveView} disabled />}
         actions={
           <div className={styles.actionsContainer}>
             <StatsHeader
@@ -401,7 +400,19 @@ function App() {
             <ConnectionStatus state={connectionState} />
           </div>
         }
-        sidebar={<AgentsSidebar onAgentClick={handleAgentClick} />}
+        sidebar={
+          <AgentsSidebar
+            onAgentClick={handleAgentClick}
+            viewSwitcher={
+              <ViewSwitcher
+                activeView={activeView}
+                onChange={setActiveView}
+                orientation="vertical"
+                disabled
+              />
+            }
+          />
+        }
       >
         <div className={styles.loadingContainer} data-testid="loading-container">
           <LoadingSkeleton.Column />
@@ -416,7 +427,6 @@ function App() {
   if (error && !isLoading) {
     return (
       <AppLayout
-        navigation={<ViewSwitcher activeView={activeView} onChange={setActiveView} disabled />}
         actions={
           <div className={styles.actionsContainer}>
             <StatsHeader
@@ -433,7 +443,19 @@ function App() {
             />
           </div>
         }
-        sidebar={<AgentsSidebar onAgentClick={handleAgentClick} />}
+        sidebar={
+          <AgentsSidebar
+            onAgentClick={handleAgentClick}
+            viewSwitcher={
+              <ViewSwitcher
+                activeView={activeView}
+                onChange={setActiveView}
+                orientation="vertical"
+                disabled
+              />
+            }
+          />
+        }
       >
         <ErrorDisplay
           variant="fetch-error"
@@ -448,16 +470,17 @@ function App() {
   // Success state: show view based on activeView with filtered issues
   return (
     <AppLayout
-      navigation={<ViewSwitcher activeView={activeView} onChange={setActiveView} />}
       actions={
         <div className={styles.actionsContainer}>
-          <SearchInput
-            value={searchValue}
-            onChange={setSearchValue}
-            onClear={handleSearchClear}
-            placeholder="Search issues..."
-            size="sm"
-          />
+          <div className={styles.searchWrapper}>
+            <SearchInput
+              value={searchValue}
+              onChange={setSearchValue}
+              onClear={handleSearchClear}
+              placeholder="Search issues..."
+              size="lg"
+            />
+          </div>
           <FilterBar
             filters={filters}
             actions={filterActions}
@@ -478,7 +501,14 @@ function App() {
           />
         </div>
       }
-      sidebar={<AgentsSidebar onAgentClick={handleAgentClick} />}
+      sidebar={
+        <AgentsSidebar
+          onAgentClick={handleAgentClick}
+          viewSwitcher={
+            <ViewSwitcher activeView={activeView} onChange={setActiveView} orientation="vertical" />
+          }
+        />
+      }
     >
       {activeView === 'kanban' && (
         <SwimLaneBoard

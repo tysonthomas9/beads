@@ -53,6 +53,26 @@
   cursor: not-allowed;
 }
 
+/* Vertical orientation */
+.vertical {
+  flex-direction: column;
+  height: auto;
+  width: 100%;
+}
+
+.vertical .tab {
+  width: 100%;
+  height: auto;
+  padding: 10px 16px;
+  border-right: none;
+  border-bottom: 1px solid #000;
+  justify-content: flex-start;
+}
+
+.vertical .tab.active {
+  border-bottom: none;
+}
+
 /* Responsive: smaller padding on mobile */
 @media (max-width: 640px) {
   .tab {

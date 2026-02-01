@@ -4,6 +4,7 @@
  * Includes work queue summary, project stats, and sync status.
  */
 
+import type { ReactNode } from 'react';
 import { useState, useCallback, useEffect } from 'react';
 import { useAgentContext } from '@/hooks';
 import { AgentCard } from '../AgentCard';
@@ -22,6 +23,8 @@ export interface AgentsSidebarProps {
   defaultCollapsed?: boolean;
   /** Callback when an agent card is clicked */
   onAgentClick?: (agentName: string) => void;
+  /** Optional content to render at the top of the sidebar (e.g., ViewSwitcher) */
+  viewSwitcher?: ReactNode;
 }
 
 const COLLAPSE_STORAGE_KEY = 'agents-sidebar-collapsed';
@@ -34,6 +37,7 @@ export function AgentsSidebar({
   className,
   defaultCollapsed = false,
   onAgentClick,
+  viewSwitcher,
 }: AgentsSidebarProps): JSX.Element {
   // Load initial collapsed state from localStorage
   const [isCollapsed, setIsCollapsed] = useState(() => {
@@ -129,6 +133,9 @@ export function AgentsSidebar({
 
   return (
     <aside className={rootClassName} data-collapsed={isCollapsed}>
+      {!isCollapsed && viewSwitcher && (
+        <div className={styles.viewSwitcherSlot}>{viewSwitcher}</div>
+      )}
       <button
         type="button"
         className={styles.toggleButton}
