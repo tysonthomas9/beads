@@ -43,6 +43,10 @@ export default tseslint.config(
         { argsIgnorePattern: "^_", varsIgnorePattern: "^_" },
       ],
       "@typescript-eslint/no-explicit-any": "warn",
+
+      // Re-enable no-dupe-keys: typescript-eslint disables it assuming TS catches duplicates,
+      // but TS doesn't flag dupes in unconstrained objects (e.g., vi.mock() factories)
+      "no-dupe-keys": "error",
     },
   },
   {
