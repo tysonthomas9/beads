@@ -91,6 +91,9 @@ export type { UseIssueDetailReturn } from './useIssueDetail';
 export { useAgents } from './useAgents';
 export type { UseAgentsOptions, UseAgentsResult } from './useAgents';
 
+export { AgentProvider, useAgentContext } from './useAgentContext';
+export type { AgentContextValue, AgentProviderProps } from './useAgentContext';
+
 export { useToast, ToastProvider } from './useToast';
 export type {
   ToastType,

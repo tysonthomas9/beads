@@ -38,7 +38,7 @@ const AVATAR_COLORS = [
 /**
  * Get a deterministic avatar background color from agent name.
  */
-function getAvatarColor(name: string): string {
+export function getAvatarColor(name: string): string {
   let hash = 0;
   for (let i = 0; i < name.length; i++) {
     hash = ((hash << 5) - hash + name.charCodeAt(i)) | 0;
@@ -62,7 +62,7 @@ function shouldUseWhiteText(hex: string): boolean {
 /**
  * Get status dot color based on parsed status type.
  */
-function getStatusDotColor(type: ParsedLoomStatus['type']): string {
+export function getStatusDotColor(type: ParsedLoomStatus['type']): string {
   switch (type) {
     case 'working':
     case 'planning':
@@ -85,7 +85,7 @@ function getStatusDotColor(type: ParsedLoomStatus['type']): string {
 /**
  * Build the status line text (e.g., "2 changes - webui/cobalt" or "Error - webui/ember").
  */
-function getStatusLine(parsed: ParsedLoomStatus, branch: string): string {
+export function getStatusLine(parsed: ParsedLoomStatus, branch: string): string {
   let label: string;
   switch (parsed.type) {
     case 'working':

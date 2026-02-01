@@ -5,7 +5,7 @@
  */
 
 import { useState, useCallback, useEffect } from 'react';
-import { useAgents } from '@/hooks';
+import { useAgentContext } from '@/hooks';
 import { AgentCard } from '../AgentCard';
 import { TaskDrawer } from '../TaskDrawer';
 import type { TaskCategory } from '../TaskDrawer';
@@ -59,9 +59,7 @@ export function AgentsSidebar({
   const [selectedCategory, setSelectedCategory] = useState<TaskCategory | null>(null);
 
   const { agents, tasks, taskLists, agentTasks, sync, stats, isLoading, isConnected, lastUpdated } =
-    useAgents({
-      pollInterval: 5000,
-    });
+    useAgentContext();
 
   // Persist collapsed state
   useEffect(() => {
