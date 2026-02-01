@@ -6,6 +6,7 @@
 import { memo } from 'react';
 import { Handle, Position, type NodeProps } from '@xyflow/react';
 import type { IssueNode as IssueNodeType } from '@/types';
+import { formatIssueId } from '@/utils/formatIssueId';
 import styles from './BlockingNode.module.css';
 
 /**
@@ -22,15 +23,6 @@ function deriveNodeStatus(
   if (isBlocked) return 'blocked';
   if (blockedCount > 0 || isRootBlocker) return 'blocking';
   return 'healthy';
-}
-
-/**
- * Format issue ID for display (last 7 chars if long).
- */
-function formatIssueId(id: string): string {
-  if (!id) return 'unknown';
-  if (id.length <= 10) return id;
-  return id.slice(-7);
 }
 
 /**

@@ -8,6 +8,7 @@ import { useState, useCallback } from 'react';
 import type { Issue } from '@/types';
 import { parseLoomStatus } from '@/types';
 import { BlockedBadge } from '@/components/BlockedBadge';
+import { formatIssueId } from '@/utils/formatIssueId';
 import { getAvatarColor, getStatusDotColor, getStatusLine } from '@/components/AgentCard';
 import { useAgentContext } from '@/hooks';
 import { getReviewType } from '@/utils/reviewType';
@@ -48,18 +49,6 @@ export interface IssueCardProps {
   onApprove?: (issue: Issue) => void | Promise<void>;
   /** Callback when reject is submitted with comment (only shown in review column). Returns Promise for error handling. */
   onReject?: (issue: Issue, comment: string) => void | Promise<void>;
-}
-
-/**
- * Format issue ID for display.
- * Shows last 7 characters of the ID for readability.
- */
-function formatIssueId(id: string): string {
-  if (!id) return 'unknown';
-  // If ID is short enough, return as-is
-  if (id.length <= 10) return id;
-  // Otherwise show last 7 characters
-  return id.slice(-7);
 }
 
 /**
