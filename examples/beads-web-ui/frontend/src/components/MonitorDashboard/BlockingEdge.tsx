@@ -22,6 +22,7 @@ function BlockingEdgeComponent({
   sourcePosition,
   targetPosition,
   data,
+  markerEnd,
 }: BlockingEdgeProps): JSX.Element {
   const [edgePath] = getSmoothStepPath({
     sourceX,
@@ -37,7 +38,14 @@ function BlockingEdgeComponent({
     ? `${styles.blockingEdge} ${styles.highlighted}`
     : styles.blockingEdge;
 
-  return <BaseEdge id={id} path={edgePath} className={edgeClassName} markerEnd="url(#arrow)" />;
+  return (
+    <BaseEdge
+      id={id}
+      path={edgePath}
+      className={edgeClassName}
+      {...(markerEnd != null && { markerEnd })}
+    />
+  );
 }
 
 export const BlockingEdge = memo(BlockingEdgeComponent);

@@ -119,12 +119,12 @@ describe('BlockingEdge', () => {
   });
 
   describe('marker', () => {
-    it('renders with arrow marker end', () => {
-      const props = createTestProps();
+    it('passes markerEnd prop through to the rendered path', () => {
+      const props = { ...createTestProps(), markerEnd: 'url(#test-marker)' };
       const { container } = renderWithProvider(<BlockingEdge {...props} />);
 
       const path = container.querySelector('path.react-flow__edge-path');
-      expect(path).toHaveAttribute('marker-end', 'url(#arrow)');
+      expect(path).toHaveAttribute('marker-end', 'url(#test-marker)');
     });
   });
 
