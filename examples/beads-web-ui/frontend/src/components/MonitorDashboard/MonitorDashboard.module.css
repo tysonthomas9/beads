@@ -15,13 +15,11 @@
   overflow: auto;
 }
 
-/* Connection banner spans full width */
+/* connectionBanner class must exist for :has(.connectionBanner) selector to work */
 .connectionBanner {
-  grid-column: 1;
-  grid-row: 1;
 }
 
-/* When no banner, panels use rows 1-3 */
+/* When no banner, panels fill available rows */
 .dashboard:not(:has(.connectionBanner)) {
   grid-template-rows: 1fr 1fr;
 }
@@ -106,26 +104,8 @@
   border: 1px dashed var(--color-border);
 }
 
-/* Grid placement for panels */
-/* When banner is present, panels are in rows 2-4 */
-.projectHealth {
-  grid-column: 1;
-  grid-row: 2;
-}
-
-.agentActivity {
-  grid-column: 1;
-  grid-row: 3;
-}
-
-/* When no banner, panels shift up to rows 1-2 */
-.dashboard:not(:has(.connectionBanner)) .projectHealth {
-  grid-row: 1;
-}
-
-.dashboard:not(:has(.connectionBanner)) .agentActivity {
-  grid-row: 2;
-}
+/* Panel grid placement relies on source order in JSX.
+ * No explicit grid-row needed — single-column grid auto-places items. */
 
 /* Mobile: Adjust spacing */
 @media (max-width: 768px) {
