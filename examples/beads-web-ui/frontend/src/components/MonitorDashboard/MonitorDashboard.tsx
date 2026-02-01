@@ -24,12 +24,18 @@ export interface MonitorDashboardProps {
   onViewChange?: (view: ViewMode) => void;
   /** Callback when an issue is clicked (bottleneck item or graph node) */
   onIssueClick?: (issue: Issue) => void;
+  /** Callback when an agent card is clicked */
+  onAgentClick?: (agentName: string) => void;
 }
 
 /**
  * MonitorDashboard renders a single-column vertical stack for multi-agent monitoring.
  */
-export function MonitorDashboard({ className, onIssueClick }: MonitorDashboardProps): JSX.Element {
+export function MonitorDashboard({
+  className,
+  onIssueClick,
+  onAgentClick,
+}: MonitorDashboardProps): JSX.Element {
   // Fetch agent status and stats
   const {
     agents,
@@ -57,10 +63,9 @@ export function MonitorDashboard({ className, onIssueClick }: MonitorDashboardPr
     onIssueClick?.({ ...issue } as Issue);
   };
 
-  // Handler for agent clicks - placeholder for agent details
+  // Handler for agent clicks - delegates to parent
   const handleAgentClick = (agentName: string) => {
-    // TODO: Open agent detail drawer/modal when available
-    console.log('Agent clicked:', agentName);
+    onAgentClick?.(agentName);
   };
 
   const rootClassName = className ? `${styles.dashboard} ${className}` : styles.dashboard;

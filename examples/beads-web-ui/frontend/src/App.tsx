@@ -21,6 +21,7 @@ import {
   useStats,
   useRecentAssignees,
   useSelection,
+  useAgents,
 } from '@/hooks';
 import { updateIssue, addComment } from '@/api';
 import type { BlockedInfo } from '@/components/KanbanBoard';
@@ -38,6 +39,7 @@ import {
   FilterBar,
   SearchInput,
   IssueDetailPanel,
+  AgentDetailPanel,
   AgentsSidebar,
   StatsHeader,
   AssigneePrompt,
@@ -145,6 +147,13 @@ function App() {
     fetchIssue,
     clearIssue,
   } = useIssueDetail();
+
+  // Agent data (shared between AgentsSidebar, MonitorDashboard, and AgentDetailPanel)
+  const { agents, agentTasks } = useAgents({ pollInterval: 5000 });
+
+  // Agent detail panel state
+  const [isAgentPanelOpen, setIsAgentPanelOpen] = useState(false);
+  const [selectedAgentName, setSelectedAgentName] = useState<string | null>(null);
 
   // Assignee prompt state for Ready → In Progress drag
   const { recentAssignees, addRecentAssignee } = useRecentAssignees();
@@ -290,11 +299,20 @@ function App() {
         return;
       }
 
+      // Close agent panel if open (only one panel at a time)
+      if (isAgentPanelOpen) {
+        setIsAgentPanelOpen(false);
+        setTimeout(() => {
+          if (!mountedRef.current) return;
+          setSelectedAgentName(null);
+        }, 300);
+      }
+
       setSelectedIssueId(issue.id);
       setIsPanelOpen(true);
       fetchIssue(issue.id);
     },
-    [selectedIssueId, isPanelOpen, fetchIssue]
+    [selectedIssueId, isPanelOpen, isAgentPanelOpen, fetchIssue]
   );
 
   // Handle panel close
@@ -307,6 +325,51 @@ function App() {
       setSelectedIssueId(null);
     }, 300); // Match CSS transition duration
   }, [clearIssue]);
+
+  // Handle agent click from AgentsSidebar or MonitorDashboard
+  const handleAgentClick = useCallback(
+    (agentName: string) => {
+      // Close issue panel if open (only one panel at a time)
+      if (isPanelOpen) {
+        setIsPanelOpen(false);
+        setTimeout(() => {
+          if (!mountedRef.current) return;
+          clearIssue();
+          setSelectedIssueId(null);
+        }, 300);
+      }
+
+      setSelectedAgentName(agentName);
+      setIsAgentPanelOpen(true);
+    },
+    [isPanelOpen, clearIssue]
+  );
+
+  // Handle agent panel close
+  const handleAgentPanelClose = useCallback(() => {
+    setIsAgentPanelOpen(false);
+    setTimeout(() => {
+      if (!mountedRef.current) return;
+      setSelectedAgentName(null);
+    }, 300);
+  }, []);
+
+  // Handle task click from agent panel (opens IssueDetailPanel for that task)
+  const handleAgentTaskClick = useCallback(
+    (taskId: string) => {
+      // Close agent panel first
+      setIsAgentPanelOpen(false);
+      setTimeout(() => {
+        if (!mountedRef.current) return;
+        setSelectedAgentName(null);
+        // Open issue panel for the task
+        setSelectedIssueId(taskId);
+        setIsPanelOpen(true);
+        fetchIssue(taskId);
+      }, 300);
+    },
+    [fetchIssue]
+  );
 
   // Handle blocked issue click from BlockedSummary dropdown
   const handleBlockedIssueClick = useCallback(
@@ -338,7 +401,7 @@ function App() {
             <ConnectionStatus state={connectionState} />
           </div>
         }
-        sidebar={<AgentsSidebar />}
+        sidebar={<AgentsSidebar onAgentClick={handleAgentClick} />}
       >
         <div className={styles.loadingContainer} data-testid="loading-container">
           <LoadingSkeleton.Column />
@@ -370,7 +433,7 @@ function App() {
             />
           </div>
         }
-        sidebar={<AgentsSidebar />}
+        sidebar={<AgentsSidebar onAgentClick={handleAgentClick} />}
       >
         <ErrorDisplay
           variant="fetch-error"
@@ -415,7 +478,7 @@ function App() {
           />
         </div>
       }
-      sidebar={<AgentsSidebar />}
+      sidebar={<AgentsSidebar onAgentClick={handleAgentClick} />}
     >
       {activeView === 'kanban' && (
         <SwimLaneBoard
@@ -452,7 +515,11 @@ function App() {
       )}
       {activeView === 'monitor' && (
         <Suspense fallback={<LoadingSkeleton.Monitor />}>
-          <MonitorDashboard onViewChange={setActiveView} onIssueClick={handleIssueClick} />
+          <MonitorDashboard
+            onViewChange={setActiveView}
+            onIssueClick={handleIssueClick}
+            onAgentClick={handleAgentClick}
+          />
         </Suspense>
       )}
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
@@ -464,6 +531,14 @@ function App() {
         onClose={handlePanelClose}
         onApprove={handleApprove}
         onReject={handleReject}
+      />
+      <AgentDetailPanel
+        isOpen={isAgentPanelOpen}
+        agentName={selectedAgentName}
+        agents={agents}
+        agentTasks={agentTasks}
+        onClose={handleAgentPanelClose}
+        onTaskClick={handleAgentTaskClick}
       />
       <TalkToLeadButton />
       <AssigneePrompt

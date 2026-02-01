@@ -20,6 +20,8 @@ export interface AgentsSidebarProps {
   className?: string;
   /** Default collapsed state */
   defaultCollapsed?: boolean;
+  /** Callback when an agent card is clicked */
+  onAgentClick?: (agentName: string) => void;
 }
 
 const COLLAPSE_STORAGE_KEY = 'agents-sidebar-collapsed';
@@ -31,6 +33,7 @@ const WORK_QUEUE_STORAGE_KEY = 'agents-sidebar-work-queue-expanded';
 export function AgentsSidebar({
   className,
   defaultCollapsed = false,
+  onAgentClick,
 }: AgentsSidebarProps): JSX.Element {
   // Load initial collapsed state from localStorage
   const [isCollapsed, setIsCollapsed] = useState(() => {
@@ -168,6 +171,7 @@ export function AgentsSidebar({
                   key={agent.name}
                   agent={agent}
                   taskTitle={agentTasks[agent.name]?.title}
+                  {...(onAgentClick !== undefined && { onClick: () => onAgentClick(agent.name) })}
                 />
               ))}
             </div>
