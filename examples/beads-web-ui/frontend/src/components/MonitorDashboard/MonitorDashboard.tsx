@@ -3,17 +3,15 @@
  *
  * Renders a single-column vertical stack containing:
  * - Project Health Panel (top)
- * - Agent Activity Panel (middle)
- * - Blocking Dependencies / Mini Dependency Graph (bottom)
+ * - Agent Activity Panel (bottom)
  */
 
-import { useAgents, useBlockedIssues, useIssues } from '@/hooks';
+import { useAgents, useBlockedIssues } from '@/hooks';
 import type { ViewMode } from '@/components/ViewSwitcher';
 import type { Issue } from '@/types';
 import { AgentActivityPanel } from './AgentActivityPanel';
 import { ConnectionBanner } from './ConnectionBanner';
 import { ProjectHealthPanel } from './ProjectHealthPanel';
-import { BlockingDependenciesCanvas } from './BlockingDependenciesCanvas';
 import styles from './MonitorDashboard.module.css';
 
 /**
@@ -29,7 +27,7 @@ export interface MonitorDashboardProps {
 /**
  * MonitorDashboard renders a single-column vertical stack for multi-agent monitoring.
  */
-export function MonitorDashboard({ className, onViewChange }: MonitorDashboardProps): JSX.Element {
+export function MonitorDashboard({ className }: MonitorDashboardProps): JSX.Element {
   // Fetch agent status and stats
   const {
     agents,
@@ -52,9 +50,6 @@ export function MonitorDashboard({ className, onViewChange }: MonitorDashboardPr
     pollInterval: 30000,
   });
 
-  // Fetch all issues with dependency data for the graph
-  const { issues: graphIssues } = useIssues({ mode: 'graph' });
-
   // Handler for bottleneck clicks - placeholder for navigation
   const handleBottleneckClick = (issue: Pick<Issue, 'id' | 'title'>) => {
     // TODO: Integrate with IssueDetailPanel when available
@@ -65,17 +60,6 @@ export function MonitorDashboard({ className, onViewChange }: MonitorDashboardPr
   const handleAgentClick = (agentName: string) => {
     // TODO: Open agent detail drawer/modal when available
     console.log('Agent clicked:', agentName);
-  };
-
-  // Handler for node clicks in MiniDependencyGraph
-  const handleGraphNodeClick = (issue: Issue) => {
-    // TODO: Integrate with IssueDetailPanel when available
-    console.log('Graph node clicked:', issue.id);
-  };
-
-  // Handler for expand button - navigate to full graph view
-  const handleExpandGraph = () => {
-    onViewChange?.('graph');
   };
 
   const rootClassName = className ? `${styles.dashboard} ${className}` : styles.dashboard;
@@ -141,25 +125,6 @@ export function MonitorDashboard({ className, onViewChange }: MonitorDashboardPr
             lastUpdated={lastUpdated}
             onAgentClick={handleAgentClick}
             onRetry={retryNow}
-          />
-        </div>
-      </section>
-
-      {/* Bottom: Blocking Dependencies */}
-      <section
-        className={`${styles.panel} ${styles.miniGraph}`}
-        aria-labelledby="mini-graph-heading"
-      >
-        <header className={styles.panelHeader}>
-          <h2 id="mini-graph-heading" className={styles.panelTitle}>
-            Blocking Dependencies
-          </h2>
-        </header>
-        <div className={styles.panelContent}>
-          <BlockingDependenciesCanvas
-            issues={graphIssues}
-            onNodeClick={handleGraphNodeClick}
-            onExpandClick={handleExpandGraph}
           />
         </div>
       </section>

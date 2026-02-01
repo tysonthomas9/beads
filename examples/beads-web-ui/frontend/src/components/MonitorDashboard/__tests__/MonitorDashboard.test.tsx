@@ -40,36 +40,15 @@ vi.mock('@/hooks', () => ({
     error: null,
     refetch: vi.fn(),
   }),
-  useIssues: () => ({
-    issues: [],
-    issuesMap: new Map(),
-    isLoading: false,
-    error: null,
-    connectionState: 'connected',
-    isConnected: true,
-    reconnectAttempts: 0,
-    refetch: vi.fn(),
-    updateIssueStatus: vi.fn(),
-    getIssue: vi.fn(),
-    mutationCount: 0,
-    retryConnection: vi.fn(),
-  }),
   useViewState: () => ['monitor', mockSetActiveView],
 }));
 
 describe('MonitorDashboard', () => {
-  it('renders all three panels', () => {
+  it('renders both panels', () => {
     render(<MonitorDashboard />);
 
     expect(screen.getByRole('heading', { name: /project health/i })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: /agent activity/i })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: /blocking dependencies/i })).toBeInTheDocument();
-  });
-
-  it('does not render Work Pipeline panel', () => {
-    render(<MonitorDashboard />);
-
-    expect(screen.queryByRole('heading', { name: /work pipeline/i })).not.toBeInTheDocument();
   });
 
   it('renders with testid for e2e tests', () => {
@@ -85,46 +64,23 @@ describe('MonitorDashboard', () => {
     expect(dashboard).toHaveClass('custom-class');
   });
 
-  it('renders panels in correct order: Project Health, Agent Activity, Blocking Dependencies', () => {
+  it('renders panels in correct order: Project Health, Agent Activity', () => {
     render(<MonitorDashboard />);
 
     const headings = screen.getAllByRole('heading', { level: 2 });
     const panelNames = headings.map((h) => h.textContent);
-    expect(panelNames).toEqual(['Project Health', 'Agent Activity', 'Blocking Dependencies']);
-  });
-
-  it('renders expand button for mini graph', () => {
-    render(<MonitorDashboard />);
-
-    // The expand button is inside MiniDependencyGraph component
-    const expandButton = screen.getByRole('button', { name: /expand to full graph view/i });
-    expect(expandButton).toBeInTheDocument();
-  });
-
-  it('renders BlockingDependenciesCanvas component', () => {
-    render(<MonitorDashboard />);
-
-    // BlockingDependenciesCanvas replaces MiniDependencyGraph
-    expect(screen.getByTestId('blocking-dependencies-canvas')).toBeInTheDocument();
-  });
-
-  it('does not render WorkPipelinePanel', () => {
-    render(<MonitorDashboard />);
-
-    expect(screen.queryByTestId('work-pipeline-panel')).not.toBeInTheDocument();
+    expect(panelNames).toEqual(['Project Health', 'Agent Activity']);
   });
 
   it('renders AgentActivityPanel', () => {
     render(<MonitorDashboard />);
 
-    // AgentActivityPanel is now implemented
     expect(screen.getByTestId('agent-activity-panel')).toBeInTheDocument();
   });
 
   it('renders ProjectHealthPanel with stats', () => {
     render(<MonitorDashboard />);
 
-    // ProjectHealthPanel is now implemented
     expect(screen.getByTestId('project-health-panel')).toBeInTheDocument();
     expect(screen.getByText('33%')).toBeInTheDocument();
     expect(screen.getByText('10')).toBeInTheDocument(); // open count
