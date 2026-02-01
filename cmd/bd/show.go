@@ -136,6 +136,19 @@ var showCmd = &cobra.Command{
 						details.Dependents, _ = sqliteStore.GetDependentsWithMetadata(ctx, issue.ID)
 					}
 					details.Comments, _ = issueStore.GetIssueComments(ctx, issue.ID)
+					// Ensure non-nil slices for consistent JSON serialization (GH#bd-rrtu)
+					if details.Labels == nil {
+						details.Labels = []string{}
+					}
+					if details.Dependencies == nil {
+						details.Dependencies = []*types.IssueWithDependencyMetadata{}
+					}
+					if details.Dependents == nil {
+						details.Dependents = []*types.IssueWithDependencyMetadata{}
+					}
+					if details.Comments == nil {
+						details.Comments = []*types.Comment{}
+					}
 					// Compute parent from dependencies
 					for _, dep := range details.Dependencies {
 						if dep.DependencyType == types.DepParentChild {
@@ -377,6 +390,19 @@ var showCmd = &cobra.Command{
 				}
 
 				details.Comments, _ = issueStore.GetIssueComments(ctx, issue.ID)
+				// Ensure non-nil slices for consistent JSON serialization (GH#bd-rrtu)
+				if details.Labels == nil {
+					details.Labels = []string{}
+				}
+				if details.Dependencies == nil {
+					details.Dependencies = []*types.IssueWithDependencyMetadata{}
+				}
+				if details.Dependents == nil {
+					details.Dependents = []*types.IssueWithDependencyMetadata{}
+				}
+				if details.Comments == nil {
+					details.Comments = []*types.Comment{}
+				}
 				// Compute parent from dependencies
 				for _, dep := range details.Dependencies {
 					if dep.DependencyType == types.DepParentChild {

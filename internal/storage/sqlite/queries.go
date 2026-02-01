@@ -875,6 +875,75 @@ func manageClosedAt(oldIssue *types.Issue, updates map[string]interface{}, setCl
 	return setClauses, args
 }
 
+// ClaimIssue atomically claims an issue by setting assignee and status to in_progress.
+// Returns (true, nil) if claim succeeded, (false, nil) if already claimed by someone else,
+// or (false, error) if the operation failed.
+// This uses an atomic UPDATE with a WHERE clause to prevent race conditions when
+// multiple agents try to claim the same issue simultaneously.
+func (s *SQLiteStorage) ClaimIssue(ctx context.Context, id string, assignee string) (bool, error) {
+	now := time.Now()
+
+	// Atomic claim: succeeds if assignee is empty OR status is not in_progress
+	// This allows claiming open tasks even with stale assignees
+	result, err := s.db.ExecContext(ctx, `
+		UPDATE issues
+		SET assignee = ?, status = ?, updated_at = ?
+		WHERE id = ? AND (assignee = '' OR assignee IS NULL OR status != 'in_progress')
+	`, assignee, string(types.StatusInProgress), now, id)
+	if err != nil {
+		return false, wrapDBError("claim issue", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return false, wrapDBError("get rows affected", err)
+	}
+
+	if rowsAffected == 0 {
+		// Either issue doesn't exist or is already claimed
+		// Check which case it is
+		issue, err := s.GetIssue(ctx, id)
+		if err != nil {
+			return false, wrapDBError("check issue exists", err)
+		}
+		if issue == nil {
+			return false, fmt.Errorf("issue %s not found", id)
+		}
+		// Issue exists but already claimed
+		return false, nil
+	}
+
+	// Successfully claimed - record the event
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		// Claim succeeded but event recording failed - not critical
+		return true, nil
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	oldData := fmt.Sprintf(`{"id":"%s","assignee":"","status":"open"}`, id)
+	newData := fmt.Sprintf(`{"assignee":"%s","status":"in_progress"}`, assignee)
+
+	_, err = tx.ExecContext(ctx, `
+		INSERT INTO events (issue_id, event_type, actor, old_value, new_value)
+		VALUES (?, ?, ?, ?, ?)
+	`, id, "claimed", assignee, oldData, newData)
+	if err != nil {
+		// Event recording failed but claim succeeded
+		return true, nil
+	}
+
+	// Mark issue as dirty for incremental export
+	_, _ = tx.ExecContext(ctx, `
+		INSERT INTO dirty_issues (issue_id, marked_at)
+		VALUES (?, ?)
+		ON CONFLICT (issue_id) DO UPDATE SET marked_at = excluded.marked_at
+	`, id, now)
+
+	_ = tx.Commit()
+	return true, nil
+}
+
 // UpdateIssue updates fields on an issue
 func (s *SQLiteStorage) UpdateIssue(ctx context.Context, id string, updates map[string]interface{}, actor string) error {
 	// Get old issue for event

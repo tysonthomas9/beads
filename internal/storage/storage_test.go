@@ -36,6 +36,9 @@ func (m *mockStorage) GetIssueByExternalRef(ctx context.Context, externalRef str
 func (m *mockStorage) UpdateIssue(ctx context.Context, id string, updates map[string]interface{}, actor string) error {
 	return nil
 }
+func (m *mockStorage) ClaimIssue(ctx context.Context, id string, assignee string) (bool, error) {
+	return true, nil
+}
 func (m *mockStorage) CloseIssue(ctx context.Context, id string, reason string, actor string, session string) error {
 	return nil
 }
@@ -70,6 +73,12 @@ func (m *mockStorage) GetAllDependencyRecords(ctx context.Context) (map[string][
 	return nil, nil
 }
 func (m *mockStorage) GetDependencyCounts(ctx context.Context, issueIDs []string) (map[string]*types.DependencyCounts, error) {
+	return nil, nil
+}
+func (m *mockStorage) GetParentIDs(ctx context.Context, issueIDs []string) (map[string]*types.ParentInfo, error) {
+	return nil, nil
+}
+func (m *mockStorage) GetDependenciesForIssues(ctx context.Context, issueIDs []string) (map[string][]*types.Dependency, error) {
 	return nil, nil
 }
 func (m *mockStorage) GetDependencyTree(ctx context.Context, issueID string, maxDepth int, showAllPaths bool, reverse bool) ([]*types.TreeNode, error) {

@@ -1362,6 +1362,181 @@ func TestHandleClose_BlockerCheck(t *testing.T) {
 	}
 }
 
+// TestHandleUpdate_MutationContainsUpdatedTitle verifies that when an issue's title is updated,
+// the mutation event contains the NEW title (not the stale pre-update title).
+// This is a regression test for the WebSocket title update fix where mutations were
+// emitted with the old title before the database update was reflected.
+func TestHandleUpdate_MutationContainsUpdatedTitle(t *testing.T) {
+	store := memory.New("/tmp/test.jsonl")
+	server := NewServer("/tmp/test.sock", store, "/tmp", "/tmp/test.db")
+
+	// Create an issue with an initial title
+	originalTitle := "Original Title Before Update"
+	createArgs := CreateArgs{
+		Title:     originalTitle,
+		IssueType: "task",
+		Priority:  2,
+	}
+	createJSON, _ := json.Marshal(createArgs)
+	createReq := &Request{
+		Operation: OpCreate,
+		Args:      createJSON,
+		Actor:     "test-user",
+	}
+
+	createResp := server.handleCreate(createReq)
+	if !createResp.Success {
+		t.Fatalf("failed to create test issue: %s", createResp.Error)
+	}
+
+	var createdIssue types.Issue
+	if err := json.Unmarshal(createResp.Data, &createdIssue); err != nil {
+		t.Fatalf("failed to parse created issue: %v", err)
+	}
+	issueID := createdIssue.ID
+
+	// Clear mutation buffer by waiting and getting a checkpoint
+	time.Sleep(10 * time.Millisecond)
+	checkpoint := time.Now().UnixMilli()
+	time.Sleep(10 * time.Millisecond)
+
+	// Update the title to a new value
+	newTitle := "Updated Title After Mutation Fix"
+	updateArgs := UpdateArgs{
+		ID:    issueID,
+		Title: &newTitle,
+	}
+	updateJSON, _ := json.Marshal(updateArgs)
+	updateReq := &Request{
+		Operation: OpUpdate,
+		Args:      updateJSON,
+		Actor:     "test-user",
+	}
+
+	updateResp := server.handleUpdate(updateReq)
+	if !updateResp.Success {
+		t.Fatalf("update operation failed: %s", updateResp.Error)
+	}
+
+	// Get the mutation event that was emitted
+	mutations := server.GetRecentMutations(checkpoint)
+	var updateMutation *MutationEvent
+	for _, m := range mutations {
+		if m.IssueID == issueID && m.Type == MutationUpdate {
+			updateMutation = &m
+			break
+		}
+	}
+
+	if updateMutation == nil {
+		t.Fatalf("expected MutationUpdate event for issue %s, but none found in mutations: %+v", issueID, mutations)
+	}
+
+	// The key assertion: mutation event must contain the NEW title, not the old one
+	if updateMutation.Title != newTitle {
+		t.Errorf("mutation event has wrong title: expected %q (new title), got %q", newTitle, updateMutation.Title)
+	}
+
+	// Verify it does NOT contain the old title (explicit regression check)
+	if updateMutation.Title == originalTitle {
+		t.Errorf("mutation event contains the OLD title %q instead of the NEW title %q - this is the bug being tested", originalTitle, newTitle)
+	}
+
+	// Also verify the database was actually updated (sanity check)
+	ctx := context.Background()
+	storedIssue, err := store.GetIssue(ctx, issueID)
+	if err != nil {
+		t.Fatalf("failed to get issue from storage: %v", err)
+	}
+	if storedIssue.Title != newTitle {
+		t.Errorf("stored issue title should be %q, got %q", newTitle, storedIssue.Title)
+	}
+}
+
+// TestHandleUpdate_StatusChangeMutationContainsUpdatedTitle verifies that status change mutations
+// also contain the updated title when the title is changed in the same update operation.
+func TestHandleUpdate_StatusChangeMutationContainsUpdatedTitle(t *testing.T) {
+	store := memory.New("/tmp/test.jsonl")
+	server := NewServer("/tmp/test.sock", store, "/tmp", "/tmp/test.db")
+
+	// Create an issue
+	originalTitle := "Original Status Change Title"
+	createArgs := CreateArgs{
+		Title:     originalTitle,
+		IssueType: "task",
+		Priority:  2,
+	}
+	createJSON, _ := json.Marshal(createArgs)
+	createReq := &Request{
+		Operation: OpCreate,
+		Args:      createJSON,
+		Actor:     "test-user",
+	}
+
+	createResp := server.handleCreate(createReq)
+	if !createResp.Success {
+		t.Fatalf("failed to create test issue: %s", createResp.Error)
+	}
+
+	var createdIssue types.Issue
+	if err := json.Unmarshal(createResp.Data, &createdIssue); err != nil {
+		t.Fatalf("failed to parse created issue: %v", err)
+	}
+	issueID := createdIssue.ID
+
+	// Clear mutation buffer
+	time.Sleep(10 * time.Millisecond)
+	checkpoint := time.Now().UnixMilli()
+	time.Sleep(10 * time.Millisecond)
+
+	// Update both title AND status simultaneously
+	newTitle := "Updated Title With Status Change"
+	newStatus := "in_progress"
+	updateArgs := UpdateArgs{
+		ID:     issueID,
+		Title:  &newTitle,
+		Status: &newStatus,
+	}
+	updateJSON, _ := json.Marshal(updateArgs)
+	updateReq := &Request{
+		Operation: OpUpdate,
+		Args:      updateJSON,
+		Actor:     "test-user",
+	}
+
+	updateResp := server.handleUpdate(updateReq)
+	if !updateResp.Success {
+		t.Fatalf("update operation failed: %s", updateResp.Error)
+	}
+
+	// Get the mutation event
+	mutations := server.GetRecentMutations(checkpoint)
+	var statusMutation *MutationEvent
+	for _, m := range mutations {
+		if m.IssueID == issueID && m.Type == MutationStatus {
+			statusMutation = &m
+			break
+		}
+	}
+
+	if statusMutation == nil {
+		t.Fatalf("expected MutationStatus event for issue %s, but none found", issueID)
+	}
+
+	// Verify the mutation contains the NEW title
+	if statusMutation.Title != newTitle {
+		t.Errorf("status mutation event has wrong title: expected %q (new title), got %q", newTitle, statusMutation.Title)
+	}
+
+	// Verify status change metadata
+	if statusMutation.OldStatus != "open" {
+		t.Errorf("expected OldStatus 'open', got %s", statusMutation.OldStatus)
+	}
+	if statusMutation.NewStatus != "in_progress" {
+		t.Errorf("expected NewStatus 'in_progress', got %s", statusMutation.NewStatus)
+	}
+}
+
 // TestHandleClose_BlockerCheck_ClosedBlocker verifies close succeeds when blocker is closed (GH#962)
 func TestHandleClose_BlockerCheck_ClosedBlocker(t *testing.T) {
 	store := memory.New("/tmp/test.jsonl")

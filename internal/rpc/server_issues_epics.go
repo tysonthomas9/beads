@@ -565,24 +565,26 @@ func (s *Server) handleUpdate(req *Request) Response {
 
 	actor := s.reqActor(req)
 
-	// Handle claim operation atomically
+	// Handle claim operation atomically using ClaimIssue to prevent race conditions
+	// when multiple agents try to claim the same task simultaneously
 	if updateArgs.Claim {
-		// Check if already claimed (has non-empty assignee)
-		if issue.Assignee != "" {
-			return Response{
-				Success: false,
-				Error:   fmt.Sprintf("already claimed by %s", issue.Assignee),
-			}
-		}
-		// Atomically set assignee and status
-		claimUpdates := map[string]interface{}{
-			"assignee": actor,
-			"status":   "in_progress",
-		}
-		if err := store.UpdateIssue(ctx, updateArgs.ID, claimUpdates, actor); err != nil {
+		claimed, err := store.ClaimIssue(ctx, updateArgs.ID, actor)
+		if err != nil {
 			return Response{
 				Success: false,
 				Error:   fmt.Sprintf("failed to claim issue: %v", err),
+			}
+		}
+		if !claimed {
+			// Re-fetch issue to get current assignee for error message
+			currentIssue, _ := store.GetIssue(ctx, updateArgs.ID)
+			currentAssignee := "unknown"
+			if currentIssue != nil && currentIssue.Assignee != "" {
+				currentAssignee = currentIssue.Assignee
+			}
+			return Response{
+				Success: false,
+				Error:   fmt.Sprintf("already claimed by %s", currentAssignee),
 			}
 		}
 	}
@@ -753,21 +755,24 @@ func (s *Server) handleUpdate(req *Request) Response {
 		}
 	}
 
+	// Fetch updated issue before emitting mutation to ensure we have current data
+	updatedIssue, getErr := store.GetIssue(ctx, updateArgs.ID)
+	if getErr != nil {
+		return Response{
+			Success: false,
+			Error:   fmt.Sprintf("failed to get updated issue: %v", getErr),
+		}
+	}
+
 	// Emit mutation event for event-driven daemon (only if any updates or label/parent operations were performed)
 	if len(updates) > 0 || len(updateArgs.SetLabels) > 0 || len(updateArgs.AddLabels) > 0 || len(updateArgs.RemoveLabels) > 0 || updateArgs.Parent != nil {
-		// Determine effective assignee: use new assignee from update if provided, otherwise use existing
-		effectiveAssignee := issue.Assignee
-		if updateArgs.Assignee != nil && *updateArgs.Assignee != "" {
-			effectiveAssignee = *updateArgs.Assignee
-		}
-
 		// Check if this was a status change - emit rich MutationStatus event
 		if updateArgs.Status != nil && *updateArgs.Status != string(issue.Status) {
 			s.emitRichMutation(MutationEvent{
 				Type:      MutationStatus,
 				IssueID:   updateArgs.ID,
-				Title:     issue.Title,
-				Assignee:  effectiveAssignee,
+				Title:     updatedIssue.Title,
+				Assignee:  updatedIssue.Assignee,
 				Actor:     actor,
 				OldStatus: string(issue.Status),
 				NewStatus: *updateArgs.Status,
@@ -776,18 +781,10 @@ func (s *Server) handleUpdate(req *Request) Response {
 			s.emitRichMutation(MutationEvent{
 				Type:     MutationUpdate,
 				IssueID:  updateArgs.ID,
-				Title:    issue.Title,
-				Assignee: effectiveAssignee,
+				Title:    updatedIssue.Title,
+				Assignee: updatedIssue.Assignee,
 				Actor:    actor,
 			})
-		}
-	}
-
-	updatedIssue, getErr := store.GetIssue(ctx, updateArgs.ID)
-	if getErr != nil {
-		return Response{
-			Success: false,
-			Error:   fmt.Sprintf("failed to get updated issue: %v", getErr),
 		}
 	}
 
@@ -1660,6 +1657,21 @@ func (s *Server) handleShow(req *Request) Response {
 	// Fetch comments
 	comments, _ := store.GetIssueComments(ctx, issue.ID)
 
+	// Ensure non-nil slices for consistent JSON serialization (GH#bd-rrtu)
+	// Without this, omitempty removes empty arrays from JSON, breaking frontend type guards
+	if labels == nil {
+		labels = []string{}
+	}
+	if deps == nil {
+		deps = []*types.IssueWithDependencyMetadata{}
+	}
+	if dependents == nil {
+		dependents = []*types.IssueWithDependencyMetadata{}
+	}
+	if comments == nil {
+		comments = []*types.Comment{}
+	}
+
 	// Create detailed response with related data
 	details := &types.IssueDetails{
 		Issue:        *issue,
@@ -1748,7 +1760,14 @@ func (s *Server) handleBlocked(req *Request) Response {
 		}
 	}
 
-	var wf types.WorkFilter
+	wf := types.WorkFilter{
+		Type:     blockedArgs.Type,
+		Priority: blockedArgs.Priority,
+		Limit:    blockedArgs.Limit,
+	}
+	if blockedArgs.Assignee != "" {
+		wf.Assignee = &blockedArgs.Assignee
+	}
 	if blockedArgs.ParentID != "" {
 		wf.ParentID = &blockedArgs.ParentID
 	}
@@ -2022,6 +2041,191 @@ func (s *Server) handleMolStale(req *Request) Response {
 	}
 
 	data, _ := json.Marshal(result)
+	return Response{
+		Success: true,
+		Data:    data,
+	}
+}
+
+// handleGetParentIDs returns parent info for multiple issues in a single query.
+// Used by the web UI to efficiently get parent info for the /api/issues endpoint.
+func (s *Server) handleGetParentIDs(req *Request) Response {
+	var args GetParentIDsArgs
+	if err := json.Unmarshal(req.Args, &args); err != nil {
+		return Response{
+			Success: false,
+			Error:   fmt.Sprintf("invalid get_parent_ids args: %v", err),
+		}
+	}
+
+	store := s.storage
+	if store == nil {
+		return Response{
+			Success: false,
+			Error:   "storage not available",
+		}
+	}
+
+	// Guard against excessive ID lists to avoid SQLite parameter limits
+	const maxIDs = 1000
+	if len(args.IssueIDs) > maxIDs {
+		return Response{
+			Success: false,
+			Error:   fmt.Sprintf("get_parent_ids supports at most %d issue IDs, got %d", maxIDs, len(args.IssueIDs)),
+		}
+	}
+
+	ctx := s.reqCtx(req)
+	parents, err := store.GetParentIDs(ctx, args.IssueIDs)
+	if err != nil {
+		return Response{
+			Success: false,
+			Error:   fmt.Sprintf("failed to get parent IDs: %v", err),
+		}
+	}
+
+	// Convert types.ParentInfo to rpc.ParentInfo
+	result := &GetParentIDsResponse{
+		Parents: make(map[string]*ParentInfo),
+	}
+	for childID, info := range parents {
+		result.Parents[childID] = &ParentInfo{
+			ParentID:    info.ParentID,
+			ParentTitle: info.ParentTitle,
+		}
+	}
+
+	data, _ := json.Marshal(result)
+	return Response{
+		Success: true,
+		Data:    data,
+	}
+}
+
+// handleGetGraphData fetches all issues with dependencies and labels in a single RPC call.
+// This eliminates the N+1 pattern of List + N×Show used by the web UI graph endpoint.
+// Internally it executes 3 queries: list issues + batch deps + batch labels.
+func (s *Server) handleGetGraphData(req *Request) Response {
+	var args GetGraphDataArgs
+	if err := json.Unmarshal(req.Args, &args); err != nil {
+		return Response{
+			Success: false,
+			Error:   fmt.Sprintf("invalid get_graph_data args: %v", err),
+		}
+	}
+
+	store := s.storage
+	if store == nil {
+		return Response{
+			Success: false,
+			Error:   "storage not available",
+		}
+	}
+
+	// Build filter from args with a cap to avoid excessive results
+	const maxGraphIssues = 1000
+	filter := types.IssueFilter{
+		Limit: maxGraphIssues,
+	}
+	if args.Status != "" && args.Status != "all" {
+		status := types.Status(args.Status)
+		filter.Status = &status
+	}
+	for _, s := range args.ExcludeStatus {
+		filter.ExcludeStatus = append(filter.ExcludeStatus, types.Status(s))
+	}
+	// Exclude templates by default
+	isTemplate := false
+	filter.IsTemplate = &isTemplate
+
+	ctx := s.reqCtx(req)
+	issues, err := store.SearchIssues(ctx, "", filter)
+	if err != nil {
+		return Response{
+			Success: false,
+			Error:   fmt.Sprintf("failed to list issues for graph: %v", err),
+		}
+	}
+
+	// Collect issue IDs for batch queries
+	issueIDs := make([]string, len(issues))
+	for i, issue := range issues {
+		issueIDs[i] = issue.ID
+	}
+
+	// Batch fetch dependencies and labels (2 queries instead of N)
+	var depsMap map[string][]*types.Dependency
+	var labelsMap map[string][]string
+
+	if sqliteStore, ok := store.(*sqlite.SQLiteStorage); ok {
+		depsMap, err = sqliteStore.GetDependenciesForIssues(ctx, issueIDs)
+		if err != nil {
+			return Response{
+				Success: false,
+				Error:   fmt.Sprintf("failed to get dependencies: %v", err),
+			}
+		}
+		labelsMap, err = sqliteStore.GetLabelsForIssues(ctx, issueIDs)
+		if err != nil {
+			return Response{
+				Success: false,
+				Error:   fmt.Sprintf("failed to get labels: %v", err),
+			}
+		}
+	} else {
+		// Fallback: fetch individually (preserves N+1 but works with any storage)
+		depsMap = make(map[string][]*types.Dependency)
+		labelsMap = make(map[string][]string)
+		for _, id := range issueIDs {
+			depIssues, _ := store.GetDependencies(ctx, id)
+			// Convert []*types.Issue to []*types.Dependency
+			fallbackDeps := make([]*types.Dependency, len(depIssues))
+			for j, di := range depIssues {
+				fallbackDeps[j] = &types.Dependency{
+					IssueID:     id,
+					DependsOnID: di.ID,
+					Type:        types.DepBlocks, // default
+				}
+			}
+			depsMap[id] = fallbackDeps
+			labels, _ := store.GetLabels(ctx, id)
+			labelsMap[id] = labels
+		}
+	}
+
+	// Build slim response
+	result := make([]GraphIssueSummary, 0, len(issues))
+	for _, issue := range issues {
+		summary := GraphIssueSummary{
+			ID:        issue.ID,
+			Title:     issue.Title,
+			Status:    string(issue.Status),
+			Priority:  issue.Priority,
+			IssueType: string(issue.IssueType),
+			Labels:    labelsMap[issue.ID],
+		}
+		if issue.DeferUntil != nil {
+			summary.DeferUntil = issue.DeferUntil.Format(time.RFC3339)
+		}
+		if issue.DueAt != nil {
+			summary.DueAt = issue.DueAt.Format(time.RFC3339)
+		}
+		// Convert dependencies
+		if deps, ok := depsMap[issue.ID]; ok && len(deps) > 0 {
+			graphDeps := make([]GraphDependency, len(deps))
+			for i, dep := range deps {
+				graphDeps[i] = GraphDependency{
+					DependsOnID: dep.DependsOnID,
+					Type:        string(dep.Type),
+				}
+			}
+			summary.Dependencies = graphDeps
+		}
+		result = append(result, summary)
+	}
+
+	resp := GetGraphDataResponse{Issues: result}
+	data, _ := json.Marshal(resp)
 	return Response{
 		Success: true,
 		Data:    data,

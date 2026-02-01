@@ -1060,6 +1060,142 @@ func TestCLI_CreateDryRun(t *testing.T) {
 	})
 }
 
+// TestCLI_ReviewStatus tests the 'review' status for issues needing human attention
+// The 'review' status is part of USER_SELECTABLE_STATUSES and should work with
+// list --status=review filtering and update --status=review operations.
+func TestCLI_ReviewStatus(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping slow CLI test in short mode")
+	}
+
+	t.Run("CreateAndListReviewStatus", func(t *testing.T) {
+		tmpDir := setupCLITestDB(t)
+
+		// Create an issue and update it to review status
+		out := runBDInProcess(t, tmpDir, "create", "Review needed issue", "-p", "1", "--json")
+
+		jsonStart := strings.Index(out, "{")
+		if jsonStart < 0 {
+			t.Fatalf("No JSON found in output: %s", out)
+		}
+		jsonOut := out[jsonStart:]
+
+		var issue map[string]interface{}
+		if err := json.Unmarshal([]byte(jsonOut), &issue); err != nil {
+			t.Fatalf("Failed to parse JSON: %v\nOutput: %s", err, jsonOut)
+		}
+		id := issue["id"].(string)
+
+		// Update to review status
+		runBDInProcess(t, tmpDir, "update", id, "--status", "review")
+
+		// Verify status was updated
+		out = runBDInProcess(t, tmpDir, "show", id, "--json")
+		var updated []map[string]interface{}
+		if err := json.Unmarshal([]byte(out), &updated); err != nil {
+			t.Fatalf("Failed to parse show output: %v", err)
+		}
+		if updated[0]["status"] != "review" {
+			t.Errorf("Expected status 'review', got: %v", updated[0]["status"])
+		}
+
+		// Verify list --status=review returns the issue
+		out = runBDInProcess(t, tmpDir, "list", "--status", "review", "--json")
+		var issues []map[string]interface{}
+		if err := json.Unmarshal([]byte(out), &issues); err != nil {
+			t.Fatalf("Failed to parse list output: %v", err)
+		}
+		if len(issues) != 1 {
+			t.Errorf("Expected 1 issue with review status, got %d", len(issues))
+		}
+		if issues[0]["id"] != id {
+			t.Errorf("Expected issue %s, got: %v", id, issues[0]["id"])
+		}
+	})
+
+	t.Run("ReviewStatusNotInReady", func(t *testing.T) {
+		tmpDir := setupCLITestDB(t)
+
+		// Create an issue with review status
+		out := runBDInProcess(t, tmpDir, "create", "Issue in review", "-p", "1", "--json")
+
+		jsonStart := strings.Index(out, "{")
+		jsonOut := out[jsonStart:]
+
+		var issue map[string]interface{}
+		json.Unmarshal([]byte(jsonOut), &issue)
+		id := issue["id"].(string)
+
+		// Update to review status
+		runBDInProcess(t, tmpDir, "update", id, "--status", "review")
+
+		// Create another issue that stays open (should appear in ready)
+		out = runBDInProcess(t, tmpDir, "create", "Ready issue", "-p", "1", "--json")
+		jsonStart = strings.Index(out, "{")
+		jsonOut = out[jsonStart:]
+		json.Unmarshal([]byte(jsonOut), &issue)
+		readyID := issue["id"].(string)
+
+		// Ready should only show open issues, not review
+		out = runBDInProcess(t, tmpDir, "ready", "--json")
+		var readyIssues []map[string]interface{}
+		if err := json.Unmarshal([]byte(out), &readyIssues); err != nil {
+			t.Fatalf("Failed to parse ready output: %v", err)
+		}
+
+		// Should have exactly 1 issue (the open one, not the review one)
+		if len(readyIssues) != 1 {
+			t.Errorf("Expected 1 ready issue, got %d", len(readyIssues))
+		}
+		if len(readyIssues) > 0 && readyIssues[0]["id"] != readyID {
+			t.Errorf("Expected ready issue %s, got: %v", readyID, readyIssues[0]["id"])
+		}
+	})
+
+	t.Run("MultipleStatusFiltering", func(t *testing.T) {
+		tmpDir := setupCLITestDB(t)
+
+		// Create issues with different statuses
+		out := runBDInProcess(t, tmpDir, "create", "Open issue", "-p", "1", "--json")
+		jsonStart := strings.Index(out, "{")
+		json.Unmarshal([]byte(out[jsonStart:]), &map[string]interface{}{})
+
+		out = runBDInProcess(t, tmpDir, "create", "Review issue", "-p", "1", "--json")
+		jsonStart = strings.Index(out, "{")
+		var reviewIssue map[string]interface{}
+		json.Unmarshal([]byte(out[jsonStart:]), &reviewIssue)
+		reviewID := reviewIssue["id"].(string)
+		runBDInProcess(t, tmpDir, "update", reviewID, "--status", "review")
+
+		out = runBDInProcess(t, tmpDir, "create", "In progress issue", "-p", "1", "--json")
+		jsonStart = strings.Index(out, "{")
+		var ipIssue map[string]interface{}
+		json.Unmarshal([]byte(out[jsonStart:]), &ipIssue)
+		ipID := ipIssue["id"].(string)
+		runBDInProcess(t, tmpDir, "update", ipID, "--status", "in_progress")
+
+		// List only review status
+		out = runBDInProcess(t, tmpDir, "list", "--status", "review", "--json")
+		var issues []map[string]interface{}
+		json.Unmarshal([]byte(out), &issues)
+		if len(issues) != 1 {
+			t.Errorf("Expected 1 review issue, got %d", len(issues))
+		}
+
+		// List open status (should not include review)
+		out = runBDInProcess(t, tmpDir, "list", "--status", "open", "--json")
+		json.Unmarshal([]byte(out), &issues)
+		if len(issues) != 1 {
+			t.Errorf("Expected 1 open issue, got %d", len(issues))
+		}
+		for _, iss := range issues {
+			if iss["status"] == "review" {
+				t.Error("Review status issue should not appear in --status=open filter")
+			}
+		}
+	})
+}
+
 // TestCLI_CommentsAddShortID tests that 'comments add' accepts short IDs (issue #1070)
 // Most bd commands accept short IDs (e.g., "5wbm") but comments add previously required
 // full IDs (e.g., "mike.vibe-coding-5wbm"). This test ensures short IDs work.

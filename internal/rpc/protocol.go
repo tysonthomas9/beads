@@ -45,6 +45,9 @@ const (
 	OpGetWorkerStatus     = "get_worker_status"
 	OpGetConfig           = "get_config"
 	OpMolStale            = "mol_stale"
+	OpGetParentIDs        = "get_parent_ids"
+	OpGetGraphData        = "get_graph_data"
+	OpWaitForMutations    = "wait_for_mutations"
 
 	// Gate operations
 	OpGateCreate = "gate_create"
@@ -328,6 +331,10 @@ type ReadyArgs struct {
 // BlockedArgs represents arguments for the blocked operation
 type BlockedArgs struct {
 	ParentID string `json:"parent_id,omitempty"` // Filter to descendants of this bead/epic
+	Assignee string `json:"assignee,omitempty"`  // Filter by assignee
+	Priority *int   `json:"priority,omitempty"`  // Filter by priority (0-4)
+	Type     string `json:"type,omitempty"`      // Filter by issue type
+	Limit    int    `json:"limit,omitempty"`     // Max results to return
 }
 
 // StaleArgs represents arguments for the stale command
@@ -514,6 +521,12 @@ type GetMutationsArgs struct {
 	Since int64 `json:"since"` // Unix timestamp in milliseconds (0 for all recent)
 }
 
+// WaitForMutationsArgs represents arguments for waiting on mutations
+type WaitForMutationsArgs struct {
+	Since   int64 `json:"since"`   // Unix timestamp in ms - return mutations after this time
+	Timeout int64 `json:"timeout"` // Max wait time in ms (0 = default 30s)
+}
+
 // Gate operations
 
 // GateCreateArgs represents arguments for creating a gate
@@ -637,4 +650,53 @@ type MolStaleResponse struct {
 	StaleMolecules []*StaleMolecule `json:"stale_molecules"`
 	TotalCount     int              `json:"total_count"`
 	BlockingCount  int              `json:"blocking_count"`
+}
+
+// GetParentIDsArgs represents arguments for the get_parent_ids operation
+type GetParentIDsArgs struct {
+	IssueIDs []string `json:"issue_ids"`
+}
+
+// ParentInfo contains parent issue information
+type ParentInfo struct {
+	ParentID    string `json:"parent_id"`
+	ParentTitle string `json:"parent_title"`
+}
+
+// GetParentIDsResponse represents the response from get_parent_ids operation
+type GetParentIDsResponse struct {
+	Parents map[string]*ParentInfo `json:"parents"` // childID -> ParentInfo
+}
+
+// GetGraphDataArgs represents arguments for the get_graph_data operation.
+// This fetches all issues with their dependencies and labels in a single RPC call,
+// avoiding the N+1 pattern of List + N×Show.
+type GetGraphDataArgs struct {
+	Status        string   `json:"status,omitempty"`         // "open", "closed", or "all" (default: "all")
+	ExcludeStatus []string `json:"exclude_status,omitempty"` // Statuses to exclude
+}
+
+// GraphIssueSummary is a slim issue representation for graph visualization.
+// Contains only the fields needed to render the dependency graph.
+type GraphIssueSummary struct {
+	ID           string              `json:"id"`
+	Title        string              `json:"title"`
+	Status       string              `json:"status"`
+	Priority     int                 `json:"priority"`
+	IssueType    string              `json:"issue_type"`
+	Labels       []string            `json:"labels,omitempty"`
+	Dependencies []GraphDependency   `json:"dependencies,omitempty"`
+	DeferUntil   string              `json:"defer_until,omitempty"`
+	DueAt        string              `json:"due_at,omitempty"`
+}
+
+// GraphDependency represents a dependency relationship for graph rendering.
+type GraphDependency struct {
+	DependsOnID string `json:"depends_on_id"`
+	Type        string `json:"type"`
+}
+
+// GetGraphDataResponse represents the response from get_graph_data operation.
+type GetGraphDataResponse struct {
+	Issues []GraphIssueSummary `json:"issues"`
 }

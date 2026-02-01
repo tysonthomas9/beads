@@ -442,6 +442,7 @@ const (
 	StatusInProgress Status = "in_progress"
 	StatusBlocked    Status = "blocked"
 	StatusDeferred   Status = "deferred" // Deliberately put on ice for later
+	StatusReview     Status = "review"   // Needs human attention (plan approval, code review)
 	StatusClosed     Status = "closed"
 	StatusTombstone  Status = "tombstone" // Soft-deleted issue
 	StatusPinned     Status = "pinned"    // Persistent bead that stays open indefinitely
@@ -451,7 +452,7 @@ const (
 // IsValid checks if the status value is valid (built-in statuses only)
 func (s Status) IsValid() bool {
 	switch s {
-	case StatusOpen, StatusInProgress, StatusBlocked, StatusDeferred, StatusClosed, StatusTombstone, StatusPinned, StatusHooked:
+	case StatusOpen, StatusInProgress, StatusBlocked, StatusDeferred, StatusReview, StatusClosed, StatusTombstone, StatusPinned, StatusHooked:
 		return true
 	}
 	return false
@@ -649,6 +650,13 @@ type DependencyCounts struct {
 	DependentCount  int `json:"dependent_count"`  // Number of issues that depend on this issue
 }
 
+// ParentInfo contains parent issue information for child issues.
+// Used by GetParentIDs to return parent info for batch lookups.
+type ParentInfo struct {
+	ParentID    string `json:"parent_id"`
+	ParentTitle string `json:"parent_title"`
+}
+
 // IssueWithDependencyMetadata extends Issue with dependency relationship type
 // Note: We explicitly include all Issue fields to ensure proper JSON marshaling
 type IssueWithDependencyMetadata struct {
@@ -665,12 +673,14 @@ type IssueWithCounts struct {
 
 // IssueDetails extends Issue with labels, dependencies, dependents, and comments.
 // Used for JSON serialization in bd show and RPC responses.
+// Note: Labels, Dependencies, Dependents, and Comments do NOT use omitempty
+// to ensure consistent JSON structure for frontend type guards (GH#bd-rrtu).
 type IssueDetails struct {
 	Issue
-	Labels       []string                      `json:"labels,omitempty"`
-	Dependencies []*IssueWithDependencyMetadata `json:"dependencies,omitempty"`
-	Dependents   []*IssueWithDependencyMetadata `json:"dependents,omitempty"`
-	Comments     []*Comment                     `json:"comments,omitempty"`
+	Labels       []string                      `json:"labels"`
+	Dependencies []*IssueWithDependencyMetadata `json:"dependencies"`
+	Dependents   []*IssueWithDependencyMetadata `json:"dependents"`
+	Comments     []*Comment                     `json:"comments"`
 	Parent       *string                        `json:"parent,omitempty"`
 }
 

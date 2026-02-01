@@ -261,6 +261,139 @@ func (s *DoltStore) GetDependencyCounts(ctx context.Context, issueIDs []string) 
 	return result, nil
 }
 
+// GetParentIDs returns parent info for multiple issues in a single query.
+// For issues with parent-child dependencies, returns the parent ID and title.
+// Returns a map from childID to ParentInfo.
+func (s *DoltStore) GetParentIDs(ctx context.Context, issueIDs []string) (map[string]*types.ParentInfo, error) {
+	if len(issueIDs) == 0 {
+		return make(map[string]*types.ParentInfo), nil
+	}
+
+	// Build placeholders for the IN clause
+	placeholders := make([]string, len(issueIDs))
+	args := make([]interface{}, len(issueIDs))
+	for i, id := range issueIDs {
+		placeholders[i] = "?"
+		args[i] = id
+	}
+	inClause := strings.Join(placeholders, ",")
+
+	// Single query: get parent info for all issues with parent-child dependencies
+	// In parent-child relationship: child issue_id depends on parent depends_on_id
+	// nolint:gosec // G201: inClause contains only ? placeholders, actual values passed via args
+	query := fmt.Sprintf(`
+		SELECT d.issue_id, d.depends_on_id, i.title
+		FROM dependencies d
+		JOIN issues i ON d.depends_on_id = i.id
+		WHERE d.issue_id IN (%s) AND d.type = 'parent-child'
+	`, inClause)
+
+	rows, err := s.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get parent IDs: %w", err)
+	}
+	defer rows.Close()
+
+	result := make(map[string]*types.ParentInfo)
+	for rows.Next() {
+		var childID, parentID, parentTitle string
+		if err := rows.Scan(&childID, &parentID, &parentTitle); err != nil {
+			return nil, fmt.Errorf("failed to scan parent info: %w", err)
+		}
+		result[childID] = &types.ParentInfo{
+			ParentID:    parentID,
+			ParentTitle: parentTitle,
+		}
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating parent info: %w", err)
+	}
+
+	return result, nil
+}
+
+// GetDependenciesForIssues fetches dependencies for multiple issues in a single query.
+// Returns a map of issue_id -> []Dependency for O(1) lookup during assignment.
+// Issues without dependencies will have an empty slice in the map (not nil).
+func (s *DoltStore) GetDependenciesForIssues(ctx context.Context, issueIDs []string) (map[string][]*types.Dependency, error) {
+	if len(issueIDs) == 0 {
+		return make(map[string][]*types.Dependency), nil
+	}
+
+	placeholders := make([]string, len(issueIDs))
+	args := make([]interface{}, len(issueIDs))
+	for i, id := range issueIDs {
+		placeholders[i] = "?"
+		args[i] = id
+	}
+	inClause := strings.Join(placeholders, ",")
+
+	// nolint:gosec // G201: inClause contains only ? placeholders, actual values passed via args
+	query := fmt.Sprintf(`
+		SELECT issue_id, depends_on_id, type, created_at, created_by, metadata, thread_id
+		FROM dependencies
+		WHERE issue_id IN (%s)
+		ORDER BY issue_id, created_at
+	`, inClause)
+
+	rows, err := s.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to batch get dependencies: %w", err)
+	}
+	defer rows.Close()
+
+	result := make(map[string][]*types.Dependency)
+	for rows.Next() {
+		var dep types.Dependency
+		var createdAtStr string
+		var metadata, threadID sql.NullString
+
+		if err := rows.Scan(
+			&dep.IssueID,
+			&dep.DependsOnID,
+			&dep.Type,
+			&createdAtStr,
+			&dep.CreatedBy,
+			&metadata,
+			&threadID,
+		); err != nil {
+			return nil, fmt.Errorf("failed to scan dependency: %w", err)
+		}
+
+		// Parse timestamp
+		if t, err := time.Parse(time.RFC3339Nano, createdAtStr); err == nil {
+			dep.CreatedAt = t
+		} else if t, err := time.Parse("2006-01-02 15:04:05.999999999-07:00", createdAtStr); err == nil {
+			dep.CreatedAt = t
+		} else if t, err := time.Parse("2006-01-02 15:04:05", createdAtStr); err == nil {
+			dep.CreatedAt = t
+		}
+
+		if metadata.Valid {
+			dep.Metadata = metadata.String
+		}
+		if threadID.Valid {
+			dep.ThreadID = threadID.String
+		}
+
+		result[dep.IssueID] = append(result[dep.IssueID], &dep)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating dependency rows: %w", err)
+	}
+
+	// Ensure all requested issue IDs have entries (empty slice for no dependencies)
+	for _, id := range issueIDs {
+		if _, ok := result[id]; !ok {
+			result[id] = []*types.Dependency{}
+		}
+	}
+
+	return result, nil
+}
+
 // GetDependencyTree returns a dependency tree for visualization
 func (s *DoltStore) GetDependencyTree(ctx context.Context, issueID string, maxDepth int, showAllPaths bool, reverse bool) ([]*types.TreeNode, error) {
 	// Simple implementation - can be optimized with CTE

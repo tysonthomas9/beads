@@ -236,6 +236,76 @@ func (s *Server) handleGetMutations(req *Request) Response {
 	}
 }
 
+// handleWaitForMutations handles the wait_for_mutations RPC operation.
+// This is a blocking call that returns immediately if mutations exist since the
+// given timestamp, or waits up to the timeout for new mutations to arrive.
+func (s *Server) handleWaitForMutations(req *Request) Response {
+	var args WaitForMutationsArgs
+	if err := json.Unmarshal(req.Args, &args); err != nil {
+		return Response{
+			Success: false,
+			Error:   fmt.Sprintf("invalid arguments: %v", err),
+		}
+	}
+
+	// Set default timeout to 30 seconds
+	timeout := 30 * time.Second
+	if args.Timeout > 0 {
+		timeout = time.Duration(args.Timeout) * time.Millisecond
+	}
+
+	// First check for existing mutations since the timestamp
+	mutations := s.GetRecentMutations(args.Since)
+	if len(mutations) > 0 {
+		data, _ := json.Marshal(mutations)
+		return Response{
+			Success: true,
+			Data:    data,
+		}
+	}
+
+	// No existing mutations, wait for new ones
+	timer := time.NewTimer(timeout)
+	defer timer.Stop()
+
+	select {
+	case _, ok := <-s.mutationChan:
+		if !ok {
+			// Channel closed (server shutting down)
+			data, _ := json.Marshal([]MutationEvent{})
+			return Response{
+				Success: true,
+				Data:    data,
+			}
+		}
+		// Got a mutation notification. The mutation is already stored in the
+		// recent buffer by emitRichMutation(), so we just return all mutations
+		// since the requested timestamp.
+		mutations := s.GetRecentMutations(args.Since)
+		data, _ := json.Marshal(mutations)
+		return Response{
+			Success: true,
+			Data:    data,
+		}
+
+	case <-timer.C:
+		// Timeout, return empty array
+		data, _ := json.Marshal([]MutationEvent{})
+		return Response{
+			Success: true,
+			Data:    data,
+		}
+
+	case <-s.shutdownChan:
+		// Server shutting down
+		data, _ := json.Marshal([]MutationEvent{})
+		return Response{
+			Success: true,
+			Data:    data,
+		}
+	}
+}
+
 // handleGetMoleculeProgress handles the get_molecule_progress RPC operation
 // Returns detailed progress for a molecule (parent issue with child steps)
 func (s *Server) handleGetMoleculeProgress(req *Request) Response {

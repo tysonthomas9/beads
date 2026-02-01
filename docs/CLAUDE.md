@@ -96,6 +96,24 @@ golangci-lint run ./...
 - Script-based tests in `cmd/bd/testdata/*.txt` (see `scripttest_test.go`)
 - RPC layer has extensive isolation and edge case coverage
 
+### When Spawning Agents to Write Tests
+
+When using the Task tool to spawn agents for test writing, instruct them to:
+- **Never duplicate production code** in test files - tests should call actual production functions
+- **Use existing test infrastructure** - check for mock types and helpers already in the codebase
+- **Only mock external dependencies** - create mocks for interfaces, not reimplementations of logic
+
+### Manual Testing Best Practices
+
+- **WebSocket endpoints**: Do NOT use `curl` to test WebSocket endpoints - it only confirms the endpoint rejects non-WebSocket requests. Use a real WebSocket client:
+  ```bash
+  # Using wscat (npm install -g wscat)
+  wscat -c ws://localhost:8080/ws
+  > {"type":"subscribe","since":0}
+  # Then create an issue in another terminal and verify mutation arrives
+  ```
+- **Integration tests**: When claiming "manual testing complete," actually test the full flow end-to-end, not just that endpoints respond
+
 ## Important Notes
 
 - **Always read AGENTS.md first** - it has the complete workflow
@@ -117,3 +135,22 @@ golangci-lint run ./...
 ## When Adding Features
 
 See AGENTS.md "Adding a New Command" and "Adding Storage Features" sections for step-by-step guidance.
+
+## Lessons Learned
+
+### Don't Dismiss Unexpected Failures
+
+When you encounter test failures or errors that seem "unrelated" to your work:
+
+1. **Investigate first** - Don't assume it's pre-existing or someone else's problem
+2. **Check if there's a related task** - Use `bd list | grep -i <keyword>` to find relevant issues
+3. **Determine the root cause** - Is it a missing dependency? Configuration issue? Actual bug?
+4. **Create a task if needed** - If it's a real issue with no existing task, create one with `bd create`
+5. **Document what you found** - Even if you don't fix it, note your findings
+
+Example: A test suite failing due to "missing package" might mean:
+- Dependencies weren't installed (`npm install` needed)
+- Configuration excludes are missing (e.g., E2E tests running in unit test runner)
+- Version mismatch between test runner and test framework
+
+Taking shortcuts here (dismissing as "not my problem") leaves landmines for future work.

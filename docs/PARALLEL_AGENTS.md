@@ -10,29 +10,90 @@ When running multiple Claude Code agents in parallel:
 3. **Blocking dependencies** ensure tasks are worked in correct order
 4. **Priority-based selection** lets agents pick the most important ready work
 5. **Human-in-the-loop review** via `[Need Review]` prefix pattern
+6. **Agent locking** prevents running multiple agents in the same worktree
 
-## Two-Script Workflow
+## vibecli - Agent Management CLI
 
-We use two separate scripts to separate planning from implementation:
+The `vibecli` command provides a unified interface for managing parallel Claude agents:
 
-| Script | Purpose | Human Review |
-|--------|---------|--------------|
-| `claude-plan.sh` | Creates detailed plans, marks tasks `[Need Review]` | Required before implementation |
-| `claude-task.sh` | Implements tasks (skips `[Need Review]` tasks) | After completion |
+```bash
+# Build vibecli
+go build -o vibecli ./cmd/vibecli
+
+# Or add to your PATH
+go install ./cmd/vibecli
+```
+
+### Commands
+
+| Command | Purpose | Human Review |
+|---------|---------|--------------|
+| `vibecli plan [worktree]` | Creates detailed plans, marks tasks `[Need Review]` | Required before implementation |
+| `vibecli task [worktree]` | Implements tasks (skips `[Need Review]` tasks) | After completion |
+| `vibecli merge <source> [target]` | Merges branches with AI conflict resolution | After merge |
+| `vibecli sync <worktree> [branch]` | Syncs worktrees with integration branch | None |
+| `vibecli reset <worktree> [branch]` | Resets worktrees to a specific branch | Confirmation required |
+| `vibecli list` | Lists all agents and their status | None |
+| `vibecli monitor` | Comprehensive dashboard with agents, tasks, sync, stats | None |
+
+### Shell Tab Completion
+
+Enable tab completion for commands, worktree names, and branches:
+
+```bash
+# Bash (add to ~/.bashrc)
+source <(vibecli completion bash)
+
+# Zsh (add to ~/.zshrc)
+source <(vibecli completion zsh)
+
+# Fish
+vibecli completion fish | source
+```
+
+After enabling, you can tab-complete:
+- Commands: `vibecli p<TAB>` → `plan`
+- Worktrees: `vibecli plan f<TAB>` → `falcon`
+- Branches: `vibecli merge <TAB>` → branch names
+
+### Agent Locking
+
+vibecli automatically prevents running multiple agents in the same worktree:
+
+```bash
+# First agent starts successfully
+$ vibecli plan falcon &
+
+# Second agent fails immediately
+$ vibecli task falcon
+Error: agent already running: plan (PID 12345, started 5m ago)
+```
+
+The lock is automatically released when the agent exits. Stale locks from crashed processes are detected and overwritten.
+
+Check running agents with:
+```bash
+$ vibecli list
+Agents (Worktrees):
+-------------------
+  cobalt        webui/cobalt          ✓ clean
+  falcon        webui/falcon          ● running (plan, 5m ago)
+  nova          webui/nova            ✓ clean
+```
 
 ### The Review Gate Pattern
 
 ```
 Task: "Add authentication"
-        ↓ claude-plan.sh
+        ↓ vibecli plan
 [Need Review] Add authentication    ← Agent saves plan to --design field
         ↓ Human reviews & approves (removes [Need Review] prefix)
 Add authentication                  ← Ready for implementation
-        ↓ claude-task.sh
+        ↓ vibecli task
 Closed: Add authentication
 ```
 
-### Why Two Scripts?
+### Why Separate Plan and Task Commands?
 
 1. **Quality control** - Humans review plans before code is written
 2. **No wasted work** - Catch design issues before implementation
@@ -118,24 +179,24 @@ bd label add <task-id> phase-2
 # ... etc
 ```
 
-## Agent Workflow Scripts
+## Agent Commands
 
-Two scripts in the repo root handle planning and implementation separately.
-
-### Planning Script: `claude-plan.sh`
+### Planning: `vibecli plan`
 
 Use this to have agents create detailed plans that you review before implementation:
 
 ```bash
-./claude-plan.sh falcon    # Run planning agent in falcon worktree
+vibecli plan falcon    # Run planning agent in falcon worktree
+vibecli plan           # Run in current directory
 ```
 
 **What it does:**
-1. Picks up a task (skips `[Need Review]` tasks)
-2. Researches codebase and creates detailed plan
-3. Saves plan to task's `--design` field
-4. Renames task to `[Need Review] <original title>`
-5. Sets status back to `open` and exits
+1. Acquires agent lock (prevents concurrent agents)
+2. Picks up a task (skips `[Need Review]` tasks)
+3. Researches codebase and creates detailed plan
+4. Saves plan to task's `--design` field
+5. Renames task to `[Need Review] <original title>`
+6. Sets status back to `open` and exits
 
 **After planning agent completes:**
 ```bash
@@ -150,20 +211,125 @@ bd comment <task-id> "Please reconsider the approach for X"
 bd update <task-id> --title="<original title>"  # Remove [Need Review] to let agent retry
 ```
 
-### Implementation Script: `claude-task.sh`
+### Implementation: `vibecli task`
 
 Use this for tasks that are ready for implementation (no `[Need Review]` prefix):
 
 ```bash
-./claude-task.sh falcon    # Run implementation agent in falcon worktree
+vibecli task falcon    # Run implementation agent in falcon worktree
+vibecli task           # Run in current directory
 ```
 
 **What it does:**
-1. Picks up a task (SKIPS any with `[Need Review]` in title)
-2. Checks for `--design` field and follows that plan if present
-3. Implements, tests, reviews code
-4. Commits and pushes
-5. Closes task and exits
+1. Acquires agent lock (prevents concurrent agents)
+2. Picks up a task (SKIPS any with `[Need Review]` in title)
+3. Checks for `--design` field and follows that plan if present
+4. Implements, tests, reviews code
+5. Commits and pushes
+6. Closes task and exits
+
+### Merging: `vibecli merge`
+
+Use this to merge worktree branches into the integration branch with AI-assisted conflict resolution:
+
+```bash
+vibecli merge webui/falcon                  # Merge to feature/web-ui (default target)
+vibecli merge webui/falcon feature/web-ui   # Explicit target branch
+vibecli merge webui/cobalt main             # Merge directly to main
+vibecli merge --all                         # Merge ALL worktrees to feature/web-ui
+vibecli merge --all main                    # Merge ALL worktrees to main
+```
+
+**What it does:**
+1. Fetches latest from origin
+2. Checks out the target branch and pulls
+3. Attempts merge from source branch
+4. If no conflicts: commits and pushes automatically
+5. If conflicts: launches Claude to resolve them
+
+**Conflict resolution workflow:**
+1. Claude reads each conflicted file to understand the conflict markers
+2. Determines correct resolution (keep one side, combine both, or write new code)
+3. Edits files to remove ALL conflict markers
+4. Verifies code compiles and no markers remain
+5. Commits and pushes the resolution
+
+**Example branch hierarchy:**
+```
+main (production)
+  └── feature/web-ui (integration branch - main folder)
+        ├── webui/falcon  (worktree branch)
+        ├── webui/cobalt  (worktree branch)
+        ├── webui/nova    (worktree branch)
+        ├── webui/ember   (worktree branch)
+        └── webui/zephyr  (worktree branch)
+```
+
+**Workflow:**
+1. Agent completes work on `webui/falcon` branch
+2. Run `vibecli merge webui/falcon` to merge to `feature/web-ui`
+3. Repeat for other worktrees as they complete work
+4. Eventually merge `feature/web-ui` to `main`
+
+### Syncing: `vibecli sync`
+
+Use this to update worktrees with the latest changes from the integration branch:
+
+```bash
+vibecli sync falcon               # Sync falcon with feature/web-ui
+vibecli sync falcon main          # Sync falcon with main
+vibecli sync --all                # Sync all worktrees with feature/web-ui
+vibecli sync --all main           # Sync all worktrees with main
+```
+
+**What it does:**
+1. Changes to the worktree directory
+2. Fetches latest from origin
+3. Merges the source branch into the worktree's branch
+4. If conflicts: launches Claude to resolve them
+5. Pushes the updated branch
+
+**When to use:**
+- After merging work into `feature/web-ui`, sync other worktrees to get those changes
+- Before starting new work, ensure worktree has latest code
+- After PR is merged to `main`, sync all worktrees with `main`
+
+### Resetting: `vibecli reset`
+
+Use this to hard reset worktrees to a specific branch, discarding all local changes:
+
+```bash
+vibecli reset falcon                    # Reset falcon to feature/web-ui
+vibecli reset falcon main               # Reset falcon to main
+vibecli reset --all                     # Reset all worktrees to feature/web-ui
+vibecli reset --all main                # Reset all worktrees to main
+vibecli reset --all --force             # Skip confirmation prompt
+```
+
+**What it does:**
+1. Discards all local changes (`git reset --hard`, `git clean -fd`)
+2. Resets to the target branch (`origin/feature/web-ui` or `origin/main`)
+3. Force pushes the worktree branch to match
+
+**When to use:**
+- Discard failed/abandoned work and start fresh
+- After a PR is merged, reset all worktrees to `main`
+- Clean slate for a new feature cycle
+
+**WARNING:** This is destructive! Requires confirmation prompt (use `--force` to skip).
+
+### Listing Agents: `vibecli list`
+
+View all agents and their status:
+
+```bash
+vibecli list    # or: vibecli ls
+```
+
+Shows:
+- Worktree name and branch
+- Status: running agent, dirty working tree, or clean
+- Number of uncommitted changes
 
 ### Reviewing Tasks Awaiting Approval
 
@@ -190,10 +356,10 @@ Run planning agents to create plans for review:
 
 ```bash
 # Terminal 1 - Planning agent
-cd /path/to/repo && ./claude-plan.sh falcon
+vibecli plan falcon
 
 # Terminal 2 - Planning agent
-cd /path/to/repo && ./claude-plan.sh cobalt
+vibecli plan cobalt
 ```
 
 After agents complete, review their plans:
@@ -210,19 +376,19 @@ Once plans are approved, run implementation agents:
 
 ```bash
 # Terminal 1
-cd /path/to/repo && ./claude-task.sh falcon
+vibecli task falcon
 
 # Terminal 2
-cd /path/to/repo && ./claude-task.sh cobalt
+vibecli task cobalt
 
 # Terminal 3
-cd /path/to/repo && ./claude-task.sh nova
+vibecli task nova
 
 # Terminal 4
-cd /path/to/repo && ./claude-task.sh ember
+vibecli task ember
 
 # Terminal 5
-cd /path/to/repo && ./claude-task.sh zephyr
+vibecli task zephyr
 ```
 
 ### Mixed Workflow
@@ -230,6 +396,7 @@ cd /path/to/repo && ./claude-task.sh zephyr
 You can run both types simultaneously - they won't interfere:
 - Planning agents only touch tasks without `[Need Review]` prefix
 - Implementation agents skip tasks with `[Need Review]` prefix
+- Agent locking prevents running two agents in the same worktree
 
 ## Key Commands
 
@@ -268,6 +435,95 @@ bd stats                     # Overall statistics
 bd list -l phase-1           # Tasks in a specific phase
 bd list --status=closed      # Completed tasks
 ```
+
+### Merging Completed Work
+```bash
+vibecli merge webui/falcon              # Merge falcon to feature/web-ui
+vibecli merge webui/cobalt              # Merge cobalt to feature/web-ui
+vibecli merge --all                     # Merge all worktrees to feature/web-ui
+vibecli merge --all main                # Merge all worktrees to main
+vibecli merge feature/web-ui main       # Merge integration branch to main
+```
+
+### Syncing Worktrees
+```bash
+vibecli sync falcon                     # Sync falcon with feature/web-ui
+vibecli sync --all                      # Sync all worktrees
+vibecli sync --all main                 # Sync all worktrees with main
+```
+
+### Resetting Worktrees
+```bash
+vibecli reset falcon                    # Reset falcon to feature/web-ui
+vibecli reset --all                     # Reset all worktrees to feature/web-ui
+vibecli reset --all main                # Reset all worktrees to main
+```
+
+### Checking Agent Status
+```bash
+vibecli list                            # Show all agents and their status
+vibecli monitor                         # Comprehensive dashboard
+vibecli monitor --watch                 # Auto-refresh dashboard every 5s
+vibecli mon -w -i 3                     # Refresh every 3 seconds
+```
+
+### Monitor Dashboard
+
+The `vibecli monitor` command shows a comprehensive dashboard with four sections:
+
+```
+╔════════════════════════════════════════════════════════════════════╗
+║                          VIBECLI MONITOR                           ║
+║                       Last updated: 14:32:15                       ║
+╠════════════════════════════════════════════════════════════════════╣
+║  AGENTS                                                            ║
+╠════════════════════════════════════════════════════════════════════╣
+║   cobalt     webui/cobalt       ✓ clean        ↑2 ↓1               ║
+║   ember      webui/ember        ✓ clean        ↑2 ↓5               ║
+║   falcon     webui/falcon       ● 1 changes    ↑2 ↓5               ║
+╠════════════════════════════════════════════════════════════════════╣
+║  TASKS                                                             ║
+╠════════════════════════════════════════════════════════════════════╣
+║   Ready: 4     In Progress: 0     Need Review: 2     Blocked: 66   ║
+║                                                                    ║
+║   READY (top 5):                                                   ║
+║     [P0] bd-487: Phase 2: API Layer                                ║
+║     [P2] bd-pmt: T015: POST /api/issues/:id/close endpoint         ║
+║                                                                    ║
+║   NEED REVIEW (top 5):                                             ║
+║     [P1] bd-xyz: [Need Review] Auth design                         ║
+║                                                                    ║
+║   IN PROGRESS:                                                     ║
+║     (none)                                                         ║
+╠════════════════════════════════════════════════════════════════════╣
+║  SYNC STATUS                                                       ║
+╠════════════════════════════════════════════════════════════════════╣
+║   Database:  ✓ synced                                              ║
+║   Git:       ⚠ 5 need push, 5 need pull                            ║
+╠════════════════════════════════════════════════════════════════════╣
+║  STATS                                                             ║
+╠════════════════════════════════════════════════════════════════════╣
+║   Open: 82    Closed: 26    Total: 108   Completion: 24%           ║
+╚════════════════════════════════════════════════════════════════════╝
+```
+
+**AGENTS section:**
+- Shows each worktree with its branch name
+- Status: `✓ clean`, `● N changes`, or `● running (command, Xm ago)`
+- Sync indicators: `↑N` commits ahead, `↓N` commits behind the integration branch
+
+**TASKS section:**
+- Summary counts for ready, in_progress, need_review, and blocked tasks
+- Top 5 ready tasks with priority and title
+- Top 5 tasks awaiting review (with `[Need Review]` prefix)
+- All in-progress tasks
+
+**SYNC STATUS section:**
+- Database sync status (beads JSONL export)
+- Git sync summary (how many worktrees need push/pull)
+
+**STATS section:**
+- Overall issue counts and completion percentage
 
 ## Key Learnings
 
@@ -362,15 +618,33 @@ Phase 8 - blocked by Phase 7
 
 ### Merge conflicts
 - Each worktree should be on its own branch
-- Merge to main after task completion
+- Use `vibecli merge <source> [target]` for AI-assisted conflict resolution
+- Merge to integration branch (`feature/web-ui`) after task completion
+- Eventually merge integration branch to `main`
 - Use `bd sync` before and after merging
 
 ### Agent implements without waiting for review
-- Check that agent is using `claude-plan.sh` (not `claude-task.sh`)
-- `claude-plan.sh` creates plans and marks `[Need Review]`
-- `claude-task.sh` skips `[Need Review]` tasks
+- Check that agent is using `vibecli plan` (not `vibecli task`)
+- `vibecli plan` creates plans and marks `[Need Review]`
+- `vibecli task` skips `[Need Review]` tasks
 
 ### Plans not appearing in review queue
 - Verify planning agent set title to `[Need Review] <title>`
 - Check status is `open` (not `in_progress` or `deferred`)
 - Use `bd list --title-contains="Need Review"` to find them
+
+### Merge command fails
+- Ensure source branch exists: `git branch -a | grep <source>`
+- Ensure target branch exists and is pushed: `git checkout <target> && git pull`
+- Check Claude has permission to resolve files: Use `--dangerously-skip-permissions`
+- If Claude can't resolve complex conflicts, resolve manually then run `git add -A && git commit`
+- For persistent issues, consider rebasing instead: `git rebase <target>` on the source branch
+
+### Agent already running error
+- Another agent is running in the same worktree
+- Check status with `vibecli list`
+- Wait for the current agent to finish, or manually remove the stale lock:
+  ```bash
+  rm worktrees/<name>/.agent.lock
+  ```
+- If the PID doesn't exist, the lock is stale and will be overwritten automatically

@@ -130,3 +130,8 @@ output
 bd_test
 # Git worktrees for parallel agents
 worktrees/
+/vibecli
+
+# Agent lock files (prevent concurrent agents in worktrees)
+.agent.lock
+.loom/logs/

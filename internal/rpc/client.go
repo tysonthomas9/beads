@@ -360,6 +360,22 @@ func (c *Client) GetMutations(args *GetMutationsArgs) (*Response, error) {
 	return c.Execute(OpGetMutations, args)
 }
 
+// WaitForMutations waits for mutations to occur, returning immediately if any
+// exist since the given timestamp, or blocking until new mutations arrive or timeout.
+func (c *Client) WaitForMutations(args *WaitForMutationsArgs) (*Response, error) {
+	// Temporarily increase timeout for this blocking call
+	oldTimeout := c.timeout
+	// Use request timeout plus buffer, or at least the requested timeout
+	requestTimeout := time.Duration(args.Timeout) * time.Millisecond
+	if args.Timeout == 0 {
+		requestTimeout = 30 * time.Second
+	}
+	c.timeout = requestTimeout + 5*time.Second
+	defer func() { c.timeout = oldTimeout }()
+
+	return c.Execute(OpWaitForMutations, args)
+}
+
 // AddDependency adds a dependency via the daemon
 func (c *Client) AddDependency(args *DepAddArgs) (*Response, error) {
 	return c.Execute(OpDepAdd, args)
@@ -474,6 +490,36 @@ func (c *Client) MolStale(args *MolStaleArgs) (*MolStaleResponse, error) {
 	var result MolStaleResponse
 	if err := json.Unmarshal(resp.Data, &result); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal mol stale response: %w", err)
+	}
+
+	return &result, nil
+}
+
+// GetParentIDs retrieves parent info for multiple issues via the daemon
+func (c *Client) GetParentIDs(args *GetParentIDsArgs) (*GetParentIDsResponse, error) {
+	resp, err := c.Execute(OpGetParentIDs, args)
+	if err != nil {
+		return nil, err
+	}
+
+	var result GetParentIDsResponse
+	if err := json.Unmarshal(resp.Data, &result); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal get_parent_ids response: %w", err)
+	}
+
+	return &result, nil
+}
+
+// GetGraphData fetches graph data (issues with dependencies and labels) in a single RPC call.
+func (c *Client) GetGraphData(args *GetGraphDataArgs) (*GetGraphDataResponse, error) {
+	resp, err := c.Execute(OpGetGraphData, args)
+	if err != nil {
+		return nil, err
+	}
+
+	var result GetGraphDataResponse
+	if err := json.Unmarshal(resp.Data, &result); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal get_graph_data response: %w", err)
 	}
 
 	return &result, nil

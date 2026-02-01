@@ -697,3 +697,1033 @@ func compareTimePtr(t *testing.T, name string, direct, daemon *time.Time) bool {
 	}
 	return true
 }
+
+// TestGetParentIDs_RPC tests the RPC handler for getting parent IDs
+func TestGetParentIDs_RPC(t *testing.T) {
+	_, client, store, cleanup := setupTestServerWithStore(t)
+	defer cleanup()
+
+	ctx := context.Background()
+
+	// Create an epic (parent) and two tasks (children)
+	epic := &types.Issue{
+		Title:     "Epic Feature",
+		Status:    types.StatusOpen,
+		Priority:  1,
+		IssueType: types.TypeEpic,
+	}
+	task1 := &types.Issue{
+		Title:     "Task 1",
+		Status:    types.StatusOpen,
+		Priority:  1,
+		IssueType: types.TypeTask,
+	}
+	task2 := &types.Issue{
+		Title:     "Task 2",
+		Status:    types.StatusOpen,
+		Priority:  1,
+		IssueType: types.TypeTask,
+	}
+	task3 := &types.Issue{
+		Title:     "Task 3 (no parent)",
+		Status:    types.StatusOpen,
+		Priority:  1,
+		IssueType: types.TypeTask,
+	}
+
+	if err := store.CreateIssue(ctx, epic, "test-user"); err != nil {
+		t.Fatalf("CreateIssue epic failed: %v", err)
+	}
+	if err := store.CreateIssue(ctx, task1, "test-user"); err != nil {
+		t.Fatalf("CreateIssue task1 failed: %v", err)
+	}
+	if err := store.CreateIssue(ctx, task2, "test-user"); err != nil {
+		t.Fatalf("CreateIssue task2 failed: %v", err)
+	}
+	if err := store.CreateIssue(ctx, task3, "test-user"); err != nil {
+		t.Fatalf("CreateIssue task3 failed: %v", err)
+	}
+
+	// Add parent-child dependencies
+	if err := store.AddDependency(ctx, &types.Dependency{
+		IssueID:     task1.ID,
+		DependsOnID: epic.ID,
+		Type:        types.DepParentChild,
+	}, "test-user"); err != nil {
+		t.Fatalf("AddDependency for task1 failed: %v", err)
+	}
+
+	if err := store.AddDependency(ctx, &types.Dependency{
+		IssueID:     task2.ID,
+		DependsOnID: epic.ID,
+		Type:        types.DepParentChild,
+	}, "test-user"); err != nil {
+		t.Fatalf("AddDependency for task2 failed: %v", err)
+	}
+
+	// Test RPC call
+	resp, err := client.GetParentIDs(&GetParentIDsArgs{
+		IssueIDs: []string{task1.ID, task2.ID, task3.ID, epic.ID},
+	})
+	if err != nil {
+		t.Fatalf("GetParentIDs RPC failed: %v", err)
+	}
+
+	// Verify task1 has epic as parent
+	if info, ok := resp.Parents[task1.ID]; !ok {
+		t.Errorf("Expected parent info for task1")
+	} else {
+		if info.ParentID != epic.ID {
+			t.Errorf("Expected task1 parent to be %s, got %s", epic.ID, info.ParentID)
+		}
+		if info.ParentTitle != "Epic Feature" {
+			t.Errorf("Expected parent title 'Epic Feature', got %s", info.ParentTitle)
+		}
+	}
+
+	// Verify task2 has epic as parent
+	if info, ok := resp.Parents[task2.ID]; !ok {
+		t.Errorf("Expected parent info for task2")
+	} else {
+		if info.ParentID != epic.ID {
+			t.Errorf("Expected task2 parent to be %s, got %s", epic.ID, info.ParentID)
+		}
+	}
+
+	// Verify task3 has no parent
+	if _, ok := resp.Parents[task3.ID]; ok {
+		t.Errorf("Expected no parent info for task3 (orphan)")
+	}
+
+	// Verify epic has no parent
+	if _, ok := resp.Parents[epic.ID]; ok {
+		t.Errorf("Expected no parent info for epic")
+	}
+}
+
+// TestGetParentIDs_RPC_EmptyInput tests the RPC handler with empty input
+func TestGetParentIDs_RPC_EmptyInput(t *testing.T) {
+	_, client, _, cleanup := setupTestServerWithStore(t)
+	defer cleanup()
+
+	// Test with empty slice
+	resp, err := client.GetParentIDs(&GetParentIDsArgs{
+		IssueIDs: []string{},
+	})
+	if err != nil {
+		t.Fatalf("GetParentIDs RPC failed on empty input: %v", err)
+	}
+
+	if len(resp.Parents) != 0 {
+		t.Errorf("Expected empty map for empty input, got %d entries", len(resp.Parents))
+	}
+}
+
+// TestGetParentIDs_RPC_NoParents tests the RPC handler when no issues have parents
+func TestGetParentIDs_RPC_NoParents(t *testing.T) {
+	_, client, store, cleanup := setupTestServerWithStore(t)
+	defer cleanup()
+
+	ctx := context.Background()
+
+	// Create issues with no parent-child relationships
+	task1 := &types.Issue{
+		Title:     "Task 1",
+		Status:    types.StatusOpen,
+		Priority:  1,
+		IssueType: types.TypeTask,
+	}
+	task2 := &types.Issue{
+		Title:     "Task 2",
+		Status:    types.StatusOpen,
+		Priority:  1,
+		IssueType: types.TypeTask,
+	}
+
+	if err := store.CreateIssue(ctx, task1, "test-user"); err != nil {
+		t.Fatalf("CreateIssue task1 failed: %v", err)
+	}
+	if err := store.CreateIssue(ctx, task2, "test-user"); err != nil {
+		t.Fatalf("CreateIssue task2 failed: %v", err)
+	}
+
+	// Add a non-parent-child dependency (blocks)
+	if err := store.AddDependency(ctx, &types.Dependency{
+		IssueID:     task1.ID,
+		DependsOnID: task2.ID,
+		Type:        types.DepBlocks,
+	}, "test-user"); err != nil {
+		t.Fatalf("AddDependency failed: %v", err)
+	}
+
+	// Test RPC call
+	resp, err := client.GetParentIDs(&GetParentIDsArgs{
+		IssueIDs: []string{task1.ID, task2.ID},
+	})
+	if err != nil {
+		t.Fatalf("GetParentIDs RPC failed: %v", err)
+	}
+
+	// Neither issue should have parent info (blocks dependency is not parent-child)
+	if len(resp.Parents) != 0 {
+		t.Errorf("Expected 0 parent entries for issues with only blocks dependency, got %d", len(resp.Parents))
+	}
+}
+
+// TestShowIssueDetailsJSONStructure verifies that IssueDetails JSON serialization
+// always includes labels, dependencies, dependents, and comments fields as empty arrays
+// rather than omitting them when empty (GH#bd-rrtu).
+//
+// This is critical for frontend type guards that expect consistent JSON structure.
+func TestShowIssueDetailsJSONStructure(t *testing.T) {
+	_, client, cleanup := setupTestServer(t)
+	defer cleanup()
+
+	// Create a minimal issue with no labels, dependencies, or comments
+	createArgs := &CreateArgs{
+		Title:     "Issue without related data",
+		IssueType: "task",
+		Priority:  2,
+	}
+
+	createResp, err := client.Create(createArgs)
+	if err != nil {
+		t.Fatalf("Create failed: %v", err)
+	}
+	if !createResp.Success {
+		t.Fatalf("Create returned error: %s", createResp.Error)
+	}
+
+	var issue types.Issue
+	if err := json.Unmarshal(createResp.Data, &issue); err != nil {
+		t.Fatalf("Failed to unmarshal issue: %v", err)
+	}
+
+	// Show the issue to get IssueDetails response
+	showArgs := &ShowArgs{ID: issue.ID}
+	showResp, err := client.Show(showArgs)
+	if err != nil {
+		t.Fatalf("Show failed: %v", err)
+	}
+	if !showResp.Success {
+		t.Fatalf("Show returned error: %s", showResp.Error)
+	}
+
+	// Parse the raw JSON to verify structure
+	var rawJSON map[string]interface{}
+	if err := json.Unmarshal(showResp.Data, &rawJSON); err != nil {
+		t.Fatalf("Failed to unmarshal raw JSON: %v", err)
+	}
+
+	// Verify that all required fields are present (not omitted)
+	requiredFields := []string{"labels", "dependencies", "dependents", "comments"}
+	for _, field := range requiredFields {
+		val, exists := rawJSON[field]
+		if !exists {
+			t.Errorf("Field %q is missing from JSON response - should be present as empty array", field)
+			continue
+		}
+
+		// Verify it's an array (not null)
+		arr, ok := val.([]interface{})
+		if !ok {
+			t.Errorf("Field %q should be an array, got %T: %v", field, val, val)
+			continue
+		}
+
+		// Verify it's empty (since we didn't add any labels/deps/comments)
+		if len(arr) != 0 {
+			t.Errorf("Field %q should be empty array [], got %v", field, arr)
+		}
+	}
+
+	// Also verify by unmarshaling to IssueDetails struct
+	var details types.IssueDetails
+	if err := json.Unmarshal(showResp.Data, &details); err != nil {
+		t.Fatalf("Failed to unmarshal IssueDetails: %v", err)
+	}
+
+	// Verify the slices are non-nil
+	if details.Labels == nil {
+		t.Error("IssueDetails.Labels should be non-nil empty slice, got nil")
+	}
+	if details.Dependencies == nil {
+		t.Error("IssueDetails.Dependencies should be non-nil empty slice, got nil")
+	}
+	if details.Dependents == nil {
+		t.Error("IssueDetails.Dependents should be non-nil empty slice, got nil")
+	}
+	if details.Comments == nil {
+		t.Error("IssueDetails.Comments should be non-nil empty slice, got nil")
+	}
+
+	// Verify the slices are empty (correct length)
+	if len(details.Labels) != 0 {
+		t.Errorf("Expected 0 labels, got %d", len(details.Labels))
+	}
+	if len(details.Dependencies) != 0 {
+		t.Errorf("Expected 0 dependencies, got %d", len(details.Dependencies))
+	}
+	if len(details.Dependents) != 0 {
+		t.Errorf("Expected 0 dependents, got %d", len(details.Dependents))
+	}
+	if len(details.Comments) != 0 {
+		t.Errorf("Expected 0 comments, got %d", len(details.Comments))
+	}
+}
+
+// TestShowIssueDetailsWithData verifies that IssueDetails JSON serialization
+// correctly includes non-empty arrays for labels, dependencies, dependents, and comments.
+func TestShowIssueDetailsWithData(t *testing.T) {
+	_, client, store, cleanup := setupTestServerWithStore(t)
+	defer cleanup()
+
+	ctx := context.Background()
+
+	// Create two issues - one will be the main issue, one will be a dependency
+	createArgs1 := &CreateArgs{
+		Title:     "Main issue with data",
+		IssueType: "task",
+		Priority:  1,
+		Labels:    []string{"test-label", "important"},
+	}
+	resp1, err := client.Create(createArgs1)
+	if err != nil {
+		t.Fatalf("Create main issue failed: %v", err)
+	}
+	var mainIssue types.Issue
+	if err := json.Unmarshal(resp1.Data, &mainIssue); err != nil {
+		t.Fatalf("Failed to unmarshal main issue: %v", err)
+	}
+
+	createArgs2 := &CreateArgs{
+		Title:     "Blocking issue",
+		IssueType: "task",
+		Priority:  1,
+	}
+	resp2, err := client.Create(createArgs2)
+	if err != nil {
+		t.Fatalf("Create blocking issue failed: %v", err)
+	}
+	var blockingIssue types.Issue
+	if err := json.Unmarshal(resp2.Data, &blockingIssue); err != nil {
+		t.Fatalf("Failed to unmarshal blocking issue: %v", err)
+	}
+
+	// Add a dependency: mainIssue depends on blockingIssue
+	dep := &types.Dependency{
+		IssueID:     mainIssue.ID,
+		DependsOnID: blockingIssue.ID,
+		Type:        types.DepBlocks,
+	}
+	if err := store.AddDependency(ctx, dep, "test"); err != nil {
+		t.Fatalf("Failed to add dependency: %v", err)
+	}
+
+	// Add a comment using AddIssueComment (writes to comments table, not events)
+	if _, err := store.AddIssueComment(ctx, mainIssue.ID, "test-author", "This is a test comment"); err != nil {
+		t.Fatalf("Failed to add comment: %v", err)
+	}
+
+	// Show the main issue
+	showArgs := &ShowArgs{ID: mainIssue.ID}
+	showResp, err := client.Show(showArgs)
+	if err != nil {
+		t.Fatalf("Show failed: %v", err)
+	}
+	if !showResp.Success {
+		t.Fatalf("Show returned error: %s", showResp.Error)
+	}
+
+	// Parse the raw JSON to verify structure
+	var rawJSON map[string]interface{}
+	if err := json.Unmarshal(showResp.Data, &rawJSON); err != nil {
+		t.Fatalf("Failed to unmarshal raw JSON: %v", err)
+	}
+
+	// Verify all required fields are present and are arrays
+	t.Run("labels_field_present", func(t *testing.T) {
+		val, exists := rawJSON["labels"]
+		if !exists {
+			t.Fatal("Field 'labels' is missing from JSON response")
+		}
+		arr, ok := val.([]interface{})
+		if !ok {
+			t.Fatalf("Field 'labels' should be an array, got %T", val)
+		}
+		if len(arr) != 2 {
+			t.Errorf("Expected 2 labels, got %d", len(arr))
+		}
+	})
+
+	t.Run("dependencies_field_present", func(t *testing.T) {
+		val, exists := rawJSON["dependencies"]
+		if !exists {
+			t.Fatal("Field 'dependencies' is missing from JSON response")
+		}
+		arr, ok := val.([]interface{})
+		if !ok {
+			t.Fatalf("Field 'dependencies' should be an array, got %T", val)
+		}
+		if len(arr) != 1 {
+			t.Errorf("Expected 1 dependency, got %d", len(arr))
+		}
+	})
+
+	t.Run("dependents_field_present", func(t *testing.T) {
+		val, exists := rawJSON["dependents"]
+		if !exists {
+			t.Fatal("Field 'dependents' is missing from JSON response")
+		}
+		arr, ok := val.([]interface{})
+		if !ok {
+			t.Fatalf("Field 'dependents' should be an array, got %T", val)
+		}
+		// mainIssue has no dependents (nothing depends on it)
+		if len(arr) != 0 {
+			t.Errorf("Expected 0 dependents, got %d", len(arr))
+		}
+	})
+
+	t.Run("comments_field_present", func(t *testing.T) {
+		val, exists := rawJSON["comments"]
+		if !exists {
+			t.Fatal("Field 'comments' is missing from JSON response")
+		}
+		arr, ok := val.([]interface{})
+		if !ok {
+			t.Fatalf("Field 'comments' should be an array, got %T", val)
+		}
+		if len(arr) != 1 {
+			t.Errorf("Expected 1 comment, got %d", len(arr))
+		}
+	})
+
+	// Unmarshal to IssueDetails to verify typed structure
+	var details types.IssueDetails
+	if err := json.Unmarshal(showResp.Data, &details); err != nil {
+		t.Fatalf("Failed to unmarshal IssueDetails: %v", err)
+	}
+
+	// Verify non-nil slices
+	if details.Labels == nil {
+		t.Error("IssueDetails.Labels should be non-nil")
+	}
+	if details.Dependencies == nil {
+		t.Error("IssueDetails.Dependencies should be non-nil")
+	}
+	if details.Dependents == nil {
+		t.Error("IssueDetails.Dependents should be non-nil")
+	}
+	if details.Comments == nil {
+		t.Error("IssueDetails.Comments should be non-nil")
+	}
+
+	// Verify correct counts
+	if len(details.Labels) != 2 {
+		t.Errorf("Expected 2 labels, got %d", len(details.Labels))
+	}
+	if len(details.Dependencies) != 1 {
+		t.Errorf("Expected 1 dependency, got %d", len(details.Dependencies))
+	}
+	if len(details.Dependents) != 0 {
+		t.Errorf("Expected 0 dependents, got %d", len(details.Dependents))
+	}
+	if len(details.Comments) != 1 {
+		t.Errorf("Expected 1 comment, got %d", len(details.Comments))
+	}
+}
+
+// TestIssueDetailsJSONSerialization tests that types.IssueDetails serializes
+// with empty arrays (not null or omitted) for slice fields (GH#bd-rrtu).
+func TestIssueDetailsJSONSerialization(t *testing.T) {
+	// Create an IssueDetails with explicit empty slices
+	details := types.IssueDetails{
+		Issue: types.Issue{
+			ID:        "test-1",
+			Title:     "Test issue",
+			Status:    types.StatusOpen,
+			Priority:  2,
+			IssueType: types.TypeTask,
+		},
+		Labels:       []string{},
+		Dependencies: []*types.IssueWithDependencyMetadata{},
+		Dependents:   []*types.IssueWithDependencyMetadata{},
+		Comments:     []*types.Comment{},
+	}
+
+	// Serialize to JSON
+	data, err := json.Marshal(details)
+	if err != nil {
+		t.Fatalf("Failed to marshal IssueDetails: %v", err)
+	}
+
+	// Parse as raw JSON to check structure
+	var rawJSON map[string]interface{}
+	if err := json.Unmarshal(data, &rawJSON); err != nil {
+		t.Fatalf("Failed to unmarshal raw JSON: %v", err)
+	}
+
+	// Verify fields are present as empty arrays
+	requiredFields := []string{"labels", "dependencies", "dependents", "comments"}
+	for _, field := range requiredFields {
+		val, exists := rawJSON[field]
+		if !exists {
+			t.Errorf("Field %q should be present in JSON, but was omitted", field)
+			continue
+		}
+
+		arr, ok := val.([]interface{})
+		if !ok {
+			t.Errorf("Field %q should be array, got %T: %v", field, val, val)
+			continue
+		}
+
+		if len(arr) != 0 {
+			t.Errorf("Field %q should be empty array [], got length %d", field, len(arr))
+		}
+	}
+
+	// Verify the JSON string contains the fields as empty arrays
+	jsonStr := string(data)
+	expectedPatterns := []string{
+		`"labels":[]`,
+		`"dependencies":[]`,
+		`"dependents":[]`,
+		`"comments":[]`,
+	}
+	for _, pattern := range expectedPatterns {
+		if !contains(jsonStr, pattern) {
+			t.Errorf("Expected JSON to contain %q, but it doesn't. JSON: %s", pattern, jsonStr)
+		}
+	}
+}
+
+// TestIssueDetailsJSONWithNilSlices tests behavior when IssueDetails has nil slices.
+// This verifies that nil slices become JSON null (which is the default behavior).
+// The handleShow function ensures this never happens by initializing empty slices.
+func TestIssueDetailsJSONWithNilSlices(t *testing.T) {
+	// Create an IssueDetails with nil slices (the problematic case we're preventing)
+	details := types.IssueDetails{
+		Issue: types.Issue{
+			ID:        "test-2",
+			Title:     "Test issue with nil slices",
+			Status:    types.StatusOpen,
+			Priority:  2,
+			IssueType: types.TypeTask,
+		},
+		Labels:       nil,
+		Dependencies: nil,
+		Dependents:   nil,
+		Comments:     nil,
+	}
+
+	// Serialize to JSON
+	data, err := json.Marshal(details)
+	if err != nil {
+		t.Fatalf("Failed to marshal IssueDetails: %v", err)
+	}
+
+	// Parse as raw JSON to check structure
+	var rawJSON map[string]interface{}
+	if err := json.Unmarshal(data, &rawJSON); err != nil {
+		t.Fatalf("Failed to unmarshal raw JSON: %v", err)
+	}
+
+	// With omitempty removed from the struct tags, nil slices serialize as null (not omitted)
+	// This test documents the current behavior
+	requiredFields := []string{"labels", "dependencies", "dependents", "comments"}
+	for _, field := range requiredFields {
+		val, exists := rawJSON[field]
+		if !exists {
+			t.Errorf("Field %q should be present (not omitted) even when nil - omitempty was removed", field)
+			continue
+		}
+
+		// nil slices serialize as JSON null
+		if val != nil {
+			t.Errorf("Field %q with nil slice should serialize as null, got %T: %v", field, val, val)
+		}
+	}
+}
+
+// TestGetGraphData_WithIssuesDepsLabels tests the full graph data response
+// with issues that have dependencies, labels, and time fields.
+func TestGetGraphData_WithIssuesDepsLabels(t *testing.T) {
+	_, client, store, cleanup := setupTestServerWithStore(t)
+	defer cleanup()
+
+	ctx := context.Background()
+
+	// Create three issues: epic, task1 (child of epic), task2 (blocked by task1)
+	epic := &types.Issue{
+		Title:     "Epic for graph",
+		Status:    types.StatusOpen,
+		Priority:  1,
+		IssueType: types.TypeEpic,
+	}
+	task1 := &types.Issue{
+		Title:     "Task 1",
+		Status:    types.StatusOpen,
+		Priority:  2,
+		IssueType: types.TypeTask,
+	}
+	dueAt := time.Date(2026, 3, 15, 0, 0, 0, 0, time.UTC)
+	deferUntil := time.Date(2026, 2, 10, 0, 0, 0, 0, time.UTC)
+	task2 := &types.Issue{
+		Title:      "Task 2",
+		Status:     types.StatusOpen,
+		Priority:   3,
+		IssueType:  types.TypeTask,
+		DueAt:      &dueAt,
+		DeferUntil: &deferUntil,
+	}
+
+	for _, issue := range []*types.Issue{epic, task1, task2} {
+		if err := store.CreateIssue(ctx, issue, "test-user"); err != nil {
+			t.Fatalf("CreateIssue %s failed: %v", issue.Title, err)
+		}
+	}
+
+	// Add dependencies
+	if err := store.AddDependency(ctx, &types.Dependency{
+		IssueID:     task1.ID,
+		DependsOnID: epic.ID,
+		Type:        types.DepParentChild,
+	}, "test-user"); err != nil {
+		t.Fatalf("AddDependency parent-child failed: %v", err)
+	}
+	if err := store.AddDependency(ctx, &types.Dependency{
+		IssueID:     task2.ID,
+		DependsOnID: task1.ID,
+		Type:        types.DepBlocks,
+	}, "test-user"); err != nil {
+		t.Fatalf("AddDependency blocks failed: %v", err)
+	}
+
+	// Add labels
+	if err := store.AddLabel(ctx, epic.ID, "epic-label", "test-user"); err != nil {
+		t.Fatalf("AddLabel failed: %v", err)
+	}
+	if err := store.AddLabel(ctx, task1.ID, "frontend", "test-user"); err != nil {
+		t.Fatalf("AddLabel failed: %v", err)
+	}
+	if err := store.AddLabel(ctx, task1.ID, "priority:high", "test-user"); err != nil {
+		t.Fatalf("AddLabel failed: %v", err)
+	}
+
+	// Call GetGraphData
+	resp, err := client.GetGraphData(&GetGraphDataArgs{})
+	if err != nil {
+		t.Fatalf("GetGraphData failed: %v", err)
+	}
+
+	if len(resp.Issues) < 3 {
+		t.Fatalf("Expected at least 3 issues, got %d", len(resp.Issues))
+	}
+
+	// Build lookup by ID
+	byID := make(map[string]GraphIssueSummary)
+	for _, issue := range resp.Issues {
+		byID[issue.ID] = issue
+	}
+
+	// Verify epic
+	epicSummary, ok := byID[epic.ID]
+	if !ok {
+		t.Fatal("Epic not found in graph response")
+	}
+	if epicSummary.Title != "Epic for graph" {
+		t.Errorf("Epic title: got %q, want %q", epicSummary.Title, "Epic for graph")
+	}
+	if epicSummary.Status != "open" {
+		t.Errorf("Epic status: got %q, want %q", epicSummary.Status, "open")
+	}
+	if epicSummary.Priority != 1 {
+		t.Errorf("Epic priority: got %d, want 1", epicSummary.Priority)
+	}
+	if epicSummary.IssueType != "epic" {
+		t.Errorf("Epic issue_type: got %q, want %q", epicSummary.IssueType, "epic")
+	}
+	if len(epicSummary.Labels) != 1 || epicSummary.Labels[0] != "epic-label" {
+		t.Errorf("Epic labels: got %v, want [epic-label]", epicSummary.Labels)
+	}
+
+	// Verify task1 has parent-child dependency on epic and two labels
+	task1Summary, ok := byID[task1.ID]
+	if !ok {
+		t.Fatal("Task 1 not found in graph response")
+	}
+	if len(task1Summary.Dependencies) != 1 {
+		t.Fatalf("Task 1 deps: got %d, want 1", len(task1Summary.Dependencies))
+	}
+	if task1Summary.Dependencies[0].DependsOnID != epic.ID {
+		t.Errorf("Task 1 dep target: got %q, want %q", task1Summary.Dependencies[0].DependsOnID, epic.ID)
+	}
+	if task1Summary.Dependencies[0].Type != "parent-child" {
+		t.Errorf("Task 1 dep type: got %q, want %q", task1Summary.Dependencies[0].Type, "parent-child")
+	}
+	if len(task1Summary.Labels) != 2 {
+		t.Errorf("Task 1 labels: got %v, want 2 labels", task1Summary.Labels)
+	}
+
+	// Verify task2 has blocks dependency on task1 and DueAt/DeferUntil fields
+	task2Summary, ok := byID[task2.ID]
+	if !ok {
+		t.Fatal("Task 2 not found in graph response")
+	}
+	if len(task2Summary.Dependencies) != 1 {
+		t.Fatalf("Task 2 deps: got %d, want 1", len(task2Summary.Dependencies))
+	}
+	if task2Summary.Dependencies[0].DependsOnID != task1.ID {
+		t.Errorf("Task 2 dep target: got %q, want %q", task2Summary.Dependencies[0].DependsOnID, task1.ID)
+	}
+	if task2Summary.Dependencies[0].Type != "blocks" {
+		t.Errorf("Task 2 dep type: got %q, want %q", task2Summary.Dependencies[0].Type, "blocks")
+	}
+	if task2Summary.DueAt == "" {
+		t.Error("Task 2 DueAt should be set")
+	}
+	if task2Summary.DeferUntil == "" {
+		t.Error("Task 2 DeferUntil should be set")
+	}
+}
+
+// TestGetGraphData_EmptyIssueList verifies response when no issues exist.
+func TestGetGraphData_EmptyIssueList(t *testing.T) {
+	_, client, _, cleanup := setupTestServerWithStore(t)
+	defer cleanup()
+
+	resp, err := client.GetGraphData(&GetGraphDataArgs{})
+	if err != nil {
+		t.Fatalf("GetGraphData failed: %v", err)
+	}
+
+	if resp.Issues == nil {
+		t.Fatal("Expected non-nil Issues slice")
+	}
+	if len(resp.Issues) != 0 {
+		t.Errorf("Expected 0 issues, got %d", len(resp.Issues))
+	}
+}
+
+// TestGetGraphData_ExcludeStatus verifies that ExcludeStatus filters out issues.
+func TestGetGraphData_ExcludeStatus(t *testing.T) {
+	_, client, store, cleanup := setupTestServerWithStore(t)
+	defer cleanup()
+
+	ctx := context.Background()
+
+	// Create one open and one closed issue
+	openIssue := &types.Issue{
+		Title:     "Open task",
+		Status:    types.StatusOpen,
+		Priority:  1,
+		IssueType: types.TypeTask,
+	}
+	closedIssue := &types.Issue{
+		Title:     "Closed task",
+		Status:    types.StatusOpen, // create as open then close
+		Priority:  1,
+		IssueType: types.TypeTask,
+	}
+
+	if err := store.CreateIssue(ctx, openIssue, "test-user"); err != nil {
+		t.Fatalf("CreateIssue failed: %v", err)
+	}
+	if err := store.CreateIssue(ctx, closedIssue, "test-user"); err != nil {
+		t.Fatalf("CreateIssue failed: %v", err)
+	}
+	if err := store.CloseIssue(ctx, closedIssue.ID, "done", "test-user", ""); err != nil {
+		t.Fatalf("CloseIssue failed: %v", err)
+	}
+
+	// Exclude closed issues
+	resp, err := client.GetGraphData(&GetGraphDataArgs{
+		ExcludeStatus: []string{"closed"},
+	})
+	if err != nil {
+		t.Fatalf("GetGraphData failed: %v", err)
+	}
+
+	// Should only contain the open issue
+	for _, issue := range resp.Issues {
+		if issue.Status == "closed" {
+			t.Errorf("Found closed issue %q in response despite ExcludeStatus=[closed]", issue.ID)
+		}
+	}
+
+	found := false
+	for _, issue := range resp.Issues {
+		if issue.ID == openIssue.ID {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("Open issue %q not found in response", openIssue.ID)
+	}
+}
+
+// TestGetGraphData_StatusFilter verifies that the Status field filters issues.
+func TestGetGraphData_StatusFilter(t *testing.T) {
+	_, client, store, cleanup := setupTestServerWithStore(t)
+	defer cleanup()
+
+	ctx := context.Background()
+
+	// Create open and in_progress issues
+	openIssue := &types.Issue{
+		Title:     "Open issue",
+		Status:    types.StatusOpen,
+		Priority:  1,
+		IssueType: types.TypeTask,
+	}
+	inProgressIssue := &types.Issue{
+		Title:     "In progress issue",
+		Status:    types.StatusInProgress,
+		Priority:  1,
+		IssueType: types.TypeTask,
+	}
+
+	if err := store.CreateIssue(ctx, openIssue, "test-user"); err != nil {
+		t.Fatalf("CreateIssue failed: %v", err)
+	}
+	if err := store.CreateIssue(ctx, inProgressIssue, "test-user"); err != nil {
+		t.Fatalf("CreateIssue failed: %v", err)
+	}
+
+	// Filter for only open issues
+	resp, err := client.GetGraphData(&GetGraphDataArgs{
+		Status: "open",
+	})
+	if err != nil {
+		t.Fatalf("GetGraphData failed: %v", err)
+	}
+
+	for _, issue := range resp.Issues {
+		if issue.Status != "open" {
+			t.Errorf("Found non-open issue %q with status %q despite Status=open filter", issue.ID, issue.Status)
+		}
+	}
+}
+
+// TestGetGraphData_StorageUnavailable tests error when storage is nil.
+func TestGetGraphData_StorageUnavailable(t *testing.T) {
+	// Create a server with nil storage
+	server := &Server{}
+
+	args, _ := json.Marshal(GetGraphDataArgs{})
+	req := &Request{
+		Operation: OpGetGraphData,
+		Args:      args,
+	}
+
+	resp := server.handleGetGraphData(req)
+	if resp.Success {
+		t.Fatal("Expected failure when storage is nil")
+	}
+	if resp.Error == "" {
+		t.Fatal("Expected error message when storage is nil")
+	}
+	if !containsHelper(resp.Error, "storage not available") {
+		t.Errorf("Expected error to contain 'storage not available', got %q", resp.Error)
+	}
+}
+
+// TestGetGraphData_InvalidArgs tests error handling for malformed args at the server handler level.
+func TestGetGraphData_InvalidArgs(t *testing.T) {
+	// Directly invoke the handler with malformed JSON args
+	server := &Server{}
+
+	req := &Request{
+		Operation: OpGetGraphData,
+		Args:      json.RawMessage(`{invalid`),
+	}
+
+	resp := server.handleGetGraphData(req)
+	if resp.Success {
+		t.Fatal("Expected failure for invalid args")
+	}
+	if !containsHelper(resp.Error, "invalid get_graph_data args") {
+		t.Errorf("Expected error to contain 'invalid get_graph_data args', got %q", resp.Error)
+	}
+}
+
+// TestGetGraphData_DeferUntilAndDueAt verifies that DeferUntil and DueAt are formatted
+// as RFC3339 strings in the graph response.
+func TestGetGraphData_DeferUntilAndDueAt(t *testing.T) {
+	_, client, store, cleanup := setupTestServerWithStore(t)
+	defer cleanup()
+
+	ctx := context.Background()
+
+	dueAt := time.Date(2026, 6, 15, 10, 30, 0, 0, time.UTC)
+	deferUntil := time.Date(2026, 5, 1, 8, 0, 0, 0, time.UTC)
+
+	issue := &types.Issue{
+		Title:      "Scheduled task",
+		Status:     types.StatusOpen,
+		Priority:   1,
+		IssueType:  types.TypeTask,
+		DueAt:      &dueAt,
+		DeferUntil: &deferUntil,
+	}
+	if err := store.CreateIssue(ctx, issue, "test-user"); err != nil {
+		t.Fatalf("CreateIssue failed: %v", err)
+	}
+
+	resp, err := client.GetGraphData(&GetGraphDataArgs{})
+	if err != nil {
+		t.Fatalf("GetGraphData failed: %v", err)
+	}
+
+	var found *GraphIssueSummary
+	for i := range resp.Issues {
+		if resp.Issues[i].ID == issue.ID {
+			found = &resp.Issues[i]
+			break
+		}
+	}
+	if found == nil {
+		t.Fatalf("Issue %q not found in graph response", issue.ID)
+	}
+
+	// Verify DueAt is RFC3339 formatted
+	if found.DueAt == "" {
+		t.Fatal("Expected DueAt to be set in graph response")
+	}
+	parsedDue, err := time.Parse(time.RFC3339, found.DueAt)
+	if err != nil {
+		t.Fatalf("DueAt is not valid RFC3339: %q, error: %v", found.DueAt, err)
+	}
+	if parsedDue.Year() != 2026 || parsedDue.Month() != 6 || parsedDue.Day() != 15 {
+		t.Errorf("DueAt date mismatch: got %v, want 2026-06-15", parsedDue)
+	}
+
+	// Verify DeferUntil is RFC3339 formatted
+	if found.DeferUntil == "" {
+		t.Fatal("Expected DeferUntil to be set in graph response")
+	}
+	parsedDefer, err := time.Parse(time.RFC3339, found.DeferUntil)
+	if err != nil {
+		t.Fatalf("DeferUntil is not valid RFC3339: %q, error: %v", found.DeferUntil, err)
+	}
+	if parsedDefer.Year() != 2026 || parsedDefer.Month() != 5 || parsedDefer.Day() != 1 {
+		t.Errorf("DeferUntil date mismatch: got %v, want 2026-05-01", parsedDefer)
+	}
+}
+
+// TestGetGraphData_NoDepsNoLabels verifies that issues without dependencies or labels
+// produce empty/nil slices in the response (not errors).
+func TestGetGraphData_NoDepsNoLabels(t *testing.T) {
+	_, client, store, cleanup := setupTestServerWithStore(t)
+	defer cleanup()
+
+	ctx := context.Background()
+
+	issue := &types.Issue{
+		Title:     "Standalone task",
+		Status:    types.StatusOpen,
+		Priority:  1,
+		IssueType: types.TypeTask,
+	}
+	if err := store.CreateIssue(ctx, issue, "test-user"); err != nil {
+		t.Fatalf("CreateIssue failed: %v", err)
+	}
+
+	resp, err := client.GetGraphData(&GetGraphDataArgs{})
+	if err != nil {
+		t.Fatalf("GetGraphData failed: %v", err)
+	}
+
+	var found *GraphIssueSummary
+	for i := range resp.Issues {
+		if resp.Issues[i].ID == issue.ID {
+			found = &resp.Issues[i]
+			break
+		}
+	}
+	if found == nil {
+		t.Fatalf("Issue %q not found in graph response", issue.ID)
+	}
+
+	// Dependencies and labels should be empty (nil or empty slice is fine)
+	if len(found.Dependencies) != 0 {
+		t.Errorf("Expected 0 dependencies, got %d", len(found.Dependencies))
+	}
+	if len(found.Labels) != 0 {
+		t.Errorf("Expected 0 labels, got %d", len(found.Labels))
+	}
+	if found.DueAt != "" {
+		t.Errorf("Expected empty DueAt, got %q", found.DueAt)
+	}
+	if found.DeferUntil != "" {
+		t.Errorf("Expected empty DeferUntil, got %q", found.DeferUntil)
+	}
+}
+
+// TestGetGraphData_ExcludesTemplates verifies that template issues are excluded by default.
+func TestGetGraphData_ExcludesTemplates(t *testing.T) {
+	_, client, store, cleanup := setupTestServerWithStore(t)
+	defer cleanup()
+
+	ctx := context.Background()
+
+	// Create a regular issue
+	regular := &types.Issue{
+		Title:     "Regular task",
+		Status:    types.StatusOpen,
+		Priority:  1,
+		IssueType: types.TypeTask,
+	}
+	if err := store.CreateIssue(ctx, regular, "test-user"); err != nil {
+		t.Fatalf("CreateIssue failed: %v", err)
+	}
+
+	// Create a template issue (set IsTemplate via direct storage update)
+	template := &types.Issue{
+		Title:      "Template task",
+		Status:     types.StatusOpen,
+		Priority:   1,
+		IssueType:  types.TypeTask,
+		IsTemplate: true,
+	}
+	if err := store.CreateIssue(ctx, template, "test-user"); err != nil {
+		t.Fatalf("CreateIssue template failed: %v", err)
+	}
+
+	resp, err := client.GetGraphData(&GetGraphDataArgs{})
+	if err != nil {
+		t.Fatalf("GetGraphData failed: %v", err)
+	}
+
+	for _, issue := range resp.Issues {
+		if issue.ID == template.ID {
+			t.Errorf("Template issue %q should be excluded from graph data", template.ID)
+		}
+	}
+
+	found := false
+	for _, issue := range resp.Issues {
+		if issue.ID == regular.ID {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("Regular issue %q should be included in graph data", regular.ID)
+	}
+}
+
+// contains checks if a string contains a substring
+func contains(s, substr string) bool {
+	return len(s) >= len(substr) && (s == substr || len(s) > 0 && containsHelper(s, substr))
+}
+
+func containsHelper(s, substr string) bool {
+	for i := 0; i <= len(s)-len(substr); i++ {
+		if s[i:i+len(substr)] == substr {
+			return true
+		}
+	}
+	return false
+}

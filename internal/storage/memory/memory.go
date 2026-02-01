@@ -380,6 +380,32 @@ func (m *MemoryStorage) GetIssueByExternalRef(ctx context.Context, externalRef s
 	return &issueCopy, nil
 }
 
+// ClaimIssue atomically claims an issue by setting assignee and status to in_progress.
+// Returns (true, nil) if claim succeeded, (false, nil) if already claimed by someone else,
+// or (false, error) if the operation failed.
+func (m *MemoryStorage) ClaimIssue(ctx context.Context, id string, assignee string) (bool, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	issue, exists := m.issues[id]
+	if !exists {
+		return false, fmt.Errorf("issue %s not found", id)
+	}
+
+	// Only fail if task is actively being worked on (has assignee AND is in_progress)
+	// Allow claiming open tasks even with stale assignees
+	if issue.Assignee != "" && issue.Status == types.StatusInProgress {
+		return false, nil
+	}
+
+	// Claim it
+	issue.Assignee = assignee
+	issue.Status = types.StatusInProgress
+	issue.UpdatedAt = time.Now()
+
+	return true, nil
+}
+
 // UpdateIssue updates fields on an issue
 func (m *MemoryStorage) UpdateIssue(ctx context.Context, id string, updates map[string]interface{}, actor string) error {
 	m.mu.Lock()
@@ -846,6 +872,51 @@ func (m *MemoryStorage) GetDependencyCounts(ctx context.Context, issueIDs []stri
 		for _, dep := range deps {
 			if idSet[dep.DependsOnID] {
 				result[dep.DependsOnID].DependentCount++
+			}
+		}
+	}
+
+	return result, nil
+}
+
+// GetDependenciesForIssues gets dependency records for multiple issues in a single operation
+func (m *MemoryStorage) GetDependenciesForIssues(ctx context.Context, issueIDs []string) (map[string][]*types.Dependency, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	result := make(map[string][]*types.Dependency)
+	for _, id := range issueIDs {
+		if deps, exists := m.dependencies[id]; exists {
+			result[id] = deps
+		} else {
+			result[id] = []*types.Dependency{}
+		}
+	}
+
+	return result, nil
+}
+
+// GetParentIDs returns parent info for multiple issues.
+// For issues with parent-child dependencies, returns the parent ID and title.
+// Returns a map from childID to ParentInfo.
+func (m *MemoryStorage) GetParentIDs(ctx context.Context, issueIDs []string) (map[string]*types.ParentInfo, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	result := make(map[string]*types.ParentInfo)
+
+	// Search dependencies for parent-child relationships
+	for _, id := range issueIDs {
+		deps := m.dependencies[id]
+		for _, dep := range deps {
+			if dep.Type == types.DepParentChild {
+				if parent, exists := m.issues[dep.DependsOnID]; exists {
+					result[id] = &types.ParentInfo{
+						ParentID:    parent.ID,
+						ParentTitle: parent.Title,
+					}
+				}
+				break // Only one parent per issue
 			}
 		}
 	}
