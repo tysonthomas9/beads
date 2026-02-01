@@ -22,12 +22,14 @@ export interface MonitorDashboardProps {
   className?: string;
   /** Callback to change the active view (used for expand to graph) */
   onViewChange?: (view: ViewMode) => void;
+  /** Callback when an issue is clicked (bottleneck item or graph node) */
+  onIssueClick?: (issue: Issue) => void;
 }
 
 /**
  * MonitorDashboard renders a single-column vertical stack for multi-agent monitoring.
  */
-export function MonitorDashboard({ className }: MonitorDashboardProps): JSX.Element {
+export function MonitorDashboard({ className, onIssueClick }: MonitorDashboardProps): JSX.Element {
   // Fetch agent status and stats
   const {
     agents,
@@ -50,10 +52,9 @@ export function MonitorDashboard({ className }: MonitorDashboardProps): JSX.Elem
     pollInterval: 30000,
   });
 
-  // Handler for bottleneck clicks - placeholder for navigation
+  // Handler for bottleneck clicks - opens issue detail panel
   const handleBottleneckClick = (issue: Pick<Issue, 'id' | 'title'>) => {
-    // TODO: Integrate with IssueDetailPanel when available
-    console.log('Bottleneck clicked:', issue.id);
+    onIssueClick?.({ ...issue } as Issue);
   };
 
   // Handler for agent clicks - placeholder for agent details

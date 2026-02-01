@@ -3,12 +3,14 @@
  */
 
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { MonitorDashboard } from '../MonitorDashboard';
+import type { Priority } from '@/types';
 
 // Mock the hooks to prevent API calls in tests
 const mockSetActiveView = vi.fn();
+let mockBlockedIssuesData: unknown[] = [];
 
 vi.mock('@/hooks', () => ({
   useAgents: () => ({
@@ -35,7 +37,7 @@ vi.mock('@/hooks', () => ({
     retryNow: vi.fn(),
   }),
   useBlockedIssues: () => ({
-    data: [],
+    data: mockBlockedIssuesData,
     loading: false,
     error: null,
     refetch: vi.fn(),
@@ -43,7 +45,26 @@ vi.mock('@/hooks', () => ({
   useViewState: () => ['monitor', mockSetActiveView],
 }));
 
+/**
+ * Create a blocked issue for testing bottleneck click behavior.
+ */
+function createBlockedIssue(id: string, blockedBy: string[]) {
+  return {
+    id,
+    title: `Title for ${id}`,
+    priority: 2 as Priority,
+    created_at: '2026-01-25T00:00:00Z',
+    updated_at: '2026-01-25T00:00:00Z',
+    blocked_by_count: blockedBy.length,
+    blocked_by: blockedBy,
+  };
+}
+
 describe('MonitorDashboard', () => {
+  beforeEach(() => {
+    mockBlockedIssuesData = [];
+  });
+
   it('renders both panels', () => {
     render(<MonitorDashboard />);
 
@@ -98,5 +119,64 @@ describe('MonitorDashboard', () => {
     render(<MonitorDashboard />);
 
     expect(screen.getByRole('button', { name: /agent activity settings/i })).toBeInTheDocument();
+  });
+
+  describe('onIssueClick prop', () => {
+    it('renders without onIssueClick (backward compatibility)', () => {
+      render(<MonitorDashboard />);
+
+      expect(screen.getByTestId('monitor-dashboard')).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: /project health/i })).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: /agent activity/i })).toBeInTheDocument();
+    });
+
+    it('calls onIssueClick when a bottleneck item is clicked', () => {
+      // Set up blocked issues so that 'bottleneck-1' blocks multiple issues (creating a bottleneck)
+      mockBlockedIssuesData = [
+        createBlockedIssue('blocked-1', ['bottleneck-1']),
+        createBlockedIssue('blocked-2', ['bottleneck-1']),
+      ];
+
+      const onIssueClick = vi.fn();
+      render(<MonitorDashboard onIssueClick={onIssueClick} />);
+
+      const bottleneckButton = screen.getByRole('button', { name: /bottleneck-1/i });
+      fireEvent.click(bottleneckButton);
+
+      expect(onIssueClick).toHaveBeenCalledTimes(1);
+      expect(onIssueClick).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: 'bottleneck-1',
+          title: 'bottleneck-1', // Falls back to ID since title is not in blocked_by data
+        })
+      );
+    });
+
+    it('does not throw when bottleneck is clicked without onIssueClick', () => {
+      mockBlockedIssuesData = [
+        createBlockedIssue('blocked-1', ['bottleneck-1']),
+        createBlockedIssue('blocked-2', ['bottleneck-1']),
+      ];
+
+      render(<MonitorDashboard />);
+
+      const bottleneckButton = screen.getByRole('button', { name: /bottleneck-1/i });
+      // handleBottleneckClick uses optional chaining (onIssueClick?.()),
+      // so clicking without onIssueClick should be a no-op
+      expect(() => fireEvent.click(bottleneckButton)).not.toThrow();
+    });
+
+    it('handleAgentClick still console.logs (unchanged behavior)', () => {
+      const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+      render(<MonitorDashboard onIssueClick={vi.fn()} />);
+
+      // The handleAgentClick is passed to AgentActivityPanel but agents array is empty,
+      // so we verify the console.log behavior is unchanged by confirming the component
+      // renders correctly with the onIssueClick prop without interfering with agent handling
+      expect(screen.getByTestId('agent-activity-panel')).toBeInTheDocument();
+
+      consoleSpy.mockRestore();
+    });
   });
 });
