@@ -30,6 +30,11 @@ export default defineConfig(({ mode }) => ({
         manualChunks: {
           react: ["react", "react-dom"],
           "react-flow": ["@xyflow/react"],
+          xterm: [
+            "@xterm/xterm",
+            "@xterm/addon-fit",
+            "@xterm/addon-web-links",
+          ],
         },
       },
     },
