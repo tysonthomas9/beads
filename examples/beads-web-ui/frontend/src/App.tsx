@@ -57,6 +57,11 @@ const MonitorDashboard = lazy(() =>
   import('@/components/MonitorDashboard').then((m) => ({ default: m.MonitorDashboard }))
 );
 
+// Lazy load TerminalPanel (xterm.js ~100KB)
+const TerminalPanel = lazy(() =>
+  import('@/components/TerminalPanel').then((m) => ({ default: m.TerminalPanel }))
+);
+
 function App() {
   // View state must be read before useIssues to determine fetch mode
   const [activeView, setActiveView] = useViewState();
@@ -154,6 +159,9 @@ function App() {
   // Agent detail panel state
   const [isAgentPanelOpen, setIsAgentPanelOpen] = useState(false);
   const [selectedAgentName, setSelectedAgentName] = useState<string | null>(null);
+
+  // Terminal panel state
+  const [isTerminalOpen, setIsTerminalOpen] = useState(false);
 
   // Assignee prompt state for Ready → In Progress drag
   const { recentAssignees, addRecentAssignee } = useRecentAssignees();
@@ -308,11 +316,16 @@ function App() {
         }, 300);
       }
 
+      // Close terminal if open
+      if (isTerminalOpen) {
+        setIsTerminalOpen(false);
+      }
+
       setSelectedIssueId(issue.id);
       setIsPanelOpen(true);
       fetchIssue(issue.id);
     },
-    [selectedIssueId, isPanelOpen, isAgentPanelOpen, fetchIssue]
+    [selectedIssueId, isPanelOpen, isAgentPanelOpen, isTerminalOpen, fetchIssue]
   );
 
   // Handle panel close
@@ -339,10 +352,15 @@ function App() {
         }, 300);
       }
 
+      // Close terminal if open
+      if (isTerminalOpen) {
+        setIsTerminalOpen(false);
+      }
+
       setSelectedAgentName(agentName);
       setIsAgentPanelOpen(true);
     },
-    [isPanelOpen, clearIssue]
+    [isPanelOpen, isTerminalOpen, clearIssue]
   );
 
   // Handle agent panel close
@@ -352,6 +370,37 @@ function App() {
       if (!mountedRef.current) return;
       setSelectedAgentName(null);
     }, 300);
+  }, []);
+
+  // Handle Talk to Lead button click
+  const handleTalkToLeadClick = useCallback(() => {
+    if (isTerminalOpen) {
+      // Close terminal
+      setIsTerminalOpen(false);
+    } else {
+      // Close other panels first (single-panel policy)
+      if (isPanelOpen) {
+        setIsPanelOpen(false);
+        setTimeout(() => {
+          if (!mountedRef.current) return;
+          clearIssue();
+          setSelectedIssueId(null);
+        }, 300);
+      }
+      if (isAgentPanelOpen) {
+        setIsAgentPanelOpen(false);
+        setTimeout(() => {
+          if (!mountedRef.current) return;
+          setSelectedAgentName(null);
+        }, 300);
+      }
+      setIsTerminalOpen(true);
+    }
+  }, [isTerminalOpen, isPanelOpen, isAgentPanelOpen, clearIssue]);
+
+  // Handle terminal panel close
+  const handleTerminalClose = useCallback(() => {
+    setIsTerminalOpen(false);
   }, []);
 
   // Handle task click from agent panel (opens IssueDetailPanel for that task)
@@ -570,13 +619,16 @@ function App() {
         onClose={handleAgentPanelClose}
         onTaskClick={handleAgentTaskClick}
       />
-      <TalkToLeadButton />
+      <TalkToLeadButton onClick={handleTalkToLeadClick} isActive={isTerminalOpen} />
       <AssigneePrompt
         isOpen={pendingDragData !== null}
         onConfirm={handleAssigneeConfirm}
         onSkip={handleAssigneeSkip}
         recentNames={recentAssignees}
       />
+      <Suspense fallback={null}>
+        <TerminalPanel isOpen={isTerminalOpen} onClose={handleTerminalClose} />
+      </Suspense>
     </AppLayout>
   );
 }

@@ -15,16 +15,76 @@ import type { Issue, Status } from '@/types';
 import type { ConnectionState } from '@/api/sse';
 
 // Create hoisted mocks that can be shared across mock definitions
-const { mockUseIssues, mockUseIssueDetail, mockUseToast } = vi.hoisted(() => ({
-  mockUseIssues: vi.fn(),
-  mockUseIssueDetail: vi.fn(),
-  mockUseToast: vi.fn(() => ({
-    toasts: [],
-    showToast: vi.fn(),
-    dismissToast: vi.fn(),
-    dismissAll: vi.fn(),
-  })),
-}));
+const { mockUseIssues, mockUseIssueDetail, mockUseToast, mockUseAgents, mockUseAgentContext } =
+  vi.hoisted(() => ({
+    mockUseIssues: vi.fn(),
+    mockUseIssueDetail: vi.fn(),
+    mockUseToast: vi.fn(() => ({
+      toasts: [],
+      showToast: vi.fn(),
+      dismissToast: vi.fn(),
+      dismissAll: vi.fn(),
+    })),
+    mockUseAgents: vi.fn(() => ({
+      agents: [],
+      tasks: {
+        needs_planning: 0,
+        ready_to_implement: 0,
+        in_progress: 0,
+        need_review: 0,
+        blocked: 0,
+      },
+      taskLists: {
+        needsPlanning: [],
+        readyToImplement: [],
+        needsReview: [],
+        inProgress: [],
+        blocked: [],
+      },
+      agentTasks: {},
+      sync: { db_synced: true, db_last_sync: '', git_needs_push: 0, git_needs_pull: 0 },
+      stats: { open: 0, closed: 0, total: 0, completion: 0 },
+      isLoading: false,
+      isConnected: true,
+      connectionState: 'connected',
+      wasEverConnected: true,
+      retryCountdown: 0,
+      error: null,
+      lastUpdated: null,
+      refetch: vi.fn(),
+      retryNow: vi.fn(),
+    })),
+    mockUseAgentContext: vi.fn(() => ({
+      agents: [],
+      tasks: {
+        needs_planning: 0,
+        ready_to_implement: 0,
+        in_progress: 0,
+        need_review: 0,
+        blocked: 0,
+      },
+      taskLists: {
+        needsPlanning: [],
+        readyToImplement: [],
+        needsReview: [],
+        inProgress: [],
+        blocked: [],
+      },
+      agentTasks: {},
+      sync: { db_synced: true, db_last_sync: '', git_needs_push: 0, git_needs_pull: 0 },
+      stats: { open: 0, closed: 0, total: 0, completion: 0 },
+      isLoading: false,
+      isConnected: true,
+      connectionState: 'connected',
+      wasEverConnected: true,
+      retryCountdown: 0,
+      error: null,
+      lastUpdated: null,
+      refetch: vi.fn(),
+      retryNow: vi.fn(),
+      getAgentByName: vi.fn(() => undefined),
+    })),
+  }));
 
 // Mock the useIssues hook from its direct module
 vi.mock('@/hooks/useIssues', () => ({
@@ -43,6 +103,21 @@ vi.mock('@/components/GraphView', () => ({
 // Mock MonitorDashboard to avoid complex dependencies in jsdom
 vi.mock('@/components/MonitorDashboard', () => ({
   MonitorDashboard: () => <div data-testid="monitor-dashboard">Monitor Dashboard</div>,
+}));
+
+// Mock TerminalPanel to avoid xterm.js browser dependencies in jsdom
+vi.mock('@/components/TerminalPanel', () => ({
+  TerminalPanel: ({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) => (
+    <div
+      data-testid="terminal-panel-overlay"
+      data-state={isOpen ? 'open' : 'closed'}
+      aria-hidden={!isOpen}
+    >
+      <button data-testid="terminal-close-button" onClick={onClose} aria-label="Close terminal">
+        Close
+      </button>
+    </div>
+  ),
 }));
 
 // Create hoisted mock for useViewState to allow per-test control
@@ -142,60 +217,9 @@ vi.mock('@/hooks', () => ({
     isLayouting: false,
     triggerLayout: vi.fn(),
   })),
-  useAgents: vi.fn(() => ({
-    agents: [],
-    tasks: { needs_planning: 0, ready_to_implement: 0, in_progress: 0, need_review: 0, blocked: 0 },
-    taskLists: {
-      needsPlanning: [],
-      readyToImplement: [],
-      needsReview: [],
-      inProgress: [],
-      blocked: [],
-    },
-    agentTasks: {},
-    sync: { db_synced: true, db_last_sync: '', git_needs_push: 0, git_needs_pull: 0 },
-    stats: { open: 0, closed: 0, total: 0, completion: 0 },
-    isLoading: false,
-    isConnected: true,
-    connectionState: 'connected',
-    wasEverConnected: true,
-    retryCountdown: 0,
-    error: null,
-    lastUpdated: null,
-    refetch: vi.fn(),
-    retryNow: vi.fn(),
-  })),
-  useAgentContext: vi.fn(() => ({
-    agents: [],
-    tasks: { needs_planning: 0, ready_to_implement: 0, in_progress: 0, need_review: 0, blocked: 0 },
-    taskLists: {
-      needsPlanning: [],
-      readyToImplement: [],
-      needsReview: [],
-      inProgress: [],
-      blocked: [],
-    },
-    agentTasks: {},
-    sync: { db_synced: true, db_last_sync: '', git_needs_push: 0, git_needs_pull: 0 },
-    stats: { open: 0, closed: 0, total: 0, completion: 0 },
-    isLoading: false,
-    isConnected: true,
-    connectionState: 'connected',
-    wasEverConnected: true,
-    retryCountdown: 0,
-    error: null,
-    lastUpdated: null,
-    refetch: vi.fn(),
-    retryNow: vi.fn(),
-    getAgentByName: vi.fn(() => undefined),
-  })),
+  useAgents: mockUseAgents,
+  useAgentContext: mockUseAgentContext,
   AgentProvider: ({ children }: { children: React.ReactNode }) => children,
-  useStats: vi.fn(() => ({
-    data: null,
-    loading: false,
-    error: null,
-    refetch: vi.fn(),
-  })),
   useStats: vi.fn(() => ({
     data: { open: 0, in_progress: 0, ready: 0, closed: 0 },
     loading: false,
@@ -211,7 +235,7 @@ vi.mock('@/hooks', () => ({
 
 // Import the mocked module
 import { useIssues } from '@/hooks/useIssues';
-import { useFilterState, useIssueDetail, useViewState } from '@/hooks';
+import { useFilterState, useIssueDetail, useViewState, useAgents, useAgentContext } from '@/hooks';
 
 // Alias for convenience in tests (prefixed with _ to satisfy linter for unused vars)
 const _useIssuesMock = mockUseIssues;
@@ -1864,6 +1888,390 @@ describe('App', () => {
       await waitFor(() => {
         expect(screen.getByTestId('monitor-dashboard')).toBeInTheDocument();
       });
+    });
+  });
+
+  describe('TerminalPanel integration', () => {
+    it('renders TalkToLeadButton in the app', () => {
+      const mockReturn = createMockUseIssuesReturn({});
+      vi.mocked(useIssues).mockReturnValue(mockReturn);
+
+      render(<App />);
+
+      expect(screen.getByTestId('talk-to-lead-button')).toBeInTheDocument();
+    });
+
+    it('TalkToLeadButton has isActive=false by default (terminal closed)', () => {
+      const mockReturn = createMockUseIssuesReturn({});
+      vi.mocked(useIssues).mockReturnValue(mockReturn);
+
+      render(<App />);
+
+      const button = screen.getByTestId('talk-to-lead-button');
+      expect(button).not.toHaveAttribute('data-active');
+      // When isActive is false (default), aria-pressed is "false"
+      expect(button).toHaveAttribute('aria-pressed', 'false');
+    });
+
+    it('opens terminal and sets TalkToLeadButton isActive=true when clicked', () => {
+      const mockReturn = createMockUseIssuesReturn({});
+      vi.mocked(useIssues).mockReturnValue(mockReturn);
+
+      render(<App />);
+
+      const button = screen.getByTestId('talk-to-lead-button');
+      fireEvent.click(button);
+
+      // Button should now be active
+      expect(button).toHaveAttribute('data-active', 'true');
+      expect(button).toHaveAttribute('aria-pressed', 'true');
+    });
+
+    it('closes terminal when TalkToLeadButton is clicked while terminal is open (toggle)', () => {
+      const mockReturn = createMockUseIssuesReturn({});
+      vi.mocked(useIssues).mockReturnValue(mockReturn);
+
+      render(<App />);
+
+      const button = screen.getByTestId('talk-to-lead-button');
+
+      // Open terminal
+      fireEvent.click(button);
+      expect(button).toHaveAttribute('data-active', 'true');
+
+      // Close terminal (toggle)
+      fireEvent.click(button);
+      expect(button).not.toHaveAttribute('data-active');
+    });
+
+    it('closes terminal when IssueDetailPanel opens (single-panel policy)', () => {
+      const fetchIssue = vi.fn();
+      const issues = [
+        createMockIssue({
+          id: 'issue-1',
+          title: 'Test Issue',
+          status: 'open',
+        }),
+      ];
+      const mockReturn = createMockUseIssuesReturn({ issues });
+      vi.mocked(useIssues).mockReturnValue(mockReturn);
+      vi.mocked(useIssueDetail).mockReturnValue(
+        createMockUseIssueDetailReturn({
+          fetchIssue,
+        })
+      );
+
+      render(<App />);
+
+      // Open terminal first
+      const talkButton = screen.getByTestId('talk-to-lead-button');
+      fireEvent.click(talkButton);
+      expect(talkButton).toHaveAttribute('data-active', 'true');
+
+      // Click on an issue to open IssueDetailPanel
+      const issueCard = screen.getByText('Test Issue');
+      fireEvent.click(issueCard);
+
+      // Terminal should now be closed
+      expect(talkButton).not.toHaveAttribute('data-active');
+    });
+
+    it('closes issue panel when terminal opens (single-panel policy)', () => {
+      const fetchIssue = vi.fn();
+      const clearIssue = vi.fn();
+      const issues = [
+        createMockIssue({
+          id: 'issue-1',
+          title: 'Test Issue',
+          status: 'open',
+        }),
+      ];
+      const mockReturn = createMockUseIssuesReturn({ issues });
+      vi.mocked(useIssues).mockReturnValue(mockReturn);
+      vi.mocked(useIssueDetail).mockReturnValue(
+        createMockUseIssueDetailReturn({
+          fetchIssue,
+          clearIssue,
+        })
+      );
+
+      const { container } = render(<App />);
+
+      // Open issue panel first
+      const issueCard = screen.getByText('Test Issue');
+      fireEvent.click(issueCard);
+
+      // Issue panel should be open
+      const issuePanel = container.querySelector('[data-testid="issue-detail-panel"]');
+      expect(issuePanel).toHaveAttribute('data-state', 'open');
+
+      // Open terminal
+      const talkButton = screen.getByTestId('talk-to-lead-button');
+      fireEvent.click(talkButton);
+
+      // Issue panel should now be closed
+      expect(issuePanel).toHaveAttribute('data-state', 'closed');
+      // Terminal should be open
+      expect(talkButton).toHaveAttribute('data-active', 'true');
+    });
+
+    it('closes terminal when AgentDetailPanel opens (single-panel policy)', () => {
+      const mockReturn = createMockUseIssuesReturn({});
+      vi.mocked(useIssues).mockReturnValue(mockReturn);
+
+      // Mock useAgentContext to return agents for the sidebar (AgentsSidebar uses useAgentContext)
+      vi.mocked(useAgentContext).mockReturnValue({
+        agents: [
+          {
+            name: 'agent-1',
+            status: 'idle',
+            current_task: null,
+            workspace: '/test',
+            started_at: '2024-01-01T00:00:00Z',
+          },
+        ],
+        agentTasks: {},
+        tasks: {
+          needs_planning: 0,
+          ready_to_implement: 0,
+          in_progress: 0,
+          need_review: 0,
+          blocked: 0,
+        },
+        taskLists: {
+          needsPlanning: [],
+          readyToImplement: [],
+          needsReview: [],
+          inProgress: [],
+          blocked: [],
+        },
+        sync: { db_synced: true, db_last_sync: '', git_needs_push: 0, git_needs_pull: 0 },
+        stats: { open: 0, closed: 0, total: 0, completion: 0 },
+        isLoading: false,
+        isConnected: true,
+        connectionState: 'connected',
+        wasEverConnected: true,
+        retryCountdown: 0,
+        error: null,
+        lastUpdated: null,
+        refetch: vi.fn(),
+        retryNow: vi.fn(),
+        getAgentByName: vi.fn(() => undefined),
+      });
+
+      // Also mock useAgents which is used by App.tsx for AgentDetailPanel
+      vi.mocked(useAgents).mockReturnValue({
+        agents: [
+          {
+            name: 'agent-1',
+            status: 'idle',
+            current_task: null,
+            workspace: '/test',
+            started_at: '2024-01-01T00:00:00Z',
+          },
+        ],
+        agentTasks: {},
+        tasks: {
+          needs_planning: 0,
+          ready_to_implement: 0,
+          in_progress: 0,
+          need_review: 0,
+          blocked: 0,
+        },
+        taskLists: {
+          needsPlanning: [],
+          readyToImplement: [],
+          needsReview: [],
+          inProgress: [],
+          blocked: [],
+        },
+        sync: { db_synced: true, db_last_sync: '', git_needs_push: 0, git_needs_pull: 0 },
+        stats: { open: 0, closed: 0, total: 0, completion: 0 },
+        isLoading: false,
+        isConnected: true,
+        connectionState: 'connected',
+        wasEverConnected: true,
+        retryCountdown: 0,
+        error: null,
+        lastUpdated: null,
+        refetch: vi.fn(),
+        retryNow: vi.fn(),
+      });
+
+      render(<App />);
+
+      // Open terminal first
+      const talkButton = screen.getByTestId('talk-to-lead-button');
+      fireEvent.click(talkButton);
+      expect(talkButton).toHaveAttribute('data-active', 'true');
+
+      // Click on an agent to open AgentDetailPanel
+      const agentCard = screen.getByText('agent-1');
+      fireEvent.click(agentCard);
+
+      // Terminal should now be closed
+      expect(talkButton).not.toHaveAttribute('data-active');
+    });
+
+    it('closes agent panel when terminal opens (single-panel policy)', () => {
+      const mockReturn = createMockUseIssuesReturn({});
+      vi.mocked(useIssues).mockReturnValue(mockReturn);
+
+      // Mock useAgentContext to return agents for the sidebar (AgentsSidebar uses useAgentContext)
+      vi.mocked(useAgentContext).mockReturnValue({
+        agents: [
+          {
+            name: 'agent-1',
+            status: 'idle',
+            current_task: null,
+            workspace: '/test',
+            started_at: '2024-01-01T00:00:00Z',
+          },
+        ],
+        agentTasks: {},
+        tasks: {
+          needs_planning: 0,
+          ready_to_implement: 0,
+          in_progress: 0,
+          need_review: 0,
+          blocked: 0,
+        },
+        taskLists: {
+          needsPlanning: [],
+          readyToImplement: [],
+          needsReview: [],
+          inProgress: [],
+          blocked: [],
+        },
+        sync: { db_synced: true, db_last_sync: '', git_needs_push: 0, git_needs_pull: 0 },
+        stats: { open: 0, closed: 0, total: 0, completion: 0 },
+        isLoading: false,
+        isConnected: true,
+        connectionState: 'connected',
+        wasEverConnected: true,
+        retryCountdown: 0,
+        error: null,
+        lastUpdated: null,
+        refetch: vi.fn(),
+        retryNow: vi.fn(),
+        getAgentByName: vi.fn(() => undefined),
+      });
+
+      // Also mock useAgents which is used by App.tsx for AgentDetailPanel
+      vi.mocked(useAgents).mockReturnValue({
+        agents: [
+          {
+            name: 'agent-1',
+            status: 'idle',
+            current_task: null,
+            workspace: '/test',
+            started_at: '2024-01-01T00:00:00Z',
+          },
+        ],
+        agentTasks: {},
+        tasks: {
+          needs_planning: 0,
+          ready_to_implement: 0,
+          in_progress: 0,
+          need_review: 0,
+          blocked: 0,
+        },
+        taskLists: {
+          needsPlanning: [],
+          readyToImplement: [],
+          needsReview: [],
+          inProgress: [],
+          blocked: [],
+        },
+        sync: { db_synced: true, db_last_sync: '', git_needs_push: 0, git_needs_pull: 0 },
+        stats: { open: 0, closed: 0, total: 0, completion: 0 },
+        isLoading: false,
+        isConnected: true,
+        connectionState: 'connected',
+        wasEverConnected: true,
+        retryCountdown: 0,
+        error: null,
+        lastUpdated: null,
+        refetch: vi.fn(),
+        retryNow: vi.fn(),
+      });
+
+      const { container } = render(<App />);
+
+      // Open agent panel first
+      const agentCard = screen.getByText('agent-1');
+      fireEvent.click(agentCard);
+
+      // Agent panel should be open
+      const agentPanel = container.querySelector('[data-testid="agent-detail-panel"]');
+      expect(agentPanel).toHaveAttribute('data-state', 'open');
+
+      // Open terminal
+      const talkButton = screen.getByTestId('talk-to-lead-button');
+      fireEvent.click(talkButton);
+
+      // Agent panel should now be closed
+      expect(agentPanel).toHaveAttribute('data-state', 'closed');
+      // Terminal should be open
+      expect(talkButton).toHaveAttribute('data-active', 'true');
+    });
+
+    it('renders TerminalPanel in Suspense (lazy loaded)', () => {
+      const mockReturn = createMockUseIssuesReturn({});
+      vi.mocked(useIssues).mockReturnValue(mockReturn);
+
+      render(<App />);
+
+      // Open terminal to trigger lazy load
+      const talkButton = screen.getByTestId('talk-to-lead-button');
+      fireEvent.click(talkButton);
+
+      // The terminal panel overlay should be present (lazy loaded)
+      expect(screen.getByTestId('terminal-panel-overlay')).toBeInTheDocument();
+    });
+
+    it('terminal close button calls handleTerminalClose', () => {
+      const mockReturn = createMockUseIssuesReturn({});
+      vi.mocked(useIssues).mockReturnValue(mockReturn);
+
+      render(<App />);
+
+      // Open terminal
+      const talkButton = screen.getByTestId('talk-to-lead-button');
+      fireEvent.click(talkButton);
+      expect(talkButton).toHaveAttribute('data-active', 'true');
+
+      // Click terminal close button
+      const closeButton = screen.getByTestId('terminal-close-button');
+      fireEvent.click(closeButton);
+
+      // Terminal should be closed
+      expect(talkButton).not.toHaveAttribute('data-active');
+    });
+
+    it('multiple toggle cycles work correctly', () => {
+      const mockReturn = createMockUseIssuesReturn({});
+      vi.mocked(useIssues).mockReturnValue(mockReturn);
+
+      render(<App />);
+
+      const button = screen.getByTestId('talk-to-lead-button');
+
+      // Toggle cycle 1: open -> close
+      fireEvent.click(button);
+      expect(button).toHaveAttribute('data-active', 'true');
+      fireEvent.click(button);
+      expect(button).not.toHaveAttribute('data-active');
+
+      // Toggle cycle 2: open -> close
+      fireEvent.click(button);
+      expect(button).toHaveAttribute('data-active', 'true');
+      fireEvent.click(button);
+      expect(button).not.toHaveAttribute('data-active');
+
+      // Toggle cycle 3: open
+      fireEvent.click(button);
+      expect(button).toHaveAttribute('data-active', 'true');
     });
   });
 });
