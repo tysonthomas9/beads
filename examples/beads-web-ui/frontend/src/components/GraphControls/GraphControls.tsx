@@ -172,9 +172,7 @@ export function GraphControls({
     fitView({ duration: 200, padding: 0.2 });
   }, [fitView]);
 
-  const rootClassName = className
-    ? `${styles.graphControls} ${className}`
-    : styles.graphControls;
+  const rootClassName = className ? `${styles.graphControls} ${className}` : styles.graphControls;
 
   return (
     <div className={rootClassName} data-testid="graph-controls">
@@ -242,10 +240,7 @@ export function GraphControls({
         </div>
       )}
 
-      <label
-        className={styles.toggleLabel}
-        title={disabled ? disabledTitle : undefined}
-      >
+      <label className={styles.toggleLabel} title={disabled ? disabledTitle : undefined}>
         <input
           type="checkbox"
           checked={highlightReady}
@@ -259,10 +254,7 @@ export function GraphControls({
       </label>
 
       {onShowBlockedOnlyChange && (
-        <label
-          className={styles.toggleLabel}
-          title={disabled ? disabledTitle : undefined}
-        >
+        <label className={styles.toggleLabel} title={disabled ? disabledTitle : undefined}>
           <input
             type="checkbox"
             checked={showBlockedOnly}
@@ -277,10 +269,7 @@ export function GraphControls({
       )}
 
       {onShowClosedChange && (
-        <label
-          className={styles.toggleLabel}
-          title={disabled ? disabledTitle : undefined}
-        >
+        <label className={styles.toggleLabel} title={disabled ? disabledTitle : undefined}>
           <input
             type="checkbox"
             checked={showClosed ?? true}

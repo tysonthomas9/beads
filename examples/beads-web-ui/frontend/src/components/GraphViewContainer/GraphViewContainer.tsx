@@ -83,9 +83,7 @@ export function GraphViewContainer({
     }, 300); // Match CSS transition duration
   }, [clearIssue]);
 
-  const rootClassName = className
-    ? `${styles.container} ${className}`
-    : styles.container;
+  const rootClassName = className ? `${styles.container} ${className}` : styles.container;
 
   // Build GraphView props, only including optional props when defined
   const graphViewProps: GraphViewProps = {

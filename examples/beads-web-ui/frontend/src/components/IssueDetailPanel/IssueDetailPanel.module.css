@@ -278,13 +278,13 @@
   color: var(--color-text-secondary);
 }
 
-.priorityBadge[data-priority="0"],
-.priorityBadge[data-priority="1"] {
+.priorityBadge[data-priority='0'],
+.priorityBadge[data-priority='1'] {
   background-color: var(--color-danger-bg);
   color: var(--color-danger);
 }
 
-.priorityBadge[data-priority="2"] {
+.priorityBadge[data-priority='2'] {
   background-color: var(--color-warning-bg);
   color: var(--color-warning);
 }
@@ -425,7 +425,9 @@
   border-radius: var(--radius-lg);
   transform: scale(0.95);
   opacity: 0;
-  transition: transform var(--transition-slow), opacity var(--transition-slow);
+  transition:
+    transform var(--transition-slow),
+    opacity var(--transition-slow);
 }
 
 .fullscreen.open .panel {

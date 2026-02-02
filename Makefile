@@ -1,6 +1,6 @@
 # Makefile for beads project
 
-.PHONY: all build test bench bench-quick clean install help
+.PHONY: all build test bench bench-quick clean install lint help
 
 # Default target
 all: build
@@ -40,6 +40,24 @@ install:
 		branch=$$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo ""); \
 		go install -ldflags="-X main.Commit=$$commit -X main.Branch=$$branch" ./cmd/bd'
 
+# Run all linters (Go + frontend)
+# Fails if any available linter fails; gracefully skips unavailable linters
+lint:
+	@FAILED=0; \
+	echo "Running Go linter..."; \
+	if command -v golangci-lint >/dev/null 2>&1; then \
+		golangci-lint run ./... || FAILED=1; \
+	else \
+		echo "Warning: golangci-lint not found, skipping Go lint"; \
+	fi; \
+	echo "Running frontend linter..."; \
+	if [ -d examples/beads-web-ui/frontend/node_modules ]; then \
+		(cd examples/beads-web-ui/frontend && npm run lint && npm run format:check) || FAILED=1; \
+	else \
+		echo "Warning: frontend node_modules not found, skipping frontend lint"; \
+	fi; \
+	exit $$FAILED
+
 # Clean build artifacts and benchmark profiles
 clean:
 	@echo "Cleaning..."
@@ -55,5 +73,6 @@ help:
 	@echo "  make bench        - Run performance benchmarks (generates CPU profiles)"
 	@echo "  make bench-quick  - Run quick benchmarks (shorter benchtime)"
 	@echo "  make install      - Install bd to GOPATH/bin"
+	@echo "  make lint         - Run all linters (Go + frontend)"
 	@echo "  make clean        - Remove build artifacts and profile files"
 	@echo "  make help         - Show this help message"

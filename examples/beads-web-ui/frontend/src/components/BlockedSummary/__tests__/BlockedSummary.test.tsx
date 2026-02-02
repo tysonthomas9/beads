@@ -40,18 +40,15 @@ function createBlockedIssue(overrides: Partial<BlockedIssue> = {}): BlockedIssue
 /**
  * Setup useBlockedIssues mock with default return values.
  */
-function setupMocks(options: {
-  data?: BlockedIssue[] | null;
-  loading?: boolean;
-  error?: Error | null;
-  refetch?: Mock;
-} = {}) {
-  const {
-    data = null,
-    loading = false,
-    error = null,
-    refetch = vi.fn(),
-  } = options;
+function setupMocks(
+  options: {
+    data?: BlockedIssue[] | null;
+    loading?: boolean;
+    error?: Error | null;
+    refetch?: Mock;
+  } = {}
+) {
+  const { data = null, loading = false, error = null, refetch = vi.fn() } = options;
 
   (useBlockedIssues as Mock).mockReturnValue({
     data,
@@ -550,10 +547,7 @@ describe('BlockedSummary', () => {
 
     it('shows correct plural header for multiple issues', () => {
       setupMocks({
-        data: [
-          createBlockedIssue({ id: 'issue-1' }),
-          createBlockedIssue({ id: 'issue-2' }),
-        ],
+        data: [createBlockedIssue({ id: 'issue-1' }), createBlockedIssue({ id: 'issue-2' })],
       });
       render(<BlockedSummary />);
 

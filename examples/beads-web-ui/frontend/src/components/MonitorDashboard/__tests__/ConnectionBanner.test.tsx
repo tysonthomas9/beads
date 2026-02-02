@@ -353,13 +353,7 @@ describe('ConnectionBanner', () => {
     });
 
     it('handles countdown and isReconnecting together', () => {
-      render(
-        <ConnectionBanner
-          {...defaultProps}
-          retryCountdown={5}
-          isReconnecting={true}
-        />
-      );
+      render(<ConnectionBanner {...defaultProps} retryCountdown={5} isReconnecting={true} />);
 
       expect(screen.getByText('Retrying in 5s')).toBeInTheDocument();
       expect(screen.getByRole('button')).toBeDisabled();

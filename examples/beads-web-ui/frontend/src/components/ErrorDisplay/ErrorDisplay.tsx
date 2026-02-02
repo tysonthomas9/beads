@@ -125,9 +125,7 @@ export function ErrorDisplay({
   const displayTitle = title ?? defaults.title;
   const displayDescription = description ?? defaults.description;
 
-  const rootClassName = className
-    ? `${styles.errorDisplay} ${className}`
-    : styles.errorDisplay;
+  const rootClassName = className ? `${styles.errorDisplay} ${className}` : styles.errorDisplay;
 
   return (
     <div

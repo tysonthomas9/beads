@@ -172,13 +172,7 @@ describe('IssueType type guards', () => {
 
 describe('IssueType constants', () => {
   it('KNOWN_ISSUE_TYPES contains all expected types', () => {
-    expect(KNOWN_ISSUE_TYPES).toEqual([
-      'bug',
-      'feature',
-      'task',
-      'epic',
-      'chore',
-    ]);
+    expect(KNOWN_ISSUE_TYPES).toEqual(['bug', 'feature', 'task', 'epic', 'chore']);
   });
 
   it('KNOWN_ISSUE_TYPES is readonly (has 5 items)', () => {

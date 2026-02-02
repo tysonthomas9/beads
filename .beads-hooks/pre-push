@@ -108,4 +108,57 @@ if [ -n "$FILES" ]; then
     fi
 fi
 
+# --- Lint checks ---
+# Skip if BD_SKIP_LINT is set (escape hatch for emergencies)
+if [ -n "$BD_SKIP_LINT" ]; then
+    echo "⚠️  BD_SKIP_LINT set, skipping lint checks" >&2
+else
+    LINT_FAILED=0
+    LINT_RAN=0
+
+    # Run Go linter if available
+    if command -v golangci-lint >/dev/null 2>&1; then
+        LINT_RAN=1
+        echo "Running Go linter..." >&2
+        if ! golangci-lint run ./...; then
+            echo "" >&2
+            echo "❌ Go lint failed" >&2
+            LINT_FAILED=1
+        fi
+    else
+        echo "⚠️  golangci-lint not found, skipping Go lint" >&2
+    fi
+
+    # Run frontend linters if node_modules exists
+    FRONTEND_DIR="examples/beads-web-ui/frontend"
+    if [ -d "$FRONTEND_DIR/node_modules" ]; then
+        LINT_RAN=1
+        echo "Running frontend linter..." >&2
+        if ! (cd "$FRONTEND_DIR" && npm run lint); then
+            echo "" >&2
+            echo "❌ Frontend lint failed" >&2
+            LINT_FAILED=1
+        fi
+
+        echo "Running frontend format check..." >&2
+        if ! (cd "$FRONTEND_DIR" && npm run format:check); then
+            echo "" >&2
+            echo "❌ Frontend format check failed" >&2
+            LINT_FAILED=1
+        fi
+    else
+        echo "⚠️  Frontend node_modules not found, skipping frontend lint" >&2
+    fi
+
+    if [ "$LINT_FAILED" -eq 1 ]; then
+        echo "" >&2
+        echo "Push blocked due to lint errors." >&2
+        echo "To fix: run 'make lint' and address issues." >&2
+        echo "To bypass: BD_SKIP_LINT=1 git push  (or: git push --no-verify)" >&2
+        exit 1
+    elif [ "$LINT_RAN" -eq 1 ]; then
+        echo "✓ Lint checks passed" >&2
+    fi
+fi
+
 exit 0

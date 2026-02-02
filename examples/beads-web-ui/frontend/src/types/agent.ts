@@ -64,10 +64,10 @@ export const WorkTypeOpenCompetition: WorkType = 'open_competition';
  * Used to provide appropriate UI feedback for different connection scenarios.
  */
 export type LoomConnectionState =
-  | 'never_connected'  // Initial state before first successful fetch
-  | 'connected'        // Healthy connection
-  | 'disconnected'     // Lost connection (may have cached data)
-  | 'reconnecting';    // Actively trying to reconnect
+  | 'never_connected' // Initial state before first successful fetch
+  | 'connected' // Healthy connection
+  | 'disconnected' // Lost connection (may have cached data)
+  | 'reconnecting'; // Actively trying to reconnect
 
 /**
  * Agent status from the loom server.
@@ -90,7 +90,16 @@ export interface LoomAgentStatus {
  */
 export interface ParsedLoomStatus {
   /** The raw status type */
-  type: 'ready' | 'working' | 'planning' | 'done' | 'review' | 'idle' | 'error' | 'dirty' | 'changes';
+  type:
+    | 'ready'
+    | 'working'
+    | 'planning'
+    | 'done'
+    | 'review'
+    | 'idle'
+    | 'error'
+    | 'dirty'
+    | 'changes';
   /** Task ID if working on a task */
   taskId?: string;
   /** Duration string (e.g., "5m", "2h30m") */
@@ -218,7 +227,9 @@ export function parseLoomStatus(status: string): ParsedLoomStatus {
 
   // Check for status with task ID and duration
   // Pattern: "working: bd-123 (5m)" or "planning: ... (2m)"
-  const taskMatch = status.match(/^(working|planning|done|review|error|idle):\s*(.+?)?\s*\(([^)]+)\)$/);
+  const taskMatch = status.match(
+    /^(working|planning|done|review|error|idle):\s*(.+?)?\s*\(([^)]+)\)$/
+  );
   if (taskMatch && taskMatch[1] !== undefined && taskMatch[3] !== undefined) {
     const type = taskMatch[1] as ParsedLoomStatus['type'];
     const taskId = taskMatch[2]?.trim();

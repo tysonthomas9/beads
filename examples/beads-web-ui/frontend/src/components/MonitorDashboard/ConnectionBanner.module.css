@@ -62,7 +62,8 @@
 }
 
 @keyframes pulse {
-  0%, 100% {
+  0%,
+  100% {
     opacity: 1;
   }
   50% {
@@ -79,7 +80,9 @@
   font-weight: var(--font-weight-medium);
   color: var(--color-text);
   cursor: pointer;
-  transition: background-color var(--transition-fast), border-color var(--transition-fast);
+  transition:
+    background-color var(--transition-fast),
+    border-color var(--transition-fast);
 }
 
 .retryButton:hover:not(:disabled) {

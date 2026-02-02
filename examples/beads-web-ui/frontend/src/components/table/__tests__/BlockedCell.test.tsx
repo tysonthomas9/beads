@@ -42,9 +42,7 @@ describe('BlockedCell', () => {
 
   describe('tooltip', () => {
     it('shows blocker IDs in title attribute', () => {
-      render(
-        <BlockedCell blockedByCount={2} blockedBy={['bd-abc', 'bd-def']} />
-      );
+      render(<BlockedCell blockedByCount={2} blockedBy={['bd-abc', 'bd-def']} />);
       const button = screen.getByRole('button');
       expect(button.title).toContain('bd-abc');
       expect(button.title).toContain('bd-def');
@@ -71,9 +69,7 @@ describe('BlockedCell', () => {
   describe('click handling', () => {
     it('calls onClick when button is clicked', () => {
       const handleClick = vi.fn();
-      render(
-        <BlockedCell blockedByCount={1} blockedBy={['bd-1']} onClick={handleClick} />
-      );
+      render(<BlockedCell blockedByCount={1} blockedBy={['bd-1']} onClick={handleClick} />);
 
       fireEvent.click(screen.getByRole('button'));
       expect(handleClick).toHaveBeenCalledTimes(1);

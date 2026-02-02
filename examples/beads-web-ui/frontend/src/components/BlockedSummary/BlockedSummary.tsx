@@ -46,7 +46,11 @@ export function BlockedSummary({
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const { data: blockedIssues, loading, error } = useBlockedIssues({
+  const {
+    data: blockedIssues,
+    loading,
+    error,
+  } = useBlockedIssues({
     pollInterval: 30000, // Poll every 30 seconds
   });
 
@@ -58,10 +62,7 @@ export function BlockedSummary({
     if (!isOpen) return;
 
     function handleClickOutside(event: MouseEvent) {
-      if (
-        containerRef.current &&
-        !containerRef.current.contains(event.target as Node)
-      ) {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
         setIsOpen(false);
       }
     }
@@ -105,9 +106,7 @@ export function BlockedSummary({
     return title.slice(0, maxLength - 1) + '…';
   };
 
-  const rootClassName = [styles.blockedSummary, className]
-    .filter(Boolean)
-    .join(' ');
+  const rootClassName = [styles.blockedSummary, className].filter(Boolean).join(' ');
 
   const displayedIssues = blockedIssues?.slice(0, maxDisplayed) ?? [];
   const remainingCount = blockedCount - maxDisplayed;
@@ -143,25 +142,15 @@ export function BlockedSummary({
       </button>
 
       {isOpen && (
-        <div
-          className={styles.dropdown}
-          role="menu"
-          aria-label="Blocked issues list"
-        >
+        <div className={styles.dropdown} role="menu" aria-label="Blocked issues list">
           <div className={styles.header}>
             {blockedCount} Blocked Issue{blockedCount !== 1 ? 's' : ''}
           </div>
 
           <div className={styles.list}>
-            {loading && !blockedIssues && (
-              <div className={styles.loading}>Loading...</div>
-            )}
+            {loading && !blockedIssues && <div className={styles.loading}>Loading...</div>}
 
-            {error && (
-              <div className={styles.error}>
-                Failed to load blocked issues
-              </div>
-            )}
+            {error && <div className={styles.error}>Failed to load blocked issues</div>}
 
             {!loading && !error && blockedCount === 0 && (
               <div className={styles.empty}>No blocked issues</div>
@@ -177,9 +166,7 @@ export function BlockedSummary({
               >
                 <div className={styles.issueHeader}>
                   <span className={styles.issueId}>{issue.id}</span>
-                  <span className={styles.issueTitle}>
-                    {truncateTitle(issue.title)}
-                  </span>
+                  <span className={styles.issueTitle}>{truncateTitle(issue.title)}</span>
                   <PriorityBadge priority={issue.priority} />
                 </div>
                 <div className={styles.blockedByText}>
@@ -190,9 +177,7 @@ export function BlockedSummary({
             ))}
 
             {remainingCount > 0 && (
-              <div className={styles.moreText}>
-                and {remainingCount} more...
-              </div>
+              <div className={styles.moreText}>and {remainingCount} more...</div>
             )}
           </div>
 

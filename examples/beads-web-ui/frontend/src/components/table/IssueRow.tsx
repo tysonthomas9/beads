@@ -95,10 +95,7 @@ export function IssueRow<T extends Issue>({
       data-testid={`issue-row-${issue.id}`}
     >
       {showCheckbox && (
-        <td
-          className="issue-table__cell issue-table__cell--checkbox"
-          onClick={handleCheckboxClick}
-        >
+        <td className="issue-table__cell issue-table__cell--checkbox" onClick={handleCheckboxClick}>
           <input
             type="checkbox"
             className="issue-table__checkbox"

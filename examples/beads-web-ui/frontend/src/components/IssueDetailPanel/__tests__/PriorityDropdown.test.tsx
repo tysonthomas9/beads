@@ -471,10 +471,7 @@ describe('PriorityDropdown', () => {
     it('has aria-label on trigger', () => {
       render(<PriorityDropdown {...defaultProps} priority={2} />);
       const trigger = screen.getByTestId('priority-dropdown-trigger');
-      expect(trigger).toHaveAttribute(
-        'aria-label',
-        'Priority: P2 - Medium. Click to change.'
-      );
+      expect(trigger).toHaveAttribute('aria-label', 'Priority: P2 - Medium. Click to change.');
     });
 
     it('menu has role="listbox"', () => {

@@ -32,12 +32,7 @@ export interface TableHeaderProps<T> {
  * TableHeader displays table column headers with sort indicators.
  * Clicking a sortable header cycles through: ascending → descending → unsorted.
  */
-export function TableHeader<T>({
-  columns,
-  sortState,
-  onSort,
-  showCheckbox,
-}: TableHeaderProps<T>) {
+export function TableHeader<T>({ columns, sortState, onSort, showCheckbox }: TableHeaderProps<T>) {
   const handleKeyDown = useCallback(
     (event: KeyboardEvent<HTMLTableCellElement>, columnId: string) => {
       if (event.key === 'Enter' || event.key === ' ') {
@@ -103,11 +98,7 @@ export function TableHeader<T>({
               tabIndex={column.sortable ? 0 : undefined}
               role={column.sortable ? 'button' : undefined}
               onClick={column.sortable ? () => onSort(column.id) : undefined}
-              onKeyDown={
-                column.sortable
-                  ? (e) => handleKeyDown(e, column.id)
-                  : undefined
-              }
+              onKeyDown={column.sortable ? (e) => handleKeyDown(e, column.id) : undefined}
             >
               <span className="issue-table__header-content">
                 {column.header}
@@ -115,19 +106,13 @@ export function TableHeader<T>({
                   <span
                     className={[
                       'issue-table__sort-indicator',
-                      isSorted &&
-                        sortDirection &&
-                        `issue-table__sort-indicator--${sortDirection}`,
+                      isSorted && sortDirection && `issue-table__sort-indicator--${sortDirection}`,
                     ]
                       .filter(Boolean)
                       .join(' ')}
                     aria-hidden="true"
                   >
-                    {isSorted && sortDirection
-                      ? sortDirection === 'asc'
-                        ? '▲'
-                        : '▼'
-                      : '↕'}
+                    {isSorted && sortDirection ? (sortDirection === 'asc' ? '▲' : '▼') : '↕'}
                   </span>
                 )}
               </span>

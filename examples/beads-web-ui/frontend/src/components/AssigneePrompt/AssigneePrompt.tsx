@@ -98,16 +98,10 @@ export function AssigneePrompt({
 
   const isInputEmpty = !inputValue.trim();
 
-  const overlayClassName = [styles.overlay, isOpen && styles.open]
-    .filter(Boolean)
-    .join(' ');
+  const overlayClassName = [styles.overlay, isOpen && styles.open].filter(Boolean).join(' ');
 
   return (
-    <div
-      className={overlayClassName}
-      aria-hidden={!isOpen}
-      data-testid="assignee-prompt-overlay"
-    >
+    <div className={overlayClassName} aria-hidden={!isOpen} data-testid="assignee-prompt-overlay">
       <div
         ref={modalRef}
         className={styles.modal}
@@ -122,9 +116,7 @@ export function AssigneePrompt({
           <h2 id="assignee-prompt-title" className={styles.title}>
             Who is working on this?
           </h2>
-          <p className={styles.subtitle}>
-            Enter your name to claim this task
-          </p>
+          <p className={styles.subtitle}>Enter your name to claim this task</p>
         </div>
 
         <form onSubmit={handleSubmit}>

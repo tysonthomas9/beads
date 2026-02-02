@@ -274,9 +274,7 @@ describe('TypeDropdown', () => {
 
       for (const targetType of types) {
         const onSave = vi.fn().mockResolvedValue(undefined);
-        const { unmount } = render(
-          <TypeDropdown {...defaultProps} type="task" onSave={onSave} />
-        );
+        const { unmount } = render(<TypeDropdown {...defaultProps} type="task" onSave={onSave} />);
 
         fireEvent.click(screen.getByTestId('type-dropdown-trigger'));
         await act(async () => {

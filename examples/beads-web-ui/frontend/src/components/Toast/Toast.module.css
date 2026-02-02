@@ -117,7 +117,9 @@
   color: currentColor;
   cursor: pointer;
   opacity: 0.7;
-  transition: opacity var(--transition-fast), background-color var(--transition-fast);
+  transition:
+    opacity var(--transition-fast),
+    background-color var(--transition-fast);
 }
 
 .dismissButton:hover {

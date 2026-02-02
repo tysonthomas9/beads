@@ -43,7 +43,10 @@ export async function fetchAgents(): Promise<LoomAgentStatus[]> {
     return data.agents ?? [];
   } catch (error) {
     // Loom server not available - this is expected when not running agents
-    console.warn('Loom server not available:', error instanceof Error ? error.message : 'Unknown error');
+    console.warn(
+      'Loom server not available:',
+      error instanceof Error ? error.message : 'Unknown error'
+    );
     return [];
   }
 }

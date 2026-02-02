@@ -44,9 +44,7 @@ export function renderCellContent(
       const priority = value as Priority;
       const validPriority = priority >= 0 && priority <= 4 ? priority : 2;
       return (
-        <span
-          className={`issue-table__priority ${getPriorityClassName(validPriority)}`}
-        >
+        <span className={`issue-table__priority ${getPriorityClassName(validPriority)}`}>
           {formatPriority(validPriority)}
         </span>
       );
@@ -81,24 +79,14 @@ export function renderCellContent(
 
     case 'issue_type': {
       const issueType = value as IssueType | undefined;
-      return (
-        <span className="issue-table__type">{formatIssueType(issueType)}</span>
-      );
+      return <span className="issue-table__type">{formatIssueType(issueType)}</span>;
     }
 
     case 'assignee':
-      return (
-        <span className="issue-table__assignee">
-          {value ? String(value) : '-'}
-        </span>
-      );
+      return <span className="issue-table__assignee">{value ? String(value) : '-'}</span>;
 
     case 'updated_at':
-      return (
-        <span className="issue-table__date">
-          {formatDate(value as string | undefined)}
-        </span>
-      );
+      return <span className="issue-table__date">{formatDate(value as string | undefined)}</span>;
 
     default:
       return value != null ? String(value) : '-';

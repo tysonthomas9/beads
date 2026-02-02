@@ -414,7 +414,7 @@ describe('GraphControls', () => {
 
       const select = screen.getByTestId('status-filter');
       const options = select.querySelectorAll('option');
-      const optionValues = Array.from(options).map(o => o.value);
+      const optionValues = Array.from(options).map((o) => o.value);
 
       expect(optionValues).toContain('all');
       expect(optionValues).toContain('open');

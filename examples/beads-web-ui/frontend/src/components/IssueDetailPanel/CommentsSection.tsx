@@ -22,17 +22,13 @@ export interface CommentsSectionProps {
  * Shows author, relative timestamp, and comment text for each comment.
  * Displays an empty state when no comments exist.
  */
-export function CommentsSection({
-  comments,
-  className,
-}: CommentsSectionProps): JSX.Element {
+export function CommentsSection({ comments, className }: CommentsSectionProps): JSX.Element {
   const hasComments = comments && comments.length > 0;
 
   // Sort comments chronologically (oldest first)
   const sortedComments = hasComments
     ? [...comments].sort(
-        (a, b) =>
-          new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+        (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
       )
     : [];
 
@@ -47,19 +43,10 @@ export function CommentsSection({
       {hasComments ? (
         <ul className={styles.commentList}>
           {sortedComments.map((comment) => (
-            <li
-              key={comment.id}
-              className={styles.commentItem}
-              data-testid="comment-item"
-            >
+            <li key={comment.id} className={styles.commentItem} data-testid="comment-item">
               <div className={styles.commentHeader}>
-                <span className={styles.commentAuthor}>
-                  {comment.author || 'Unknown'}
-                </span>
-                <time
-                  className={styles.commentTime}
-                  dateTime={comment.created_at}
-                >
+                <span className={styles.commentAuthor}>{comment.author || 'Unknown'}</span>
+                <time className={styles.commentTime} dateTime={comment.created_at}>
                   {formatDate(comment.created_at)}
                 </time>
               </div>

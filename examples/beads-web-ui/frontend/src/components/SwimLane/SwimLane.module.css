@@ -40,7 +40,9 @@
   color: var(--color-text-secondary);
   border-radius: var(--radius-sm);
   cursor: pointer;
-  transition: background-color var(--transition-fast), color var(--transition-fast);
+  transition:
+    background-color var(--transition-fast),
+    color var(--transition-fast);
 }
 
 .collapseToggle:hover {
@@ -95,7 +97,9 @@
   flex: 1; /* Fill available space from swimLane */
   min-height: 0; /* Allow flex calculations to work */
   opacity: 1;
-  transition: opacity 0.15s ease-out, padding 0.2s ease-out;
+  transition:
+    opacity 0.15s ease-out,
+    padding 0.2s ease-out;
 }
 
 .laneContent > * {

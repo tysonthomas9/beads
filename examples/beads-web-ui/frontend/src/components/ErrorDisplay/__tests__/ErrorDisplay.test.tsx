@@ -169,7 +169,10 @@ describe('ErrorDisplay', () => {
 
     it('applies data-variant attribute', () => {
       render(<ErrorDisplay variant="connection-error" />);
-      expect(screen.getByTestId('error-display')).toHaveAttribute('data-variant', 'connection-error');
+      expect(screen.getByTestId('error-display')).toHaveAttribute(
+        'data-variant',
+        'connection-error'
+      );
     });
 
     it('applies data-variant for custom variant', () => {

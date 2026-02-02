@@ -30,7 +30,7 @@ vi.mock('./useToast', () => ({
     removeToast: vi.fn(),
   }),
   ToastProvider: ({ children }: { children: React.ReactNode }) => children,
-}))
+}));
 
 /**
  * Helper to create a test issue with required fields.

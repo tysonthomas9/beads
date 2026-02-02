@@ -258,9 +258,7 @@ describe('SwimLaneBoard persistence', () => {
 
   describe('localStorage error handling', () => {
     it('component works when localStorage getItem throws', () => {
-      const issues = [
-        createMockIssue({ id: 'issue-1', assignee: 'alice', status: 'open' }),
-      ];
+      const issues = [createMockIssue({ id: 'issue-1', assignee: 'alice', status: 'open' })];
 
       // Make getItem throw an error
       mockStorage.getItem.mockImplementation(() => {
@@ -278,9 +276,7 @@ describe('SwimLaneBoard persistence', () => {
     });
 
     it('component works when localStorage setItem throws', () => {
-      const issues = [
-        createMockIssue({ id: 'issue-1', assignee: 'alice', status: 'open' }),
-      ];
+      const issues = [createMockIssue({ id: 'issue-1', assignee: 'alice', status: 'open' })];
 
       // Make setItem throw an error
       mockStorage.setItem.mockImplementation(() => {
@@ -300,9 +296,7 @@ describe('SwimLaneBoard persistence', () => {
     });
 
     it('invalid JSON in localStorage does not break component', () => {
-      const issues = [
-        createMockIssue({ id: 'issue-1', assignee: 'alice', status: 'open' }),
-      ];
+      const issues = [createMockIssue({ id: 'issue-1', assignee: 'alice', status: 'open' })];
 
       // Pre-populate with invalid JSON
       mockStorage.store.set('swimlane-collapsed-assignee', 'not valid json {{{');
@@ -318,9 +312,7 @@ describe('SwimLaneBoard persistence', () => {
     });
 
     it('non-array JSON in localStorage is handled gracefully', () => {
-      const issues = [
-        createMockIssue({ id: 'issue-1', assignee: 'alice', status: 'open' }),
-      ];
+      const issues = [createMockIssue({ id: 'issue-1', assignee: 'alice', status: 'open' })];
 
       // Pre-populate with valid JSON but wrong type
       mockStorage.store.set('swimlane-collapsed-assignee', JSON.stringify({ invalid: 'object' }));
@@ -336,9 +328,7 @@ describe('SwimLaneBoard persistence', () => {
     });
 
     it('array with non-string items in localStorage is handled gracefully', () => {
-      const issues = [
-        createMockIssue({ id: 'issue-1', assignee: 'alice', status: 'open' }),
-      ];
+      const issues = [createMockIssue({ id: 'issue-1', assignee: 'alice', status: 'open' })];
 
       // Pre-populate with array containing non-strings
       mockStorage.store.set('swimlane-collapsed-assignee', JSON.stringify([1, 2, 3]));
@@ -526,9 +516,7 @@ describe('SwimLaneBoard persistence', () => {
 
   describe('groupBy=none does not use localStorage', () => {
     it('does not read from localStorage when groupBy=none', () => {
-      const issues = [
-        createMockIssue({ id: 'issue-1', status: 'open' }),
-      ];
+      const issues = [createMockIssue({ id: 'issue-1', status: 'open' })];
 
       // Pre-populate localStorage
       mockStorage.store.set('swimlane-collapsed-none', JSON.stringify(['some-id']));

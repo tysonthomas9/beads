@@ -28,54 +28,59 @@ export interface CommentFormProps {
  * - Error display with retry capability
  * - Clears form on successful submission
  */
-export function CommentForm({
-  issueId,
-  onCommentAdded,
-  className,
-}: CommentFormProps): JSX.Element {
+export function CommentForm({ issueId, onCommentAdded, className }: CommentFormProps): JSX.Element {
   const [text, setText] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  const handleSubmit = useCallback(async (e?: FormEvent) => {
-    e?.preventDefault();
+  const handleSubmit = useCallback(
+    async (e?: FormEvent) => {
+      e?.preventDefault();
 
-    const trimmedText = text.trim();
-    if (!trimmedText || isSubmitting) return;
+      const trimmedText = text.trim();
+      if (!trimmedText || isSubmitting) return;
 
-    setError(null);
-    setIsSubmitting(true);
-
-    try {
-      const newComment = await addComment(issueId, trimmedText);
-      setText('');
-      onCommentAdded(newComment);
-      // Keep focus in textarea for follow-up comments
-      textareaRef.current?.focus();
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to add comment';
-      setError(message);
-    } finally {
-      setIsSubmitting(false);
-    }
-  }, [text, isSubmitting, issueId, onCommentAdded]);
-
-  const handleKeyDown = useCallback((e: KeyboardEvent<HTMLTextAreaElement>) => {
-    // Cmd/Ctrl+Enter to submit
-    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
-      e.preventDefault();
-      handleSubmit();
-    }
-  }, [handleSubmit]);
-
-  const handleTextChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setText(e.target.value);
-    // Clear error when user types
-    if (error) {
       setError(null);
-    }
-  }, [error]);
+      setIsSubmitting(true);
+
+      try {
+        const newComment = await addComment(issueId, trimmedText);
+        setText('');
+        onCommentAdded(newComment);
+        // Keep focus in textarea for follow-up comments
+        textareaRef.current?.focus();
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Failed to add comment';
+        setError(message);
+      } finally {
+        setIsSubmitting(false);
+      }
+    },
+    [text, isSubmitting, issueId, onCommentAdded]
+  );
+
+  const handleKeyDown = useCallback(
+    (e: KeyboardEvent<HTMLTextAreaElement>) => {
+      // Cmd/Ctrl+Enter to submit
+      if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+        e.preventDefault();
+        handleSubmit();
+      }
+    },
+    [handleSubmit]
+  );
+
+  const handleTextChange = useCallback(
+    (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+      setText(e.target.value);
+      // Clear error when user types
+      if (error) {
+        setError(null);
+      }
+    },
+    [error]
+  );
 
   const rootClassName = [styles.commentForm, className].filter(Boolean).join(' ');
   const canSubmit = text.trim().length > 0 && !isSubmitting;
