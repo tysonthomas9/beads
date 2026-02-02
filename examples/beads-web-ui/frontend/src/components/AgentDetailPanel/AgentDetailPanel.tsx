@@ -5,8 +5,10 @@
  */
 
 import { useEffect, useRef, useCallback } from 'react';
+
 import type { LoomAgentStatus, LoomTaskInfo } from '@/types';
 import { parseLoomStatus } from '@/types';
+
 import styles from './AgentDetailPanel.module.css';
 
 /**
@@ -46,7 +48,7 @@ function getAvatarColor(name: string): string {
   for (let i = 0; i < name.length; i++) {
     hash = ((hash << 5) - hash + name.charCodeAt(i)) | 0;
   }
-  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length]!;
+  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length] ?? '#9DC08B';
 }
 
 function shouldUseWhiteText(hex: string): boolean {
@@ -181,6 +183,7 @@ export function AgentDetailPanel({
   const agent = agentName ? agents.find((a) => a.name === agentName) : undefined;
   const parsed = agent ? parseLoomStatus(agent.status) : undefined;
   const task = agentName ? agentTasks[agentName] : undefined;
+  const currentTaskId = parsed?.taskId;
   const isActive = parsed?.type === 'working' || parsed?.type === 'planning';
 
   const rootClassName = [styles.overlay, isOpen && styles.open].filter(Boolean).join(' ');
@@ -260,11 +263,11 @@ export function AgentDetailPanel({
               {/* Current Task Section */}
               <div className={styles.section}>
                 <h3 className={styles.sectionTitle}>Current Task</h3>
-                {task && parsed.taskId ? (
+                {task && currentTaskId ? (
                   <button
                     type="button"
                     className={styles.taskLink}
-                    onClick={() => handleTaskClick(parsed.taskId!)}
+                    onClick={() => handleTaskClick(currentTaskId)}
                   >
                     <span className={styles.taskId}>{task.id}</span>
                     <div className={styles.taskInfo}>

@@ -5,17 +5,19 @@
  */
 
 import { useState, useCallback } from 'react';
+
+import { getAvatarColor, getStatusDotColor, getStatusLine } from '@/components/AgentCard';
+import { BlockedBadge } from '@/components/BlockedBadge';
+import { useAgentContext } from '@/hooks';
 import type { Issue } from '@/types';
 import { parseLoomStatus } from '@/types';
-import { BlockedBadge } from '@/components/BlockedBadge';
 import { formatIssueId } from '@/utils/formatIssueId';
-import { getAvatarColor, getStatusDotColor, getStatusLine } from '@/components/AgentCard';
-import { useAgentContext } from '@/hooks';
 import { getReviewType } from '@/utils/reviewType';
 import type { ReviewType } from '@/utils/reviewType';
+
 import { AgentRow } from './AgentRow';
-import { RejectCommentForm } from './RejectCommentForm';
 import styles from './IssueCard.module.css';
+import { RejectCommentForm } from './RejectCommentForm';
 
 /**
  * Review badge configuration by type.
@@ -92,7 +94,7 @@ export function IssueCard({
 
   // Compute agent row data for in_progress cards with an assignee
   const showAgentRow = columnId === 'in_progress' && !!issue.assignee;
-  const assignedAgent = showAgentRow ? getAgentByName(issue.assignee!) : undefined;
+  const assignedAgent = issue.assignee ? getAgentByName(issue.assignee) : undefined;
   const agentParsedStatus = assignedAgent ? parseLoomStatus(assignedAgent.status) : null;
 
   // Show action buttons only in review column with callbacks provided
@@ -209,11 +211,11 @@ export function IssueCard({
         </span>
       </header>
       <h3 className={styles.title}>{displayTitle}</h3>
-      {showAgentRow && (
+      {showAgentRow && issue.assignee && (
         <AgentRow
-          agentName={issue.assignee!}
+          agentName={issue.assignee}
           status={agentParsedStatus}
-          avatarColor={getAvatarColor(issue.assignee!.replace(/^\[H\]\s*/, ''))}
+          avatarColor={getAvatarColor(issue.assignee.replace(/^\[H\]\s*/, ''))}
           dotColor={agentParsedStatus ? getStatusDotColor(agentParsedStatus.type) : undefined}
           activity={
             agentParsedStatus && assignedAgent
