@@ -157,6 +157,7 @@ const mockBlockedWithBottlenecks = {
       created_at: "2026-01-24T11:00:00Z",
       updated_at: "2026-01-24T11:00:00Z",
       blocked_by: ["test-1"],
+      blocked_by_details: [{ id: "test-1", title: "Feature A", priority: 2 }],
     },
     {
       id: "test-4",
@@ -167,6 +168,7 @@ const mockBlockedWithBottlenecks = {
       created_at: "2026-01-24T13:00:00Z",
       updated_at: "2026-01-24T13:00:00Z",
       blocked_by: ["test-1"],
+      blocked_by_details: [{ id: "test-1", title: "Feature A", priority: 2 }],
     },
     {
       id: "test-5",
@@ -177,6 +179,10 @@ const mockBlockedWithBottlenecks = {
       created_at: "2026-01-24T14:00:00Z",
       updated_at: "2026-01-24T14:00:00Z",
       blocked_by: ["test-1", "test-6"],
+      blocked_by_details: [
+        { id: "test-1", title: "Feature A", priority: 2 },
+        { id: "test-6", title: "Critical Infrastructure", priority: 0 },
+      ],
     },
   ],
 }
@@ -325,10 +331,10 @@ async function waitForStableContent(page: Page) {
 }
 
 test.describe("Visual Regression - Monitor Dashboard Layout", () => {
-  test.describe("default 2x2 grid at 1280x720", () => {
+  test.describe("default vertical stack at 1280x720", () => {
     test.use({ viewport: { width: 1280, height: 720 } })
 
-    test("default 2x2 grid layout", async ({ page }) => {
+    test("default vertical stack layout", async ({ page }) => {
       await setupMocks(page)
       await navigateAndWait(page)
 
@@ -348,22 +354,15 @@ test.describe("Visual Regression - Monitor Dashboard Layout", () => {
 
       await waitForStableContent(page)
 
-      // Verify all 4 panel headings visible before screenshot
-      await expect(
-        page.getByRole("heading", { name: "Agent Activity" })
-      ).toBeVisible()
-      await expect(
-        page.getByRole("heading", { name: "Work Pipeline" })
-      ).toBeVisible()
+      // Verify both panel headings visible before screenshot (2-panel layout)
       await expect(
         page.getByRole("heading", { name: "Project Health" })
       ).toBeVisible()
       await expect(
-        page.getByRole("heading", { name: "Blocking Dependencies" })
+        page.getByRole("heading", { name: "Agent Activity" })
       ).toBeVisible()
 
-      await expect(page).toHaveScreenshot("monitor-default-grid.png", {
-        // Higher threshold for MiniDependencyGraph canvas rendering differences
+      await expect(page).toHaveScreenshot("monitor-vertical-stack.png", {
         maxDiffPixels: 500,
       })
     })
@@ -396,18 +395,12 @@ test.describe("Visual Regression - Monitor Dashboard Layout", () => {
       await page.waitForTimeout(500)
       await waitForStableContent(page)
 
-      // Verify all panels visible
-      await expect(
-        page.getByRole("heading", { name: "Agent Activity" })
-      ).toBeVisible()
-      await expect(
-        page.getByRole("heading", { name: "Work Pipeline" })
-      ).toBeVisible()
+      // Verify both panels visible (2-panel layout)
       await expect(
         page.getByRole("heading", { name: "Project Health" })
       ).toBeVisible()
       await expect(
-        page.getByRole("heading", { name: "Blocking Dependencies" })
+        page.getByRole("heading", { name: "Agent Activity" })
       ).toBeVisible()
 
       await expect(page).toHaveScreenshot("monitor-responsive-1024.png", {
@@ -439,18 +432,12 @@ test.describe("Visual Regression - Monitor Dashboard Layout", () => {
       await page.waitForTimeout(500)
       await waitForStableContent(page)
 
-      // Verify all panels visible (stacked vertically)
-      await expect(
-        page.getByRole("heading", { name: "Agent Activity" })
-      ).toBeVisible()
-      await expect(
-        page.getByRole("heading", { name: "Work Pipeline" })
-      ).toBeVisible()
+      // Verify both panels visible (stacked vertically)
       await expect(
         page.getByRole("heading", { name: "Project Health" })
       ).toBeVisible()
       await expect(
-        page.getByRole("heading", { name: "Blocking Dependencies" })
+        page.getByRole("heading", { name: "Agent Activity" })
       ).toBeVisible()
 
       await expect(page).toHaveScreenshot("monitor-responsive-768.png", {
@@ -584,110 +571,6 @@ test.describe("Visual Regression - Agent Activity Panel", () => {
   })
 })
 
-test.describe("Visual Regression - Work Pipeline Panel", () => {
-  test.use({ viewport: { width: 1280, height: 720 } })
-
-  test("pipeline stages with counts", async ({ page }) => {
-    await setupMocks(page)
-    await navigateAndWait(page)
-
-    await page.waitForResponse(
-      (res) => res.url().includes("/api/status") && res.status() === 200,
-      { timeout: 10000 }
-    )
-    await page.waitForResponse(
-      (res) => res.url().includes("/api/tasks") && res.status() === 200,
-      { timeout: 10000 }
-    )
-    await page.waitForTimeout(500)
-    await waitForStableContent(page)
-
-    // Verify all pipeline stages visible with correct counts
-    await expect(page.getByTestId("pipeline-stage-plan")).toBeVisible()
-    await expect(page.getByTestId("pipeline-stage-plan")).toContainText("2")
-    await expect(page.getByTestId("pipeline-stage-ready")).toBeVisible()
-    await expect(page.getByTestId("pipeline-stage-ready")).toContainText("3")
-    await expect(page.getByTestId("pipeline-stage-inProgress")).toBeVisible()
-    await expect(page.getByTestId("pipeline-stage-inProgress")).toContainText("1")
-    await expect(page.getByTestId("pipeline-stage-review")).toBeVisible()
-    await expect(page.getByTestId("pipeline-stage-review")).toContainText("1")
-
-    await expect(page).toHaveScreenshot(
-      "monitor-work-pipeline-stages.png",
-      { maxDiffPixels: 500 }
-    )
-  })
-
-  test("blocked branch visible", async ({ page }) => {
-    await setupMocks(page)
-    await navigateAndWait(page)
-
-    await page.waitForResponse(
-      (res) => res.url().includes("/api/status") && res.status() === 200,
-      { timeout: 10000 }
-    )
-    await page.waitForResponse(
-      (res) => res.url().includes("/api/tasks") && res.status() === 200,
-      { timeout: 10000 }
-    )
-    await page.waitForTimeout(500)
-    await waitForStableContent(page)
-
-    // Blocked stage should be visible (blocked: 2 in mock data)
-    const blockedStage = page.getByTestId("pipeline-stage-blocked")
-    await expect(blockedStage).toBeVisible()
-    await expect(blockedStage).toContainText("2")
-
-    // Branch line indicator
-    const pipelinePanel = page.getByTestId("work-pipeline-panel")
-    await expect(pipelinePanel.getByText("↳")).toBeVisible()
-
-    await expect(page).toHaveScreenshot(
-      "monitor-work-pipeline-blocked.png",
-      { maxDiffPixels: 500 }
-    )
-  })
-
-  test("oldest items table", async ({ page }) => {
-    await setupMocks(page)
-    await navigateAndWait(page)
-
-    await page.waitForResponse(
-      (res) => res.url().includes("/api/status") && res.status() === 200,
-      { timeout: 10000 }
-    )
-    await page.waitForResponse(
-      (res) => res.url().includes("/api/tasks") && res.status() === 200,
-      { timeout: 10000 }
-    )
-    await page.waitForTimeout(500)
-    await waitForStableContent(page)
-
-    const pipelinePanel = page.getByTestId("work-pipeline-panel")
-
-    // Verify table heading and structure
-    await expect(pipelinePanel.getByText("Oldest in Each Stage")).toBeVisible()
-
-    const table = pipelinePanel.locator("table")
-    const rows = table.locator("tbody tr")
-    await expect(rows).toHaveCount(4)
-
-    // Verify representative data in rows
-    await expect(rows.nth(0)).toContainText("Plan")
-    await expect(rows.nth(0)).toContainText("bd-010")
-    await expect(rows.nth(1)).toContainText("Ready")
-    await expect(rows.nth(1)).toContainText("bd-020")
-    await expect(rows.nth(2)).toContainText("In Progress")
-    await expect(rows.nth(2)).toContainText("bd-001")
-    await expect(rows.nth(3)).toContainText("Review")
-    await expect(rows.nth(3)).toContainText("bd-030")
-
-    // Panel-scoped screenshot for table focus
-    await expect(pipelinePanel).toHaveScreenshot(
-      "monitor-work-pipeline-oldest-table.png"
-    )
-  })
-})
 
 test.describe("Visual Regression - Project Health Panel", () => {
   test.use({ viewport: { width: 1280, height: 720 } })
@@ -749,45 +632,12 @@ test.describe("Visual Regression - Project Health Panel", () => {
   })
 })
 
-test.describe("Visual Regression - MiniDependencyGraph", () => {
-  test.use({ viewport: { width: 1280, height: 720 } })
-
-  test("nodes and edges with expand button", async ({ page }) => {
-    await setupMocks(page)
-    await navigateAndWait(page)
-
-    await page.waitForResponse(
-      (res) => res.url().includes("/api/status") && res.status() === 200,
-      { timeout: 10000 }
-    )
-    await page.waitForResponse(
-      (res) => res.url().includes("/api/tasks") && res.status() === 200,
-      { timeout: 10000 }
-    )
-    // Extra wait for ReactFlow canvas rendering
-    await page.waitForTimeout(500)
-    await waitForStableContent(page)
-
-    const graphPanel = page.getByTestId("mini-dependency-graph")
-    await expect(graphPanel).toBeVisible()
-
-    // Verify expand button is present
-    const expandButton = page.getByRole("button", { name: "Expand to full graph view" })
-    await expect(expandButton).toBeVisible()
-
-    // Higher tolerance for ReactFlow canvas rendering differences across runs
-    await expect(graphPanel).toHaveScreenshot(
-      "monitor-mini-graph-nodes-expand.png",
-      { maxDiffPixels: 500, threshold: 0.2 }
-    )
-  })
-})
 
 test.describe("Visual Regression - Interactions", () => {
   test.use({ viewport: { width: 1280, height: 720 } })
 
-  test("TaskDrawer opens from pipeline stage click", async ({ page }) => {
-    await setupMocks(page)
+  test("bottleneck button hover state", async ({ page }) => {
+    await setupMocks(page, { customBlockedIssues: mockBlockedWithBottlenecks })
     await navigateAndWait(page)
 
     await page.waitForResponse(
@@ -801,24 +651,21 @@ test.describe("Visual Regression - Interactions", () => {
     await page.waitForTimeout(500)
     await waitForStableContent(page)
 
-    // Click the Plan pipeline stage (count=2, so it's clickable)
-    await page.getByTestId("pipeline-stage-plan").click()
+    const healthPanel = page.getByTestId("project-health-panel")
+    await expect(healthPanel).toBeVisible()
 
-    // Wait for drawer animation to complete
-    const drawer = page.getByRole("dialog")
-    await expect(drawer).toBeVisible({ timeout: 5000 })
-    await page.waitForTimeout(400)
+    // Hover over a bottleneck button
+    const bottleneckButton = healthPanel.locator("button").first()
+    await bottleneckButton.hover()
+    await page.waitForTimeout(200)
 
-    // Verify drawer header shows planning tasks
-    await expect(drawer.getByText("Needs Planning")).toBeVisible()
-
-    await expect(page).toHaveScreenshot(
-      "monitor-task-drawer-open.png",
+    await expect(healthPanel).toHaveScreenshot(
+      "monitor-bottleneck-hover.png",
       { maxDiffPixels: 100 }
     )
   })
 
-  test("pipeline hover states", async ({ page }) => {
+  test("agent card hover state", async ({ page }) => {
     await setupMocks(page)
     await navigateAndWait(page)
 
@@ -833,13 +680,16 @@ test.describe("Visual Regression - Interactions", () => {
     await page.waitForTimeout(500)
     await waitForStableContent(page)
 
-    // Hover over the Ready pipeline stage
-    await page.getByTestId("pipeline-stage-ready").hover()
+    const agentPanel = page.getByTestId("agent-activity-panel")
+    await expect(agentPanel).toBeVisible()
+
+    // Hover over an agent card
+    const agentCard = agentPanel.locator("[class*='agentCard']").first()
+    await agentCard.hover()
     await page.waitForTimeout(200)
 
-    const pipelinePanel = page.getByTestId("work-pipeline-panel")
-    await expect(pipelinePanel).toHaveScreenshot(
-      "monitor-pipeline-hover.png",
+    await expect(agentPanel).toHaveScreenshot(
+      "monitor-agent-card-hover.png",
       { maxDiffPixels: 100 }
     )
   })
