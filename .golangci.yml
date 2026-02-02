@@ -10,6 +10,7 @@ linters:
     - errcheck
     - gosec
     - misspell
+    - staticcheck
     - unconvert
     - unparam
 
@@ -31,6 +32,14 @@ linters:
         - (fmt).Sscanf
     misspell:
       locale: US
+    staticcheck:
+      checks:
+        - "all"
+        - "-QF*"   # Disable quick-fix suggestions (stylistic, low value)
+        - "-ST1000" # Package comments are optional
+        - "-ST1003" # NoDb naming matches YAML "no-db" tag convention
+        - "-ST1020" # Exported comment format is stylistic
+        - "-ST1022" # Var/const comment format is stylistic
 
   exclusions:
     rules:
@@ -104,6 +113,25 @@ linters:
         linters:
           - misspell
         text: 'cancelled'
+      # SA1019: Intentional use of deprecated field for backwards compatibility
+      - path: 'cmd/bd/upgrade\.go'
+        linters:
+          - staticcheck
+        text: "SA1019.*LastBdVersion"
+      # ST1005: Multi-line error messages are intentional for user guidance
+      - path: 'cmd/bd/(daemon_sync|init|jira|linear|staleness)\.go'
+        linters:
+          - staticcheck
+        text: "ST1005"
+      - path: 'internal/autoimport/autoimport\.go'
+        linters:
+          - staticcheck
+        text: "ST1005"
+      # SA5011: False positive - os.Exit(1) terminates, no nil dereference possible
+      - path: 'cmd/bd/daemons\.go'
+        linters:
+          - staticcheck
+        text: "SA5011"
 
 issues:
   uniq-by-line: true

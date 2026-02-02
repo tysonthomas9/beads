@@ -228,7 +228,7 @@ func loadGraphSubgraph(ctx context.Context, s storage.Storage, issueID string) (
 
 		// Get issues this one depends on (dependencies) - but only for non-root
 		// to avoid pulling in unrelated upstream issues
-		if currentID == root.ID {
+		if currentID == root.ID { //nolint:staticcheck // SA9003: intentionally empty - root deps skipped to focus graph on "encompasses"
 			// For root, we might want to include direct dependencies too
 			// Skip for now to keep graph focused on "what this issue encompasses"
 		}

@@ -701,11 +701,8 @@ func hookPostMergeDolt(beadsDir string) int {
 		// Best-effort: still return 0 to avoid blocking git merge, consistent with other hook warnings.
 	}
 
-	// Commit the merge
-	if err := doltStore.Commit(ctx, "Merge JSONL import"); err != nil {
-		// May fail if nothing to commit (fast-forward merge)
-		// This is expected, not an error
-	}
+	// Commit the merge (may fail if nothing to commit on fast-forward merge, which is expected)
+	_ = doltStore.Commit(ctx, "Merge JSONL import")
 
 	// Clean up import branch
 	if err := doltStore.DeleteBranch(ctx, importBranch); err != nil {
