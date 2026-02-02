@@ -3,6 +3,7 @@ import tseslint from "typescript-eslint";
 import react from "eslint-plugin-react";
 import reactHooks from "eslint-plugin-react-hooks";
 import importPlugin from "eslint-plugin-import-x";
+import jsxA11y from "eslint-plugin-jsx-a11y";
 import prettier from "eslint-config-prettier";
 
 export default tseslint.config(
@@ -14,6 +15,7 @@ export default tseslint.config(
       react,
       "react-hooks": reactHooks,
       "import-x": importPlugin,
+      "jsx-a11y": jsxA11y,
     },
     languageOptions: {
       ecmaVersion: 2020,
@@ -38,6 +40,18 @@ export default tseslint.config(
     rules: {
       // React rules
       ...react.configs.recommended.rules,
+
+      // Accessibility rules
+      ...jsxA11y.flatConfigs.recommended.rules,
+      // Custom dropdowns/menus use div elements with click handlers - proper keyboard
+      // support would require significant refactoring. Set to warn for tracking.
+      "jsx-a11y/click-events-have-key-events": "warn",
+      "jsx-a11y/no-static-element-interactions": "warn",
+      "jsx-a11y/no-noninteractive-element-interactions": "warn",
+      // autoFocus is used intentionally for better UX in search inputs and modal forms
+      "jsx-a11y/no-autofocus": "off",
+      // Custom select/tablist components need tabIndex refactoring
+      "jsx-a11y/interactive-supports-focus": "warn",
       "react/react-in-jsx-scope": "off", // Not needed with React 17+ JSX transform
       "react/prop-types": "off", // Using TypeScript for type checking
 
