@@ -15,7 +15,7 @@ import (
 )
 
 // setupRoutes configures all HTTP routes for the server.
-func setupRoutes(mux *http.ServeMux, pool *daemon.ConnectionPool, hub *SSEHub, getMutationsSince func(since int64) []rpc.MutationEvent) {
+func setupRoutes(mux *http.ServeMux, pool *daemon.ConnectionPool, hub *SSEHub, getMutationsSince func(since int64) []rpc.MutationEvent, termManager *TerminalManager) {
 	// Health check endpoint for load balancers and monitoring
 	mux.HandleFunc("GET /health", handleHealth(pool))
 
@@ -52,6 +52,11 @@ func setupRoutes(mux *http.ServeMux, pool *daemon.ConnectionPool, hub *SSEHub, g
 	// Server-Sent Events endpoint for real-time push notifications
 	if hub != nil {
 		mux.HandleFunc("GET /api/events", handleSSE(hub, getMutationsSince))
+	}
+
+	// Terminal WebSocket endpoint for real-time terminal relay
+	if termManager != nil {
+		mux.HandleFunc("GET /api/terminal/ws", handleTerminalWS(termManager))
 	}
 
 	// Static file serving with SPA routing (must be last - catches all paths)
