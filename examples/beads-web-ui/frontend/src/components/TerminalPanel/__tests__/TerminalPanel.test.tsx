@@ -53,7 +53,7 @@ class MockWebSocket {
   onopen: (() => void) | null = null;
   onclose: (() => void) | null = null;
   onerror: (() => void) | null = null;
-  onmessage: ((ev: any) => void) | null = null;
+  onmessage: ((ev: MessageEvent) => void) | null = null;
   send = vi.fn();
   close = vi.fn();
 
@@ -76,13 +76,20 @@ class MockResizeObserver {
 // Replace globals with mocks
 const OriginalWebSocket = globalThis.WebSocket;
 const OriginalResizeObserver = globalThis.ResizeObserver;
+
+// Type-safe global mock helpers
+type GlobalWithMocks = typeof globalThis & {
+  WebSocket: typeof MockWebSocket | typeof WebSocket;
+  ResizeObserver: typeof MockResizeObserver | typeof ResizeObserver;
+};
+
 beforeEach(() => {
-  (globalThis as any).WebSocket = MockWebSocket;
-  (globalThis as any).ResizeObserver = MockResizeObserver;
+  (globalThis as GlobalWithMocks).WebSocket = MockWebSocket;
+  (globalThis as GlobalWithMocks).ResizeObserver = MockResizeObserver;
 });
 afterEach(() => {
-  (globalThis as any).WebSocket = OriginalWebSocket;
-  (globalThis as any).ResizeObserver = OriginalResizeObserver;
+  (globalThis as GlobalWithMocks).WebSocket = OriginalWebSocket;
+  (globalThis as GlobalWithMocks).ResizeObserver = OriginalResizeObserver;
 });
 
 import { TerminalPanel } from '../TerminalPanel';

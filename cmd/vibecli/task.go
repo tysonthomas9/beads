@@ -57,7 +57,7 @@ func runTask(cmd *cobra.Command, args []string) {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
 	}
-	defer ReleaseLock(worktreePath)
+	defer func() { _ = ReleaseLock(worktreePath) }()
 
 	fmt.Println("=========================================")
 	fmt.Printf("Running IMPLEMENTATION agent in: %s\n", worktreePath)

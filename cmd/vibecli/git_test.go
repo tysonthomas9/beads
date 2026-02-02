@@ -238,7 +238,7 @@ func TestHasCommitsBetween(t *testing.T) {
 			}})
 			mock.Install()
 
-			hasCommits, _ := HasCommitsBetween("/repo", tc.target, tc.source)
+			hasCommits := HasCommitsBetween("/repo", tc.target, tc.source)
 
 			if hasCommits != tc.wantHas {
 				t.Errorf("hasCommits = %v, want %v", hasCommits, tc.wantHas)

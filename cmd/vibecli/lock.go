@@ -49,7 +49,7 @@ func AcquireLock(worktreePath, command, agentName string) error {
 		return fmt.Errorf("failed to marshal lock info: %w", err)
 	}
 
-	if err := os.WriteFile(lockPath, data, 0644); err != nil {
+	if err := os.WriteFile(lockPath, data, 0600); err != nil {
 		return fmt.Errorf("failed to write lock file: %w", err)
 	}
 
@@ -131,7 +131,7 @@ func UpdateLockTask(worktreePath, taskID, taskTitle string) error {
 		return fmt.Errorf("failed to marshal lock info: %w", err)
 	}
 
-	return os.WriteFile(lockPath, data, 0644)
+	return os.WriteFile(lockPath, data, 0600)
 }
 
 // IsProcessRunning checks if a process with the given PID is still running

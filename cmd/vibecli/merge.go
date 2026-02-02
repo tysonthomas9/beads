@@ -137,8 +137,7 @@ func mergeBranch(sourceBranch, targetBranch string) {
 	}
 
 	// Check if there are commits to merge
-	hasCommits, err := HasCommitsBetween(scriptDir, targetBranch, sourceBranch)
-	if err == nil && !hasCommits {
+	if !HasCommitsBetween(scriptDir, targetBranch, sourceBranch) {
 		fmt.Printf("✓ Already up to date (no new commits in %s)\n", sourceBranch)
 		return
 	}

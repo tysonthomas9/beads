@@ -93,14 +93,15 @@ func GetConflictedFiles(dir string) ([]string, error) {
 	return lines, nil
 }
 
-// HasCommitsBetween checks if source has commits not in target
-func HasCommitsBetween(dir, target, source string) (bool, error) {
+// HasCommitsBetween checks if source has commits not in target.
+// On error, returns true (assumes there might be commits).
+func HasCommitsBetween(dir, target, source string) bool {
 	output, err := RunGitCommand(dir, "log", fmt.Sprintf("%s..origin/%s", target, source), "--oneline")
 	if err != nil {
 		// If the command fails, assume there might be commits
-		return true, nil
+		return true
 	}
-	return strings.TrimSpace(output) != "", nil
+	return strings.TrimSpace(output) != ""
 }
 
 // IsCleanWorkingTree checks if the working tree is clean

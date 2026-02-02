@@ -300,7 +300,7 @@ describe('NodeTooltip', () => {
     });
 
     it('handles custom/unknown status values', () => {
-      const issue = createTestIssue({ status: 'custom_status' as any });
+      const issue = createTestIssue({ status: 'custom_status' });
       render(<NodeTooltip issue={issue} position={defaultPosition} />);
 
       expect(screen.getByText('Custom_status')).toBeInTheDocument();
