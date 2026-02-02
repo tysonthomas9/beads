@@ -1309,6 +1309,22 @@ func (m *MemoryStorage) getOpenBlockers(issueID string) []string {
 	return blockers
 }
 
+// resolveBlockerDetails resolves blocker IDs to BlockerRef with title and priority.
+// The caller must hold at least a read lock.
+// For orphaned blockers (ID exists but issue is missing), returns empty title and priority 2 (default).
+func (m *MemoryStorage) resolveBlockerDetails(blockerIDs []string) []types.BlockerRef {
+	refs := make([]types.BlockerRef, 0, len(blockerIDs))
+	for _, id := range blockerIDs {
+		ref := types.BlockerRef{ID: id, Priority: 2} // Default priority
+		if issue, ok := m.issues[id]; ok {
+			ref.Title = issue.Title
+			ref.Priority = issue.Priority
+		}
+		refs = append(refs, ref)
+	}
+	return refs
+}
+
 // GetBlockedIssues returns issues that are blocked by other issues
 // Note: Pinned issues are excluded from the output (beads-ei4)
 func (m *MemoryStorage) GetBlockedIssues(ctx context.Context, filter types.WorkFilter) ([]*types.BlockedIssue, error) {
@@ -1357,9 +1373,10 @@ func (m *MemoryStorage) GetBlockedIssues(ctx context.Context, filter types.WorkF
 		}
 
 		results = append(results, &types.BlockedIssue{
-			Issue:          issueCopy,
-			BlockedByCount: len(blockers),
-			BlockedBy:      blockers,
+			Issue:            issueCopy,
+			BlockedByCount:   len(blockers),
+			BlockedBy:        blockers,
+			BlockedByDetails: m.resolveBlockerDetails(blockers),
 		})
 	}
 

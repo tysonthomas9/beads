@@ -858,11 +858,19 @@ const (
 	EventCompacted         EventType = "compacted"
 )
 
+// BlockerRef contains detailed information about a blocker issue
+type BlockerRef struct {
+	ID       string `json:"id"`
+	Title    string `json:"title"`
+	Priority int    `json:"priority"`
+}
+
 // BlockedIssue extends Issue with blocking information
 type BlockedIssue struct {
 	Issue
-	BlockedByCount int      `json:"blocked_by_count"`
-	BlockedBy      []string `json:"blocked_by"`
+	BlockedByCount   int          `json:"blocked_by_count"`
+	BlockedBy        []string     `json:"blocked_by"`
+	BlockedByDetails []BlockerRef `json:"blocked_by_details,omitempty"`
 }
 
 // TreeNode represents a node in a dependency tree

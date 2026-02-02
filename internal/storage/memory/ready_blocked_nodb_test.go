@@ -152,3 +152,160 @@ func TestGetBlockedIssues_IncludesExplicitlyBlockedStatus(t *testing.T) {
 		t.Fatalf("expected implicitly blocked issue %s", implicitlyBlocked.ID)
 	}
 }
+
+func TestGetBlockedIssues_BlockedByDetails(t *testing.T) {
+	store := setupTestMemory(t)
+	defer store.Close()
+
+	ctx := context.Background()
+
+	// Create blockers with different priorities
+	blocker1 := &types.Issue{ID: "bd-1", Title: "High Priority Blocker", Status: types.StatusOpen, Priority: 0, IssueType: types.TypeTask}
+	blocker2 := &types.Issue{ID: "bd-2", Title: "Low Priority Blocker", Status: types.StatusOpen, Priority: 3, IssueType: types.TypeTask}
+	blocked := &types.Issue{ID: "bd-3", Title: "Blocked Issue", Status: types.StatusOpen, Priority: 1, IssueType: types.TypeTask}
+
+	for _, issue := range []*types.Issue{blocker1, blocker2, blocked} {
+		if err := store.CreateIssue(ctx, issue, "test"); err != nil {
+			t.Fatalf("CreateIssue failed: %v", err)
+		}
+	}
+
+	// Add blocking dependencies
+	for _, blocker := range []*types.Issue{blocker1, blocker2} {
+		if err := store.AddDependency(ctx, &types.Dependency{
+			IssueID:     blocked.ID,
+			DependsOnID: blocker.ID,
+			Type:        types.DepBlocks,
+			CreatedAt:   time.Now(),
+			CreatedBy:   "test",
+		}, "test"); err != nil {
+			t.Fatalf("AddDependency failed: %v", err)
+		}
+	}
+
+	blockedIssues, err := store.GetBlockedIssues(ctx, types.WorkFilter{})
+	if err != nil {
+		t.Fatalf("GetBlockedIssues failed: %v", err)
+	}
+
+	// Find the blocked issue
+	var foundBlocked *types.BlockedIssue
+	for _, bi := range blockedIssues {
+		if bi.ID == blocked.ID {
+			foundBlocked = bi
+			break
+		}
+	}
+
+	if foundBlocked == nil {
+		t.Fatalf("expected blocked issue %s not found", blocked.ID)
+	}
+
+	// Verify BlockedByDetails is populated
+	if len(foundBlocked.BlockedByDetails) != 2 {
+		t.Fatalf("expected 2 blocker details, got %d", len(foundBlocked.BlockedByDetails))
+	}
+
+	// Build map of blocker details by ID
+	detailsMap := make(map[string]types.BlockerRef)
+	for _, ref := range foundBlocked.BlockedByDetails {
+		detailsMap[ref.ID] = ref
+	}
+
+	// Verify blocker1 details
+	if ref, ok := detailsMap[blocker1.ID]; !ok {
+		t.Errorf("missing blocker details for %s", blocker1.ID)
+	} else {
+		if ref.Title != blocker1.Title {
+			t.Errorf("expected title %q, got %q", blocker1.Title, ref.Title)
+		}
+		if ref.Priority != blocker1.Priority {
+			t.Errorf("expected priority %d, got %d", blocker1.Priority, ref.Priority)
+		}
+	}
+
+	// Verify blocker2 details
+	if ref, ok := detailsMap[blocker2.ID]; !ok {
+		t.Errorf("missing blocker details for %s", blocker2.ID)
+	} else {
+		if ref.Title != blocker2.Title {
+			t.Errorf("expected title %q, got %q", blocker2.Title, ref.Title)
+		}
+		if ref.Priority != blocker2.Priority {
+			t.Errorf("expected priority %d, got %d", blocker2.Priority, ref.Priority)
+		}
+	}
+}
+
+func TestGetBlockedIssues_OrphanedBlockerReturnsEmptyTitle(t *testing.T) {
+	store := setupTestMemory(t)
+	defer store.Close()
+
+	ctx := context.Background()
+
+	// Create issues
+	blocker := &types.Issue{ID: "bd-1", Title: "Will Be Deleted", Status: types.StatusOpen, Priority: 1, IssueType: types.TypeTask}
+	blocked := &types.Issue{ID: "bd-2", Title: "Blocked Issue", Status: types.StatusOpen, Priority: 1, IssueType: types.TypeTask}
+
+	for _, issue := range []*types.Issue{blocker, blocked} {
+		if err := store.CreateIssue(ctx, issue, "test"); err != nil {
+			t.Fatalf("CreateIssue failed: %v", err)
+		}
+	}
+
+	// Add blocking dependency
+	if err := store.AddDependency(ctx, &types.Dependency{
+		IssueID:     blocked.ID,
+		DependsOnID: blocker.ID,
+		Type:        types.DepBlocks,
+		CreatedAt:   time.Now(),
+		CreatedBy:   "test",
+	}, "test"); err != nil {
+		t.Fatalf("AddDependency failed: %v", err)
+	}
+
+	// Delete the blocker to create an orphaned reference
+	if err := store.DeleteIssue(ctx, blocker.ID); err != nil {
+		t.Fatalf("DeleteIssue failed: %v", err)
+	}
+
+	blockedIssues, err := store.GetBlockedIssues(ctx, types.WorkFilter{})
+	if err != nil {
+		t.Fatalf("GetBlockedIssues failed: %v", err)
+	}
+
+	// Find the blocked issue
+	var foundBlocked *types.BlockedIssue
+	for _, bi := range blockedIssues {
+		if bi.ID == blocked.ID {
+			foundBlocked = bi
+			break
+		}
+	}
+
+	if foundBlocked == nil {
+		t.Fatalf("expected blocked issue %s not found", blocked.ID)
+	}
+
+	// Verify BlockedBy still contains the orphaned ID
+	if len(foundBlocked.BlockedBy) != 1 || foundBlocked.BlockedBy[0] != blocker.ID {
+		t.Fatalf("expected orphaned blocker ID in BlockedBy, got %v", foundBlocked.BlockedBy)
+	}
+
+	// Verify BlockedByDetails has the orphaned blocker with empty title
+	if len(foundBlocked.BlockedByDetails) != 1 {
+		t.Fatalf("expected 1 blocker detail, got %d", len(foundBlocked.BlockedByDetails))
+	}
+
+	ref := foundBlocked.BlockedByDetails[0]
+	if ref.ID != blocker.ID {
+		t.Errorf("expected blocker ID %s, got %s", blocker.ID, ref.ID)
+	}
+	if ref.Title != "" {
+		t.Errorf("expected empty title for orphaned blocker, got %q", ref.Title)
+	}
+	// Priority defaults to 2 when issue is missing (consistent with SQLite)
+	if ref.Priority != 2 {
+		t.Errorf("expected priority 2 for orphaned blocker, got %d", ref.Priority)
+	}
+}

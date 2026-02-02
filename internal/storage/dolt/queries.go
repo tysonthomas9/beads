@@ -324,10 +324,11 @@ func (s *DoltStore) GetBlockedIssues(ctx context.Context, filter types.WorkFilte
 			continue
 		}
 
-		// Get blocker IDs
+		// Get blocker IDs and details
 		var blockerIDs []string
+		var blockerDetails []types.BlockerRef
 		blockerRows, err := s.db.QueryContext(ctx, `
-			SELECT d.depends_on_id
+			SELECT d.depends_on_id, blocker.title, blocker.priority
 			FROM dependencies d
 			JOIN issues blocker ON d.depends_on_id = blocker.id
 			WHERE d.issue_id = ?
@@ -338,19 +339,26 @@ func (s *DoltStore) GetBlockedIssues(ctx context.Context, filter types.WorkFilte
 			return nil, err
 		}
 		for blockerRows.Next() {
-			var blockerID string
-			if err := blockerRows.Scan(&blockerID); err != nil {
+			var blockerID, blockerTitle string
+			var blockerPriority int
+			if err := blockerRows.Scan(&blockerID, &blockerTitle, &blockerPriority); err != nil {
 				_ = blockerRows.Close() // nolint:gosec // G104: error ignored on early return
 				return nil, err
 			}
 			blockerIDs = append(blockerIDs, blockerID)
+			blockerDetails = append(blockerDetails, types.BlockerRef{
+				ID:       blockerID,
+				Title:    blockerTitle,
+				Priority: blockerPriority,
+			})
 		}
 		_ = blockerRows.Close() // nolint:gosec // G104: rows already read successfully
 
 		results = append(results, &types.BlockedIssue{
-			Issue:          *issue,
-			BlockedByCount: count,
-			BlockedBy:      blockerIDs,
+			Issue:            *issue,
+			BlockedByCount:   count,
+			BlockedBy:        blockerIDs,
+			BlockedByDetails: blockerDetails,
 		})
 	}
 

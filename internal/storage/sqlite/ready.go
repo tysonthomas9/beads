@@ -529,13 +529,16 @@ func (s *SQLiteStorage) GetBlockedIssues(ctx context.Context, filter types.WorkF
 	}
 
 	// nolint:gosec // G201: filterSQL contains only parameterized WHERE clauses with ? placeholders, not user input
+	// Note: blocker_details format is "id|title|priority,id|title|priority,..." for parsing
+	// Titles are escaped: \ -> \\, | -> \|, , -> \, to handle titles containing delimiters
 	query := fmt.Sprintf(`
 		SELECT
 		    i.id, i.title, i.description, i.design, i.acceptance_criteria, i.notes,
 		    i.status, i.priority, i.issue_type, i.assignee, i.estimated_minutes,
 		    i.created_at, i.created_by, i.updated_at, i.closed_at, i.external_ref, i.source_repo,
 		    COALESCE(COUNT(d.depends_on_id), 0) as blocked_by_count,
-		    COALESCE(GROUP_CONCAT(d.depends_on_id, ','), '') as blocker_ids
+		    COALESCE(GROUP_CONCAT(d.depends_on_id, ','), '') as blocker_ids,
+		    COALESCE(GROUP_CONCAT(d.depends_on_id || '|' || REPLACE(REPLACE(REPLACE(COALESCE(blocker.title, ''), '\', '\\'), '|', '\|'), ',', '\,') || '|' || COALESCE(blocker.priority, 2), ','), '') as blocker_details
 		FROM issues i
 		LEFT JOIN dependencies d ON i.id = d.issue_id
 		    AND d.type = 'blocks'
@@ -549,6 +552,7 @@ func (s *SQLiteStorage) GetBlockedIssues(ctx context.Context, filter types.WorkF
 		        -- External refs: always included (resolution happens at query time)
 		        OR d.depends_on_id LIKE 'external:%%'
 		    )
+		LEFT JOIN issues blocker ON d.depends_on_id = blocker.id
 		WHERE i.status IN ('open', 'in_progress', 'blocked', 'deferred', 'hooked')
 		  AND i.pinned = 0
 		  AND (
@@ -591,13 +595,14 @@ func (s *SQLiteStorage) GetBlockedIssues(ctx context.Context, filter types.WorkF
 		var externalRef sql.NullString
 		var sourceRepo sql.NullString
 		var blockerIDsStr string
+		var blockerDetailsStr string
 
 		err := rows.Scan(
 			&issue.ID, &issue.Title, &issue.Description, &issue.Design,
 			&issue.AcceptanceCriteria, &issue.Notes, &issue.Status,
 			&issue.Priority, &issue.IssueType, &assignee, &estimatedMinutes,
 			&createdAtStr, &issue.CreatedBy, &updatedAtStr, &closedAt, &externalRef, &sourceRepo, &issue.BlockedByCount,
-			&blockerIDsStr,
+			&blockerIDsStr, &blockerDetailsStr,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan blocked issue: %w", err)
@@ -633,6 +638,11 @@ func (s *SQLiteStorage) GetBlockedIssues(ctx context.Context, filter types.WorkF
 			issue.BlockedBy = strings.Split(blockerIDsStr, ",")
 		} else {
 			issue.BlockedBy = []string{}
+		}
+
+		// Parse blocker details (format: "id|title|priority,id|title|priority,...")
+		if blockerDetailsStr != "" {
+			issue.BlockedByDetails = parseBlockerDetails(blockerDetailsStr)
 		}
 
 		blocked = append(blocked, &issue)
@@ -700,8 +710,17 @@ func filterBlockedByExternalDeps(ctx context.Context, blocked []*types.BlockedIs
 			}
 		}
 
+		// Also filter BlockedByDetails
+		var filteredDetails []types.BlockerRef
+		for _, detail := range issue.BlockedByDetails {
+			if !satisfiedRefs[detail.ID] {
+				filteredDetails = append(filteredDetails, detail)
+			}
+		}
+
 		// Update issue with filtered blockers
 		issue.BlockedBy = filteredBlockers
+		issue.BlockedByDetails = filteredDetails
 		issue.BlockedByCount = len(filteredBlockers)
 
 		// Keep issue if it has remaining blockers OR has blocked/deferred status
@@ -864,4 +883,118 @@ func (s *SQLiteStorage) getExcludeIDPatterns(ctx context.Context) []string {
 		return DefaultExcludeIDPatterns
 	}
 	return patterns
+}
+
+// parseBlockerDetails parses blocker details from GROUP_CONCAT format.
+// Input format: "id|title|priority,id|title|priority,..."
+// Titles are escaped: \\ -> \, \| -> |, \, -> ,
+// Returns slice of BlockerRef with id, title, and priority.
+func parseBlockerDetails(s string) []types.BlockerRef {
+	if s == "" {
+		return nil
+	}
+
+	entries := splitEscaped(s, ',')
+	refs := make([]types.BlockerRef, 0, len(entries))
+	for _, entry := range entries {
+		parts := splitEscapedN(entry, '|', 3)
+		if len(parts) < 1 || parts[0] == "" {
+			continue
+		}
+
+		ref := types.BlockerRef{ID: parts[0]}
+		if len(parts) >= 2 {
+			ref.Title = unescapeBlockerField(parts[1])
+		}
+		if len(parts) >= 3 {
+			// Parse priority, default to 2 on error
+			var priority int
+			_, err := fmt.Sscanf(parts[2], "%d", &priority)
+			if err == nil {
+				ref.Priority = priority
+			} else {
+				ref.Priority = 2
+			}
+		}
+		refs = append(refs, ref)
+	}
+	return refs
+}
+
+// splitEscaped splits a string by a delimiter, respecting backslash escapes.
+// A backslash before the delimiter prevents the split at that position.
+func splitEscaped(s string, delim byte) []string {
+	var result []string
+	var current strings.Builder
+	escaped := false
+
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		if escaped {
+			current.WriteByte(c)
+			escaped = false
+		} else if c == '\\' {
+			current.WriteByte(c)
+			escaped = true
+		} else if c == delim {
+			result = append(result, current.String())
+			current.Reset()
+		} else {
+			current.WriteByte(c)
+		}
+	}
+	result = append(result, current.String())
+	return result
+}
+
+// splitEscapedN splits a string by a delimiter into at most n parts, respecting backslash escapes.
+func splitEscapedN(s string, delim byte, n int) []string {
+	if n <= 0 {
+		return nil
+	}
+	var result []string
+	var current strings.Builder
+	escaped := false
+
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		if escaped {
+			current.WriteByte(c)
+			escaped = false
+		} else if c == '\\' {
+			current.WriteByte(c)
+			escaped = true
+		} else if c == delim && len(result) < n-1 {
+			result = append(result, current.String())
+			current.Reset()
+		} else {
+			current.WriteByte(c)
+		}
+	}
+	result = append(result, current.String())
+	return result
+}
+
+// unescapeBlockerField reverses the SQL escaping: \\ -> \, \| -> |, \, -> ,
+func unescapeBlockerField(s string) string {
+	var result strings.Builder
+	escaped := false
+
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		if escaped {
+			// After a backslash, just output the character (handles \\, \|, \,)
+			result.WriteByte(c)
+			escaped = false
+		} else if c == '\\' {
+			escaped = true
+		} else {
+			result.WriteByte(c)
+		}
+	}
+	// Handle trailing backslash (shouldn't happen with valid input)
+	if escaped {
+		result.WriteByte('\\')
+	}
+	return result.String()
 }
