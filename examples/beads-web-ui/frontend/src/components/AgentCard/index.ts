@@ -1,2 +1,2 @@
-export { AgentCard, getAvatarColor, getStatusDotColor, getStatusLine } from './AgentCard';
+export { AgentCard, getAvatarColor, getStatusDotColor, getStatusLabel } from './AgentCard';
 export type { AgentCardProps } from './AgentCard';

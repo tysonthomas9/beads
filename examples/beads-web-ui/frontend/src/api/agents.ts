@@ -19,7 +19,23 @@ import type {
  * Default loom server URL.
  * Can be overridden via environment variable or config.
  */
-const LOOM_SERVER_URL = import.meta.env.VITE_LOOM_SERVER_URL ?? 'http://localhost:9000';
+const LOOM_SERVER_URL = import.meta.env.VITE_LOOM_SERVER_URL ?? '/api/loom';
+const LOOM_REQUEST_TIMEOUT_MS = 15000;
+
+async function fetchWithTimeout(
+  input: RequestInfo,
+  init: RequestInit,
+  timeoutMs = LOOM_REQUEST_TIMEOUT_MS
+) {
+  const controller = new AbortController();
+  const timeoutId = window.setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    return await fetch(input, { ...init, signal: controller.signal });
+  } finally {
+    window.clearTimeout(timeoutId);
+  }
+}
 
 /**
  * Fetch agents from the loom server.
@@ -27,7 +43,7 @@ const LOOM_SERVER_URL = import.meta.env.VITE_LOOM_SERVER_URL ?? 'http://localhos
  */
 export async function fetchAgents(): Promise<LoomAgentStatus[]> {
   try {
-    const response = await fetch(`${LOOM_SERVER_URL}/api/agents`, {
+    const response = await fetchWithTimeout(`${LOOM_SERVER_URL}/api/agents`, {
       method: 'GET',
       headers: {
         Accept: 'application/json',
@@ -56,7 +72,7 @@ export async function fetchAgents(): Promise<LoomAgentStatus[]> {
  */
 export async function checkLoomHealth(): Promise<boolean> {
   try {
-    const response = await fetch(`${LOOM_SERVER_URL}/health`, {
+    const response = await fetchWithTimeout(`${LOOM_SERVER_URL}/health`, {
       method: 'GET',
       headers: {
         Accept: 'application/json',
@@ -85,7 +101,7 @@ export interface FetchStatusResult {
  * Throws on network errors or invalid responses so callers can handle connection state.
  */
 export async function fetchStatus(): Promise<FetchStatusResult> {
-  const response = await fetch(`${LOOM_SERVER_URL}/api/status`, {
+  const response = await fetchWithTimeout(`${LOOM_SERVER_URL}/api/status`, {
     method: 'GET',
     headers: {
       Accept: 'application/json',
@@ -112,7 +128,7 @@ export async function fetchStatus(): Promise<FetchStatusResult> {
  * Throws on network errors or invalid responses so callers can handle connection state.
  */
 export async function fetchTasks(): Promise<LoomTaskLists> {
-  const response = await fetch(`${LOOM_SERVER_URL}/api/tasks`, {
+  const response = await fetchWithTimeout(`${LOOM_SERVER_URL}/api/tasks`, {
     method: 'GET',
     headers: {
       Accept: 'application/json',

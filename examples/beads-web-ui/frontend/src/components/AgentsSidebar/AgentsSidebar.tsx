@@ -21,6 +21,8 @@ export interface AgentsSidebarProps {
   className?: string;
   /** Default collapsed state */
   defaultCollapsed?: boolean;
+  /** Allow collapsing the sidebar (default: true) */
+  collapsible?: boolean;
   /** Callback when an agent card is clicked */
   onAgentClick?: (agentName: string) => void;
   /** Optional content to render at the top of the sidebar (e.g., ViewSwitcher) */
@@ -36,6 +38,7 @@ const WORK_QUEUE_STORAGE_KEY = 'agents-sidebar-work-queue-expanded';
 export function AgentsSidebar({
   className,
   defaultCollapsed = false,
+  collapsible = true,
   onAgentClick,
   viewSwitcher,
 }: AgentsSidebarProps): JSX.Element {
@@ -84,8 +87,9 @@ export function AgentsSidebar({
   }, [isWorkQueueExpanded]);
 
   const handleToggle = useCallback(() => {
+    if (!collapsible) return;
     setIsCollapsed((prev) => !prev);
-  }, []);
+  }, [collapsible]);
 
   const handleWorkQueueToggle = useCallback(() => {
     setIsWorkQueueExpanded((prev) => !prev);
@@ -119,7 +123,9 @@ export function AgentsSidebar({
 
   const drawerData = getDrawerData();
 
-  const rootClassName = [styles.sidebar, isCollapsed && styles.collapsed, className]
+  const collapsed = collapsible ? isCollapsed : false;
+
+  const rootClassName = [styles.sidebar, collapsed && styles.collapsed, className]
     .filter(Boolean)
     .join(' ');
 
@@ -133,26 +139,31 @@ export function AgentsSidebar({
 
   return (
     <aside className={rootClassName} data-collapsed={isCollapsed}>
-      {!isCollapsed && viewSwitcher && (
-        <div className={styles.viewSwitcherSlot}>{viewSwitcher}</div>
+      {!collapsed && viewSwitcher && <div className={styles.viewSwitcherSlot}>{viewSwitcher}</div>}
+      {collapsible ? (
+        <button
+          type="button"
+          className={styles.toggleButton}
+          onClick={handleToggle}
+          aria-expanded={!isCollapsed}
+          aria-label={isCollapsed ? 'Expand agents sidebar' : 'Collapse agents sidebar'}
+        >
+          {!collapsed && (
+            <>
+              <span className={styles.toggleText}>Agents</span>
+              <span className={styles.sectionCount}>{agents.length}</span>
+            </>
+          )}
+          <span className={styles.toggleIcon}>{collapsed ? '>' : '<'}</span>
+        </button>
+      ) : (
+        <div className={styles.headerRow}>
+          <span className={styles.toggleText}>Agents</span>
+          <span className={styles.sectionCount}>{agents.length}</span>
+        </div>
       )}
-      <button
-        type="button"
-        className={styles.toggleButton}
-        onClick={handleToggle}
-        aria-expanded={!isCollapsed}
-        aria-label={isCollapsed ? 'Expand agents sidebar' : 'Collapse agents sidebar'}
-      >
-        {!isCollapsed && (
-          <span className={styles.toggleText}>
-            Agents
-            {activeCount > 0 && <span className={styles.activeCount}>{activeCount}</span>}
-          </span>
-        )}
-        <span className={styles.toggleIcon}>{isCollapsed ? '>' : '<'}</span>
-      </button>
 
-      {!isCollapsed && (
+      {!collapsed && (
         <div className={styles.content}>
           {!isConnected && !isLoading && (
             <div className={styles.disconnected}>
@@ -297,7 +308,7 @@ export function AgentsSidebar({
         </div>
       )}
 
-      {isCollapsed && activeCount > 0 && (
+      {collapsed && activeCount > 0 && (
         <div className={styles.collapsedBadge} title={`${activeCount} active agent(s)`}>
           {activeCount}
         </div>

@@ -189,27 +189,31 @@ describe('StatusColumn', () => {
 
   describe('headerIcon prop', () => {
     it('displays headerIcon when provided', () => {
-      render(<StatusColumn status="open" count={1} headerIcon="⏳" />);
+      render(
+        <StatusColumn status="open" count={1} headerIcon={<span data-testid="icon">⏳</span>} />
+      );
 
       // Icon should be in the document
-      const icon = screen.getByText('⏳');
+      const icon = screen.getByTestId('icon');
       expect(icon).toBeInTheDocument();
-      expect(icon).toHaveAttribute('aria-hidden', 'true');
+      expect(screen.getByTestId('status-column-icon')).toBeInTheDocument();
     });
 
     it('does not show headerIcon when not provided', () => {
       const { container } = render(<StatusColumn status="open" count={1} />);
 
       // Should not have any columnIcon span
-      const iconSpan = container.querySelector('[aria-hidden="true"]');
+      const iconSpan = container.querySelector('[data-testid="status-column-icon"]');
       expect(iconSpan).not.toBeInTheDocument();
     });
 
     it('headerIcon is inside the header element', () => {
-      const { container } = render(<StatusColumn status="open" count={1} headerIcon="🔍" />);
+      const { container } = render(
+        <StatusColumn status="open" count={1} headerIcon={<span data-testid="icon">🔍</span>} />
+      );
 
       const header = container.querySelector('header');
-      const icon = screen.getByText('🔍');
+      const icon = screen.getByTestId('icon');
       expect(header).toContainElement(icon);
     });
 
@@ -217,9 +221,15 @@ describe('StatusColumn', () => {
       const icons = ['⏳', '✅', '🔍', '📝'];
 
       icons.forEach((icon) => {
-        const { unmount } = render(<StatusColumn status="open" count={1} headerIcon={icon} />);
+        const { unmount } = render(
+          <StatusColumn
+            status="open"
+            count={1}
+            headerIcon={<span data-testid="icon">{icon}</span>}
+          />
+        );
 
-        expect(screen.getByText(icon)).toBeInTheDocument();
+        expect(screen.getByTestId('icon')).toBeInTheDocument();
 
         unmount();
       });

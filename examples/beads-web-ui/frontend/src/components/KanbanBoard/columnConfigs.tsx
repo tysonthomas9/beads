@@ -11,6 +11,20 @@
 
 import type { KanbanColumnConfig } from './types';
 
+const ClockIcon = (
+  <svg viewBox="0 0 24 24" aria-hidden="true">
+    <path
+      d="M12 7v5l3 2"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+    <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" strokeWidth="1.5" />
+  </svg>
+);
+
 /**
  * Default kanban columns for multi-agent workflows.
  * Order matters: filter functions are evaluated in order, issue belongs to first match.
@@ -24,6 +38,7 @@ export const DEFAULT_COLUMNS: KanbanColumnConfig[] = [
   {
     id: 'ready',
     label: 'Ready',
+    headerIcon: ClockIcon,
     filter: (issue, blockedInfo) =>
       issue.issue_type !== 'epic' &&
       (issue.status === 'open' || issue.status === undefined) &&

@@ -54,6 +54,11 @@ func setupRoutes(mux *http.ServeMux, pool *daemon.ConnectionPool, hub *SSEHub, g
 		mux.HandleFunc("GET /api/events", handleSSE(hub, getMutationsSince))
 	}
 
+	// Loom proxy for agent status endpoints (same-origin to avoid CORS/CSP issues)
+	if loomProxy := newLoomProxy(); loomProxy != nil {
+		mux.Handle("/api/loom/", loomProxy)
+	}
+
 	// Static file serving with SPA routing (must be last - catches all paths)
 	mux.Handle("/", frontendHandler())
 }

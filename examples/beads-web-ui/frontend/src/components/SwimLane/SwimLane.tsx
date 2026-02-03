@@ -136,10 +136,9 @@ export function SwimLane({
                 ? styles.highlightedColumn
                 : undefined;
 
-          // Determine column type and icon for backlog column
+          // Determine column type for backlog column
           const isBacklogColumn = col.id === 'backlog';
           const columnType = isBacklogColumn ? ('backlog' as const) : undefined;
-          const headerIcon = isBacklogColumn ? '⏳' : undefined;
 
           // Build props conditionally to satisfy exactOptionalPropertyTypes
           const isDropDisabled = isCollapsed || col.droppableDisabled === true;
@@ -150,7 +149,6 @@ export function SwimLane({
             ...(isDropDisabled && { droppableDisabled: true }),
             ...(columnClassName !== undefined && { className: columnClassName }),
             ...(columnType !== undefined && { columnType }),
-            ...(headerIcon !== undefined && { headerIcon }),
           };
 
           return (

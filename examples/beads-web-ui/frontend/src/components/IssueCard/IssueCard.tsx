@@ -9,7 +9,7 @@ import type { Issue } from '@/types';
 import { parseLoomStatus } from '@/types';
 import { BlockedBadge } from '@/components/BlockedBadge';
 import { formatIssueId } from '@/utils/formatIssueId';
-import { getAvatarColor, getStatusDotColor, getStatusLine } from '@/components/AgentCard';
+import { getAvatarColor, getStatusDotColor, getStatusLabel } from '@/components/AgentCard';
 import { useAgentContext } from '@/hooks';
 import { getReviewType } from '@/utils/reviewType';
 import type { ReviewType } from '@/utils/reviewType';
@@ -216,9 +216,7 @@ export function IssueCard({
           avatarColor={getAvatarColor(issue.assignee!.replace(/^\[H\]\s*/, ''))}
           dotColor={agentParsedStatus ? getStatusDotColor(agentParsedStatus.type) : undefined}
           activity={
-            agentParsedStatus && assignedAgent
-              ? getStatusLine(agentParsedStatus, assignedAgent.branch)
-              : undefined
+            agentParsedStatus && assignedAgent ? getStatusLabel(agentParsedStatus) : undefined
           }
         />
       )}

@@ -6,8 +6,8 @@
 .swimLaneBoard {
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
-  padding: var(--space-3);
+  gap: var(--space-4);
+  padding: 0;
   overflow-y: auto;
   overflow-x: hidden;
   flex: 1; /* Fill available space from parent flex container */

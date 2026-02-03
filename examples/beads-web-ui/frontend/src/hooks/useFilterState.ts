@@ -83,7 +83,7 @@ export type UseFilterStateReturn = [FilterState, FilterActions];
  * Default group by option for swim lane display.
  * When no groupBy is specified in URL, the UI defaults to epic swim lanes.
  */
-export const DEFAULT_GROUP_BY: GroupByOption = 'epic';
+export const DEFAULT_GROUP_BY: GroupByOption = 'none';
 
 /**
  * Default empty filter state.

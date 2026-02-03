@@ -18,7 +18,6 @@ import {
   useBlockedIssues,
   useIssueDetail,
   useToast,
-  useStats,
   useRecentAssignees,
   useSelection,
   useAgents,
@@ -30,21 +29,19 @@ import {
   AppLayout,
   SwimLaneBoard,
   IssueTable,
-  ViewSwitcher,
   LoadingSkeleton,
   ErrorDisplay,
   ConnectionStatus,
-  BlockedSummary,
   ToastContainer,
   FilterBar,
   SearchInput,
   IssueDetailPanel,
   AgentDetailPanel,
   AgentsSidebar,
-  StatsHeader,
   AssigneePrompt,
   BulkActionToolbar,
   TalkToLeadButton,
+  NavRail,
 } from '@/components';
 
 // Lazy load GraphView (React Flow ~100KB)
@@ -125,15 +122,8 @@ function App() {
   }, [blockedIssuesData]);
 
   const { toasts, showToast, dismissToast } = useToast();
-  const {
-    data: stats,
-    loading: statsLoading,
-    error: statsError,
-    refetch: refetchStats,
-  } = useStats({
-    pollInterval: 30000,
-  });
   const mountedRef = useRef(true);
+  const profileMenuRef = useRef<HTMLDivElement | null>(null);
 
   // Bulk selection state for Table view
   const {
@@ -162,6 +152,7 @@ function App() {
 
   // Terminal panel state
   const [isTerminalOpen, setIsTerminalOpen] = useState(false);
+  const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
 
   // Assignee prompt state for Ready → In Progress drag
   const { recentAssignees, addRecentAssignee } = useRecentAssignees();
@@ -178,6 +169,18 @@ function App() {
       mountedRef.current = false;
     };
   }, []);
+
+  // Close profile menu on outside click
+  useEffect(() => {
+    if (!isProfileMenuOpen) return;
+    const handleClickOutside = (event: MouseEvent) => {
+      if (!profileMenuRef.current?.contains(event.target as Node)) {
+        setIsProfileMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isProfileMenuOpen]);
 
   const handleDragEnd = useCallback(
     async (issueId: string, newStatus: Status, oldStatus: Status) => {
@@ -420,46 +423,94 @@ function App() {
     [fetchIssue]
   );
 
-  // Handle blocked issue click from BlockedSummary dropdown
-  const handleBlockedIssueClick = useCallback(
-    (issueId: string) => {
-      if (issueId === '__show_all_blocked__') {
-        // Toggle showBlocked filter to true
-        filterActions.setShowBlocked(true);
-      }
-      // Individual issue clicks could navigate to issue detail in the future
-      // For now, just show all blocked issues
-    },
-    [filterActions]
+  const toggleProfileMenu = useCallback(() => {
+    setIsProfileMenuOpen((prev) => !prev);
+  }, []);
+
+  const closeProfileMenu = useCallback(() => {
+    setIsProfileMenuOpen(false);
+  }, []);
+
+  const headerNavigation = (
+    <div className={styles.headerControls}>
+      <div className={styles.searchWrapper}>
+        <SearchInput
+          value={searchValue}
+          onChange={setSearchValue}
+          onClear={handleSearchClear}
+          placeholder="Search issues..."
+          size="md"
+        />
+      </div>
+      <div className={styles.filtersWrapper}>
+        <FilterBar
+          filters={filters}
+          actions={filterActions}
+          groupBy={filters.groupBy ?? DEFAULT_GROUP_BY}
+          onGroupByChange={filterActions.setGroupBy}
+          showClear={false}
+        />
+      </div>
+    </div>
   );
 
-  // Loading state: show skeleton columns (ViewSwitcher disabled, no filters)
+  const headerActions = (
+    <div className={styles.headerActions}>
+      <ConnectionStatus
+        state={connectionState}
+        onRetry={retryConnection}
+        reconnectAttempts={reconnectAttempts}
+        showText={false}
+        showRetryButton={false}
+        compact
+      />
+      <div className={styles.profileMenu} ref={profileMenuRef}>
+        <button
+          type="button"
+          className={styles.profileButton}
+          onClick={toggleProfileMenu}
+          aria-haspopup="true"
+          aria-expanded={isProfileMenuOpen}
+          aria-label="Open profile menu"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path
+              d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        </button>
+        {isProfileMenuOpen && (
+          <div className={styles.profileDropdown} role="menu">
+            <button type="button" className={styles.profileItem} onClick={closeProfileMenu}>
+              Settings
+            </button>
+            <button type="button" className={styles.profileItem} onClick={closeProfileMenu}>
+              Logout
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
+  // Loading state: show skeleton columns
   if (isLoading) {
     return (
       <AppLayout
-        actions={
-          <div className={styles.actionsContainer}>
-            <StatsHeader
-              stats={stats}
-              loading={statsLoading}
-              error={statsError}
-              onRetry={refetchStats}
-            />
-            <BlockedSummary onIssueClick={handleBlockedIssueClick} />
-            <ConnectionStatus state={connectionState} />
-          </div>
-        }
+        title="Cortex"
+        navigation={headerNavigation}
+        actions={headerActions}
+        navRail={<NavRail activeView={activeView} onChange={setActiveView} />}
         sidebar={
           <AgentsSidebar
             onAgentClick={handleAgentClick}
-            viewSwitcher={
-              <ViewSwitcher
-                activeView={activeView}
-                onChange={setActiveView}
-                orientation="vertical"
-                disabled
-              />
-            }
+            defaultCollapsed={false}
+            collapsible={false}
           />
         }
       >
@@ -472,37 +523,19 @@ function App() {
     );
   }
 
-  // Error state: show error display with retry (ViewSwitcher disabled, no filters)
+  // Error state: show error display with retry
   if (error && !isLoading) {
     return (
       <AppLayout
-        actions={
-          <div className={styles.actionsContainer}>
-            <StatsHeader
-              stats={stats}
-              loading={statsLoading}
-              error={statsError}
-              onRetry={refetchStats}
-            />
-            <BlockedSummary onIssueClick={handleBlockedIssueClick} />
-            <ConnectionStatus
-              state={connectionState}
-              onRetry={retryConnection}
-              reconnectAttempts={reconnectAttempts}
-            />
-          </div>
-        }
+        title="Cortex"
+        navigation={headerNavigation}
+        actions={headerActions}
+        navRail={<NavRail activeView={activeView} onChange={setActiveView} />}
         sidebar={
           <AgentsSidebar
             onAgentClick={handleAgentClick}
-            viewSwitcher={
-              <ViewSwitcher
-                activeView={activeView}
-                onChange={setActiveView}
-                orientation="vertical"
-                disabled
-              />
-            }
+            defaultCollapsed={false}
+            collapsible={false}
           />
         }
       >
@@ -519,43 +552,15 @@ function App() {
   // Success state: show view based on activeView with filtered issues
   return (
     <AppLayout
-      actions={
-        <div className={styles.actionsContainer}>
-          <div className={styles.searchWrapper}>
-            <SearchInput
-              value={searchValue}
-              onChange={setSearchValue}
-              onClear={handleSearchClear}
-              placeholder="Search issues..."
-              size="lg"
-            />
-          </div>
-          <FilterBar
-            filters={filters}
-            actions={filterActions}
-            groupBy={filters.groupBy ?? DEFAULT_GROUP_BY}
-            onGroupByChange={filterActions.setGroupBy}
-          />
-          <StatsHeader
-            stats={stats}
-            loading={statsLoading}
-            error={statsError}
-            onRetry={refetchStats}
-          />
-          <BlockedSummary onIssueClick={handleBlockedIssueClick} />
-          <ConnectionStatus
-            state={connectionState}
-            onRetry={retryConnection}
-            reconnectAttempts={reconnectAttempts}
-          />
-        </div>
-      }
+      title="Cortex"
+      navigation={headerNavigation}
+      actions={headerActions}
+      navRail={<NavRail activeView={activeView} onChange={setActiveView} />}
       sidebar={
         <AgentsSidebar
           onAgentClick={handleAgentClick}
-          viewSwitcher={
-            <ViewSwitcher activeView={activeView} onChange={setActiveView} orientation="vertical" />
-          }
+          defaultCollapsed={false}
+          collapsible={false}
         />
       }
     >

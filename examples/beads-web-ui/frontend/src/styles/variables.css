@@ -5,13 +5,26 @@
 
 :root {
   /* ===========================
+   * Design System (Variant)
+   * =========================== */
+  --bg-color: #eae8e1;
+  --bg-card: #ffffff;
+  --line-color: #cccccc;
+  --text-primary: #000000;
+  --text-secondary: #444444;
+  --accent-bg: #f3e9f7;
+  --accent-text: #f05d46;
+  --font-main: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  --unified-header-height: 56px;
+
+  /* ===========================
    * Colors - Priority
    * =========================== */
-  --color-priority-0: #dc2626; /* red-600, critical */
-  --color-priority-1: #ea580c; /* orange-600, high */
-  --color-priority-2: #ca8a04; /* yellow-600, medium */
-  --color-priority-3: #2563eb; /* blue-600, normal */
-  --color-priority-4: #6b7280; /* gray-500, low/backlog */
+  --color-priority-0: #e24b3b; /* warm red */
+  --color-priority-1: #ef7f4a; /* orange */
+  --color-priority-2: #f0b24a; /* warm yellow */
+  --color-priority-3: #5b85f7; /* soft blue */
+  --color-priority-4: #6b7280; /* gray */
 
   /* ===========================
    * Colors - Status
@@ -42,7 +55,7 @@
   /* ===========================
    * Colors - Semantic
    * =========================== */
-  --color-primary: #3b82f6; /* blue-500 */
+  --color-primary: #111111; /* used for focus states */
   --color-success: #22c55e; /* green-500 */
   --color-warning: #f59e0b; /* amber-500 */
   --color-danger: #ef4444; /* red-500 */
@@ -64,24 +77,24 @@
   /* ===========================
    * Colors - Neutral (Light Theme)
    * =========================== */
-  --color-bg: #ffffff;
-  --color-bg-secondary: #f9fafb;
-  --color-bg-tertiary: #f3f4f6;
-  --color-bg-hover: #f3f4f6; /* gray-100, for hover states */
-  --color-bg-active: #e5e7eb; /* gray-200, for active states */
-  --color-surface-subtle: #f9fafb; /* gray-50, for muted surfaces */
-  --color-border: #e5e7eb;
-  --color-border-light: #f3f4f6;
+  --color-bg: var(--bg-card);
+  --color-bg-secondary: var(--bg-color);
+  --color-bg-tertiary: #f4f2ec;
+  --color-bg-hover: #f0eee8; /* warm hover */
+  --color-bg-active: #e8e6df; /* warm active */
+  --color-surface-subtle: #f7f5ef; /* warm muted surface */
+  --color-border: var(--line-color);
+  --color-border-light: #dedad0;
   --color-border-hover: #d1d5db; /* gray-300, for hover states */
-  --color-text: #111827;
-  --color-text-primary: #111827; /* alias for --color-text */
-  --color-text-secondary: #6b7280;
-  --color-text-tertiary: #9ca3af; /* alias for --color-text-muted */
-  --color-text-muted: #9ca3af;
+  --color-text: var(--text-primary);
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-text-tertiary: #6b6b6b;
+  --color-text-muted: #7a7a7a;
   --color-text-inverse: #ffffff;
   --color-highlight: #fef08a; /* yellow-200 */
   --color-focus: #3b82f6; /* blue-500, focus ring color */
-  --color-bg-primary: #ffffff; /* alias for --color-bg */
+  --color-bg-primary: var(--bg-card); /* alias for --color-bg */
 
   /* ===========================
    * Colors - Skeleton Loading
@@ -106,9 +119,7 @@
   /* ===========================
    * Typography - Font Families
    * =========================== */
-  --font-family-base:
-    system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial,
-    sans-serif;
+  --font-family-base: var(--font-main);
   --font-family-mono:
     ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono',
     'Courier New', monospace;

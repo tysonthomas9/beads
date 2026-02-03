@@ -56,7 +56,7 @@ vi.mock('@/hooks', async (importOriginal) => {
 vi.mock('@/components/AgentCard', () => ({
   getAvatarColor: vi.fn((name: string) => `#color-${name}`),
   getStatusDotColor: vi.fn(() => '#22c55e'),
-  getStatusLine: vi.fn(() => 'Working: bd-123'),
+  getStatusLabel: vi.fn(() => 'Working'),
 }));
 
 import { useAgentContext } from '@/hooks';
@@ -136,7 +136,7 @@ describe('IssueCard AgentRow integration', () => {
       // AgentRow renders the avatar initial
       expect(screen.getByText('N')).toBeInTheDocument();
       // AgentRow renders the activity text
-      expect(screen.getByText('Working: bd-123')).toBeInTheDocument();
+      expect(screen.getByText('Working')).toBeInTheDocument();
       // Status dot should be present
       const dot = container.querySelector('[class*="statusDot"]');
       expect(dot).toBeInTheDocument();

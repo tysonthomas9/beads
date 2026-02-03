@@ -255,7 +255,7 @@ export function KanbanBoard({
                 ? styles.highlightedColumn
                 : undefined;
 
-          // Determine column type and icon for special columns
+          // Determine column type for special columns
           const isBacklogColumn = col.id === 'backlog';
           const isReviewColumn = col.id === 'review';
           const columnType = isBacklogColumn
@@ -263,19 +263,18 @@ export function KanbanBoard({
             : isReviewColumn
               ? ('review' as const)
               : undefined;
-          const headerIcon = isBacklogColumn ? '⏳' : isReviewColumn ? '👀' : undefined;
 
           // Build props conditionally to satisfy exactOptionalPropertyTypes
           const statusColumnProps = {
             status: col.id,
             statusLabel: col.label,
             count: colIssues.length,
+            ...(col.headerIcon !== undefined && { headerIcon: col.headerIcon }),
             ...(col.droppableDisabled !== undefined && {
               droppableDisabled: col.droppableDisabled,
             }),
             ...(columnClassName !== undefined && { className: columnClassName }),
             ...(columnType !== undefined && { columnType }),
-            ...(headerIcon !== undefined && { headerIcon }),
           };
 
           return (

@@ -39,8 +39,8 @@ function getColumn(id: string) {
   return col;
 }
 
-const blocked: BlockedInfo = { blockedByCount: 1, blocksCount: 0 };
-const notBlocked: BlockedInfo = { blockedByCount: 0, blocksCount: 0 };
+const blocked: BlockedInfo = { blockedByCount: 1, blockedBy: [] };
+const notBlocked: BlockedInfo = { blockedByCount: 0, blockedBy: [] };
 
 describe('columnConfigs', () => {
   // ---------------------------------------------------------------
