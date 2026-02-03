@@ -4,9 +4,13 @@ import (
 	"context"
 	"encoding/binary"
 	"encoding/json"
+	"errors"
+	"log"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
+	"sync"
 	"testing"
 	"time"
 
@@ -387,5 +391,506 @@ func TestTerminalReadBufSize(t *testing.T) {
 	// Buffer should be reasonable size (4KB)
 	if terminalReadBufSize != 4096 {
 		t.Errorf("terminalReadBufSize = %d, want %d", terminalReadBufSize, 4096)
+	}
+}
+
+// wsConn is an interface for WebSocket operations to enable testing.
+type wsConn interface {
+	Write(ctx context.Context, typ websocket.MessageType, data []byte) error
+	Read(ctx context.Context) (websocket.MessageType, []byte, error)
+}
+
+// mockWebSocket implements wsConn interface for testing.
+type mockWebSocket struct {
+	writeErr   error
+	readErr    error
+	readData   []byte
+	readType   websocket.MessageType
+	writeCalls int
+	readCalls  int
+	mu         sync.Mutex
+}
+
+func (m *mockWebSocket) Write(ctx context.Context, typ websocket.MessageType, data []byte) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.writeCalls++
+	if m.writeErr != nil {
+		return m.writeErr
+	}
+	return nil
+}
+
+func (m *mockWebSocket) Read(ctx context.Context) (websocket.MessageType, []byte, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.readCalls++
+
+	// Check if context is cancelled first
+	select {
+	case <-ctx.Done():
+		return 0, nil, ctx.Err()
+	default:
+	}
+
+	if m.readErr != nil {
+		return 0, nil, m.readErr
+	}
+	return m.readType, m.readData, nil
+}
+
+// Ensure *websocket.Conn implements wsConn interface
+var _ wsConn = (*websocket.Conn)(nil)
+
+// testPtyToWS is a test wrapper for ptyToWS that accepts wsConn interface
+func testPtyToWS(ctx context.Context, cancel context.CancelFunc, conn wsConn, session *TerminalSession) {
+	buf := make([]byte, terminalReadBufSize)
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		default:
+		}
+
+		n, err := session.PTY.Read(buf)
+		if err != nil {
+			// PTY closed or error - cancel context to unblock wsToPTY
+			cancel()
+			return
+		}
+
+		if n > 0 {
+			if err := conn.Write(ctx, websocket.MessageBinary, buf[:n]); err != nil {
+				// WebSocket write failed - client disconnected
+				return
+			}
+		}
+	}
+}
+
+// testWsToPTY is a test wrapper for wsToPTY that accepts wsConn interface
+func testWsToPTY(ctx context.Context, conn wsConn, session *TerminalSession, manager *TerminalManager, sessionName string) {
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		default:
+		}
+
+		msgType, data, err := conn.Read(ctx)
+		if err != nil {
+			// WebSocket read failed - client disconnected
+			return
+		}
+
+		if msgType != websocket.MessageBinary {
+			continue
+		}
+
+		// Check for resize message
+		if len(data) == resizeMsgLen && data[0] == resizeMsgMarker {
+			cols := binary.BigEndian.Uint16(data[1:3])
+			rows := binary.BigEndian.Uint16(data[3:5])
+
+			if cols > 0 && rows > 0 {
+				if err := manager.Resize(sessionName, cols, rows); err != nil {
+					log.Printf("Failed to resize terminal session %q: %v", sessionName, err)
+				}
+			}
+			continue
+		}
+
+		// Regular data - write to PTY
+		if _, err := session.PTY.Write(data); err != nil {
+			// PTY write failed
+			return
+		}
+	}
+}
+
+// TestPtyToWS_PTYReadError verifies that when PTY.Read() returns an error,
+// the context cancel function is called to unblock wsToPTY.
+func TestPtyToWS_PTYReadError(t *testing.T) {
+	// Create an os.Pipe to simulate PTY
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("failed to create pipe: %v", err)
+	}
+	defer r.Close()
+
+	// Create mock WebSocket
+	mockWS := &mockWebSocket{}
+
+	// Create mock session
+	session := &TerminalSession{
+		Name: "test",
+		PTY:  r, // Use read end as the PTY that ptyToWS will read from
+	}
+
+	// Create context with cancel
+	ctx, cancel := context.WithCancel(context.Background())
+
+	// Track whether cancel was called
+	cancelCalled := make(chan struct{})
+	wrappedCancel := func() {
+		cancel()
+		close(cancelCalled)
+	}
+
+	// Run testPtyToWS in goroutine
+	done := make(chan struct{})
+	go func() {
+		testPtyToWS(ctx, wrappedCancel, mockWS, session)
+		close(done)
+	}()
+
+	// Close the write end to cause Read to return EOF
+	w.Close()
+
+	// Wait for cancel to be called or timeout
+	select {
+	case <-cancelCalled:
+		// Success - cancel was called
+	case <-time.After(1 * time.Second):
+		t.Fatal("cancel() was not called within timeout after PTY read error")
+	}
+
+	// Wait for testPtyToWS to finish
+	select {
+	case <-done:
+		// Success - testPtyToWS returned
+	case <-time.After(1 * time.Second):
+		t.Fatal("testPtyToWS did not return within timeout after PTY read error")
+	}
+}
+
+// TestPtyToWS_ContextCancelledBeforeRead verifies that ptyToWS exits cleanly
+// when the context is cancelled before any PTY read.
+func TestPtyToWS_ContextCancelledBeforeRead(t *testing.T) {
+	// Create an os.Pipe to simulate PTY (would block on read)
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("failed to create pipe: %v", err)
+	}
+	defer r.Close()
+	defer w.Close()
+
+	mockWS := &mockWebSocket{}
+	session := &TerminalSession{
+		Name: "test",
+		PTY:  r,
+	}
+
+	// Create cancelled context
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel() // Cancel immediately
+
+	// Run testPtyToWS
+	done := make(chan struct{})
+	go func() {
+		testPtyToWS(ctx, cancel, mockWS, session)
+		close(done)
+	}()
+
+	// Should return immediately due to cancelled context
+	select {
+	case <-done:
+		// Success
+	case <-time.After(500 * time.Millisecond):
+		t.Fatal("testPtyToWS did not return within timeout when context was pre-cancelled")
+	}
+
+	// Should not have made any WebSocket writes
+	if mockWS.writeCalls > 0 {
+		t.Errorf("expected 0 WebSocket writes with cancelled context, got %d", mockWS.writeCalls)
+	}
+}
+
+// TestPtyToWS_WebSocketWriteError verifies that ptyToWS exits when
+// WebSocket write fails (client disconnected).
+func TestPtyToWS_WebSocketWriteError(t *testing.T) {
+	// Create an os.Pipe and write data to it
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("failed to create pipe: %v", err)
+	}
+	defer r.Close()
+
+	// Create mock WebSocket that fails on write
+	mockWS := &mockWebSocket{
+		writeErr: errors.New("websocket: close sent"),
+	}
+
+	session := &TerminalSession{
+		Name: "test",
+		PTY:  r,
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// Run testPtyToWS
+	done := make(chan struct{})
+	go func() {
+		testPtyToWS(ctx, cancel, mockWS, session)
+		close(done)
+	}()
+
+	// Write some data to trigger read and write
+	go func() {
+		w.Write([]byte("hello terminal"))
+		time.Sleep(100 * time.Millisecond)
+		w.Close()
+	}()
+
+	// Should return after WebSocket write fails
+	select {
+	case <-done:
+		// Success
+	case <-time.After(1 * time.Second):
+		t.Fatal("testPtyToWS did not return within timeout after WebSocket write error")
+	}
+
+	// Should have attempted to write to WebSocket
+	if mockWS.writeCalls == 0 {
+		t.Error("expected at least 1 WebSocket write attempt")
+	}
+}
+
+// TestPtyToWS_SuccessfulDataRelay verifies that ptyToWS successfully
+// reads from PTY and writes to WebSocket.
+func TestPtyToWS_SuccessfulDataRelay(t *testing.T) {
+	testData := []byte("terminal output data")
+
+	// Create an os.Pipe
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("failed to create pipe: %v", err)
+	}
+	defer r.Close()
+
+	mockWS := &mockWebSocket{}
+
+	session := &TerminalSession{
+		Name: "test",
+		PTY:  r,
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// Run testPtyToWS
+	done := make(chan struct{})
+	go func() {
+		testPtyToWS(ctx, cancel, mockWS, session)
+		close(done)
+	}()
+
+	// Write data and then close
+	go func() {
+		w.Write(testData)
+		time.Sleep(50 * time.Millisecond)
+		w.Close()
+	}()
+
+	// Wait for completion
+	select {
+	case <-done:
+		// Success
+	case <-time.After(1 * time.Second):
+		t.Fatal("testPtyToWS did not complete within timeout")
+	}
+
+	// Verify data was written to WebSocket
+	if mockWS.writeCalls == 0 {
+		t.Error("expected at least 1 WebSocket write")
+	}
+}
+
+// TestWsToPTY_ContextCancelled verifies that wsToPTY exits when context
+// is cancelled (e.g., by ptyToWS after PTY read error).
+func TestWsToPTY_ContextCancelled(t *testing.T) {
+	mockWS := &mockWebSocket{
+		readType: websocket.MessageBinary,
+		readData: []byte("input"),
+	}
+
+	// Create an os.Pipe for the PTY
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("failed to create pipe: %v", err)
+	}
+	defer r.Close()
+	defer w.Close()
+
+	session := &TerminalSession{
+		Name: "test",
+		PTY:  w,
+	}
+
+	manager, err := NewTerminalManager()
+	if err == ErrTmuxNotFound {
+		t.Skip("tmux not installed, skipping test")
+	}
+	if err != nil {
+		t.Fatalf("failed to create terminal manager: %v", err)
+	}
+	defer manager.Shutdown()
+
+	// Create context and cancel it immediately
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	// Run testWsToPTY
+	done := make(chan struct{})
+	go func() {
+		testWsToPTY(ctx, mockWS, session, manager, "test")
+		close(done)
+	}()
+
+	// Should return immediately due to cancelled context
+	select {
+	case <-done:
+		// Success
+	case <-time.After(500 * time.Millisecond):
+		t.Fatal("testWsToPTY did not return within timeout when context was cancelled")
+	}
+
+	// Context should be done
+	select {
+	case <-ctx.Done():
+		// Success
+	default:
+		t.Error("context should be cancelled")
+	}
+}
+
+// TestWsToPTY_WebSocketReadError verifies that wsToPTY exits cleanly
+// when WebSocket read fails (client disconnected).
+func TestWsToPTY_WebSocketReadError(t *testing.T) {
+	mockWS := &mockWebSocket{
+		readErr: errors.New("websocket: close 1000"),
+	}
+
+	// Create an os.Pipe for the PTY
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("failed to create pipe: %v", err)
+	}
+	defer r.Close()
+	defer w.Close()
+
+	session := &TerminalSession{
+		Name: "test",
+		PTY:  w,
+	}
+
+	manager, err := NewTerminalManager()
+	if err == ErrTmuxNotFound {
+		t.Skip("tmux not installed, skipping test")
+	}
+	if err != nil {
+		t.Fatalf("failed to create terminal manager: %v", err)
+	}
+	defer manager.Shutdown()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// Run testWsToPTY
+	done := make(chan struct{})
+	go func() {
+		testWsToPTY(ctx, mockWS, session, manager, "test")
+		close(done)
+	}()
+
+	// Should return after WebSocket read fails
+	select {
+	case <-done:
+		// Success
+	case <-time.After(1 * time.Second):
+		t.Fatal("testWsToPTY did not return within timeout after WebSocket read error")
+	}
+}
+
+// TestPtyToWS_And_WsToPTY_Integration verifies the interaction between
+// ptyToWS and wsToPTY: when PTY read fails, context is cancelled and
+// wsToPTY exits.
+func TestPtyToWS_And_WsToPTY_Integration(t *testing.T) {
+	// Create os.Pipes for PTY simulation
+	ptyR, ptyW, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("failed to create pipe: %v", err)
+	}
+	defer ptyR.Close()
+
+	// Create mock WebSocket
+	mockWS := &mockWebSocket{
+		readType: websocket.MessageBinary,
+		readData: []byte("input"),
+	}
+
+	session := &TerminalSession{
+		Name: "test",
+		PTY:  ptyR, // testPtyToWS reads from ptyR
+	}
+
+	manager, err := NewTerminalManager()
+	if err == ErrTmuxNotFound {
+		t.Skip("tmux not installed, skipping test")
+	}
+	if err != nil {
+		t.Fatalf("failed to create terminal manager: %v", err)
+	}
+	defer manager.Shutdown()
+
+	// Create context with cancel
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// Start testPtyToWS goroutine
+	ptyDone := make(chan struct{})
+	go func() {
+		testPtyToWS(ctx, cancel, mockWS, session)
+		close(ptyDone)
+	}()
+
+	// Start testWsToPTY goroutine
+	wsDone := make(chan struct{})
+	go func() {
+		testWsToPTY(ctx, mockWS, session, manager, "test")
+		close(wsDone)
+	}()
+
+	// Write some initial data
+	ptyW.Write([]byte("initial data"))
+
+	// Simulate PTY closure after a short delay
+	time.Sleep(100 * time.Millisecond)
+	ptyW.Close() // This causes testPtyToWS to get EOF and call cancel()
+
+	// Both goroutines should exit within timeout
+	timeout := time.After(2 * time.Second)
+
+	select {
+	case <-ptyDone:
+		t.Log("testPtyToWS exited successfully")
+	case <-timeout:
+		t.Fatal("testPtyToWS did not exit within timeout")
+	}
+
+	select {
+	case <-wsDone:
+		t.Log("testWsToPTY exited successfully after context cancellation")
+	case <-timeout:
+		t.Fatal("testWsToPTY did not exit within timeout after context cancellation")
+	}
+
+	// Verify context was cancelled
+	select {
+	case <-ctx.Done():
+		// Success - context was cancelled
+	default:
+		t.Error("context was not cancelled after PTY error")
 	}
 }

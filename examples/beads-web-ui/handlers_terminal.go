@@ -104,7 +104,7 @@ func handleTerminalWS(manager *TerminalManager) http.HandlerFunc {
 		// Start PTY -> WebSocket goroutine
 		go func() {
 			defer close(done)
-			ptyToWS(ctx, conn, termSession)
+			ptyToWS(ctx, cancel, conn, termSession)
 		}()
 
 		// Run WebSocket -> PTY relay (blocks until WebSocket closes)
@@ -126,7 +126,7 @@ func handleTerminalWS(manager *TerminalManager) http.HandlerFunc {
 }
 
 // ptyToWS reads from the PTY and writes to the WebSocket.
-func ptyToWS(ctx context.Context, conn *websocket.Conn, session *TerminalSession) {
+func ptyToWS(ctx context.Context, cancel context.CancelFunc, conn *websocket.Conn, session *TerminalSession) {
 	buf := make([]byte, terminalReadBufSize)
 	for {
 		select {
@@ -137,13 +137,15 @@ func ptyToWS(ctx context.Context, conn *websocket.Conn, session *TerminalSession
 
 		n, err := session.PTY.Read(buf)
 		if err != nil {
-			// PTY closed or error - this is normal on disconnect
+			// PTY closed or error - cancel context to unblock wsToPTY
+			cancel()
 			return
 		}
 
 		if n > 0 {
 			if err := conn.Write(ctx, websocket.MessageBinary, buf[:n]); err != nil {
-				// WebSocket write failed - client disconnected
+				// WebSocket write failed - cancel context to unblock wsToPTY
+				cancel()
 				return
 			}
 		}
