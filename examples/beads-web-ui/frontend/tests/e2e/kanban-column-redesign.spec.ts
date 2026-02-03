@@ -350,7 +350,7 @@ test.describe("Column Redesign: issue distribution across all columns", () => {
 })
 
 test.describe("Column Redesign: column backgrounds", () => {
-  test("Ready, In Progress, Done columns use default secondary background", async ({
+  test("Ready, In Progress, Done columns use warm gray column background", async ({
     page,
   }) => {
     const issues = [
@@ -369,13 +369,13 @@ test.describe("Column Redesign: column backgrounds", () => {
       .locator('section[data-status="done"]')
       .evaluate((el) => window.getComputedStyle(el).backgroundColor)
 
-    // All three should use --color-bg-secondary (#f9fafb → rgb(249, 250, 251))
-    expect(readyBg).toBe("rgb(249, 250, 251)")
-    expect(ipBg).toBe("rgb(249, 250, 251)")
-    expect(doneBg).toBe("rgb(249, 250, 251)")
+    // All three should use --color-column-bg (#EAE8E1 → rgb(234, 232, 225))
+    expect(readyBg).toBe("rgb(234, 232, 225)")
+    expect(ipBg).toBe("rgb(234, 232, 225)")
+    expect(doneBg).toBe("rgb(234, 232, 225)")
   })
 
-  test("Backlog column uses tertiary/muted background", async ({ page }) => {
+  test("Backlog column uses muted warm gray background", async ({ page }) => {
     const issues = [
       makeIssue({ id: "r-1", title: "Some Task", status: "open" }),
     ]
@@ -388,11 +388,11 @@ test.describe("Column Redesign: column backgrounds", () => {
     const backlogBg = await backlogColumn.evaluate(
       (el) => window.getComputedStyle(el).backgroundColor
     )
-    // --color-bg-tertiary: #f3f4f6 → rgb(243, 244, 246)
-    expect(backlogBg).toBe("rgb(243, 244, 246)")
+    // --color-column-bg-muted: #E4E2DB → rgb(228, 226, 219)
+    expect(backlogBg).toBe("rgb(228, 226, 219)")
   })
 
-  test("Review column uses default secondary background", async ({ page }) => {
+  test("Review column uses warm gray column background", async ({ page }) => {
     const issues = [
       makeIssue({ id: "r-1", title: "Some Task", status: "open" }),
     ]
@@ -404,8 +404,8 @@ test.describe("Column Redesign: column backgrounds", () => {
     const reviewBg = await reviewColumn.evaluate(
       (el) => window.getComputedStyle(el).backgroundColor
     )
-    // --color-bg-secondary: #f9fafb → rgb(249, 250, 251)
-    expect(reviewBg).toBe("rgb(249, 250, 251)")
+    // --color-column-bg: #EAE8E1 → rgb(234, 232, 225)
+    expect(reviewBg).toBe("rgb(234, 232, 225)")
   })
 })
 

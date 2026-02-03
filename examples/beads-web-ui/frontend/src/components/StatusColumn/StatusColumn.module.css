@@ -12,7 +12,7 @@
   /* Use flexbox stretch from parent instead of percentage height */
   flex: 1 1 auto;
   min-height: 0;
-  background-color: var(--color-bg-secondary);
+  background-color: var(--color-column-bg);
   border-radius: 0;
   overflow: hidden;
   border-right: 1px solid var(--color-border);
@@ -168,7 +168,7 @@
  * ================================= */
 
 .statusColumn[data-column-type='backlog'] {
-  background-color: transparent;
+  background-color: var(--color-column-bg-muted);
 }
 
 .statusColumn[data-column-type='backlog'] .header {

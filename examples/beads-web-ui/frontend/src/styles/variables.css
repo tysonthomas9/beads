@@ -75,6 +75,12 @@
   --color-type-epic: #8b5cf6; /* purple-500 */
 
   /* ===========================
+   * Colors - Kanban Column Backgrounds
+   * =========================== */
+  --color-column-bg: #eae8e1; /* warm gray, standard columns */
+  --color-column-bg-muted: #e4e2db; /* darker warm gray, backlog column */
+
+  /* ===========================
    * Colors - Neutral (Light Theme)
    * =========================== */
   --color-bg: var(--bg-card);
