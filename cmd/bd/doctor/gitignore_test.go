@@ -858,10 +858,8 @@ func TestFixGitignore_VeryLongLines(t *testing.T) {
 				if string(content) != GitignoreTemplate {
 					t.Error("Content doesn't match GitignoreTemplate")
 				}
-			} else {
-				if err == nil {
-					t.Error("Expected error, got nil")
-				}
+			} else if err == nil {
+				t.Error("Expected error, got nil")
 			}
 		})
 	}

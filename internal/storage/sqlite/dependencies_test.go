@@ -1841,10 +1841,8 @@ func TestGetParentIDs(t *testing.T) {
 	// Verify task2 has epic as parent
 	if info, ok := parentInfo[task2.ID]; !ok {
 		t.Errorf("Expected parent info for task2")
-	} else {
-		if info.ParentID != epic.ID {
-			t.Errorf("Expected task2 parent to be %s, got %s", epic.ID, info.ParentID)
-		}
+	} else if info.ParentID != epic.ID {
+		t.Errorf("Expected task2 parent to be %s, got %s", epic.ID, info.ParentID)
 	}
 
 	// Verify task3 has no parent

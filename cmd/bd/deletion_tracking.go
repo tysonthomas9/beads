@@ -136,8 +136,9 @@ func merge3WayAndPruneDeletions(ctx context.Context, store storage.Storage, json
 	return true, nil
 }
 
-// getSnapshotStats returns statistics about the snapshot files
-// Deprecated: Use SnapshotManager.GetStats() instead
+// getSnapshotStats returns statistics about the snapshot files.
+//
+// Deprecated: Use SnapshotManager.GetStats() instead.
 func getSnapshotStats(jsonlPath string) (baseCount, leftCount int, baseExists, leftExists bool) {
 	sm := NewSnapshotManager(jsonlPath)
 	basePath, leftPath := sm.GetSnapshotPaths()
@@ -159,8 +160,9 @@ func getSnapshotStats(jsonlPath string) (baseCount, leftCount int, baseExists, l
 	return
 }
 
-// initializeSnapshotsIfNeeded creates initial snapshot files if they don't exist
-// Deprecated: Use SnapshotManager.Initialize() instead
+// initializeSnapshotsIfNeeded creates initial snapshot files if they don't exist.
+//
+// Deprecated: Use SnapshotManager.Initialize() instead.
 func initializeSnapshotsIfNeeded(jsonlPath string) error {
 	sm := NewSnapshotManager(jsonlPath)
 	return sm.Initialize()

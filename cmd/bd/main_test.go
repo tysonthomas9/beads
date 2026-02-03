@@ -348,10 +348,8 @@ func TestAutoImportIfNewer(t *testing.T) {
 
 	if imported == nil {
 		t.Error("Expected issue test-autoimport-2 to be imported from JSONL")
-	} else {
-		if imported.Title != "New JSONL issue" {
-			t.Errorf("Expected title 'New JSONL issue', got '%s'", imported.Title)
-		}
+	} else if imported.Title != "New JSONL issue" {
+		t.Errorf("Expected title 'New JSONL issue', got '%s'", imported.Title)
 	}
 
 	// Clean up

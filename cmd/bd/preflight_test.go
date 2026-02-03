@@ -175,10 +175,8 @@ func TestTruncateOutput(t *testing.T) {
 				if len(result) > tt.maxLen+20 { // allow some slack for marker
 					t.Errorf("Result too long: got %d chars", len(result))
 				}
-			} else {
-				if strings.Contains(result, "truncated") {
-					t.Error("Did not expect truncation marker")
-				}
+			} else if strings.Contains(result, "truncated") {
+				t.Error("Did not expect truncation marker")
 			}
 		})
 	}

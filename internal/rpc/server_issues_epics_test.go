@@ -494,22 +494,18 @@ func TestCreateWithRelativeDate(t *testing.T) {
 			if tt.wantDue {
 				if retrieved.DueAt == nil {
 					t.Error("expected DueAt to be set from relative date, got nil")
-				} else {
+				} else if retrieved.DueAt.Before(time.Now()) {
 					// Verify it's in the future
-					if retrieved.DueAt.Before(time.Now()) {
-						t.Errorf("expected DueAt to be in the future, got %v", retrieved.DueAt)
-					}
+					t.Errorf("expected DueAt to be in the future, got %v", retrieved.DueAt)
 				}
 			}
 
 			if tt.wantDefer {
 				if retrieved.DeferUntil == nil {
 					t.Error("expected DeferUntil to be set from relative date, got nil")
-				} else {
+				} else if retrieved.DeferUntil.Before(time.Now()) {
 					// Verify it's in the future
-					if retrieved.DeferUntil.Before(time.Now()) {
-						t.Errorf("expected DeferUntil to be in the future, got %v", retrieved.DeferUntil)
-					}
+					t.Errorf("expected DeferUntil to be in the future, got %v", retrieved.DeferUntil)
 				}
 			}
 		})
@@ -784,10 +780,8 @@ func TestGetParentIDs_RPC(t *testing.T) {
 	// Verify task2 has epic as parent
 	if info, ok := resp.Parents[task2.ID]; !ok {
 		t.Errorf("Expected parent info for task2")
-	} else {
-		if info.ParentID != epic.ID {
-			t.Errorf("Expected task2 parent to be %s, got %s", epic.ID, info.ParentID)
-		}
+	} else if info.ParentID != epic.ID {
+		t.Errorf("Expected task2 parent to be %s, got %s", epic.ID, info.ParentID)
 	}
 
 	// Verify task3 has no parent

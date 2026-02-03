@@ -8,6 +8,7 @@ linters:
   default: 'none'
   enable:
     - errcheck
+    - gocritic
     - gosec
     - misspell
     - revive
@@ -16,6 +17,11 @@ linters:
     - unparam
 
   settings:
+    gocritic:
+      disabled-tags:
+        - experimental
+        - opinionated
+        - performance
     errcheck:
       exclude-functions:
         - (*database/sql.DB).Close
@@ -214,6 +220,31 @@ linters:
         linters:
           - revive
         text: 'struct field type_'
+      # gocritic: exitAfterDefer in CLI exit paths - process terminates so cleanup is skipped
+      # intentionally (e.g., os.Exit after error in main command flows)
+      - linters:
+          - gocritic
+        text: 'exitAfterDefer'
+      # gocritic: ifElseChain is stylistic - some if-else chains are clearer than switches
+      - linters:
+          - gocritic
+        text: 'ifElseChain'
+      # gocritic: singleCaseSwitch - type assertions with single case are a common Go idiom
+      - linters:
+          - gocritic
+        text: 'singleCaseSwitch'
+      # gocritic: appendAssign - intentional new slice creation (not modifying original)
+      # These patterns create new slices by combining or copying, not bugs:
+      # - merge_slot.go: creates newWaiters to pass to update
+      # - migrate_issues.go: combines upDeps and downDeps
+      # - parser.go: creates copy of chain for error message
+      # - server_issues_epics.go: combines gate waiters with new waiters
+      # - cycle_detection_test.go: combines test cycle arrays
+      # - queries.go: duplicates args for dependency IN clause (needs both sides)
+      - path: 'cmd/bd/(merge_slot|migrate_issues)\.go|internal/formula/parser\.go|internal/rpc/server_issues_epics\.go|internal/storage/sqlite/(cycle_detection_test|queries)\.go'
+        linters:
+          - gocritic
+        text: 'appendAssign'
 
 issues:
   uniq-by-line: true
