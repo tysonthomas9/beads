@@ -20,10 +20,13 @@ type ConnectionState = 'disconnected' | 'connecting' | 'connected';
 
 /**
  * Build the WebSocket URL for the terminal relay endpoint.
+ * Includes a required session parameter for tmux session identification.
  */
 function buildWsUrl(): string {
   const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-  return `${proto}//${window.location.host}/api/terminal/ws`;
+  // Use a fixed session name for the Talk to Lead terminal
+  const session = 'talk-to-lead';
+  return `${proto}//${window.location.host}/api/terminal/ws?session=${session}`;
 }
 
 /**

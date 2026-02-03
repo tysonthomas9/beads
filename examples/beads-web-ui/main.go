@@ -6,6 +6,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"log"
@@ -52,6 +53,7 @@ func main() {
 	poolSize := flag.Int("pool-size", defaultPoolSize, "Connection pool size")
 	corsEnabled := flag.Bool("cors", false, "Enable CORS for development")
 	corsOrigin := flag.String("cors-origin", "", "CORS allowed origins (comma-separated, default: http://localhost:3000)")
+	terminalCmd := flag.String("terminal-cmd", "claude", "Command to run in terminal sessions (env: BEADS_TERMINAL_CMD)")
 	flag.Parse()
 
 	// Check environment variables for port override
@@ -70,6 +72,9 @@ func main() {
 	}
 	if envCorsOrigin := os.Getenv("BEADS_WEBUI_CORS_ORIGIN"); envCorsOrigin != "" {
 		*corsOrigin = envCorsOrigin
+	}
+	if envTermCmd := os.Getenv("BEADS_TERMINAL_CMD"); envTermCmd != "" {
+		*terminalCmd = envTermCmd
 	}
 
 	// Build CORS configuration
@@ -164,9 +169,24 @@ func main() {
 		log.Printf("Daemon subscriber started")
 	}
 
+	// Initialize terminal manager for WebSocket terminal sessions
+	var termMgr *TerminalManager
+	termMgr, err = NewTerminalManager()
+	if err != nil {
+		if errors.Is(err, ErrTmuxNotFound) {
+			log.Printf("Warning: tmux not found, terminal feature disabled")
+		} else {
+			log.Printf("Warning: failed to initialize terminal manager: %v", err)
+		}
+		termMgr = nil
+	}
+	if termMgr != nil {
+		log.Printf("Terminal manager initialized (default command: %s)", *terminalCmd)
+	}
+
 	// Create HTTP server
 	mux := http.NewServeMux()
-	setupRoutes(mux, pool, hub, getMutationsSince, nil)
+	setupRoutes(mux, pool, hub, getMutationsSince, termMgr)
 
 	// Wrap with CORS middleware if enabled
 	corsMiddleware := NewCORSMiddleware(corsConfig)
@@ -221,6 +241,15 @@ func main() {
 	log.Println("Server stopped")
 
 	// Stop components in reverse-initialization order now that no handlers are running.
+
+	// Stop terminal manager (kill tmux sessions and close PTYs)
+	if termMgr != nil {
+		if err := termMgr.Shutdown(); err != nil {
+			log.Printf("Warning: error shutting down terminal manager: %v", err)
+		} else {
+			log.Printf("Terminal manager stopped")
+		}
+	}
 
 	// Stop daemon subscriber (no more handlers need it)
 	if subscriber != nil {
