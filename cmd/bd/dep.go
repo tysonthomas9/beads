@@ -301,7 +301,6 @@ Examples:
 					beadsDir := getBeadsDir()
 					if extRef := routing.ResolveToExternalRef(dependsOnArg, beadsDir); extRef != "" {
 						toID = extRef
-						isExternalRef = true
 					} else {
 						FatalErrorRespectJSON("resolving dependency ID %s: %v", dependsOnArg, err)
 					}
@@ -330,7 +329,6 @@ Examples:
 					beadsDir := getBeadsDir()
 					if extRef := routing.ResolveToExternalRef(dependsOnArg, beadsDir); extRef != "" {
 						toID = extRef
-						isExternalRef = true
 					} else {
 						FatalErrorRespectJSON("resolving dependency ID %s: %v", dependsOnArg, err)
 					}

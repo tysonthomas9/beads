@@ -333,7 +333,7 @@ var createCmd = &cobra.Command{
 		// Use global jsonOutput set by PersistentPreRun
 
 		// Determine target repository using routing logic
-		repoPath := "." // default to current directory
+		var repoPath string
 		if cmd.Flags().Changed("repo") {
 			// Explicit --repo flag overrides auto-routing
 			repoPath = repoOverride

@@ -111,16 +111,13 @@ func getDescriptionFlag(cmd *cobra.Command) (string, bool) {
 	}
 
 	// Error if multiple description flags are specified with different values
-	changedCount := 0
 	var firstVal string
 	var firstFlag string
 	if descChanged {
-		changedCount++
 		firstVal = desc
 		firstFlag = "--description"
 	}
 	if bodyChanged {
-		changedCount++
 		if firstVal == "" {
 			firstVal = body
 			firstFlag = "--body"
@@ -131,17 +128,11 @@ func getDescriptionFlag(cmd *cobra.Command) (string, bool) {
 			os.Exit(1)
 		}
 	}
-	if messageChanged {
-		changedCount++
-		if firstVal == "" {
-			firstVal = message
-			firstFlag = "--message"
-		} else if message != firstVal {
-			fmt.Fprintf(os.Stderr, "Error: cannot specify both %s and --message with different values\n", firstFlag)
-			fmt.Fprintf(os.Stderr, "  %s: %q\n", firstFlag, firstVal)
-			fmt.Fprintf(os.Stderr, "  --message:     %q\n", message)
-			os.Exit(1)
-		}
+	if messageChanged && firstVal != "" && message != firstVal {
+		fmt.Fprintf(os.Stderr, "Error: cannot specify both %s and --message with different values\n", firstFlag)
+		fmt.Fprintf(os.Stderr, "  %s: %q\n", firstFlag, firstVal)
+		fmt.Fprintf(os.Stderr, "  --message:     %q\n", message)
+		os.Exit(1)
 	}
 
 	// Return whichever was set (priority: description > body > message)
