@@ -92,8 +92,7 @@
   flex-direction: row;
   gap: 0;
   padding: var(--space-3);
-  overflow-x: auto;
-  overflow-y: hidden;
+  overflow: auto hidden;
   flex: 1; /* Fill available space from swimLane */
   min-height: 0; /* Allow flex calculations to work */
   opacity: 1;

@@ -105,16 +105,20 @@
 .priority0 {
   background-color: var(--color-priority-0);
 }
+
 .priority1 {
   background-color: var(--color-priority-1);
 }
+
 .priority2 {
   background-color: var(--color-priority-2);
   color: var(--color-text); /* Dark text for WCAG AA contrast */
 }
+
 .priority3 {
   background-color: var(--color-priority-3);
 }
+
 .priority4 {
   background-color: var(--color-priority-4);
 }

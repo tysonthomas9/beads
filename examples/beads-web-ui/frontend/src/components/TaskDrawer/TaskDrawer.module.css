@@ -163,7 +163,7 @@
 }
 
 /* Responsive */
-@media (max-width: 768px) {
+@media (width <= 768px) {
   .drawer {
     width: 100%;
     min-width: unset;

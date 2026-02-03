@@ -37,7 +37,7 @@
   flex-direction: column;
 }
 
-@media (max-width: 640px) {
+@media (width <= 640px) {
   .panel {
     width: 100%;
   }

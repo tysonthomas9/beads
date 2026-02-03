@@ -74,7 +74,7 @@
 }
 
 /* Responsive: smaller padding on mobile */
-@media (max-width: 640px) {
+@media (width <= 640px) {
   .tab {
     padding: 0 var(--space-3);
     font-size: var(--font-size-xs);

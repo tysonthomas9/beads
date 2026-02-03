@@ -11,8 +11,7 @@
   padding: 0;
   flex: 1;
   min-height: 0; /* Allow flex item to shrink below content height */
-  overflow-x: auto;
-  overflow-y: hidden;
+  overflow: auto hidden;
   background-color: var(--color-bg-secondary);
 }
 

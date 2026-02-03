@@ -106,7 +106,7 @@
   background-color: var(--color-bg-secondary);
 }
 
-@media (max-width: 1024px) {
+@media (width <= 1024px) {
   .headerControls {
     margin: 0;
     padding-left: var(--space-2);

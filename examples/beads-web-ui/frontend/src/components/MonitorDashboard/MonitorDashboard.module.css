@@ -108,7 +108,7 @@
  * No explicit grid-row needed — single-column grid auto-places items. */
 
 /* Mobile: Adjust spacing */
-@media (max-width: 768px) {
+@media (width <= 768px) {
   .dashboard {
     grid-template-rows: auto repeat(2, minmax(250px, auto));
     gap: var(--space-3);

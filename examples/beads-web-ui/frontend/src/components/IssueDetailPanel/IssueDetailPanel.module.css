@@ -37,7 +37,7 @@
   flex-direction: column;
 }
 
-@media (max-width: 520px) {
+@media (width <= 520px) {
   .panel {
     width: 100%;
   }
@@ -49,8 +49,7 @@
 
 .content {
   flex: 1;
-  overflow-y: auto;
-  overflow-x: hidden;
+  overflow: hidden auto;
   display: flex;
   flex-direction: column;
 }
@@ -189,7 +188,7 @@
 /* ============= Detail Content ============= */
 
 .detailContent {
-  padding: 0 20px 16px 20px;
+  padding: 0 20px 16px;
   flex: 1;
 }
 
@@ -205,8 +204,7 @@
 
 .scrollableContent {
   flex: 1;
-  overflow-y: auto;
-  overflow-x: hidden;
+  overflow: hidden auto;
 }
 
 /* ============= Collapsible Sections ============= */
@@ -298,7 +296,7 @@
   font-size: var(--font-sm);
   font-weight: 600;
   color: var(--color-text);
-  margin: 0 0 8px 0;
+  margin: 0 0 8px;
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
@@ -416,10 +414,7 @@
 }
 
 .fullscreen .panel {
-  top: 32px;
-  right: 32px;
-  bottom: 32px;
-  left: 32px;
+  inset: 32px;
   width: auto;
   max-width: none;
   border-radius: var(--radius-lg);
@@ -453,7 +448,7 @@
   overflow-y: auto;
 }
 
-@media (max-width: 900px) {
+@media (width <= 900px) {
   .twoColumnLayout {
     grid-template-columns: 1fr;
   }
@@ -464,12 +459,9 @@
   }
 }
 
-@media (max-width: 520px) {
+@media (width <= 520px) {
   .fullscreen .panel {
-    top: 0;
-    right: 0;
-    bottom: 0;
-    left: 0;
+    inset: 0;
     border-radius: 0;
   }
 }
