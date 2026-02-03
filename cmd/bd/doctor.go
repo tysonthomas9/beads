@@ -12,6 +12,7 @@ import (
 	_ "github.com/ncruces/go-sqlite3/driver"
 	_ "github.com/ncruces/go-sqlite3/embed"
 	"github.com/spf13/cobra"
+
 	"github.com/steveyegge/beads/cmd/bd/doctor"
 	"github.com/steveyegge/beads/internal/ui"
 )
@@ -42,22 +43,22 @@ type doctorResult struct {
 }
 
 var (
-	doctorFix            bool
-	doctorYes            bool
-	doctorInteractive    bool   // per-fix confirmation mode
-	doctorDryRun         bool   // preview fixes without applying
-	doctorOutput         string // export diagnostics to file
-	doctorFixChildParent bool   // opt-in fix for child→parent deps
-	doctorVerbose        bool   // show detailed output during fixes
-	doctorForce          bool   // force repair mode, bypass validation where safe
-	doctorSource         string // source of truth selection: auto, jsonl, db
-	perfMode             bool
-	checkHealthMode      bool
-	doctorCheckFlag      string // run specific check (e.g., "pollution")
-	doctorClean          bool   // for pollution check, delete detected issues
-	doctorDeep                  bool // full graph integrity validation
-	doctorGastown               bool // running in gastown multi-workspace mode
-	gastownDuplicatesThreshold  int  // duplicate tolerance threshold for gastown mode
+	doctorFix                  bool
+	doctorYes                  bool
+	doctorInteractive          bool   // per-fix confirmation mode
+	doctorDryRun               bool   // preview fixes without applying
+	doctorOutput               string // export diagnostics to file
+	doctorFixChildParent       bool   // opt-in fix for child→parent deps
+	doctorVerbose              bool   // show detailed output during fixes
+	doctorForce                bool   // force repair mode, bypass validation where safe
+	doctorSource               string // source of truth selection: auto, jsonl, db
+	perfMode                   bool
+	checkHealthMode            bool
+	doctorCheckFlag            string // run specific check (e.g., "pollution")
+	doctorClean                bool   // for pollution check, delete detected issues
+	doctorDeep                 bool   // full graph integrity validation
+	doctorGastown              bool   // running in gastown multi-workspace mode
+	gastownDuplicatesThreshold int    // duplicate tolerance threshold for gastown mode
 )
 
 // ConfigKeyHintsDoctor is the config key for suppressing doctor hints
@@ -826,4 +827,3 @@ func printDiagnostics(result doctorResult) {
 		fmt.Printf("%s\n", ui.RenderPass("✓ All checks passed"))
 	}
 }
-

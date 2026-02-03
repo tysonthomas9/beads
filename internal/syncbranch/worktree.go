@@ -19,20 +19,20 @@ import (
 
 // CommitResult contains information about a worktree commit operation
 type CommitResult struct {
-	Committed  bool   // True if changes were committed
-	Pushed     bool   // True if changes were pushed
-	Branch     string // The sync branch name
-	Message    string // Commit message used
+	Committed bool   // True if changes were committed
+	Pushed    bool   // True if changes were pushed
+	Branch    string // The sync branch name
+	Message   string // Commit message used
 }
 
 // DivergenceInfo contains information about sync branch divergence from remote
 type DivergenceInfo struct {
-	LocalAhead   int    // Number of commits local is ahead of remote
-	RemoteAhead  int    // Number of commits remote is ahead of local
-	Branch       string // The sync branch name
-	Remote       string // The remote name (e.g., "origin")
-	IsDiverged   bool   // True if both local and remote have commits the other doesn't
-	IsSignificant bool  // True if divergence exceeds threshold (suggests recovery needed)
+	LocalAhead    int    // Number of commits local is ahead of remote
+	RemoteAhead   int    // Number of commits remote is ahead of local
+	Branch        string // The sync branch name
+	Remote        string // The remote name (e.g., "origin")
+	IsDiverged    bool   // True if both local and remote have commits the other doesn't
+	IsSignificant bool   // True if divergence exceeds threshold (suggests recovery needed)
 }
 
 // SignificantDivergenceThreshold is the number of commits at which divergence is considered significant
@@ -849,7 +849,6 @@ func contentMergeRecovery(ctx context.Context, worktreePath, branch, remote stri
 	return nil
 }
 
-
 // runCmdWithTimeoutMessage runs a command and prints a helpful message if it takes too long.
 // This helps when git operations hang waiting for credential/browser auth.
 //
@@ -896,7 +895,7 @@ func pushFromWorktree(ctx context.Context, worktreePath, branch string) error {
 		// Run with timeout message in case of hanging auth
 		output, err := runCmdWithTimeoutMessage(
 			ctx,
-			fmt.Sprintf("Git push is waiting (possibly for authentication). If this hangs, check for a browser auth prompt."),
+			"Git push is waiting (possibly for authentication). If this hangs, check for a browser auth prompt.",
 			5*time.Second,
 			cmd,
 		)

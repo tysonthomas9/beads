@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/spf13/viper"
+
 	"github.com/steveyegge/beads/internal/debug"
 )
 
@@ -122,16 +123,16 @@ func Initialize() error {
 
 	// Sync mode configuration (hq-ew1mbr.3)
 	// See docs/CONFIG.md for detailed documentation
-	v.SetDefault("sync.mode", SyncModeGitPortable)      // git-portable | realtime | dolt-native | belt-and-suspenders
-	v.SetDefault("sync.export_on", SyncTriggerPush)     // push | change
-	v.SetDefault("sync.import_on", SyncTriggerPull)     // pull | change
+	v.SetDefault("sync.mode", SyncModeGitPortable)  // git-portable | realtime | dolt-native | belt-and-suspenders
+	v.SetDefault("sync.export_on", SyncTriggerPush) // push | change
+	v.SetDefault("sync.import_on", SyncTriggerPull) // pull | change
 
 	// Conflict resolution configuration
 	v.SetDefault("conflict.strategy", ConflictStrategyNewest) // newest | ours | theirs | manual
 
 	// Federation configuration (optional Dolt remote)
-	v.SetDefault("federation.remote", "")       // e.g., dolthub://org/beads, gs://bucket/beads, s3://bucket/beads
-	v.SetDefault("federation.sovereignty", "")  // T1 | T2 | T3 | T4 (empty = no restriction)
+	v.SetDefault("federation.remote", "")      // e.g., dolthub://org/beads, gs://bucket/beads, s3://bucket/beads
+	v.SetDefault("federation.sovereignty", "") // T1 | T2 | T3 | T4 (empty = no restriction)
 
 	// Push configuration defaults
 	v.SetDefault("no-push", false)
@@ -574,8 +575,8 @@ func GetSyncConfig() SyncConfig {
 
 // ConflictConfig holds the conflict resolution configuration.
 type ConflictConfig struct {
-	Strategy ConflictStrategy          // newest, ours, theirs, manual (default for all fields)
-	Fields   map[string]FieldStrategy  // Per-field strategy overrides
+	Strategy ConflictStrategy         // newest, ours, theirs, manual (default for all fields)
+	Fields   map[string]FieldStrategy // Per-field strategy overrides
 }
 
 // GetConflictConfig returns the current conflict resolution configuration.

@@ -178,10 +178,10 @@ func (s *Server) handleSignals() {
 }
 
 func (s *Server) handleConnection(conn net.Conn) {
-	// Create a per-connection context that is cancelled when the connection closes.
+	// Create a per-connection context that is canceled when the connection closes.
 	// This allows blocking operations (like WaitForMutations) to detect client
 	// disconnects and free resources immediately instead of waiting for timeout.
-	// The context is cancelled by the deferred connCancel when this function returns
+	// The context is canceled by the deferred connCancel when this function returns
 	// (triggered by failed read/write on the connection).
 	connCtx, connCancel := context.WithCancel(context.Background())
 	defer connCancel()

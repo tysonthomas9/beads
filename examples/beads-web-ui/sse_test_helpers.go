@@ -253,10 +253,10 @@ func (td *testDaemon) deleteIssue(id string) {
 
 // testSSEClient is a helper for testing SSE mutation delivery.
 type testSSEClient struct {
-	client  *SSEClient
-	hub     *SSEHub
-	mu      sync.Mutex
-	closed  bool
+	client *SSEClient
+	hub    *SSEHub
+	mu     sync.Mutex
+	closed bool
 }
 
 // newTestSSEClient creates a test SSE client connected to the hub.

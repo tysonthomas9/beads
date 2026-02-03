@@ -48,11 +48,11 @@ func TestBootstrapFromJSONL(t *testing.T) {
 			Labels:      []string{"urgent", "backend"},
 		},
 		{
-			ID:          "test-003",
-			Title:       "Closed issue",
-			Status:      types.StatusClosed,
-			Priority:    3,
-			IssueType:   types.TypeTask,
+			ID:        "test-003",
+			Title:     "Closed issue",
+			Status:    types.StatusClosed,
+			Priority:  3,
+			IssueType: types.TypeTask,
 		},
 	}
 

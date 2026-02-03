@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
+
 	"github.com/steveyegge/beads/internal/beads"
 	"github.com/steveyegge/beads/internal/config"
 	"github.com/steveyegge/beads/internal/configfile"
@@ -71,19 +72,19 @@ var (
 	upgradeAcknowledged    = false // Set to true after showing upgrade notification once per session
 )
 var (
-	noAutoFlush    bool
-	noAutoImport   bool
-	sandboxMode    bool
-	allowStale     bool          // Use --allow-stale: skip staleness check (emergency escape hatch)
-	noDb           bool          // Use --no-db mode: load from JSONL, write back after each command
+	noAutoFlush     bool
+	noAutoImport    bool
+	sandboxMode     bool
+	allowStale      bool          // Use --allow-stale: skip staleness check (emergency escape hatch)
+	noDb            bool          // Use --no-db mode: load from JSONL, write back after each command
 	readonlyMode    bool          // Read-only mode: block write operations (for worker sandboxes)
 	storeIsReadOnly bool          // Track if store was opened read-only (for staleness checks)
 	lockTimeout     time.Duration // SQLite busy_timeout (default 30s, 0 = fail immediately)
-	profileEnabled bool
-	profileFile    *os.File
-	traceFile      *os.File
-	verboseFlag    bool // Enable verbose/debug output
-	quietFlag      bool // Suppress non-essential output
+	profileEnabled  bool
+	profileFile     *os.File
+	traceFile       *os.File
+	verboseFlag     bool // Enable verbose/debug output
+	quietFlag       bool // Suppress non-essential output
 )
 
 // readOnlyCommands lists commands that only read from the database.

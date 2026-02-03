@@ -11,6 +11,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	"gopkg.in/yaml.v3"
+
 	"github.com/steveyegge/beads/internal/beads"
 	"github.com/steveyegge/beads/internal/debug"
 	"github.com/steveyegge/beads/internal/git"
@@ -18,7 +20,6 @@ import (
 	"github.com/steveyegge/beads/internal/syncbranch"
 	"github.com/steveyegge/beads/internal/types"
 	"github.com/steveyegge/beads/internal/utils"
-	"gopkg.in/yaml.v3"
 )
 
 // readFromGitRef reads file content from a git ref (branch or commit) in the beads repo.
@@ -226,8 +227,6 @@ func getLocalSyncBranch(beadsDir string) string {
 
 	return cfg.SyncBranch
 }
-
-
 
 // importFromJSONLData imports issues from raw JSONL bytes.
 // This is the shared implementation used by both importFromGit and importFromLocalJSONL.

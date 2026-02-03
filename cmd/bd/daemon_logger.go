@@ -54,17 +54,13 @@ func toSlogArgs(args []interface{}) []any {
 		if _, ok := args[0].(string); ok {
 			// Likely slog-style: "key", value, "key2", value2
 			result := make([]any, len(args))
-			for i, a := range args {
-				result[i] = a
-			}
+			copy(result, args)
 			return result
 		}
 	}
 	// For sprintf-style args, wrap them (caller should use fmt.Sprintf)
 	result := make([]any, len(args))
-	for i, a := range args {
-		result[i] = a
-	}
+	copy(result, args)
 	return result
 }
 

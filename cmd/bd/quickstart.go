@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
+
 	"github.com/steveyegge/beads/internal/ui"
 )
 
@@ -11,7 +12,7 @@ var quickstartCmd = &cobra.Command{
 	Use:     "quickstart",
 	GroupID: "setup",
 	Short:   "Quick start guide for bd",
-	Long:  `Display a quick start guide showing common bd workflows and patterns.`,
+	Long:    `Display a quick start guide showing common bd workflows and patterns.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Printf("\n%s\n\n", ui.RenderBold("bd - Dependency-Aware Issue Tracker"))
 		fmt.Printf("Issues chained together like beads.\n\n")

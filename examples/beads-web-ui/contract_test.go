@@ -353,14 +353,14 @@ func TestContractEnvelope_SuccessResponses(t *testing.T) {
 	})
 
 	tests := []struct {
-		name           string
-		handler        http.HandlerFunc
-		method         string
-		path           string
-		body           string
-		wantStatus     int
-		dataFieldName  string // "data" or "issues" for graph
-		expectData     bool   // whether data/issues field is expected to be present
+		name          string
+		handler       http.HandlerFunc
+		method        string
+		path          string
+		body          string
+		wantStatus    int
+		dataFieldName string // "data" or "issues" for graph
+		expectData    bool   // whether data/issues field is expected to be present
 	}{
 		{
 			name: "GET /api/issues/{id} success",

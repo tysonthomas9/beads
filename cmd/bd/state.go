@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
+
 	"github.com/steveyegge/beads/internal/rpc"
 	"github.com/steveyegge/beads/internal/types"
 	"github.com/steveyegge/beads/internal/ui"
@@ -313,12 +314,12 @@ The --reason flag provides context for the event bead (recommended).`,
 
 		if jsonOutput {
 			result := map[string]interface{}{
-				"issue_id":   fullID,
-				"dimension":  dimension,
-				"old_value":  oldValue,
-				"new_value":  newValue,
-				"event_id":   eventID,
-				"changed":    true,
+				"issue_id":  fullID,
+				"dimension": dimension,
+				"old_value": oldValue,
+				"new_value": newValue,
+				"event_id":  eventID,
+				"changed":   true,
 			}
 			if oldValue == "" {
 				result["old_value"] = nil

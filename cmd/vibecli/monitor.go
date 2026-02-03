@@ -93,7 +93,6 @@ type TaskSummary struct {
 	Blocked          int
 }
 
-
 // SyncInfo holds sync status information
 type SyncInfo struct {
 	DBSynced     bool

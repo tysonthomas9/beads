@@ -70,27 +70,27 @@ Write a comprehensive plan that includes:
 
 ### Step 4: Save the Plan
 Save your plan to the task's design field:
-` + "```" + `
+`+"```"+`
 bd update <id> --design="<your complete plan here>"
-` + "```" + `
+`+"```"+`
 
 IMPORTANT: Make sure the plan is complete and detailed enough that another agent
 (or human) could implement it without needing to ask questions.
 
 ### Step 5: Mark for Review
 Update the task title to indicate it needs human review:
-` + "```" + `
+`+"```"+`
 bd update <id> --title="[Need Review] <original title>"
 bd update <id> --status open
-` + "```" + `
+`+"```"+`
 
 This puts the task back in the open state but with a marker that tells other agents
 to skip it. The human will review your plan.
 
 ### Step 6: Sync and Exit
-` + "```" + `
+`+"```"+`
 bd sync
-` + "```" + `
+`+"```"+`
 
 ### CRITICAL: STOP - DO NOT IMPLEMENT
 

@@ -82,18 +82,18 @@ func handleHealth(pool *daemon.ConnectionPool) http.HandlerFunc {
 
 // HealthStatus represents the detailed health status of the API.
 type HealthStatus struct {
-	Status       string            `json:"status"`                  // "ok", "degraded", "unhealthy"
-	Daemon       DaemonStatus      `json:"daemon"`                  // Daemon connection status
-	Pool         *daemon.PoolStats `json:"pool,omitempty"`          // Connection pool stats
+	Status string            `json:"status"`         // "ok", "degraded", "unhealthy"
+	Daemon DaemonStatus      `json:"daemon"`         // Daemon connection status
+	Pool   *daemon.PoolStats `json:"pool,omitempty"` // Connection pool stats
 }
 
 // DaemonStatus represents the daemon connection status.
 type DaemonStatus struct {
-	Connected bool    `json:"connected"`           // Whether we can connect to daemon
-	Status    string  `json:"status,omitempty"`    // Daemon health status if connected
-	Uptime    float64 `json:"uptime,omitempty"`    // Daemon uptime in seconds if connected
-	Version   string  `json:"version,omitempty"`   // Daemon version if connected
-	Error     string  `json:"error,omitempty"`     // Error message if not connected
+	Connected bool    `json:"connected"`         // Whether we can connect to daemon
+	Status    string  `json:"status,omitempty"`  // Daemon health status if connected
+	Uptime    float64 `json:"uptime,omitempty"`  // Daemon uptime in seconds if connected
+	Version   string  `json:"version,omitempty"` // Daemon version if connected
+	Error     string  `json:"error,omitempty"`   // Error message if not connected
 }
 
 // handleAPIHealth returns a detailed health check including daemon connectivity.

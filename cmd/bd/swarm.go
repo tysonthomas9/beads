@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
+
 	"github.com/steveyegge/beads/internal/storage/sqlite"
 	"github.com/steveyegge/beads/internal/types"
 	"github.com/steveyegge/beads/internal/ui"
@@ -27,24 +28,24 @@ with dependencies forming a DAG (directed acyclic graph) of work.`,
 
 // SwarmAnalysis holds the results of analyzing an epic's structure for swarming.
 type SwarmAnalysis struct {
-	EpicID          string                  `json:"epic_id"`
-	EpicTitle       string                  `json:"epic_title"`
-	TotalIssues     int                     `json:"total_issues"`
-	ClosedIssues    int                     `json:"closed_issues"`
-	ReadyFronts     []ReadyFront            `json:"ready_fronts"`
-	MaxParallelism  int                     `json:"max_parallelism"`
+	EpicID            string                `json:"epic_id"`
+	EpicTitle         string                `json:"epic_title"`
+	TotalIssues       int                   `json:"total_issues"`
+	ClosedIssues      int                   `json:"closed_issues"`
+	ReadyFronts       []ReadyFront          `json:"ready_fronts"`
+	MaxParallelism    int                   `json:"max_parallelism"`
 	EstimatedSessions int                   `json:"estimated_sessions"`
-	Warnings        []string                `json:"warnings"`
-	Errors          []string                `json:"errors"`
-	Swarmable       bool                    `json:"swarmable"`
-	Issues          map[string]*IssueNode   `json:"issues,omitempty"` // Only included with --verbose
+	Warnings          []string              `json:"warnings"`
+	Errors            []string              `json:"errors"`
+	Swarmable         bool                  `json:"swarmable"`
+	Issues            map[string]*IssueNode `json:"issues,omitempty"` // Only included with --verbose
 }
 
 // ReadyFront represents a group of issues that can be worked on in parallel.
 type ReadyFront struct {
-	Wave    int      `json:"wave"`
-	Issues  []string `json:"issues"`
-	Titles  []string `json:"titles,omitempty"` // Only for human output
+	Wave   int      `json:"wave"`
+	Issues []string `json:"issues"`
+	Titles []string `json:"titles,omitempty"` // Only for human output
 }
 
 // IssueNode represents an issue in the dependency graph.
@@ -327,16 +328,7 @@ func detectStructuralIssues(analysis *SwarmAnalysis, _ []*types.Issue) {
 		}
 	}
 
-	// 2. Find leaves (issues that nothing depends on within the epic)
-	//    Multiple leaves might indicate missing dependencies or just multiple end points.
-	var leaves []string
-	for id, node := range analysis.Issues {
-		if len(node.DependedOnBy) == 0 {
-			leaves = append(leaves, id)
-		}
-	}
-
-	// 3. Detect potential dependency inversions
+	// 2. Detect potential dependency inversions
 	//    Heuristic: If a "foundation" or "setup" issue has no dependents, it might be inverted.
 	//    Heuristic: If an "integration" or "final" issue depends on nothing, it might be inverted.
 	for id, node := range analysis.Issues {
@@ -999,8 +991,8 @@ Examples:
 		if existingSwarm != nil && !force {
 			if jsonOutput {
 				outputJSON(map[string]interface{}{
-					"error":         "swarm already exists",
-					"existing_id":   existingSwarm.ID,
+					"error":          "swarm already exists",
+					"existing_id":    existingSwarm.ID,
 					"existing_title": existingSwarm.Title,
 				})
 			} else {

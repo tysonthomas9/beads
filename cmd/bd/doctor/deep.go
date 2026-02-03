@@ -11,6 +11,7 @@ import (
 
 	_ "github.com/ncruces/go-sqlite3/driver"
 	_ "github.com/ncruces/go-sqlite3/embed"
+
 	"github.com/steveyegge/beads/internal/beads"
 	"github.com/steveyegge/beads/internal/configfile"
 	"github.com/steveyegge/beads/internal/types"
@@ -18,16 +19,16 @@ import (
 
 // DeepValidationResult holds all deep validation check results
 type DeepValidationResult struct {
-	ParentConsistency    DoctorCheck   `json:"parent_consistency"`
-	DependencyIntegrity  DoctorCheck   `json:"dependency_integrity"`
-	EpicCompleteness     DoctorCheck   `json:"epic_completeness"`
-	AgentBeadIntegrity   DoctorCheck   `json:"agent_bead_integrity"`
-	MailThreadIntegrity  DoctorCheck   `json:"mail_thread_integrity"`
-	MoleculeIntegrity    DoctorCheck   `json:"molecule_integrity"`
-	AllChecks            []DoctorCheck `json:"all_checks"`
-	TotalIssues          int           `json:"total_issues"`
-	TotalDependencies    int           `json:"total_dependencies"`
-	OverallOK            bool          `json:"overall_ok"`
+	ParentConsistency   DoctorCheck   `json:"parent_consistency"`
+	DependencyIntegrity DoctorCheck   `json:"dependency_integrity"`
+	EpicCompleteness    DoctorCheck   `json:"epic_completeness"`
+	AgentBeadIntegrity  DoctorCheck   `json:"agent_bead_integrity"`
+	MailThreadIntegrity DoctorCheck   `json:"mail_thread_integrity"`
+	MoleculeIntegrity   DoctorCheck   `json:"molecule_integrity"`
+	AllChecks           []DoctorCheck `json:"all_checks"`
+	TotalIssues         int           `json:"total_issues"`
+	TotalDependencies   int           `json:"total_dependencies"`
+	OverallOK           bool          `json:"overall_ok"`
 }
 
 // RunDeepValidation runs all deep validation checks on the issue graph.
@@ -95,9 +96,7 @@ func RunDeepValidation(path string) DeepValidationResult {
 
 	result.EpicCompleteness = checkEpicCompleteness(db)
 	result.AllChecks = append(result.AllChecks, result.EpicCompleteness)
-	if result.EpicCompleteness.Status == StatusWarning {
-		// Epic completeness is informational, not an error
-	}
+	// Note: Epic completeness warnings are informational, not errors - no action needed
 
 	result.AgentBeadIntegrity = checkAgentBeadIntegrity(db)
 	result.AllChecks = append(result.AllChecks, result.AgentBeadIntegrity)

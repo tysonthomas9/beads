@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/anthropics/anthropic-sdk-go"
+
 	"github.com/steveyegge/beads/internal/types"
 )
 

@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
+
 	"github.com/steveyegge/beads/internal/routing"
 	"github.com/steveyegge/beads/internal/rpc"
 	"github.com/steveyegge/beads/internal/storage"
@@ -537,7 +538,7 @@ var depRemoveCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		CheckReadonly("dep remove")
 		ctx := rootCtx
-		
+
 		// Resolve partial IDs first
 		var fromID, toID string
 		if daemonClient != nil {
@@ -596,7 +597,7 @@ var depRemoveCmd = &cobra.Command{
 		// Direct mode
 		fullFromID := fromID
 		fullToID := toID
-		
+
 		if err := store.RemoveDependency(ctx, fullFromID, fullToID, actor); err != nil {
 			FatalErrorRespectJSON("%v", err)
 		}

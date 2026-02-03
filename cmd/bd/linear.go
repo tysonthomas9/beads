@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
+
 	"github.com/steveyegge/beads/internal/debug"
 	"github.com/steveyegge/beads/internal/linear"
 	"github.com/steveyegge/beads/internal/storage/sqlite"
@@ -653,4 +654,3 @@ func getLinearHashLength(ctx context.Context) int {
 	}
 	return value
 }
-

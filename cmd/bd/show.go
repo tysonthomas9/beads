@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
+
 	"github.com/steveyegge/beads/internal/rpc"
 	"github.com/steveyegge/beads/internal/storage"
 	"github.com/steveyegge/beads/internal/storage/sqlite"
@@ -558,7 +559,6 @@ var showCmd = &cobra.Command{
 		}
 	},
 }
-
 
 // formatShortIssue returns a compact one-line representation of an issue
 // Format: STATUS_ICON ID PRIORITY [Type] Title

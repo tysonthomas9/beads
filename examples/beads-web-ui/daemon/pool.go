@@ -257,21 +257,21 @@ func (p *ConnectionPool) Stats() PoolStats {
 	defer p.mu.Unlock()
 
 	return PoolStats{
-		Size:         p.poolSize,
-		Created:      p.createdCount,
-		Active:       p.activeCount,
-		Available:    len(p.available),
-		Closed:       p.closed,
+		Size:      p.poolSize,
+		Created:   p.createdCount,
+		Active:    p.activeCount,
+		Available: len(p.available),
+		Closed:    p.closed,
 	}
 }
 
 // PoolStats contains statistics about the connection pool.
 type PoolStats struct {
-	Size      int  `json:"size"`       // Configured pool size
-	Created   int  `json:"created"`    // Number of connections created
-	Active    int  `json:"active"`     // Number of connections currently in use
-	Available int  `json:"available"`  // Number of connections available in pool
-	Closed    bool `json:"closed"`     // Whether the pool is closed
+	Size      int  `json:"size"`      // Configured pool size
+	Created   int  `json:"created"`   // Number of connections created
+	Active    int  `json:"active"`    // Number of connections currently in use
+	Available int  `json:"available"` // Number of connections available in pool
+	Closed    bool `json:"closed"`    // Whether the pool is closed
 }
 
 // SetDialTimeout sets the timeout for creating new connections.

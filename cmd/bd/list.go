@@ -17,6 +17,7 @@ import (
 
 	"github.com/fsnotify/fsnotify"
 	"github.com/spf13/cobra"
+
 	"github.com/steveyegge/beads/internal/config"
 	"github.com/steveyegge/beads/internal/rpc"
 	"github.com/steveyegge/beads/internal/storage"
@@ -202,24 +203,22 @@ func buildIssueTreeWithDeps(issues []*types.Issue, allDeps map[string][]*types.D
 	}
 
 	// If we have dependency records, use them to find parent-child relationships
-	if allDeps != nil {
-		for issueID, deps := range allDeps {
-			for _, dep := range deps {
-				parentID := dep.DependsOnID
-				// Only include if both parent and child are in the issue set
-				child, childOk := issueMap[issueID]
-				_, parentOk := issueMap[parentID]
-				if !childOk || !parentOk {
-					continue
-				}
+	for issueID, deps := range allDeps {
+		for _, dep := range deps {
+			parentID := dep.DependsOnID
+			// Only include if both parent and child are in the issue set
+			child, childOk := issueMap[issueID]
+			_, parentOk := issueMap[parentID]
+			if !childOk || !parentOk {
+				continue
+			}
 
-				// Treat as parent-child if:
-				// 1. Explicit parent-child dependency type, OR
-				// 2. Any dependency where the target is an epic
-				if dep.Type == types.DepParentChild || epicIDs[parentID] {
-					childrenMap[parentID] = append(childrenMap[parentID], child)
-					isChild[issueID] = true
-				}
+			// Treat as parent-child if:
+			// 1. Explicit parent-child dependency type, OR
+			// 2. Any dependency where the target is an epic
+			if dep.Type == types.DepParentChild || epicIDs[parentID] {
+				childrenMap[parentID] = append(childrenMap[parentID], child)
+				isChild[issueID] = true
 			}
 		}
 	}

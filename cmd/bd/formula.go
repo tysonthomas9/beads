@@ -11,6 +11,9 @@ import (
 
 	"github.com/BurntSushi/toml"
 	"github.com/spf13/cobra"
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
+
 	"github.com/steveyegge/beads/internal/formula"
 	"github.com/steveyegge/beads/internal/ui"
 )
@@ -166,7 +169,7 @@ func runFormulaList(cmd *cobra.Command, args []string) {
 		}
 
 		typeIcon := getTypeIcon(t)
-		fmt.Printf("%s %s:\n", typeIcon, strings.Title(t))
+		fmt.Printf("%s %s:\n", typeIcon, cases.Title(language.English).String(t))
 
 		for _, e := range typeEntries {
 			varInfo := ""

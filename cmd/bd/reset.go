@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
+
 	"github.com/steveyegge/beads/internal/git"
 	"github.com/steveyegge/beads/internal/ui"
 )
@@ -207,7 +208,6 @@ func showResetPreview(items []resetItem) {
 		return
 	}
 
-
 	fmt.Println(ui.RenderWarn("Reset preview (dry-run mode)"))
 	fmt.Println()
 	fmt.Println("The following will be removed:")
@@ -345,27 +345,27 @@ func removeGitattributesEntry() error {
 	lines := strings.Split(string(content), "\n")
 	var newLines []string
 	skipNextEmpty := false
-	
+
 	for _, line := range lines {
 		// Skip lines containing beads merge configuration
 		if strings.Contains(line, "merge=beads") {
 			skipNextEmpty = true
 			continue
 		}
-		
+
 		// Skip beads-related comment lines
 		if strings.Contains(line, "Use bd merge for beads JSONL files") {
 			skipNextEmpty = true
 			continue
 		}
-		
+
 		// Skip empty lines that follow removed beads entries
 		if skipNextEmpty && strings.TrimSpace(line) == "" {
 			continue
 		}
-		
+
 		skipNextEmpty = false
-		
+
 		// Keep the line
 		newLines = append(newLines, line)
 	}

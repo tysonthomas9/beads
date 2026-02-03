@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
+
 	"github.com/steveyegge/beads/internal/beads"
 	"github.com/steveyegge/beads/internal/rpc"
 	"github.com/steveyegge/beads/internal/types"
@@ -19,17 +20,17 @@ import (
 
 // GHWorkflowRun represents a GitHub workflow run from `gh run list --json`
 type GHWorkflowRun struct {
-	DatabaseID     int64     `json:"databaseId"`
-	DisplayTitle   string    `json:"displayTitle"`
-	HeadBranch     string    `json:"headBranch"`
-	HeadSha        string    `json:"headSha"`
-	Name           string    `json:"name"`
-	Status         string    `json:"status"`
-	Conclusion     string    `json:"conclusion,omitempty"`
-	CreatedAt      time.Time `json:"createdAt"`
-	UpdatedAt      time.Time `json:"updatedAt"`
-	WorkflowName   string    `json:"workflowName"`
-	URL            string    `json:"url"`
+	DatabaseID   int64     `json:"databaseId"`
+	DisplayTitle string    `json:"displayTitle"`
+	HeadBranch   string    `json:"headBranch"`
+	HeadSha      string    `json:"headSha"`
+	Name         string    `json:"name"`
+	Status       string    `json:"status"`
+	Conclusion   string    `json:"conclusion,omitempty"`
+	CreatedAt    time.Time `json:"createdAt"`
+	UpdatedAt    time.Time `json:"updatedAt"`
+	WorkflowName string    `json:"workflowName"`
+	URL          string    `json:"url"`
 }
 
 // gateDiscoverCmd discovers GitHub run IDs for gh:run gates
@@ -206,7 +207,7 @@ func findPendingGates() ([]*types.Issue, error) {
 
 	if daemonClient != nil {
 		listArgs := &rpc.ListArgs{
-			IssueType: "gate",
+			IssueType:     "gate",
 			ExcludeStatus: []string{"closed"},
 		}
 
@@ -230,7 +231,7 @@ func findPendingGates() ([]*types.Issue, error) {
 		// Direct mode
 		gateType := types.IssueType("gate")
 		filter := types.IssueFilter{
-			IssueType: &gateType,
+			IssueType:     &gateType,
 			ExcludeStatus: []types.Status{types.StatusClosed},
 		}
 

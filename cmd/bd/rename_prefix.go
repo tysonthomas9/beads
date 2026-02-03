@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
+
 	"github.com/steveyegge/beads/internal/storage"
 	"github.com/steveyegge/beads/internal/storage/sqlite"
 	"github.com/steveyegge/beads/internal/syncbranch"
@@ -188,7 +189,7 @@ NOTE: This is a rare operation. Most users never need this command.`,
 		}
 
 		if dryRun {
-				fmt.Printf("DRY RUN: Would rename %d issues from prefix '%s' to '%s'\n\n", len(issues), oldPrefix, newPrefix)
+			fmt.Printf("DRY RUN: Would rename %d issues from prefix '%s' to '%s'\n\n", len(issues), oldPrefix, newPrefix)
 			fmt.Printf("Sample changes:\n")
 			for i, issue := range issues {
 				if i >= 5 {
@@ -201,7 +202,6 @@ NOTE: This is a rare operation. Most users never need this command.`,
 			}
 			return
 		}
-
 
 		fmt.Printf("Renaming %d issues from prefix '%s' to '%s'...\n", len(issues), oldPrefix, newPrefix)
 

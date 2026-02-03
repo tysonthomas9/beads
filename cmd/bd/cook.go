@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
+
 	"github.com/steveyegge/beads/internal/formula"
 	"github.com/steveyegge/beads/internal/storage"
 	"github.com/steveyegge/beads/internal/storage/sqlite"
@@ -658,7 +659,6 @@ func collectSteps(steps []*formula.Step, parentID string,
 		}
 	}
 }
-
 
 // resolveAndCookFormula loads a formula by name, resolves it, applies all transformations,
 // and returns an in-memory TemplateSubgraph ready for instantiation.

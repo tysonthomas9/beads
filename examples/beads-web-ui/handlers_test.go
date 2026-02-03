@@ -3025,6 +3025,7 @@ func TestHandleCreateIssue_ClientReturnedToPoolOnError(t *testing.T) {
 		t.Error("Put() was not called on error - client not returned to pool")
 	}
 }
+
 // handlePatchIssue tests
 // ===========================================================================
 
@@ -4528,7 +4529,6 @@ func TestHandleGraph_InvalidStatus(t *testing.T) {
 		t.Errorf("Error = %q, expected to contain 'invalid status'", resp.Error)
 	}
 }
-
 
 // TestHandleGraph_PoolClosed tests that closed pool returns 503 Service Unavailable
 func TestHandleGraph_PoolClosed(t *testing.T) {

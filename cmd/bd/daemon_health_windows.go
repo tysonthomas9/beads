@@ -3,8 +3,9 @@
 package main
 
 import (
-	"golang.org/x/sys/windows"
 	"unsafe"
+
+	"golang.org/x/sys/windows"
 )
 
 // checkDiskSpace returns the available disk space in MB for the given path.

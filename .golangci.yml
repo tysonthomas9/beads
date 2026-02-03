@@ -136,3 +136,11 @@ linters:
 
 issues:
   uniq-by-line: true
+
+formatters:
+  enable:
+    - goimports
+  settings:
+    goimports:
+      local-prefixes:
+        - github.com/steveyegge/beads

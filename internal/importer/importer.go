@@ -280,6 +280,8 @@ func handlePrefixMismatch(ctx context.Context, store storage.Storage, issues []*
 			filteredIssues = append(filteredIssues, issue)
 		}
 	}
+	// tombstonesToRemove tracks IDs for potential future cleanup
+	_ = tombstonesToRemove
 
 	// If ALL mismatched prefix issues are tombstones, they're just pollution
 	// from contributor PRs that used different test prefixes. These are safe to remove.

@@ -1,13 +1,17 @@
 package main
+
 import (
 	"encoding/json"
 	"fmt"
 	"os"
+
 	"github.com/spf13/cobra"
+
 	"github.com/steveyegge/beads/internal/rpc"
 	"github.com/steveyegge/beads/internal/types"
 	"github.com/steveyegge/beads/internal/ui"
 )
+
 var epicCmd = &cobra.Command{
 	Use:     "epic",
 	GroupID: "deps",
@@ -191,6 +195,7 @@ var closeEligibleEpicsCmd = &cobra.Command{
 		}
 	},
 }
+
 func init() {
 	epicCmd.AddCommand(epicStatusCmd)
 	epicCmd.AddCommand(closeEligibleEpicsCmd)

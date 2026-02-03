@@ -29,13 +29,13 @@ const (
 // DaemonSubscriber manages the subscription to daemon mutations and
 // bridges them to the SSE hub.
 type DaemonSubscriber struct {
-	pool         *daemon.ConnectionPool
-	hub          *SSEHub
-	done         chan struct{}
-	wg           sync.WaitGroup
-	lastSince    int64
-	mu           sync.RWMutex
-	useFallback  bool // true if wait_for_mutations is not supported
+	pool        *daemon.ConnectionPool
+	hub         *SSEHub
+	done        chan struct{}
+	wg          sync.WaitGroup
+	lastSince   int64
+	mu          sync.RWMutex
+	useFallback bool // true if wait_for_mutations is not supported
 }
 
 // NewDaemonSubscriber creates a new daemon subscriber.
@@ -274,4 +274,3 @@ func isUnknownOperationError(err error) bool {
 	return len(errStr) > 0 &&
 		(strings.Contains(errStr, "unknown operation") || strings.Contains(errStr, "unsupported"))
 }
-

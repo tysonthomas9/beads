@@ -89,11 +89,11 @@ func TestShouldCache(t *testing.T) {
 
 func TestSetCacheHeaders(t *testing.T) {
 	tests := []struct {
-		name           string
-		cache          bool
-		wantCacheCtrl  string
-		wantPragma     string
-		wantExpires    string
+		name          string
+		cache         bool
+		wantCacheCtrl string
+		wantPragma    string
+		wantExpires   string
 	}{
 		{
 			name:          "cached assets get long cache headers",

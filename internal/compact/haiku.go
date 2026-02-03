@@ -13,6 +13,7 @@ import (
 
 	"github.com/anthropics/anthropic-sdk-go"
 	"github.com/anthropics/anthropic-sdk-go/option"
+
 	"github.com/steveyegge/beads/internal/audit"
 	"github.com/steveyegge/beads/internal/types"
 )

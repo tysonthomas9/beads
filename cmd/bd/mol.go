@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/spf13/cobra"
+
 	"github.com/steveyegge/beads/internal/storage"
 )
 
@@ -69,11 +70,11 @@ Use "bd formula list" to list available formulas.`,
 // The prefix parameter overrides the default issue prefix (bd-hobo: distinct prefixes).
 func spawnMolecule(ctx context.Context, s storage.Storage, subgraph *MoleculeSubgraph, vars map[string]string, assignee string, actorName string, ephemeral bool, prefix string) (*InstantiateResult, error) {
 	opts := CloneOptions{
-		Vars:     vars,
-		Assignee: assignee,
-		Actor:    actorName,
-		Ephemeral:     ephemeral,
-		Prefix:   prefix,
+		Vars:      vars,
+		Assignee:  assignee,
+		Actor:     actorName,
+		Ephemeral: ephemeral,
+		Prefix:    prefix,
 	}
 	return cloneSubgraph(ctx, s, subgraph, opts)
 }

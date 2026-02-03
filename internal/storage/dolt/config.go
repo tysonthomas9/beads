@@ -10,7 +10,7 @@ import (
 // SetConfig sets a configuration value
 func (s *DoltStore) SetConfig(ctx context.Context, key, value string) error {
 	_, err := s.db.ExecContext(ctx, `
-		INSERT INTO config (` + "`key`" + `, value) VALUES (?, ?)
+		INSERT INTO config (`+"`key`"+`, value) VALUES (?, ?)
 		ON DUPLICATE KEY UPDATE value = VALUES(value)
 	`, key, value)
 	if err != nil {
@@ -63,7 +63,7 @@ func (s *DoltStore) DeleteConfig(ctx context.Context, key string) error {
 // SetMetadata sets a metadata value
 func (s *DoltStore) SetMetadata(ctx context.Context, key, value string) error {
 	_, err := s.db.ExecContext(ctx, `
-		INSERT INTO metadata (` + "`key`" + `, value) VALUES (?, ?)
+		INSERT INTO metadata (`+"`key`"+`, value) VALUES (?, ?)
 		ON DUPLICATE KEY UPDATE value = VALUES(value)
 	`, key, value)
 	if err != nil {

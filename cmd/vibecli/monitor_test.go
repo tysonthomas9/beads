@@ -171,11 +171,11 @@ func TestAgentStatusStates(t *testing.T) {
 // Test fallback logic for replacing "..." with task ID
 func TestFallbackLogic(t *testing.T) {
 	tests := []struct {
-		name         string
-		lockStatus   string
-		taskID       string
-		taskStatus   string
-		wantPrefix   string
+		name       string
+		lockStatus string
+		taskID     string
+		taskStatus string
+		wantPrefix string
 	}{
 		{
 			name:       "planning_needs_review_becomes_review",
@@ -378,10 +378,10 @@ func TestMonitorDataStruct(t *testing.T) {
 // Closed tasks without a lock show "ready" (not "done") to avoid stale state
 func TestTaskInfoStatus(t *testing.T) {
 	tests := []struct {
-		name         string
-		taskStatus   string
-		expectError  bool
-		expectReady  bool
+		name        string
+		taskStatus  string
+		expectError bool
+		expectReady bool
 	}{
 		{"in_progress_no_lock_is_error", "in_progress", true, false},
 		{"closed_no_lock_is_ready", "closed", false, true}, // Changed: closed without lock = ready

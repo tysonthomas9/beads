@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
+
 	"github.com/steveyegge/beads/internal/hooks"
 	"github.com/steveyegge/beads/internal/rpc"
 	"github.com/steveyegge/beads/internal/types"
@@ -41,8 +42,6 @@ type IssueTemplate struct {
 	Labels             []string
 	Dependencies       []string
 }
-
-
 
 // parseStringList extracts a list of strings from content, splitting by comma or whitespace.
 // This is a generic helper used by parseLabels and parseDependencies.

@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
+
 	"github.com/steveyegge/beads/internal/beads"
 	"github.com/steveyegge/beads/internal/git"
 	"github.com/steveyegge/beads/internal/ui"
@@ -438,11 +439,11 @@ func runWorktreeInfo(cmd *cobra.Command, args []string) error {
 
 	if jsonOutput {
 		result := map[string]interface{}{
-			"is_worktree":     true,
-			"path":            cwd,
-			"name":            filepath.Base(cwd),
-			"branch":          branch,
-			"main_repo":       mainRepoRoot,
+			"is_worktree":      true,
+			"path":             cwd,
+			"name":             filepath.Base(cwd),
+			"branch":           branch,
+			"main_repo":        mainRepoRoot,
 			"beads_redirected": redirectInfo.IsRedirected,
 		}
 		if redirectInfo.IsRedirected {

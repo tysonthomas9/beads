@@ -282,11 +282,7 @@ func isClaudeSetupComplete() bool {
 
 	// Project-level hooks in .claude/settings.local.json
 	localSettingsPath := filepath.Join(home, ".claude", "settings.local.json")
-	if hasBeadsPrimeHooks(localSettingsPath) {
-		return true
-	}
-
-	return false
+	return hasBeadsPrimeHooks(localSettingsPath)
 }
 
 // hasBeadsPrimeHooks checks if a settings file has bd prime hooks configured
@@ -347,9 +343,9 @@ func initDefaultTips() {
 	InjectTip(
 		"claude_setup",
 		"Install the beads plugin for automatic workflow context, or run 'bd setup claude' for CLI-only mode",
-		100,              // Highest priority - this is important for Claude users
-		24*time.Hour,     // Daily minimum gap
-		0.6,              // 60% chance when eligible (~4 times per week)
+		100,          // Highest priority - this is important for Claude users
+		24*time.Hour, // Daily minimum gap
+		0.6,          // 60% chance when eligible (~4 times per week)
 		func() bool {
 			return isClaudeDetected() && !isClaudeSetupComplete()
 		},
@@ -360,9 +356,9 @@ func initDefaultTips() {
 	InjectTip(
 		"sync_conflict",
 		"Run 'bd sync' to resolve sync conflict",
-		200,         // Higher than Claude setup - sync issues are urgent
-		0,           // No frequency limit - always show when applicable
-		1.0,         // 100% probability - always show when condition is true
+		200, // Higher than Claude setup - sync issues are urgent
+		0,   // No frequency limit - always show when applicable
+		1.0, // 100% probability - always show when condition is true
 		syncConflictCondition,
 	)
 }

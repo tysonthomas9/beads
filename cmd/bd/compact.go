@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
+
 	"github.com/steveyegge/beads/internal/beads"
 	"github.com/steveyegge/beads/internal/compact"
 	"github.com/steveyegge/beads/internal/storage/sqlite"
@@ -870,13 +871,13 @@ func runCompactDolt() {
 
 	if jsonOutput {
 		result := map[string]interface{}{
-			"success":          true,
-			"dolt_path":        doltPath,
-			"size_before":      sizeBefore,
-			"size_after":       sizeAfter,
-			"freed_bytes":      freed,
-			"freed_display":    formatBytes(freed),
-			"elapsed_ms":       elapsed.Milliseconds(),
+			"success":       true,
+			"dolt_path":     doltPath,
+			"size_before":   sizeBefore,
+			"size_after":    sizeAfter,
+			"freed_bytes":   freed,
+			"freed_display": formatBytes(freed),
+			"elapsed_ms":    elapsed.Milliseconds(),
 		}
 		outputJSON(result)
 		return

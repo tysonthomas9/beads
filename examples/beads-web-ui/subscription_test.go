@@ -143,7 +143,6 @@ func TestIsUnknownOperationError(t *testing.T) {
 	}
 }
 
-
 // TestDaemonSubscriber_UseFallback tests that useFallback flag can be set and read.
 func TestDaemonSubscriber_UseFallback(t *testing.T) {
 	hub := NewSSEHub()
