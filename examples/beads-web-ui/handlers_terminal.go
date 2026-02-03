@@ -24,8 +24,9 @@ var validTerminalSession = regexp.MustCompile(`^[a-zA-Z0-9_-]+$`)
 // handleTerminalWS returns a WebSocket handler for terminal relay.
 // It upgrades HTTP connections to WebSocket, bridges them to tmux sessions
 // via the TerminalManager, and handles bidirectional binary data relay
-// plus an in-band resize protocol.
-func handleTerminalWS(manager *TerminalManager) http.HandlerFunc {
+// plus an in-band resize protocol. If the command query parameter is not
+// specified, defaultCmd is used.
+func handleTerminalWS(manager *TerminalManager, defaultCmd string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// Check if manager is available
 		if manager == nil {
@@ -66,8 +67,11 @@ func handleTerminalWS(manager *TerminalManager) http.HandlerFunc {
 			return
 		}
 
-		// Get optional command parameter
+		// Get command parameter, falling back to default if not specified
 		command := r.URL.Query().Get("command")
+		if command == "" {
+			command = defaultCmd
+		}
 
 		// Accept WebSocket upgrade
 		conn, err := websocket.Accept(w, r, &websocket.AcceptOptions{

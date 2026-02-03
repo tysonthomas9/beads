@@ -4,11 +4,14 @@
  * Follows the same slide-out pattern as IssueDetailPanel.
  */
 
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef, useCallback, useState } from 'react';
 
+import { getAgentLogStreamUrl } from '@/api';
+import { useLogStream } from '@/hooks';
 import type { LoomAgentStatus, LoomTaskInfo } from '@/types';
 import { parseLoomStatus } from '@/types';
 
+import { LogViewer } from '../LogViewer';
 import styles from './AgentDetailPanel.module.css';
 
 /**
@@ -124,6 +127,8 @@ function getPriorityLabel(priority: number): string {
 /**
  * AgentDetailPanel displays detailed agent information in a slide-out panel.
  */
+type TabType = 'info' | 'logs';
+
 export function AgentDetailPanel({
   isOpen,
   agentName,
@@ -133,6 +138,36 @@ export function AgentDetailPanel({
   onTaskClick,
 }: AgentDetailPanelProps): JSX.Element {
   const panelRef = useRef<HTMLElement>(null);
+  const [activeTab, setActiveTab] = useState<TabType>('info');
+
+  // Log streaming - only connect when logs tab is active and panel is open
+  const shouldConnectLogs = isOpen && activeTab === 'logs' && agentName !== null;
+  const logStreamUrl = agentName ? getAgentLogStreamUrl(agentName) : '';
+
+  const {
+    lines: logLines,
+    state: logConnectionState,
+    lastError: logError,
+    connect: connectLogs,
+    disconnect: disconnectLogs,
+  } = useLogStream({
+    url: logStreamUrl,
+    autoConnect: false,
+  });
+
+  // Connect/disconnect logs based on tab and panel state
+  useEffect(() => {
+    if (shouldConnectLogs) {
+      connectLogs();
+    } else {
+      disconnectLogs();
+    }
+  }, [shouldConnectLogs, connectLogs, disconnectLogs]);
+
+  // Reset to info tab when agent changes
+  useEffect(() => {
+    setActiveTab('info');
+  }, [agentName]);
 
   // Handle Escape key
   useEffect(() => {
@@ -258,77 +293,112 @@ export function AgentDetailPanel({
               </span>
             </div>
 
-            {/* Scrollable Content */}
-            <div className={styles.scrollableContent}>
-              {/* Current Task Section */}
-              <div className={styles.section}>
-                <h3 className={styles.sectionTitle}>Current Task</h3>
-                {task && currentTaskId ? (
-                  <button
-                    type="button"
-                    className={styles.taskLink}
-                    onClick={() => handleTaskClick(currentTaskId)}
-                  >
-                    <span className={styles.taskId}>{task.id}</span>
-                    <div className={styles.taskInfo}>
-                      <p className={styles.taskTitle}>{task.title}</p>
-                      <div className={styles.taskMeta}>
-                        <span className={styles.priorityBadge} data-priority={task.priority}>
-                          {getPriorityLabel(task.priority)}
-                        </span>
-                      </div>
-                    </div>
-                  </button>
-                ) : (
-                  <span className={styles.emptyState}>No active task</span>
-                )}
-              </div>
+            {/* Tab Bar */}
+            <div className={styles.tabBar}>
+              <button
+                type="button"
+                className={`${styles.tab} ${activeTab === 'info' ? styles.activeTab : ''}`}
+                onClick={() => setActiveTab('info')}
+                aria-selected={activeTab === 'info'}
+                role="tab"
+              >
+                Info
+              </button>
+              <button
+                type="button"
+                className={`${styles.tab} ${activeTab === 'logs' ? styles.activeTab : ''}`}
+                onClick={() => setActiveTab('logs')}
+                aria-selected={activeTab === 'logs'}
+                role="tab"
+              >
+                Logs
+              </button>
+            </div>
 
-              {/* Commit Status Section */}
-              <div className={styles.section}>
-                <h3 className={styles.sectionTitle}>Commit Status</h3>
-                <div className={styles.commitRow}>
-                  {agent.ahead > 0 ? (
-                    <span className={styles.commitBadge} data-type="ahead">
-                      +{agent.ahead} ahead
-                    </span>
-                  ) : null}
-                  {agent.behind > 0 ? (
-                    <span className={styles.commitBadge} data-type="behind">
-                      -{agent.behind} behind
-                    </span>
-                  ) : null}
-                  {agent.ahead === 0 && agent.behind === 0 && (
-                    <span className={styles.commitBadge} data-type="synced">
-                      In sync
-                    </span>
+            {/* Tab Content */}
+            {activeTab === 'info' ? (
+              /* Info Tab - Scrollable Content */
+              <div className={styles.scrollableContent}>
+                {/* Current Task Section */}
+                <div className={styles.section}>
+                  <h3 className={styles.sectionTitle}>Current Task</h3>
+                  {task && currentTaskId ? (
+                    <button
+                      type="button"
+                      className={styles.taskLink}
+                      onClick={() => handleTaskClick(currentTaskId)}
+                    >
+                      <span className={styles.taskId}>{task.id}</span>
+                      <div className={styles.taskInfo}>
+                        <p className={styles.taskTitle}>{task.title}</p>
+                        <div className={styles.taskMeta}>
+                          <span className={styles.priorityBadge} data-priority={task.priority}>
+                            {getPriorityLabel(task.priority)}
+                          </span>
+                        </div>
+                      </div>
+                    </button>
+                  ) : (
+                    <span className={styles.emptyState}>No active task</span>
                   )}
                 </div>
-              </div>
 
-              {/* Agent Info Section */}
-              <div className={styles.section}>
-                <h3 className={styles.sectionTitle}>Agent Info</h3>
-                <dl className={styles.infoGrid}>
-                  <dt>Branch</dt>
-                  <dd>{agent.branch}</dd>
-                  <dt>Status</dt>
-                  <dd>{agent.status}</dd>
-                  {parsed.taskId && (
-                    <>
-                      <dt>Task ID</dt>
-                      <dd>{parsed.taskId}</dd>
-                    </>
-                  )}
-                  {parsed.duration && (
-                    <>
-                      <dt>Duration</dt>
-                      <dd>{parsed.duration}</dd>
-                    </>
-                  )}
-                </dl>
+                {/* Commit Status Section */}
+                <div className={styles.section}>
+                  <h3 className={styles.sectionTitle}>Commit Status</h3>
+                  <div className={styles.commitRow}>
+                    {agent.ahead > 0 ? (
+                      <span className={styles.commitBadge} data-type="ahead">
+                        +{agent.ahead} ahead
+                      </span>
+                    ) : null}
+                    {agent.behind > 0 ? (
+                      <span className={styles.commitBadge} data-type="behind">
+                        -{agent.behind} behind
+                      </span>
+                    ) : null}
+                    {agent.ahead === 0 && agent.behind === 0 && (
+                      <span className={styles.commitBadge} data-type="synced">
+                        In sync
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Agent Info Section */}
+                <div className={styles.section}>
+                  <h3 className={styles.sectionTitle}>Agent Info</h3>
+                  <dl className={styles.infoGrid}>
+                    <dt>Branch</dt>
+                    <dd>{agent.branch}</dd>
+                    <dt>Status</dt>
+                    <dd>{agent.status}</dd>
+                    {parsed.taskId && (
+                      <>
+                        <dt>Task ID</dt>
+                        <dd>{parsed.taskId}</dd>
+                      </>
+                    )}
+                    {parsed.duration && (
+                      <>
+                        <dt>Duration</dt>
+                        <dd>{parsed.duration}</dd>
+                      </>
+                    )}
+                  </dl>
+                </div>
               </div>
-            </div>
+            ) : (
+              /* Logs Tab */
+              <div className={styles.logsContainer}>
+                <LogViewer
+                  lines={logLines}
+                  connectionState={logConnectionState}
+                  error={logError}
+                  height="100%"
+                />
+              </div>
+            )}
           </>
         ) : agentName ? (
           /* Agent not found state */
