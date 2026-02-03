@@ -234,6 +234,16 @@ vi.mock('@/hooks', () => ({
     addRecentAssignee: vi.fn(),
     clearRecentAssignees: vi.fn(),
   })),
+  useLogStream: vi.fn(() => ({
+    lines: [],
+    state: 'disconnected' as const,
+    isConnected: false,
+    reconnectAttempts: 0,
+    lastError: null,
+    clearLines: vi.fn(),
+    connect: vi.fn(),
+    disconnect: vi.fn(),
+  })),
 }));
 
 // Alias for convenience in tests (prefixed with _ to satisfy linter for unused vars)
