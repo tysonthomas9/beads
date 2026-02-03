@@ -182,3 +182,11 @@
 .statusColumn[data-column-type='backlog'] .count {
   background-color: #e5e5e5;
 }
+
+/* =================================
+ * Review column styling (needs attention)
+ * ================================= */
+
+.statusColumn[data-column-type='review'] {
+  background-color: var(--color-warning-bg);
+}

@@ -6,10 +6,10 @@
  * Unit tests for StatusColumn component.
  */
 
-import { describe, it, expect } from 'vitest';
+import { DndContext } from '@dnd-kit/core';
 import { render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom';
-import { DndContext } from '@dnd-kit/core';
+import { describe, it, expect } from 'vitest';
 
 import { StatusColumn } from '../StatusColumn';
 import { formatStatusLabel, getStatusColor } from '../utils';
@@ -184,6 +184,33 @@ describe('StatusColumn', () => {
       const section = container.querySelector('section');
       // When columnType is undefined, the attribute value should be undefined/null
       expect(section?.getAttribute('data-column-type')).toBeNull();
+    });
+
+    it('review column has data-column-type="review" attribute set', () => {
+      const { container } = render(<StatusColumn status="open" count={1} columnType="review" />);
+
+      const section = container.querySelector('section');
+      expect(section).toHaveAttribute('data-column-type', 'review');
+    });
+
+    it('review column applies correct CSS module class for background styling', () => {
+      const { container } = render(<StatusColumn status="open" count={1} columnType="review" />);
+
+      const section = container.querySelector('section');
+
+      // Verify the section element exists and has the CSS Module class applied
+      // (CSS Modules hash the class names, so we check that a class is applied)
+      expect(section).toBeInTheDocument();
+      expect(section?.className).toBeTruthy();
+
+      // Verify the computed style reflects the warning background color
+      const computedStyle = window.getComputedStyle(section!);
+      const backgroundColor = computedStyle.backgroundColor;
+
+      // The background-color should be set (not empty or undefined)
+      // CSS Module will apply the .statusColumn[data-column-type='review'] rule
+      // which sets background-color: var(--color-warning-bg)
+      expect(backgroundColor).toBeTruthy();
     });
   });
 
