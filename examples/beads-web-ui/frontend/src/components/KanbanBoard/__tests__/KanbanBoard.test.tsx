@@ -55,14 +55,15 @@ describe('KanbanBoard', () => {
   });
 
   describe('rendering', () => {
-    it('renders default 5-column kanban layout (Ready, Backlog, In Progress, Review, Done)', () => {
+    it('renders default 6-column kanban layout (Backlog, Open, Blocked, In Progress, Needs Review, Done)', () => {
       render(<KanbanBoard issues={[]} />);
 
       // Check for new default columns
-      expect(screen.getByRole('heading', { name: 'Ready' })).toBeInTheDocument();
       expect(screen.getByRole('heading', { name: 'Backlog' })).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'Open' })).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'Blocked' })).toBeInTheDocument();
       expect(screen.getByRole('heading', { name: 'In Progress' })).toBeInTheDocument();
-      expect(screen.getByRole('heading', { name: 'Review' })).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'Needs Review' })).toBeInTheDocument();
       expect(screen.getByRole('heading', { name: 'Done' })).toBeInTheDocument();
     });
 

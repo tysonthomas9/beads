@@ -6,10 +6,11 @@
 .card {
   display: flex;
   flex-direction: row;
-  align-items: center;
+  align-items: flex-start;
+  justify-content: space-between;
   gap: 0.75rem;
   padding: 1rem 1.5rem;
-  border-top: 1px solid var(--color-border);
+  border-top: 1px solid var(--line-color, #CCCCCC);
   transition: background-color 0.15s ease;
 }
 
@@ -87,10 +88,22 @@
   gap: 2px;
 }
 
+.infoMain {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
 .name {
   font-weight: var(--font-weight-bold, 700);
   font-size: var(--font-size-sm, 0.875rem);
   color: var(--color-text-primary);
+  line-height: 1.2;
+}
+
+.role {
+  font-size: 10px;
+  color: #9ca3af;
   line-height: 1.2;
 }
 
@@ -107,11 +120,24 @@
   color: var(--color-status-error, #ef4444);
 }
 
+/* Commit info section */
+.commitInfo {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
 /* Commit count badge */
 .commitCount {
   font-size: var(--font-size-xs, 0.75rem);
-  color: var(--color-success, #16a34a);
+  color: #16a34a;  /* green */
   font-variant-numeric: tabular-nums;
-  font-family: var(--font-mono, ui-monospace, monospace);
-  flex-shrink: 0;
+  font-family: var(--font-family-mono, ui-monospace, monospace);
+}
+
+.changesText {
+  font-size: 10px;
+  color: #9ca3af;
 }

@@ -220,10 +220,11 @@ describe('AgentCard', () => {
       expect(screen.getByText('+3')).toBeInTheDocument();
     });
 
-    it('shows correct title tooltip for commit count', () => {
+    it('shows "changes" text alongside commit count', () => {
       render(<AgentCard agent={makeAgent({ ahead: 5 })} />);
 
-      expect(screen.getByTitle('5 commits ahead')).toBeInTheDocument();
+      expect(screen.getByText('+5')).toBeInTheDocument();
+      expect(screen.getByText('changes')).toBeInTheDocument();
     });
 
     it('does not show commit count when ahead is 0', () => {
@@ -232,11 +233,11 @@ describe('AgentCard', () => {
       expect(screen.queryByText(/^\+/)).not.toBeInTheDocument();
     });
 
-    it('shows +1 for single commit ahead', () => {
+    it('shows +1 for single commit ahead with singular "change"', () => {
       render(<AgentCard agent={makeAgent({ ahead: 1 })} />);
 
       expect(screen.getByText('+1')).toBeInTheDocument();
-      expect(screen.getByTitle('1 commits ahead')).toBeInTheDocument();
+      expect(screen.getByText('change')).toBeInTheDocument();
     });
   });
 

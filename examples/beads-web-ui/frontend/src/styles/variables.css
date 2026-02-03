@@ -5,6 +5,32 @@
 
 :root {
   /* ===========================
+   * Design System Variables
+   * =========================== */
+  --bg-color: #EAE8E1;           /* warm beige page background */
+  --bg-card: #FFFFFF;
+  --line-color: #CCCCCC;
+  --text-primary: #000000;
+  --text-secondary: #444444;
+  --card-radius: 8px;
+  --unified-header-height: 64px;
+
+  /* Agent Avatar Colors */
+  --agent-color-sage: #9DC08B;
+  --agent-text-sage: #1E3014;
+  --agent-color-peach: #F59E87;
+  --agent-text-peach: #3D1409;
+  --agent-color-lavender: #B6B2DF;
+  --agent-text-lavender: #211C4D;
+  --agent-color-sky: #95CBE9;
+  --agent-text-sky: #0C3449;
+
+  /* Agent Status Dot Colors */
+  --color-agent-working: #facc15;  /* yellow-400 */
+  --color-agent-error: #ef4444;    /* red-500 */
+  --color-agent-ready: #9ca3af;    /* gray-400 */
+
+  /* ===========================
    * Colors - Priority
    * =========================== */
   --color-priority-0: #dc2626; /* red-600, critical */
@@ -64,8 +90,8 @@
   /* ===========================
    * Colors - Neutral (Light Theme)
    * =========================== */
-  --color-bg: #ffffff;
-  --color-bg-secondary: #f9fafb;
+  --color-bg: #EAE8E1;
+  --color-bg-secondary: #F5F3ED;
   --color-bg-tertiary: #f3f4f6;
   --color-bg-hover: #f3f4f6; /* gray-100, for hover states */
   --color-bg-active: #e5e7eb; /* gray-200, for active states */
@@ -143,7 +169,7 @@
    * =========================== */
   --radius-sm: 0.25rem; /* 4px */
   --radius-md: 0.375rem; /* 6px */
-  --radius-lg: 0.5rem; /* 8px */
+  --radius-lg: 8px;
   --radius-xl: 0.75rem; /* 12px */
   --radius-full: 9999px;
 

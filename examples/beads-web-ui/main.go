@@ -13,6 +13,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"strings"
 	"syscall"
 	"time"
@@ -121,12 +122,20 @@ func main() {
 		// Use explicit socket path
 		pool, poolErr = daemon.NewConnectionPool(*socket, *poolSize)
 	} else {
-		// Auto-discover daemon from current directory
+		// Auto-discover daemon from main workspace (walk up to find .beads)
 		cwd, err := os.Getwd()
 		if err != nil {
 			log.Printf("Warning: failed to get current directory: %v", err)
 		} else {
-			pool, poolErr = daemon.NewConnectionPoolAutoDiscover(cwd, *poolSize)
+			// Find the .beads directory and use its parent as the workspace
+			beadsDir, findErr := daemon.FindBeadsDir(cwd)
+			if findErr == nil {
+				mainWorkspace := filepath.Dir(beadsDir)
+				pool, poolErr = daemon.NewConnectionPoolAutoDiscover(mainWorkspace, *poolSize)
+			} else {
+				// Fall back to current directory
+				pool, poolErr = daemon.NewConnectionPoolAutoDiscover(cwd, *poolSize)
+			}
 		}
 	}
 

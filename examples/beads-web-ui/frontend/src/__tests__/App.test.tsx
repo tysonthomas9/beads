@@ -9,7 +9,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
-
 import App from '../App';
 import type { Issue, Status } from '@/types';
 import type { ConnectionState } from '@/api/sse';
@@ -498,7 +497,7 @@ describe('App', () => {
       render(<App />);
 
       // SwimLaneBoard should render with status columns
-      expect(screen.getByRole('heading', { name: 'Ready' })).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'Open' })).toBeInTheDocument();
       expect(screen.getByRole('heading', { name: 'In Progress' })).toBeInTheDocument();
       expect(screen.getByRole('heading', { name: 'Done' })).toBeInTheDocument();
 
@@ -564,7 +563,7 @@ describe('App', () => {
       render(<App />);
 
       // Should render columns even with no issues
-      expect(screen.getByRole('heading', { name: 'Ready' })).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'Open' })).toBeInTheDocument();
       expect(screen.getByRole('heading', { name: 'In Progress' })).toBeInTheDocument();
       expect(screen.getByRole('heading', { name: 'Done' })).toBeInTheDocument();
     });
@@ -604,7 +603,7 @@ describe('App', () => {
 
       // Verify KanbanBoard is rendered (we can't easily test the drag event
       // but we verify the component structure is correct)
-      expect(screen.getByRole('heading', { name: 'Ready' })).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'Open' })).toBeInTheDocument();
       expect(screen.getByText('Test')).toBeInTheDocument();
     });
   });
@@ -830,7 +829,7 @@ describe('App', () => {
       rerender(<App />);
 
       // Verify success state
-      expect(screen.getByRole('heading', { name: 'Ready' })).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'Open' })).toBeInTheDocument();
       expect(screen.getByText('Loaded Issue')).toBeInTheDocument();
     });
 
@@ -1026,7 +1025,7 @@ describe('App', () => {
       render(<App />);
 
       // SwimLaneBoard should render status columns
-      expect(screen.getByRole('heading', { name: 'Ready' })).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'Open' })).toBeInTheDocument();
       expect(screen.getByRole('heading', { name: 'In Progress' })).toBeInTheDocument();
 
       // Issues should be visible
@@ -1057,7 +1056,7 @@ describe('App', () => {
       render(<App />);
 
       // Verify SwimLaneBoard is rendered with correct groupBy (epic is default)
-      expect(screen.getByRole('heading', { name: 'Ready' })).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'Open' })).toBeInTheDocument();
     });
 
     it('passes groupBy prop to SwimLaneBoard with epic grouping', () => {
@@ -1083,7 +1082,7 @@ describe('App', () => {
       render(<App />);
 
       // SwimLaneBoard should still render
-      expect(screen.getByRole('heading', { name: 'Ready' })).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'Open' })).toBeInTheDocument();
     });
 
     it('FilterBar receives groupBy and onGroupByChange props', () => {
@@ -1138,7 +1137,7 @@ describe('App', () => {
       const { rerender } = render(<App />);
 
       // Initial render with groupBy: 'none'
-      expect(screen.getByRole('heading', { name: 'Ready' })).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'Open' })).toBeInTheDocument();
 
       // Simulate groupBy change to 'priority'
       currentGroupBy = 'priority';
@@ -1147,7 +1146,7 @@ describe('App', () => {
       rerender(<App />);
 
       // SwimLaneBoard should still render with updated groupBy
-      expect(screen.getByRole('heading', { name: 'Ready' })).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'Open' })).toBeInTheDocument();
       expect(setGroupBy).not.toHaveBeenCalled(); // setGroupBy is called by FilterBar, not App
     });
 
@@ -1164,7 +1163,7 @@ describe('App', () => {
 
       // SwimLaneBoard should be rendered with the drag handler
       expect(screen.getByText('Drag Me')).toBeInTheDocument();
-      expect(screen.getByRole('heading', { name: 'Ready' })).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'Open' })).toBeInTheDocument();
     });
 
     it('SwimLaneBoard receives filtered issues', () => {
@@ -1207,7 +1206,7 @@ describe('App', () => {
 
       // SwimLaneBoard should render without errors
       expect(screen.getByText('Blocked Issue')).toBeInTheDocument();
-      expect(screen.getByRole('heading', { name: 'Ready' })).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'Open' })).toBeInTheDocument();
     });
 
     it('SwimLaneBoard respects showBlocked filter', () => {
@@ -1728,7 +1727,7 @@ describe('App', () => {
       // MonitorDashboard should not be rendered when kanban view is active
       expect(screen.queryByTestId('monitor-dashboard')).not.toBeInTheDocument();
       // Kanban view should be active (SwimLaneBoard renders status columns)
-      expect(screen.getByRole('heading', { name: 'Ready' })).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'Open' })).toBeInTheDocument();
     });
 
     it('does not render MonitorDashboard when activeView is "table"', () => {
@@ -1768,7 +1767,7 @@ describe('App', () => {
       const { rerender } = render(<App />);
 
       // Verify kanban view is rendered
-      expect(screen.getByRole('heading', { name: 'Ready' })).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'Open' })).toBeInTheDocument();
       expect(screen.queryByTestId('monitor-dashboard')).not.toBeInTheDocument();
 
       // Switch to monitor view
@@ -1805,7 +1804,7 @@ describe('App', () => {
       rerender(<App />);
 
       // Verify kanban view is now rendered
-      expect(screen.getByRole('heading', { name: 'Ready' })).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'Open' })).toBeInTheDocument();
       expect(screen.queryByTestId('monitor-dashboard')).not.toBeInTheDocument();
     });
 

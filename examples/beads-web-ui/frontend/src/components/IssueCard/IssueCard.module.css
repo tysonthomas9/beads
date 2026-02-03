@@ -8,9 +8,9 @@
   flex-direction: column;
   gap: var(--space-2);
   padding: var(--space-3) var(--space-4);
-  background-color: var(--color-bg);
-  border: 1px solid #000;
-  border-radius: var(--radius-md);
+  background-color: var(--bg-card, #FFFFFF);
+  border: 1px solid var(--line-color, #CCCCCC);
+  border-radius: var(--card-radius, 8px);
   box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.05);
   cursor: default;
   transition:
@@ -324,4 +324,13 @@
 .rejectButton:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+/* =================================
+ * Done column card styling
+ * Cards appear dimmed when in Done column
+ * ================================= */
+
+.issueCard[data-column='done'] {
+  opacity: 0.6;
 }

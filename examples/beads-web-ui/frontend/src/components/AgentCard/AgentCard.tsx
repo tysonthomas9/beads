@@ -16,6 +16,8 @@ export interface AgentCardProps {
   agent: LoomAgentStatus;
   /** Optional task title to display (when working/planning) */
   taskTitle?: string | undefined;
+  /** Optional role to display (e.g., "Developer", "QA", "Architecture") */
+  role?: string | undefined;
   /** Additional CSS class name */
   className?: string;
   /** Click handler */
@@ -23,41 +25,55 @@ export interface AgentCardProps {
 }
 
 /**
- * Pastel color palette for agent avatars.
+ * Named agent color palette for deterministic avatar colors.
  */
-const AVATAR_COLORS = [
-  '#9DC08B', // sage green
-  '#F59E87', // peach
-  '#B6B2DF', // lavender
-  '#95CBE9', // sky blue
-  '#F5C28E', // apricot
-  '#E8A5B3', // rose
-  '#A5D4C8', // mint
-  '#D4A5D8', // orchid
+const AGENT_COLOR_PALETTE: Record<string, { bg: string; text: string }> = {
+  cobalt: { bg: '#9DC08B', text: '#1E3014' },  // sage green
+  nova: { bg: '#9DC08B', text: '#1E3014' },    // sage green
+  dev1: { bg: '#F59E87', text: '#3D1409' },    // peach
+  ember: { bg: '#B6B2DF', text: '#211C4D' },   // lavender
+  zephyr: { bg: '#B6B2DF', text: '#211C4D' },  // lavender
+  falcon: { bg: '#95CBE9', text: '#0C3449' },  // sky blue
+};
+
+/**
+ * Fallback color palette for unknown agent names.
+ */
+const FALLBACK_COLORS = [
+  { bg: '#9DC08B', text: '#1E3014' }, // sage green
+  { bg: '#F59E87', text: '#3D1409' }, // peach
+  { bg: '#B6B2DF', text: '#211C4D' }, // lavender
+  { bg: '#95CBE9', text: '#0C3449' }, // sky blue
+  { bg: '#F5C28E', text: '#3D2409' }, // apricot
+  { bg: '#E8A5B3', text: '#3D1420' }, // rose
+  { bg: '#A5D4C8', text: '#143D30' }, // mint
+  { bg: '#D4A5D8', text: '#3D1440' }, // orchid
 ];
 
 /**
- * Get a deterministic avatar background color from agent name.
+ * Get avatar colors (background and text) for an agent.
  */
-export function getAvatarColor(name: string): string {
+export function getAgentColors(name: string): { bg: string; text: string } {
+  const lowerName = name.toLowerCase();
+  const paletteColor = AGENT_COLOR_PALETTE[lowerName];
+  if (paletteColor) {
+    return paletteColor;
+  }
+  // Fallback: hash the name for unknown agents
   let hash = 0;
   for (let i = 0; i < name.length; i++) {
     hash = ((hash << 5) - hash + name.charCodeAt(i)) | 0;
   }
-  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length] ?? '#9DC08B';
+  const fallbackColor = FALLBACK_COLORS[Math.abs(hash) % FALLBACK_COLORS.length];
+  return fallbackColor ?? { bg: '#9DC08B', text: '#1E3014' };
 }
 
 /**
- * Determine if white text has sufficient contrast on the given background.
- * Uses relative luminance approximation; returns true if bg is dark enough for white text.
+ * Get a deterministic avatar background color from agent name.
+ * @deprecated Use getAgentColors instead for both bg and text colors.
  */
-function shouldUseWhiteText(hex: string): boolean {
-  const r = parseInt(hex.slice(1, 3), 16);
-  const g = parseInt(hex.slice(3, 5), 16);
-  const b = parseInt(hex.slice(5, 7), 16);
-  // Perceived brightness (ITU-R BT.601)
-  const brightness = (r * 299 + g * 587 + b * 114) / 1000;
-  return brightness < 160;
+export function getAvatarColor(name: string): string {
+  return getAgentColors(name).bg;
 }
 
 /**
@@ -124,14 +140,13 @@ export function getStatusLine(parsed: ParsedLoomStatus, branch: string): string 
 /**
  * AgentCard displays a single agent's status in a compact row with circular avatar.
  */
-export function AgentCard({ agent, taskTitle, className, onClick }: AgentCardProps): JSX.Element {
+export function AgentCard({ agent, taskTitle, role, className, onClick }: AgentCardProps): JSX.Element {
   const parsed = parseLoomStatus(agent.status);
-  const avatarColor = getAvatarColor(agent.name);
+  const agentColors = getAgentColors(agent.name);
   const dotColor = getStatusDotColor(parsed.type);
   const statusLine = getStatusLine(parsed, agent.branch);
   const isError = parsed.type === 'error';
   const initial = agent.name.charAt(0) || '?';
-  const textColor = shouldUseWhiteText(avatarColor) ? '#fff' : '#1f2937';
 
   const rootClassName = [styles.card, className].filter(Boolean).join(' ');
 
@@ -157,7 +172,7 @@ export function AgentCard({ agent, taskTitle, className, onClick }: AgentCardPro
       <div className={styles.avatarContainer}>
         <div
           className={styles.avatar}
-          style={{ backgroundColor: avatarColor, color: textColor }}
+          style={{ backgroundColor: agentColors.bg, color: agentColors.text }}
           aria-label={`${agent.name} avatar`}
         >
           {initial}
@@ -170,7 +185,10 @@ export function AgentCard({ agent, taskTitle, className, onClick }: AgentCardPro
       </div>
 
       <div className={styles.info}>
-        <span className={styles.name}>{agent.name}</span>
+        <div className={styles.infoMain}>
+          <span className={styles.name}>{agent.name}</span>
+          {role && <span className={styles.role}>{role}</span>}
+        </div>
         <span
           className={styles.statusLine}
           data-error={isError || undefined}
@@ -181,9 +199,10 @@ export function AgentCard({ agent, taskTitle, className, onClick }: AgentCardPro
       </div>
 
       {agent.ahead > 0 && (
-        <span className={styles.commitCount} title={`${agent.ahead} commits ahead`}>
-          +{agent.ahead}
-        </span>
+        <div className={styles.commitInfo}>
+          <span className={styles.commitCount}>+{agent.ahead}</span>
+          <span className={styles.changesText}>{agent.ahead === 1 ? 'change' : 'changes'}</span>
+        </div>
       )}
     </div>
   );

@@ -31,6 +31,7 @@ import {
   SwimLaneBoard,
   IssueTable,
   ViewSwitcher,
+  LeftNav,
   LoadingSkeleton,
   ErrorDisplay,
   ConnectionStatus,
@@ -45,6 +46,7 @@ import {
   AssigneePrompt,
   BulkActionToolbar,
   TalkToLeadButton,
+  ProfileAvatar,
 } from '@/components';
 
 // Lazy load GraphView (React Flow ~100KB)
@@ -447,8 +449,10 @@ function App() {
             />
             <BlockedSummary onIssueClick={handleBlockedIssueClick} />
             <ConnectionStatus state={connectionState} />
+            <ProfileAvatar />
           </div>
         }
+        leftNav={<LeftNav activeView={activeView} onChange={setActiveView} />}
         sidebar={
           <AgentsSidebar
             onAgentClick={handleAgentClick}
@@ -490,8 +494,10 @@ function App() {
               onRetry={retryConnection}
               reconnectAttempts={reconnectAttempts}
             />
+            <ProfileAvatar />
           </div>
         }
+        leftNav={<LeftNav activeView={activeView} onChange={setActiveView} />}
         sidebar={
           <AgentsSidebar
             onAgentClick={handleAgentClick}
@@ -548,8 +554,10 @@ function App() {
             onRetry={retryConnection}
             reconnectAttempts={reconnectAttempts}
           />
+          <ProfileAvatar />
         </div>
       }
+      leftNav={<LeftNav activeView={activeView} onChange={setActiveView} />}
       sidebar={
         <AgentsSidebar
           onAgentClick={handleAgentClick}

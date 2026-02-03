@@ -14,6 +14,24 @@ import type { LoomTaskInfo } from '@/types';
 import styles from './AgentsSidebar.module.css';
 
 /**
+ * Agent role mapping - hardcoded for demo purposes.
+ */
+const AGENT_ROLE_MAP: Record<string, string> = {
+  cobalt: 'Developer',
+  comet: 'Developer',
+  dev1: 'Developer',
+  ember: 'QA',
+  falcon: 'Developer',
+  nova: 'Architecture',
+  spark: 'Developer',
+  zephyr: 'Developer',
+};
+
+function getAgentRole(name: string): string | undefined {
+  return AGENT_ROLE_MAP[name.toLowerCase()];
+}
+
+/**
  * Props for the AgentsSidebar component.
  */
 export interface AgentsSidebarProps {
@@ -103,9 +121,9 @@ export function AgentsSidebar({
   const getDrawerData = useCallback((): { title: string; tasks: LoomTaskInfo[] } => {
     switch (selectedCategory) {
       case 'plan':
-        return { title: 'Needs Planning', tasks: taskLists.needsPlanning };
+        return { title: 'Backlog', tasks: taskLists.needsPlanning };
       case 'impl':
-        return { title: 'Ready to Implement', tasks: taskLists.readyToImplement };
+        return { title: 'Open', tasks: taskLists.readyToImplement };
       case 'review':
         return { title: 'Needs Review', tasks: taskLists.needsReview };
       case 'inProgress':
@@ -175,6 +193,7 @@ export function AgentsSidebar({
                 <AgentCard
                   key={agent.name}
                   agent={agent}
+                  role={getAgentRole(agent.name)}
                   taskTitle={agentTasks[agent.name]?.title}
                   {...(onAgentClick !== undefined && { onClick: () => onAgentClick(agent.name) })}
                 />
@@ -204,7 +223,7 @@ export function AgentsSidebar({
                       onClick={() => handleCategoryClick('plan')}
                       disabled={tasks.needs_planning === 0}
                     >
-                      <span className={styles.queueLabel}>Plan</span>
+                      <span className={styles.queueLabel}>Backlog</span>
                       <span className={styles.queueCount} data-highlight={tasks.needs_planning > 0}>
                         {tasks.needs_planning}
                       </span>
@@ -215,7 +234,7 @@ export function AgentsSidebar({
                       onClick={() => handleCategoryClick('impl')}
                       disabled={tasks.ready_to_implement === 0}
                     >
-                      <span className={styles.queueLabel}>Impl</span>
+                      <span className={styles.queueLabel}>Open</span>
                       <span
                         className={styles.queueCount}
                         data-highlight={tasks.ready_to_implement > 0}
@@ -226,10 +245,21 @@ export function AgentsSidebar({
                     <button
                       type="button"
                       className={styles.queueItem}
+                      onClick={() => handleCategoryClick('inProgress')}
+                      disabled={tasks.in_progress === 0}
+                    >
+                      <span className={styles.queueLabel}>In Progress</span>
+                      <span className={styles.queueCount} data-highlight={tasks.in_progress > 0}>
+                        {tasks.in_progress}
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      className={styles.queueItem}
                       onClick={() => handleCategoryClick('review')}
                       disabled={tasks.need_review === 0}
                     >
-                      <span className={styles.queueLabel}>Review</span>
+                      <span className={styles.queueLabel}>Needs Review</span>
                       <span className={styles.queueCount} data-highlight={tasks.need_review > 0}>
                         {tasks.need_review}
                       </span>

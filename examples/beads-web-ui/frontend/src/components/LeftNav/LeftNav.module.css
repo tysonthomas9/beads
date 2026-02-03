@@ -1,0 +1,85 @@
+/**
+ * LeftNav component styles.
+ * Vertical navigation rail with icon buttons.
+ */
+
+.leftNav {
+  display: flex;
+  flex-direction: column;
+  width: 48px;
+  min-width: 48px;
+  background: var(--color-bg, #EAE8E1);
+  border-right: 1px solid var(--line-color, #CCCCCC);
+  padding: 8px 0;
+}
+
+.navIcon {
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text-secondary, #6b7280);
+  cursor: pointer;
+  position: relative;
+  background: transparent;
+  border: none;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.navIcon:hover {
+  background: var(--color-bg-hover, #f3f4f6);
+}
+
+.navIcon:focus {
+  outline: 2px solid var(--color-focus, #3b82f6);
+  outline-offset: -2px;
+}
+
+.navIcon:focus:not(:focus-visible) {
+  outline: none;
+}
+
+.navIcon:focus-visible {
+  outline: 2px solid var(--color-focus, #3b82f6);
+  outline-offset: -2px;
+}
+
+.navIcon.active {
+  background: var(--color-primary, #3b82f6);
+  color: white;
+}
+
+.navIcon.active:hover {
+  background: var(--color-primary, #3b82f6);
+}
+
+.tooltip {
+  position: absolute;
+  left: 52px;
+  background: #000;
+  color: #fff;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+  z-index: var(--z-dropdown, 100);
+}
+
+.navIcon:hover .tooltip {
+  opacity: 1;
+}
+
+/* Tooltip arrow */
+.tooltip::before {
+  content: '';
+  position: absolute;
+  left: -4px;
+  top: 50%;
+  transform: translateY(-50%);
+  border: 4px solid transparent;
+  border-right-color: #000;
+}
