@@ -472,7 +472,6 @@ func performIncrementalExport(ctx context.Context, jsonlPath string, dirtyIDs []
 	}()
 
 	// Write JSONL in sorted order
-	exportedIDs := make([]string, 0, len(finalIDs))
 	for _, id := range finalIDs {
 		data := issueMap[id]
 		if _, err := tempFile.Write(data); err != nil {
@@ -481,7 +480,6 @@ func performIncrementalExport(ctx context.Context, jsonlPath string, dirtyIDs []
 		if _, err := tempFile.WriteString("\n"); err != nil {
 			return nil, fmt.Errorf("failed to write newline: %w", err)
 		}
-		exportedIDs = append(exportedIDs, id)
 	}
 
 	// Close and rename
@@ -499,8 +497,6 @@ func performIncrementalExport(ctx context.Context, jsonlPath string, dirtyIDs []
 	contentHash, _ := computeJSONLHash(jsonlPath)
 	exportTime := time.Now().Format(time.RFC3339Nano)
 
-	// Note: exportedIDs contains ALL IDs in the file, but we only need to clear
-	// dirty flags for the dirtyIDs (which we received as parameter)
 	return &ExportResult{
 		JSONLPath:   jsonlPath,
 		ExportedIDs: dirtyIDs, // Only clear dirty flags for actually dirty issues

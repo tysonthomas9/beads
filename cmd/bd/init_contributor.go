@@ -144,7 +144,7 @@ func runContributorWizard(ctx context.Context, store storage.Storage) error {
 
 		// Create README in planning repo
 		readmePath := filepath.Join(planningPath, "README.md")
-		readmeContent := fmt.Sprintf(`# Beads Planning Repository
+		readmeContent := `# Beads Planning Repository
 
 This repository stores contributor planning issues for OSS projects.
 
@@ -159,7 +159,7 @@ This repository stores contributor planning issues for OSS projects.
 Issues here are automatically created when working on forked repositories.
 
 Created by: bd init --contributor
-`)
+`
 		// #nosec G306 -- README should be world-readable
 		if err := os.WriteFile(readmePath, []byte(readmeContent), 0644); err != nil {
 			fmt.Fprintf(os.Stderr, "Warning: failed to create README: %v\n", err)

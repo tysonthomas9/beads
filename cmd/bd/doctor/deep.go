@@ -93,11 +93,9 @@ func RunDeepValidation(path string) DeepValidationResult {
 		result.OverallOK = false
 	}
 
+	// Epic completeness is informational, not an error (doesn't affect OverallOK)
 	result.EpicCompleteness = checkEpicCompleteness(db)
 	result.AllChecks = append(result.AllChecks, result.EpicCompleteness)
-	if result.EpicCompleteness.Status == StatusWarning {
-		// Epic completeness is informational, not an error
-	}
 
 	result.AgentBeadIntegrity = checkAgentBeadIntegrity(db)
 	result.AllChecks = append(result.AllChecks, result.AgentBeadIntegrity)

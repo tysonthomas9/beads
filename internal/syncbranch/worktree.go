@@ -896,7 +896,7 @@ func pushFromWorktree(ctx context.Context, worktreePath, branch string) error {
 		// Run with timeout message in case of hanging auth
 		output, err := runCmdWithTimeoutMessage(
 			ctx,
-			fmt.Sprintf("Git push is waiting (possibly for authentication). If this hangs, check for a browser auth prompt."),
+			"Git push is waiting (possibly for authentication). If this hangs, check for a browser auth prompt.",
 			5*time.Second,
 			cmd,
 		)

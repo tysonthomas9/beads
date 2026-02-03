@@ -179,11 +179,11 @@ func runWorktreeCreate(cmd *cobra.Command, args []string) error {
 
 	// Create the worktree using secure git command
 	gitCmd := gitCmdInDir(ctx, repoRoot, "worktree", "add", "-b", branch, worktreePath)
-	output, err := gitCmd.CombinedOutput()
+	_, err = gitCmd.CombinedOutput()
 	if err != nil {
 		// Try without -b if branch already exists
 		gitCmd = gitCmdInDir(ctx, repoRoot, "worktree", "add", worktreePath, branch)
-		output, err = gitCmd.CombinedOutput()
+		output, err := gitCmd.CombinedOutput()
 		if err != nil {
 			return fmt.Errorf("failed to create worktree: %w\n%s", err, string(output))
 		}

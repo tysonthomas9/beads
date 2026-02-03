@@ -235,18 +235,12 @@ func (s *DoltStore) ListFederationPeers(ctx context.Context) ([]*storage.Federat
 
 // RemoveFederationPeer removes a federation peer and its credentials.
 func (s *DoltStore) RemoveFederationPeer(ctx context.Context, name string) error {
-	result, err := s.db.ExecContext(ctx, "DELETE FROM federation_peers WHERE name = ?", name)
+	_, err := s.db.ExecContext(ctx, "DELETE FROM federation_peers WHERE name = ?", name)
 	if err != nil {
 		return fmt.Errorf("failed to remove federation peer: %w", err)
 	}
 
-	rows, _ := result.RowsAffected()
-	if rows == 0 {
-		// Peer not in credentials table, but might still be a Dolt remote
-		// Continue to try removing the remote
-	}
-
-	// Also remove the Dolt remote (best-effort)
+	// Even if peer wasn't in credentials table, try removing the Dolt remote
 	_ = s.RemoveRemote(ctx, name)
 
 	return nil

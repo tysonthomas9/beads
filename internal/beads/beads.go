@@ -464,11 +464,7 @@ func hasBeadsProjectFiles(beadsDir string) bool {
 
 	// Check for JSONL files (JSONL-only mode or fresh clone)
 	jsonlMatches, _ := filepath.Glob(filepath.Join(beadsDir, "*.jsonl"))
-	if len(jsonlMatches) > 0 {
-		return true
-	}
-
-	return false
+	return len(jsonlMatches) > 0
 }
 
 // FindBeadsDir finds the .beads/ directory in the current directory tree

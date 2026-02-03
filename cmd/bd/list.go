@@ -202,8 +202,7 @@ func buildIssueTreeWithDeps(issues []*types.Issue, allDeps map[string][]*types.D
 	}
 
 	// If we have dependency records, use them to find parent-child relationships
-	if allDeps != nil {
-		for issueID, deps := range allDeps {
+	for issueID, deps := range allDeps {
 			for _, dep := range deps {
 				parentID := dep.DependsOnID
 				// Only include if both parent and child are in the issue set
@@ -222,7 +221,6 @@ func buildIssueTreeWithDeps(issues []*types.Issue, allDeps map[string][]*types.D
 				}
 			}
 		}
-	}
 
 	// Fallback: check for hierarchical subtask IDs (e.g., "parent.1")
 	for _, issue := range issues {

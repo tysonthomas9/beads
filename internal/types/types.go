@@ -382,12 +382,9 @@ func (i *Issue) ValidateForImport(customStatuses []string) error {
 	}
 	// Issue type validation: federation trust model
 	// Only validate built-in types (catch typos like "tsak" vs "task")
-	// Trust non-built-in types from source repo
-	if i.IssueType != "" && i.IssueType.IsValid() {
-		// Built-in type - it's valid
-	} else if i.IssueType != "" && !i.IssueType.IsValid() {
-		// Non-built-in type - trust it (child repo already validated)
-	}
+	// Non-built-in types are trusted from source repo (child repo already validated)
+	// No action needed - we accept both valid built-in types and custom types
+
 	if i.EstimatedMinutes != nil && *i.EstimatedMinutes < 0 {
 		return fmt.Errorf("estimated_minutes cannot be negative")
 	}

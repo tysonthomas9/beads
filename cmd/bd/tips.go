@@ -282,11 +282,7 @@ func isClaudeSetupComplete() bool {
 
 	// Project-level hooks in .claude/settings.local.json
 	localSettingsPath := filepath.Join(home, ".claude", "settings.local.json")
-	if hasBeadsPrimeHooks(localSettingsPath) {
-		return true
-	}
-
-	return false
+	return hasBeadsPrimeHooks(localSettingsPath)
 }
 
 // hasBeadsPrimeHooks checks if a settings file has bd prime hooks configured

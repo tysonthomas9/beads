@@ -797,7 +797,7 @@ func extractRequiredVariables(subgraph *TemplateSubgraph) []string {
 	allVars := extractAllVariables(subgraph)
 
 	// If no VarDefs, assume all variables are required
-	if subgraph.VarDefs == nil || len(subgraph.VarDefs) == 0 {
+	if len(subgraph.VarDefs) == 0 {
 		return allVars
 	}
 

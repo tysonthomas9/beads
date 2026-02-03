@@ -104,11 +104,7 @@ func isBeadsPluginInstalled() bool {
 
 	// Check project-level local settings (gitignored)
 	projectLocalSettings := filepath.Join(".claude", "settings.local.json")
-	if checkPluginInSettings(projectLocalSettings) {
-		return true
-	}
-
-	return false
+	return checkPluginInSettings(projectLocalSettings)
 }
 
 // checkPluginInSettings checks if beads plugin is enabled in a settings file
@@ -165,11 +161,7 @@ func isMCPServerInstalled() bool {
 
 	// Check project-level local settings (gitignored)
 	projectLocalSettings := filepath.Join(".claude", "settings.local.json")
-	if checkMCPInSettings(projectLocalSettings) {
-		return true
-	}
-
-	return false
+	return checkMCPInSettings(projectLocalSettings)
 }
 
 // checkMCPInSettings checks if beads MCP server is configured in a settings file

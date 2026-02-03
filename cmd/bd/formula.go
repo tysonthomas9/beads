@@ -166,7 +166,8 @@ func runFormulaList(cmd *cobra.Command, args []string) {
 		}
 
 		typeIcon := getTypeIcon(t)
-		fmt.Printf("%s %s:\n", typeIcon, strings.Title(t))
+		titleCase := strings.ToUpper(t[:1]) + t[1:]
+		fmt.Printf("%s %s:\n", typeIcon, titleCase)
 
 		for _, e := range typeEntries {
 			varInfo := ""

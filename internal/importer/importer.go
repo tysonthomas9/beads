@@ -246,9 +246,8 @@ func handlePrefixMismatch(ctx context.Context, store storage.Storage, issues []*
 	tombstoneMismatchPrefixes := make(map[string]int)
 	nonTombstoneMismatchCount := 0
 
-	// Also track which tombstones have wrong prefixes for filtering
+	// Also track which issues have wrong prefixes for filtering
 	var filteredIssues []*types.Issue
-	var tombstonesToRemove []string
 
 	for _, issue := range issues {
 		// GH#422: Check if issue ID starts with configured prefix directly
@@ -267,8 +266,7 @@ func handlePrefixMismatch(ctx context.Context, store storage.Storage, issues []*
 			prefix := utils.ExtractIssuePrefix(issue.ID)
 			if issue.IsTombstone() {
 				tombstoneMismatchPrefixes[prefix]++
-				tombstonesToRemove = append(tombstonesToRemove, issue.ID)
-				// Don't add to filtered list - we'll remove these
+				// Don't add to filtered list - tombstones with wrong prefix are silently ignored
 			} else {
 				result.PrefixMismatch = true
 				result.MismatchPrefixes[prefix]++
