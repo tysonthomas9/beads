@@ -40,8 +40,8 @@
 }
 
 .navButton[data-active='true'] {
-  background-color: #5b85f7;
-  color: #ffffff;
+  background-color: var(--color-priority-3);
+  color: var(--color-text-inverse);
   border-color: transparent;
 }
 
@@ -69,8 +69,8 @@
   left: 44px;
   top: 50%;
   transform: translateY(-50%);
-  background-color: #111111;
-  color: #ffffff;
+  background-color: var(--text-primary);
+  color: var(--color-text-inverse);
   padding: 4px 8px;
   border-radius: 6px;
   font-size: 11px;

@@ -26,14 +26,35 @@ func newLoomProxy() http.Handler {
 		return nil
 	}
 
+	// SECURITY: Only allow proxying to localhost to prevent SSRF.
+	if target.Scheme != "http" && target.Scheme != "https" {
+		log.Printf("loom proxy disabled: invalid scheme %q (only http/https allowed)", target.Scheme)
+		return nil
+	}
+	host := target.Hostname()
+	if host != "localhost" && host != "127.0.0.1" && host != "::1" {
+		log.Printf("loom proxy disabled: host %q not allowed (only localhost)", host)
+		return nil
+	}
+
 	proxy := httputil.NewSingleHostReverseProxy(target)
+	proxy.Transport = &http.Transport{
+		DialContext: (&net.Dialer{
+			Timeout:   5 * time.Second,
+			KeepAlive: 30 * time.Second,
+		}).DialContext,
+		TLSHandshakeTimeout:   5 * time.Second,
+		ResponseHeaderTimeout: 10 * time.Second,
+		IdleConnTimeout:       30 * time.Second,
+	}
 	originalDirector := proxy.Director
 	debug := os.Getenv("LOOM_PROXY_DEBUG") == "1"
 
-	if debug {
-		proxy.ErrorHandler = func(w http.ResponseWriter, r *http.Request, err error) {
+	proxy.ErrorHandler = func(w http.ResponseWriter, r *http.Request, err error) {
+		if debug {
 			log.Printf("loom proxy error %s %s: %v", r.Method, r.URL.String(), err)
 		}
+		w.WriteHeader(http.StatusBadGateway)
 	}
 
 	proxy.Director = func(req *http.Request) {

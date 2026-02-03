@@ -10,6 +10,45 @@ This file exists for compatibility with tools that look for AGENTS.md.
 - **Development Guidelines** - Code standards and testing
 - **Visual Design System** - Status icons, colors, and semantic styling for CLI output
 
+## Web UI + Loom Quick Start
+
+Use the helper script to run the web UI with the beads daemon and loom:
+
+```bash
+./scripts/run-web-ui-with-loom.sh --restart
+```
+
+Detached mode (leave running in background):
+```bash
+./scripts/run-web-ui-with-loom.sh --restart --detach
+```
+
+Health checks:
+```bash
+curl -s http://localhost:8080/api/health
+bd daemon status
+```
+
+Options:
+- `--detach` to keep it running in the background
+- `--stop` to stop loom and web UI
+- `--socket <path>` to pass an explicit daemon socket path
+- `--no-daemon` to skip daemon startup/validation
+- `--no-restart-daemon` to disable auto-restart on unresponsive daemon
+- `--loom-use-daemon` to let loom use the daemon (default runs loom with `BEADS_NO_DAEMON=1`)
+
+## Web UI Troubleshooting
+
+If the UI shows `API Error: 503 Service Unavailable`, the daemon is likely unresponsive
+(often due to too many open RPC connections). Fix by restarting it:
+
+```bash
+bd daemons stop /path/to/workspace
+bd daemon start
+```
+
+The helper script will do this automatically unless `--no-restart-daemon` is set.
+
 ## Visual Design Anti-Patterns
 
 **NEVER use emoji-style icons** (🔴🟠🟡🔵⚪) in CLI output. They cause cognitive overload.
