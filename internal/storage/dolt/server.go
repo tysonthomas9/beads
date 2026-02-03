@@ -233,7 +233,7 @@ func (s *Server) checkPortAvailable(port int) error {
 // waitForReady waits for the server to accept connections
 func (s *Server) waitForReady(ctx context.Context) error {
 	deadline := time.Now().Add(ServerStartTimeout)
-	addr := fmt.Sprintf("%s:%d", s.cfg.Host, s.cfg.SQLPort)
+	addr := net.JoinHostPort(s.cfg.Host, strconv.Itoa(s.cfg.SQLPort))
 
 	for time.Now().Before(deadline) {
 		select {

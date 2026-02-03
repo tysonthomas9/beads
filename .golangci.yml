@@ -9,6 +9,7 @@ linters:
   enable:
     - errcheck
     - gosec
+    - govet
     - ineffassign
     - misspell
     - staticcheck
@@ -129,7 +130,7 @@ linters:
           - staticcheck
         text: "ST1005"
       # SA5011: False positive - os.Exit(1) terminates, no nil dereference possible
-      - path: 'cmd/bd/daemons\.go'
+      - path: 'cmd/bd/(daemons|swarm)\.go'
         linters:
           - staticcheck
         text: "SA5011"
