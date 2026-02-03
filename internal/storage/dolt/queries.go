@@ -291,7 +291,7 @@ func (s *DoltStore) GetReadyWork(ctx context.Context, filter types.WorkFilter) (
 }
 
 // GetBlockedIssues returns issues that are blocked by other issues
-func (s *DoltStore) GetBlockedIssues(ctx context.Context, filter types.WorkFilter) ([]*types.BlockedIssue, error) {
+func (s *DoltStore) GetBlockedIssues(ctx context.Context, _ types.WorkFilter) ([]*types.BlockedIssue, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 

@@ -105,7 +105,7 @@ func verifyInvariants(db *sql.DB, snapshot *Snapshot) error {
 
 // checkRequiredConfig ensures required config keys exist (would have caught GH #201)
 // Only enforces issue_prefix requirement if there are issues in the database
-func checkRequiredConfig(db *sql.DB, snapshot *Snapshot) error {
+func checkRequiredConfig(db *sql.DB, _ *Snapshot) error {
 	// Check current issue count (not snapshot, since migrations may add/remove issues)
 	var currentCount int
 	err := db.QueryRow("SELECT COUNT(*) FROM issues").Scan(&currentCount)
@@ -132,7 +132,7 @@ func checkRequiredConfig(db *sql.DB, snapshot *Snapshot) error {
 }
 
 // checkForeignKeys ensures no orphaned dependencies or labels exist
-func checkForeignKeys(db *sql.DB, snapshot *Snapshot) error {
+func checkForeignKeys(db *sql.DB, _ *Snapshot) error {
 	// Check for orphaned dependencies (issue_id not in issues)
 	var orphanedDepsIssue int
 	err := db.QueryRow(`

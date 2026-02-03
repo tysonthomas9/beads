@@ -166,12 +166,12 @@ func TestCheckAndAutoImport_EmptyDatabaseNoGit(t *testing.T) {
 	}
 
 	oldNoAutoImport := noAutoImport
-	oldJsonOutput := jsonOutput
+	oldJSONOutput := jsonOutput
 	noAutoImport = false
 	jsonOutput = true // Suppress output
 	defer func() {
 		noAutoImport = oldNoAutoImport
-		jsonOutput = oldJsonOutput
+		jsonOutput = oldJSONOutput
 	}()
 
 	// Change to temp dir (no git repo)

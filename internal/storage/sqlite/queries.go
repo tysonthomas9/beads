@@ -1252,14 +1252,14 @@ func (s *SQLiteStorage) RenameDependencyPrefix(ctx context.Context, oldPrefix, n
 
 // RenameCounterPrefix is a no-op with hash-based IDs
 // Kept for backward compatibility with rename-prefix command
-func (s *SQLiteStorage) RenameCounterPrefix(ctx context.Context, oldPrefix, newPrefix string) error {
+func (s *SQLiteStorage) RenameCounterPrefix(_ context.Context, oldPrefix, newPrefix string) error {
 	// Hash-based IDs don't use counters, so nothing to update
 	return nil
 }
 
 // ResetCounter is a no-op with hash-based IDs
 // Kept for backward compatibility
-func (s *SQLiteStorage) ResetCounter(ctx context.Context, prefix string) error {
+func (s *SQLiteStorage) ResetCounter(_ context.Context, prefix string) error {
 	// Hash-based IDs don't use counters, so nothing to reset
 	return nil
 }

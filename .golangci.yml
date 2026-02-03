@@ -10,6 +10,7 @@ linters:
     - errcheck
     - gosec
     - misspell
+    - revive
     - staticcheck
     - unconvert
     - unparam
@@ -40,6 +41,19 @@ linters:
         - "-ST1003" # NoDb naming matches YAML "no-db" tag convention
         - "-ST1020" # Exported comment format is stylistic
         - "-ST1022" # Var/const comment format is stylistic
+    revive:
+      rules:
+        # Disable rules that are too noisy
+        - name: exported
+          disabled: true
+        - name: package-comments
+          disabled: true
+        # Allow meaningful package names (utils is fine)
+        - name: var-naming
+          arguments:
+            - []  # No extra initialisms
+            - []  # No skip packages
+            - - upperCaseConst: false  # Allow lowercase constants
 
   exclusions:
     rules:
@@ -180,6 +194,26 @@ linters:
         linters:
           - staticcheck
         text: "SA5011"
+      # revive: Stuttering names are intentional for clarity in these storage types
+      - path: 'internal/storage/(sqlite|dolt)/store\.go'
+        linters:
+          - revive
+        text: 'stutters'
+      # revive: autoimport.AutoImportIfNewer is clearer than autoimport.IfNewer
+      - path: 'internal/autoimport/autoimport\.go'
+        linters:
+          - revive
+        text: 'stutters'
+      # revive: "types", "util", "utils" are standard meaningful package names
+      - path: 'internal/(types|util|utils)/'
+        linters:
+          - revive
+        text: 'avoid meaningless package names'
+      # revive: type_ uses underscore because "type" is a reserved keyword in Go
+      - path: 'internal/types/types_test\.go'
+        linters:
+          - revive
+        text: 'struct field type_'
 
 issues:
   uniq-by-line: true

@@ -657,10 +657,10 @@ func TestDeleteViaDaemon_DirectCall(t *testing.T) {
 
 	// Save old global state
 	oldDaemonClient := daemonClient
-	oldJsonOutput := jsonOutput
+	oldJSONOutput := jsonOutput
 	defer func() {
 		daemonClient = oldDaemonClient
-		jsonOutput = oldJsonOutput
+		jsonOutput = oldJSONOutput
 	}()
 
 	// Set up global client
@@ -718,10 +718,10 @@ func TestDeleteViaDaemon_DirectDryRun(t *testing.T) {
 
 	// Save old global state
 	oldDaemonClient := daemonClient
-	oldJsonOutput := jsonOutput
+	oldJSONOutput := jsonOutput
 	defer func() {
 		daemonClient = oldDaemonClient
-		jsonOutput = oldJsonOutput
+		jsonOutput = oldJSONOutput
 	}()
 
 	// Set up global client
@@ -782,10 +782,10 @@ func TestDeleteViaDaemon_DirectHumanOutput(t *testing.T) {
 
 	// Save old global state
 	oldDaemonClient := daemonClient
-	oldJsonOutput := jsonOutput
+	oldJSONOutput := jsonOutput
 	defer func() {
 		daemonClient = oldDaemonClient
-		jsonOutput = oldJsonOutput
+		jsonOutput = oldJSONOutput
 	}()
 
 	// Set up global client
@@ -841,10 +841,10 @@ func TestDeleteViaDaemon_DirectBatch(t *testing.T) {
 
 	// Save old global state
 	oldDaemonClient := daemonClient
-	oldJsonOutput := jsonOutput
+	oldJSONOutput := jsonOutput
 	defer func() {
 		daemonClient = oldDaemonClient
-		jsonOutput = oldJsonOutput
+		jsonOutput = oldJSONOutput
 	}()
 
 	// Set up global client

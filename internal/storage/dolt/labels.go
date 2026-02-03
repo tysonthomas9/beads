@@ -9,7 +9,7 @@ import (
 )
 
 // AddLabel adds a label to an issue
-func (s *DoltStore) AddLabel(ctx context.Context, issueID, label, actor string) error {
+func (s *DoltStore) AddLabel(ctx context.Context, issueID, label, _ string) error {
 	_, err := s.db.ExecContext(ctx, `
 		INSERT IGNORE INTO labels (issue_id, label) VALUES (?, ?)
 	`, issueID, label)
@@ -20,7 +20,7 @@ func (s *DoltStore) AddLabel(ctx context.Context, issueID, label, actor string) 
 }
 
 // RemoveLabel removes a label from an issue
-func (s *DoltStore) RemoveLabel(ctx context.Context, issueID, label, actor string) error {
+func (s *DoltStore) RemoveLabel(ctx context.Context, issueID, label, _ string) error {
 	_, err := s.db.ExecContext(ctx, `
 		DELETE FROM labels WHERE issue_id = ? AND label = ?
 	`, issueID, label)

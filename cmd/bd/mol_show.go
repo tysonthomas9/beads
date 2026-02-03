@@ -317,9 +317,9 @@ func analyzeMoleculeParallel(subgraph *MoleculeSubgraph) *ParallelAnalysis {
 					info := analysis.Steps[id]
 					info.ParallelGroup = groupName
 					// Record all other members as can_parallel
-					for _, otherId := range members {
-						if otherId != id {
-							info.CanParallel = append(info.CanParallel, otherId)
+					for _, otherID := range members {
+						if otherID != id {
+							info.CanParallel = append(info.CanParallel, otherID)
 						}
 					}
 					sort.Strings(info.CanParallel)
