@@ -86,6 +86,7 @@ When performing UI verification, don't just check that elements exist or operati
 - `GET /api/ready` - Get issues ready to work on
 - `GET /api/stats` - Project statistics
 - `GET /api/events` - SSE for real-time mutation events
+- `GET /api/terminal/ws` - WebSocket for interactive terminal sessions
 
 ## Merge Conflicts
 
@@ -134,6 +135,40 @@ air                          # Start web UI backend (or: go run . -port 8080)
 ```
 
 The Agents sidebar will show "Loom server not available" if loom isn't running on port 9000.
+
+## Terminal Feature (Talk to Lead)
+
+The web UI includes an interactive terminal for direct communication with lead sessions. This feature requires `tmux` to be installed.
+
+### System Requirements
+
+- **tmux**: Required for terminal sessions. If not installed, the server starts normally but terminal feature is disabled with a warning log.
+
+Install tmux:
+```bash
+# macOS
+brew install tmux
+
+# Ubuntu/Debian
+sudo apt-get install tmux
+
+# RHEL/CentOS/Fedora
+sudo dnf install tmux
+```
+
+### API Reference
+
+**WebSocket Endpoint:** `GET /api/terminal/ws`
+
+Query Parameters:
+- `session` (required): Session name, must match `[a-zA-Z0-9_-]+`
+- `command` (optional): Command to run in the tmux session. If omitted, tmux starts with the user's default shell.
+
+The endpoint:
+- Creates a tmux session if it does not exist
+- Attaches to an existing session if one exists with the same name
+- Returns 503 Service Unavailable if terminal manager is not initialized (e.g., tmux not installed)
+- Returns 400 Bad Request if session parameter is missing or invalid
 
 ## Branch Switching
 
