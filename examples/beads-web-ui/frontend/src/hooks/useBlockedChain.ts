@@ -8,6 +8,7 @@
  */
 
 import { useMemo } from 'react';
+
 import type { DependencyEdge } from '@/types';
 
 /**
@@ -139,17 +140,21 @@ function buildEdgeMaps(edges: DependencyEdge[]): {
 
     // edgeMap: keyed by source (the issue that has dependencies)
     // Used to find blockers: given an issue, find edges where it's the source
-    if (!edgeMap.has(sourceId)) {
-      edgeMap.set(sourceId, []);
+    const existingSource = edgeMap.get(sourceId);
+    if (existingSource) {
+      existingSource.push(edge);
+    } else {
+      edgeMap.set(sourceId, [edge]);
     }
-    edgeMap.get(sourceId)!.push(edge);
 
     // reverseEdgeMap: keyed by target (the issue being depended upon)
     // Used to find blocked issues: given an issue, find edges where it's the target
-    if (!reverseEdgeMap.has(targetId)) {
-      reverseEdgeMap.set(targetId, []);
+    const existingTarget = reverseEdgeMap.get(targetId);
+    if (existingTarget) {
+      existingTarget.push(edge);
+    } else {
+      reverseEdgeMap.set(targetId, [edge]);
     }
-    reverseEdgeMap.get(targetId)!.push(edge);
   }
 
   return { edgeMap, reverseEdgeMap };

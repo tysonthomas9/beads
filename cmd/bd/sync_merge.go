@@ -132,7 +132,7 @@ func mergeFieldLevel(_base, local, remote *beads.Issue) (*beads.Issue, []ManualC
 	labelsStrategy := fieldStrategies["labels"]
 	if labelsStrategy == "" || labelsStrategy == config.FieldStrategyUnion {
 		merged.Labels = mergeLabels(local.Labels, remote.Labels)
-	} else if labelsStrategy == config.FieldStrategyNewest {
+	} else if labelsStrategy == config.FieldStrategyNewest { //nolint:staticcheck // SA9003: intentionally empty - LWW labels already set from initial merge
 		// Use LWW for labels (already set from initial merge)
 	}
 

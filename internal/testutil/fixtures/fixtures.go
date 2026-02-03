@@ -170,7 +170,6 @@ func generateIssuesWithConfig(ctx context.Context, store storage.Storage, cfg Da
 	numTasks := cfg.TotalIssues - numEpics - numFeatures
 
 	// Track created issues for cross-linking
-	var allIssues []*types.Issue
 	epicIssues := make([]*types.Issue, 0, numEpics)
 	featureIssues := make([]*types.Issue, 0, numFeatures)
 	taskIssues := make([]*types.Issue, 0, numTasks)
@@ -216,7 +215,6 @@ func generateIssuesWithConfig(ctx context.Context, store storage.Storage, cfg Da
 		}
 
 		epicIssues = append(epicIssues, issue)
-		allIssues = append(allIssues, issue)
 		createdIssues++
 		logProgress()
 	}
@@ -264,7 +262,6 @@ func generateIssuesWithConfig(ctx context.Context, store storage.Storage, cfg Da
 		}
 
 		featureIssues = append(featureIssues, issue)
-		allIssues = append(allIssues, issue)
 		createdIssues++
 		logProgress()
 	}
@@ -312,7 +309,6 @@ func generateIssuesWithConfig(ctx context.Context, store storage.Storage, cfg Da
 		}
 
 		taskIssues = append(taskIssues, issue)
-		allIssues = append(allIssues, issue)
 		createdIssues++
 		logProgress()
 	}

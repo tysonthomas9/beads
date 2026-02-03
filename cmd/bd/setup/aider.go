@@ -245,10 +245,8 @@ func RemoveAider() {
 		removed = true
 	}
 
-	// Try to remove .aider directory if empty
-	if err := os.Remove(aiderDir); err != nil {
-		// Ignore error - directory might not be empty or might not exist
-	}
+	// Try to remove .aider directory if empty (ignore errors - dir might not be empty or might not exist)
+	_ = os.Remove(aiderDir)
 
 	if !removed {
 		fmt.Println("No Aider integration files found")

@@ -5,6 +5,7 @@
 
 import type { LoomAgentStatus, ParsedLoomStatus } from '@/types';
 import { parseLoomStatus } from '@/types';
+
 import styles from './AgentCard.module.css';
 
 /**
@@ -43,7 +44,7 @@ export function getAvatarColor(name: string): string {
   for (let i = 0; i < name.length; i++) {
     hash = ((hash << 5) - hash + name.charCodeAt(i)) | 0;
   }
-  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length]!;
+  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length] ?? '#9DC08B';
 }
 
 /**

@@ -166,7 +166,7 @@ func main() {
 
 	// Create HTTP server
 	mux := http.NewServeMux()
-	setupRoutes(mux, pool, hub, getMutationsSince)
+	setupRoutes(mux, pool, hub, getMutationsSince, nil)
 
 	// Wrap with CORS middleware if enabled
 	corsMiddleware := NewCORSMiddleware(corsConfig)
