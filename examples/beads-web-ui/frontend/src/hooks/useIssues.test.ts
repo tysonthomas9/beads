@@ -1,14 +1,15 @@
 /**
  * @vitest-environment jsdom
  */
+import { renderHook, act, waitFor } from '@testing-library/react';
 import type React from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { renderHook, act, waitFor } from '@testing-library/react';
+
 import { useIssues } from './useIssues';
-import type { Issue } from '../types/issue';
-import * as issuesApi from '../api/issues';
 import * as useSSEModule from './useSSE';
+import * as issuesApi from '../api/issues';
 import type { ConnectionState } from '../api/sse';
+import type { Issue } from '../types/issue';
 
 // Mock the API
 vi.mock('../api/issues', () => ({
@@ -755,6 +756,212 @@ describe('useIssues', () => {
       await waitFor(() => expect(result.current.isLoading).toBe(false));
 
       expect(result.current.lastEventId).toBeUndefined();
+    });
+  });
+
+  describe('Race condition prevention (refetch + SSE merge)', () => {
+    it('preserves SSE mutations received during refetch', async () => {
+      // Start with initial issue from API
+      const initialIssue = createTestIssue({
+        id: 'issue-1',
+        title: 'Original Title',
+        updated_at: '2025-01-23T10:00:00Z',
+      });
+      vi.mocked(issuesApi.getReadyIssues).mockResolvedValueOnce([initialIssue]);
+
+      const { result } = renderHook(() => useIssues());
+
+      await waitFor(() => {
+        expect(result.current.issues).toHaveLength(1);
+      });
+
+      // Set up slow API response for refetch
+      let resolveRefetch: (issues: Issue[]) => void;
+      const slowApiPromise = new Promise<Issue[]>((resolve) => {
+        resolveRefetch = resolve;
+      });
+      vi.mocked(issuesApi.getReadyIssues).mockReturnValue(slowApiPromise);
+
+      // Trigger refetch (don't await)
+      let refetchPromise: Promise<void>;
+      act(() => {
+        refetchPromise = result.current.refetch();
+      });
+
+      // Before refetch completes, simulate SSE update mutation with newer timestamp
+      act(() => {
+        onMutationCallback?.({
+          type: 'update',
+          issue_id: 'issue-1',
+          title: 'SSE Updated Title',
+          timestamp: '2025-01-23T12:00:00Z',
+        });
+      });
+
+      // Verify SSE mutation was applied
+      expect(result.current.getIssue('issue-1')?.title).toBe('SSE Updated Title');
+
+      // Resolve the refetch with stale data (older timestamp)
+      await act(async () => {
+        resolveRefetch!([
+          createTestIssue({
+            id: 'issue-1',
+            title: 'Stale API Title',
+            updated_at: '2025-01-23T10:00:00Z',
+          }),
+        ]);
+        await refetchPromise;
+      });
+
+      // Verify the SSE mutation is preserved (not overwritten by stale API data)
+      expect(result.current.getIssue('issue-1')?.title).toBe('SSE Updated Title');
+    });
+
+    it('preserves issues created via SSE during refetch', async () => {
+      // Start with initial issues from API
+      const initialIssue = createTestIssue({
+        id: 'issue-1',
+        title: 'Existing Issue',
+        updated_at: '2025-01-23T10:00:00Z',
+      });
+      vi.mocked(issuesApi.getReadyIssues).mockResolvedValueOnce([initialIssue]);
+
+      const { result } = renderHook(() => useIssues());
+
+      await waitFor(() => {
+        expect(result.current.issues).toHaveLength(1);
+      });
+
+      // Set up slow API response for refetch
+      let resolveRefetch: (issues: Issue[]) => void;
+      const slowApiPromise = new Promise<Issue[]>((resolve) => {
+        resolveRefetch = resolve;
+      });
+      vi.mocked(issuesApi.getReadyIssues).mockReturnValue(slowApiPromise);
+
+      // Trigger refetch (don't await)
+      let refetchPromise: Promise<void>;
+      act(() => {
+        refetchPromise = result.current.refetch();
+      });
+
+      // Before refetch completes, simulate SSE create mutation
+      const newIssueTimestamp = new Date().toISOString();
+      act(() => {
+        onMutationCallback?.({
+          type: 'create',
+          issue_id: 'new-sse-issue',
+          title: 'SSE Created Issue',
+          timestamp: newIssueTimestamp,
+        });
+      });
+
+      // Verify new issue was added
+      expect(result.current.issues).toHaveLength(2);
+      expect(result.current.getIssue('new-sse-issue')?.title).toBe('SSE Created Issue');
+
+      // Resolve the refetch (without the new issue in response)
+      await act(async () => {
+        resolveRefetch!([initialIssue]);
+        await refetchPromise;
+      });
+
+      // Verify the new issue is preserved in state
+      expect(result.current.issues).toHaveLength(2);
+      expect(result.current.getIssue('new-sse-issue')?.title).toBe('SSE Created Issue');
+      expect(result.current.getIssue('issue-1')).toBeDefined();
+    });
+
+    it('respects SSE deletes during refetch', async () => {
+      // Start with initial issues from API
+      const issue1 = createTestIssue({
+        id: 'issue-1',
+        title: 'Issue 1',
+        updated_at: '2025-01-23T10:00:00Z',
+      });
+      const issue2 = createTestIssue({
+        id: 'issue-2',
+        title: 'Issue 2',
+        updated_at: '2025-01-23T10:00:00Z',
+      });
+      vi.mocked(issuesApi.getReadyIssues).mockResolvedValueOnce([issue1, issue2]);
+
+      const { result } = renderHook(() => useIssues());
+
+      await waitFor(() => {
+        expect(result.current.issues).toHaveLength(2);
+      });
+
+      // Set up slow API response for refetch
+      let resolveRefetch: (issues: Issue[]) => void;
+      const slowApiPromise = new Promise<Issue[]>((resolve) => {
+        resolveRefetch = resolve;
+      });
+      vi.mocked(issuesApi.getReadyIssues).mockReturnValue(slowApiPromise);
+
+      // Trigger refetch (don't await)
+      let refetchPromise: Promise<void>;
+      act(() => {
+        refetchPromise = result.current.refetch();
+      });
+
+      // Before refetch completes, simulate SSE delete mutation
+      act(() => {
+        onMutationCallback?.({
+          type: 'delete',
+          issue_id: 'issue-1',
+          timestamp: new Date().toISOString(),
+        });
+      });
+
+      // Verify delete was applied
+      expect(result.current.issues).toHaveLength(1);
+      expect(result.current.getIssue('issue-1')).toBeUndefined();
+
+      // Resolve the refetch (with the deleted issue still present in response)
+      await act(async () => {
+        resolveRefetch!([issue1, issue2]);
+        await refetchPromise;
+      });
+
+      // Verify the issue remains deleted after refetch completes
+      expect(result.current.issues).toHaveLength(1);
+      expect(result.current.getIssue('issue-1')).toBeUndefined();
+      expect(result.current.getIssue('issue-2')).toBeDefined();
+    });
+
+    it('uses API data when current state is stale', async () => {
+      // Start with initial issue with old timestamp
+      const oldIssue = createTestIssue({
+        id: 'issue-1',
+        title: 'Old Title',
+        updated_at: '2025-01-23T08:00:00Z',
+      });
+      vi.mocked(issuesApi.getReadyIssues).mockResolvedValueOnce([oldIssue]);
+
+      const { result } = renderHook(() => useIssues());
+
+      await waitFor(() => {
+        expect(result.current.issues).toHaveLength(1);
+      });
+
+      expect(result.current.getIssue('issue-1')?.title).toBe('Old Title');
+
+      // Trigger refetch with newer timestamp
+      const newerIssue = createTestIssue({
+        id: 'issue-1',
+        title: 'New Title from API',
+        updated_at: '2025-01-23T12:00:00Z',
+      });
+      vi.mocked(issuesApi.getReadyIssues).mockResolvedValue([newerIssue]);
+
+      await act(async () => {
+        await result.current.refetch();
+      });
+
+      // Verify API data is used (not the old local state)
+      expect(result.current.getIssue('issue-1')?.title).toBe('New Title from API');
+      expect(result.current.getIssue('issue-1')?.updated_at).toBe('2025-01-23T12:00:00Z');
     });
   });
 });
