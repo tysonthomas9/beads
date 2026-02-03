@@ -65,6 +65,13 @@ func setupRoutes(mux *http.ServeMux, pool *daemon.ConnectionPool, hub *SSEHub, g
 		mux.HandleFunc("GET /api/terminal/ws", handleTerminalWS(termManager, defaultTerminalCmd))
 	}
 
+	// Log streaming endpoints
+	mux.HandleFunc("GET /api/agents/{name}/logs", handleGetAgentLog())
+	mux.HandleFunc("GET /api/agents/{name}/logs/stream", handleAgentLogStream())
+	mux.HandleFunc("GET /api/tasks/{id}/logs", handleListTaskPhases())
+	mux.HandleFunc("GET /api/tasks/{id}/logs/{phase}", handleGetTaskLog())
+	mux.HandleFunc("GET /api/tasks/{id}/logs/{phase}/stream", handleTaskLogStream())
+
 	// Static file serving with SPA routing (must be last - catches all paths)
 	mux.Handle("/", frontendHandler())
 }
