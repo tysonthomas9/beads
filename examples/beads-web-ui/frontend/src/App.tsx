@@ -7,24 +7,8 @@
  */
 
 import { useState, useCallback, useEffect, useRef, useMemo, lazy, Suspense } from 'react';
-import type { Issue, Status } from '@/types';
-import {
-  useIssues,
-  useViewState,
-  useFilterState,
-  DEFAULT_GROUP_BY,
-  useIssueFilter,
-  useDebounce,
-  useBlockedIssues,
-  useIssueDetail,
-  useToast,
-  useRecentAssignees,
-  useSelection,
-  useAgents,
-} from '@/hooks';
+
 import { updateIssue, addComment } from '@/api';
-import type { BlockedInfo } from '@/components/KanbanBoard';
-import styles from './App.module.css';
 import {
   AppLayout,
   SwimLaneBoard,
@@ -43,6 +27,24 @@ import {
   TalkToLeadButton,
   NavRail,
 } from '@/components';
+import type { BlockedInfo } from '@/components/KanbanBoard';
+import {
+  useIssues,
+  useViewState,
+  useFilterState,
+  DEFAULT_GROUP_BY,
+  useIssueFilter,
+  useDebounce,
+  useBlockedIssues,
+  useIssueDetail,
+  useToast,
+  useRecentAssignees,
+  useSelection,
+  useAgents,
+} from '@/hooks';
+import type { Issue, Status } from '@/types';
+
+import styles from './App.module.css';
 
 // Lazy load GraphView (React Flow ~100KB)
 const GraphView = lazy(() =>
@@ -125,6 +127,21 @@ function App() {
   const mountedRef = useRef(true);
   const profileMenuRef = useRef<HTMLDivElement | null>(null);
 
+  // Timeout refs for panel close animations (prevents race conditions)
+  const issuePanelTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const agentPanelTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Helper to clear a timeout ref safely
+  const clearTimeoutRef = useCallback(
+    (ref: React.MutableRefObject<ReturnType<typeof setTimeout> | null>) => {
+      if (ref.current !== null) {
+        clearTimeout(ref.current);
+        ref.current = null;
+      }
+    },
+    []
+  );
+
   // Bulk selection state for Table view
   const {
     selectedIds,
@@ -167,8 +184,11 @@ function App() {
     mountedRef.current = true;
     return () => {
       mountedRef.current = false;
+      // Clear any pending panel close timeouts
+      clearTimeoutRef(issuePanelTimeoutRef);
+      clearTimeoutRef(agentPanelTimeoutRef);
     };
-  }, []);
+  }, [clearTimeoutRef]);
 
   // Close profile menu on outside click
   useEffect(() => {
@@ -310,10 +330,15 @@ function App() {
         return;
       }
 
+      // Cancel any pending issue panel timeout (prevents wiping the new selection)
+      clearTimeoutRef(issuePanelTimeoutRef);
+
       // Close agent panel if open (only one panel at a time)
       if (isAgentPanelOpen) {
+        // Cancel pending agent panel timeout before starting new one
+        clearTimeoutRef(agentPanelTimeoutRef);
         setIsAgentPanelOpen(false);
-        setTimeout(() => {
+        agentPanelTimeoutRef.current = setTimeout(() => {
           if (!mountedRef.current) return;
           setSelectedAgentName(null);
         }, 300);
@@ -328,14 +353,15 @@ function App() {
       setIsPanelOpen(true);
       fetchIssue(issue.id);
     },
-    [selectedIssueId, isPanelOpen, isAgentPanelOpen, isTerminalOpen, fetchIssue]
+    [selectedIssueId, isPanelOpen, isAgentPanelOpen, isTerminalOpen, fetchIssue, clearTimeoutRef]
   );
 
   // Handle panel close
   const handlePanelClose = useCallback(() => {
     setIsPanelOpen(false);
     // Clear issue details after animation completes
-    setTimeout(() => {
+    // Store timeout ID to allow cancellation if panel reopens quickly
+    issuePanelTimeoutRef.current = setTimeout(() => {
       if (!mountedRef.current) return;
       clearIssue();
       setSelectedIssueId(null);
@@ -345,10 +371,15 @@ function App() {
   // Handle agent click from AgentsSidebar or MonitorDashboard
   const handleAgentClick = useCallback(
     (agentName: string) => {
+      // Cancel any pending agent panel timeout (prevents wiping the new selection)
+      clearTimeoutRef(agentPanelTimeoutRef);
+
       // Close issue panel if open (only one panel at a time)
       if (isPanelOpen) {
+        // Cancel pending issue panel timeout before starting new one
+        clearTimeoutRef(issuePanelTimeoutRef);
         setIsPanelOpen(false);
-        setTimeout(() => {
+        issuePanelTimeoutRef.current = setTimeout(() => {
           if (!mountedRef.current) return;
           clearIssue();
           setSelectedIssueId(null);
@@ -363,13 +394,14 @@ function App() {
       setSelectedAgentName(agentName);
       setIsAgentPanelOpen(true);
     },
-    [isPanelOpen, isTerminalOpen, clearIssue]
+    [isPanelOpen, isTerminalOpen, clearIssue, clearTimeoutRef]
   );
 
   // Handle agent panel close
   const handleAgentPanelClose = useCallback(() => {
     setIsAgentPanelOpen(false);
-    setTimeout(() => {
+    // Store timeout ID to allow cancellation if panel reopens quickly
+    agentPanelTimeoutRef.current = setTimeout(() => {
       if (!mountedRef.current) return;
       setSelectedAgentName(null);
     }, 300);
@@ -383,23 +415,27 @@ function App() {
     } else {
       // Close other panels first (single-panel policy)
       if (isPanelOpen) {
+        // Cancel pending issue panel timeout before starting new one
+        clearTimeoutRef(issuePanelTimeoutRef);
         setIsPanelOpen(false);
-        setTimeout(() => {
+        issuePanelTimeoutRef.current = setTimeout(() => {
           if (!mountedRef.current) return;
           clearIssue();
           setSelectedIssueId(null);
         }, 300);
       }
       if (isAgentPanelOpen) {
+        // Cancel pending agent panel timeout before starting new one
+        clearTimeoutRef(agentPanelTimeoutRef);
         setIsAgentPanelOpen(false);
-        setTimeout(() => {
+        agentPanelTimeoutRef.current = setTimeout(() => {
           if (!mountedRef.current) return;
           setSelectedAgentName(null);
         }, 300);
       }
       setIsTerminalOpen(true);
     }
-  }, [isTerminalOpen, isPanelOpen, isAgentPanelOpen, clearIssue]);
+  }, [isTerminalOpen, isPanelOpen, isAgentPanelOpen, clearIssue, clearTimeoutRef]);
 
   // Handle terminal panel close
   const handleTerminalClose = useCallback(() => {
@@ -409,9 +445,13 @@ function App() {
   // Handle task click from agent panel (opens IssueDetailPanel for that task)
   const handleAgentTaskClick = useCallback(
     (taskId: string) => {
+      // Cancel any pending issue panel timeout to prevent it from wiping the new selection
+      clearTimeoutRef(issuePanelTimeoutRef);
+      // Cancel any pending agent panel timeout before the transition
+      clearTimeoutRef(agentPanelTimeoutRef);
       // Close agent panel first
       setIsAgentPanelOpen(false);
-      setTimeout(() => {
+      agentPanelTimeoutRef.current = setTimeout(() => {
         if (!mountedRef.current) return;
         setSelectedAgentName(null);
         // Open issue panel for the task
@@ -420,7 +460,7 @@ function App() {
         fetchIssue(taskId);
       }, 300);
     },
-    [fetchIssue]
+    [fetchIssue, clearTimeoutRef]
   );
 
   const toggleProfileMenu = useCallback(() => {
