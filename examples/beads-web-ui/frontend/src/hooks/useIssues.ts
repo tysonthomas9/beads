@@ -7,11 +7,13 @@
  */
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import type { Issue, WorkFilter, Status } from '@/types';
+
 import type { ConnectionState, GraphFilter } from '@/api';
 import { getReadyIssues, updateIssue as apiUpdateIssue, fetchGraphIssues } from '@/api';
-import { useSSE } from './useSSE';
+import type { Issue, WorkFilter, Status } from '@/types';
+
 import { useMutationHandler } from './useMutationHandler';
+import { useSSE } from './useSSE';
 import { useToast } from './useToast';
 
 // Threshold for triggering a full refetch after reconnection
@@ -241,10 +243,6 @@ export function useIssues(options: UseIssuesOptions = {}): UseIssuesReturn {
         throw new Error(`Issue ${issueId} not found`);
       }
 
-      // Capture state for rollback BEFORE optimistic update to avoid race conditions
-      // with SSE mutations that might arrive during the API call
-      const preUpdateMap = new Map(issuesMap);
-
       // Optimistic update
       const optimisticIssue: Issue = {
         ...existingIssue,
@@ -258,10 +256,14 @@ export function useIssues(options: UseIssuesOptions = {}): UseIssuesReturn {
       try {
         await apiUpdateIssue(issueId, { status: newStatus });
       } catch (err) {
-        // Rollback on failure using pre-update state
+        // Rollback on failure using functional update to only restore this single issue,
+        // preserving any SSE mutations that arrived during the API call
         if (!mountedRef.current) return;
-        preUpdateMap.set(issueId, existingIssue);
-        setIssuesMap(preUpdateMap);
+        setIssuesMap((currentMap) => {
+          const newMap = new Map(currentMap);
+          newMap.set(issueId, existingIssue);
+          return newMap;
+        });
         throw err;
       }
     },
