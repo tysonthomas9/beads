@@ -4,7 +4,7 @@
  * issue counts, and bottleneck detection.
  */
 
-import { useMemo } from 'react';
+import { memo, useMemo } from 'react';
 
 import type { LoomStats, BlockedIssue, Issue } from '@/types';
 
@@ -92,7 +92,7 @@ function deriveBottlenecks(blockedIssues: BlockedIssue[] | null): Bottleneck[] {
 /**
  * ProjectHealthPanel displays project health metrics in a compact format.
  */
-export function ProjectHealthPanel({
+function ProjectHealthPanelComponent({
   stats,
   blockedIssues,
   isLoading,
@@ -184,3 +184,5 @@ export function ProjectHealthPanel({
     </div>
   );
 }
+
+export const ProjectHealthPanel = memo(ProjectHealthPanelComponent);
