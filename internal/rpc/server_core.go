@@ -56,6 +56,10 @@ type Server struct {
 	recentMutations   []MutationEvent
 	recentMutationsMu sync.RWMutex
 	maxMutationBuffer int
+	// Broadcast subscribers for WaitForMutations (separate from mutationChan)
+	subscribersMu sync.Mutex
+	subscribers   map[uint64]chan struct{} // subscriber ID -> notification channel
+	nextSubID     uint64
 	// Daemon configuration (set via SetConfig after creation)
 	autoCommit   bool
 	autoPush     bool
@@ -135,6 +139,7 @@ func NewServer(socketPath string, store storage.Storage, workspacePath string, d
 		mutationChan:      make(chan MutationEvent, mutationBufferSize), // Configurable buffer
 		recentMutations:   make([]MutationEvent, 0, 100),
 		maxMutationBuffer: 100,
+		subscribers:       make(map[uint64]chan struct{}),
 	}
 	s.lastActivityTime.Store(time.Now())
 	return s
@@ -179,11 +184,46 @@ func (s *Server) emitRichMutation(event MutationEvent) {
 		s.recentMutations = s.recentMutations[1:]
 	}
 	s.recentMutationsMu.Unlock()
+
+	// Notify all WaitForMutations subscribers
+	s.notifySubscribers()
 }
 
 // MutationChan returns the mutation event channel for the daemon to consume
 func (s *Server) MutationChan() <-chan MutationEvent {
 	return s.mutationChan
+}
+
+// subscribeMutations registers a subscriber that will be notified when mutations occur.
+// Returns a notification channel and an unsubscribe function. The caller must call
+// unsubscribe when done to prevent resource leaks.
+func (s *Server) subscribeMutations() (<-chan struct{}, func()) {
+	ch := make(chan struct{}, 1)
+	s.subscribersMu.Lock()
+	id := s.nextSubID
+	s.nextSubID++
+	s.subscribers[id] = ch
+	s.subscribersMu.Unlock()
+
+	unsubscribe := func() {
+		s.subscribersMu.Lock()
+		delete(s.subscribers, id)
+		s.subscribersMu.Unlock()
+	}
+	return ch, unsubscribe
+}
+
+// notifySubscribers sends a non-blocking notification to all WaitForMutations subscribers.
+func (s *Server) notifySubscribers() {
+	s.subscribersMu.Lock()
+	defer s.subscribersMu.Unlock()
+	for _, ch := range s.subscribers {
+		select {
+		case ch <- struct{}{}:
+		default:
+			// Already notified, skip
+		}
+	}
 }
 
 // SetConfig sets the daemon configuration for status reporting
@@ -217,6 +257,21 @@ func (s *Server) GetRecentMutations(sinceMillis int64) []MutationEvent {
 	return result
 }
 
+// marshalMutations marshals mutation events into a Response, handling errors.
+func marshalMutations(mutations []MutationEvent) Response {
+	data, err := json.Marshal(mutations)
+	if err != nil {
+		return Response{
+			Success: false,
+			Error:   fmt.Sprintf("failed to marshal mutations: %v", err),
+		}
+	}
+	return Response{
+		Success: true,
+		Data:    data,
+	}
+}
+
 // handleGetMutations handles the get_mutations RPC operation
 func (s *Server) handleGetMutations(req *Request) Response {
 	var args GetMutationsArgs
@@ -228,18 +283,14 @@ func (s *Server) handleGetMutations(req *Request) Response {
 	}
 
 	mutations := s.GetRecentMutations(args.Since)
-	data, _ := json.Marshal(mutations)
-
-	return Response{
-		Success: true,
-		Data:    data,
-	}
+	return marshalMutations(mutations)
 }
 
 // handleWaitForMutations handles the wait_for_mutations RPC operation.
 // This is a blocking call that returns immediately if mutations exist since the
 // given timestamp, or waits up to the timeout for new mutations to arrive.
-func (s *Server) handleWaitForMutations(req *Request) Response {
+// The connCtx is cancelled when the client disconnects, allowing early cleanup.
+func (s *Server) handleWaitForMutations(req *Request, connCtx context.Context) Response {
 	var args WaitForMutationsArgs
 	if err := json.Unmarshal(req.Args, &args); err != nil {
 		return Response{
@@ -257,52 +308,36 @@ func (s *Server) handleWaitForMutations(req *Request) Response {
 	// First check for existing mutations since the timestamp
 	mutations := s.GetRecentMutations(args.Since)
 	if len(mutations) > 0 {
-		data, _ := json.Marshal(mutations)
-		return Response{
-			Success: true,
-			Data:    data,
-		}
+		return marshalMutations(mutations)
 	}
+
+	// Subscribe to mutation broadcasts (per-subscriber channel, not shared)
+	notifyCh, unsubscribe := s.subscribeMutations()
+	defer unsubscribe()
 
 	// No existing mutations, wait for new ones
 	timer := time.NewTimer(timeout)
 	defer timer.Stop()
 
+	emptyResponse := marshalMutations([]MutationEvent{})
+
 	select {
-	case _, ok := <-s.mutationChan:
-		if !ok {
-			// Channel closed (server shutting down)
-			data, _ := json.Marshal([]MutationEvent{})
-			return Response{
-				Success: true,
-				Data:    data,
-			}
-		}
-		// Got a mutation notification. The mutation is already stored in the
-		// recent buffer by emitRichMutation(), so we just return all mutations
-		// since the requested timestamp.
-		mutations := s.GetRecentMutations(args.Since)
-		data, _ := json.Marshal(mutations)
-		return Response{
-			Success: true,
-			Data:    data,
-		}
+	case <-notifyCh:
+		// Got a mutation notification via broadcast.
+		// Mutations are already stored in the recent buffer by emitRichMutation().
+		return marshalMutations(s.GetRecentMutations(args.Since))
 
 	case <-timer.C:
 		// Timeout, return empty array
-		data, _ := json.Marshal([]MutationEvent{})
-		return Response{
-			Success: true,
-			Data:    data,
-		}
+		return emptyResponse
+
+	case <-connCtx.Done():
+		// Client disconnected, bail out immediately to free FD and semaphore slot
+		return emptyResponse
 
 	case <-s.shutdownChan:
 		// Server shutting down
-		data, _ := json.Marshal([]MutationEvent{})
-		return Response{
-			Success: true,
-			Data:    data,
-		}
+		return emptyResponse
 	}
 }
 
@@ -325,7 +360,8 @@ func (s *Server) handleGetMoleculeProgress(req *Request) Response {
 		}
 	}
 
-	ctx := s.reqCtx(req)
+	ctx, cancel := s.reqCtx(req)
+	defer cancel()
 
 	// Get the molecule (parent issue)
 	molecule, err := store.GetIssue(ctx, args.MoleculeID)

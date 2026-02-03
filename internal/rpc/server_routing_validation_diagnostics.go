@@ -114,7 +114,7 @@ func (s *Server) validateDatabaseBinding(req *Request) error {
 	return nil
 }
 
-func (s *Server) handleRequest(req *Request) Response {
+func (s *Server) handleRequest(req *Request, connCtx ...context.Context) Response {
 	// Track request timing
 	start := time.Now()
 
@@ -222,7 +222,12 @@ func (s *Server) handleRequest(req *Request) Response {
 	case OpGetMutations:
 		resp = s.handleGetMutations(req)
 	case OpWaitForMutations:
-		resp = s.handleWaitForMutations(req)
+		// Pass connection context so WaitForMutations can detect client disconnect
+		ctx := context.Background()
+		if len(connCtx) > 0 && connCtx[0] != nil {
+			ctx = connCtx[0]
+		}
+		resp = s.handleWaitForMutations(req, ctx)
 	case OpGetMoleculeProgress:
 		resp = s.handleGetMoleculeProgress(req)
 	case OpGetWorkerStatus:
@@ -269,9 +274,9 @@ func (s *Server) handleRequest(req *Request) Response {
 // reqCtx returns a context with the server's request timeout applied.
 // This prevents request handlers from hanging indefinitely if database
 // operations or other internal calls stall (GH#bd-p76kv).
-func (s *Server) reqCtx(_ *Request) context.Context {
-	ctx, _ := context.WithTimeout(context.Background(), s.requestTimeout)
-	return ctx
+// Callers must defer cancel() to release resources.
+func (s *Server) reqCtx(_ *Request) (context.Context, context.CancelFunc) {
+	return context.WithTimeout(context.Background(), s.requestTimeout)
 }
 
 func (s *Server) reqActor(req *Request) string {
@@ -413,7 +418,8 @@ func (s *Server) handleMetrics(_ *Request) Response {
 }
 
 func (s *Server) handleGetWorkerStatus(req *Request) Response {
-	ctx := s.reqCtx(req)
+	ctx, cancel := s.reqCtx(req)
+	defer cancel()
 
 	// Parse optional args
 	var args GetWorkerStatusArgs

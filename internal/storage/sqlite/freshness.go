@@ -79,15 +79,25 @@ func (fc *FreshnessChecker) Check() bool {
 	// 3. Size changed significantly (backup detection)
 	fileReplaced := false
 
-	if currentInode != 0 && fc.lastInode != 0 && currentInode != fc.lastInode {
-		// Inode changed - file was definitely replaced
-		fileReplaced = true
-		debugPrintf("FreshnessChecker: inode changed %d -> %d\n", fc.lastInode, currentInode)
+	if currentInode != 0 && fc.lastInode != 0 {
+		// Unix: inode available — only trigger on actual file replacement.
+		// Mtime-only changes with same inode are internal writes (WAL checkpoint,
+		// vacuum, etc.) that the existing connection already sees through WAL.
+		// Reconnecting on mtime changes causes severe lock contention because
+		// reconnect() holds an exclusive write lock blocking all readers.
+		if currentInode != fc.lastInode {
+			fileReplaced = true
+			debugPrintf("FreshnessChecker: inode changed %d -> %d\n", fc.lastInode, currentInode)
+		} else if !info.ModTime().Equal(fc.lastMtime) {
+			// Track mtime updates even when not reconnecting, for debug visibility
+			debugPrintf("FreshnessChecker: mtime changed %v -> %v (same inode, skipping reconnect)\n", fc.lastMtime, info.ModTime())
+			fc.lastMtime = info.ModTime()
+			fc.lastSize = info.Size()
+		}
 	} else if !info.ModTime().Equal(fc.lastMtime) {
-		// Mtime changed - file was modified or replaced
-		// This catches cases where inode isn't available (Windows, some filesystems)
+		// Windows/fallback: no inode available — use mtime as best-effort detection
 		fileReplaced = true
-		debugPrintf("FreshnessChecker: mtime changed %v -> %v\n", fc.lastMtime, info.ModTime())
+		debugPrintf("FreshnessChecker: mtime changed %v -> %v (no inode available)\n", fc.lastMtime, info.ModTime())
 	}
 
 	if fileReplaced {

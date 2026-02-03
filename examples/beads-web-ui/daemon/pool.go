@@ -2,6 +2,7 @@ package daemon
 
 import (
 	"context"
+	"log"
 	"sync"
 	"time"
 
@@ -211,6 +212,21 @@ func (p *ConnectionPool) Put(client *rpc.Client) {
 	}
 }
 
+// Discard closes a connection without returning it to the pool.
+// Use this instead of Put when the connection is known to be in a bad state
+// (e.g., after a timeout or protocol error).
+func (p *ConnectionPool) Discard(client *rpc.Client) {
+	if client == nil {
+		return
+	}
+
+	_ = client.Close()
+	p.mu.Lock()
+	p.activeCount--
+	p.createdCount--
+	p.mu.Unlock()
+}
+
 // Close closes all pooled connections.
 func (p *ConnectionPool) Close() error {
 	p.mu.Lock()
@@ -298,6 +314,9 @@ func (p *ConnectionPool) validateConnection(client *rpc.Client) bool {
 	}
 
 	// Try a ping to validate the connection
-	err := client.Ping()
-	return err == nil
+	if err := client.Ping(); err != nil {
+		log.Printf("Pool: connection validation failed: %v", err)
+		return false
+	}
+	return true
 }

@@ -139,7 +139,6 @@ func (s *DaemonSubscriber) waitForMutations() {
 		s.waitWithDone(subscriptionRetryDelay)
 		return
 	}
-	defer s.pool.Put(client)
 
 	s.mu.RLock()
 	since := s.lastSince
@@ -152,6 +151,11 @@ func (s *DaemonSubscriber) waitForMutations() {
 
 	resp, err := client.WaitForMutations(args)
 	if err != nil {
+		// Discard the connection on error — after a timeout or error, the
+		// connection may have a stale response in the pipe, making it unsafe
+		// to reuse. Discarding forces a fresh connection next time.
+		s.pool.Discard(client)
+
 		// Check if this is an "unknown operation" error indicating the daemon
 		// doesn't support wait_for_mutations
 		if isUnknownOperationError(err) {
@@ -166,6 +170,9 @@ func (s *DaemonSubscriber) waitForMutations() {
 		s.waitWithDone(subscriptionRetryDelay)
 		return
 	}
+
+	// Success — return connection to pool for reuse
+	s.pool.Put(client)
 
 	if !resp.Success {
 		log.Printf("WaitForMutations failed: %s", resp.Error)

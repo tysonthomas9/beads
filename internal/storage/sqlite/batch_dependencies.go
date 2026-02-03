@@ -27,7 +27,8 @@ func (s *SQLiteStorage) GetDependenciesForIssues(ctx context.Context, issueIDs [
 	}
 
 	query := fmt.Sprintf(`
-		SELECT issue_id, depends_on_id, type, created_at, created_by, metadata, thread_id
+		SELECT issue_id, depends_on_id, type, created_at, created_by,
+		       COALESCE(metadata, '') as metadata, COALESCE(thread_id, '') as thread_id
 		FROM dependencies
 		WHERE issue_id IN (%s)
 		ORDER BY issue_id, created_at

@@ -178,8 +178,16 @@ func (s *Server) handleSignals() {
 }
 
 func (s *Server) handleConnection(conn net.Conn) {
-	defer func() { 
-		_ = conn.Close() 
+	// Create a per-connection context that is cancelled when the connection closes.
+	// This allows blocking operations (like WaitForMutations) to detect client
+	// disconnects and free resources immediately instead of waiting for timeout.
+	// The context is cancelled by the deferred connCancel when this function returns
+	// (triggered by failed read/write on the connection).
+	connCtx, connCancel := context.WithCancel(context.Background())
+	defer connCancel()
+
+	defer func() {
+		_ = conn.Close()
 	}()
 
 	// Recover from panics to prevent daemon crash (bd-1048)
@@ -217,12 +225,14 @@ func (s *Server) handleConnection(conn net.Conn) {
 			continue
 		}
 
-		// Set write deadline for the response
+		resp := s.handleRequest(&req, connCtx)
+
+		// Set write deadline AFTER handleRequest returns, not before.
+		// Blocking operations like WaitForMutations may take up to 30 seconds;
+		// setting the deadline before would cause it to expire during the handler.
 		if err := conn.SetWriteDeadline(time.Now().Add(s.requestTimeout)); err != nil {
 			return
 		}
-
-		resp := s.handleRequest(&req)
 		if err := s.writeResponse(writer, resp); err != nil {
 			// Connection broken, stop handling this connection
 			return

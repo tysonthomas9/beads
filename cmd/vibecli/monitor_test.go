@@ -31,50 +31,50 @@ func TestDisplayWidth(t *testing.T) {
 	}
 }
 
-func TestTruncateString(t *testing.T) {
+func TestTruncateTitle(t *testing.T) {
 	tests := []struct {
 		name     string
 		input    string
-		maxLen   int
 		expected string
 	}{
-		{"no truncation", "hello", 10, "hello"},
-		{"truncate with ellipsis", "hello world", 8, "hello..."},
-		{"exact length", "short", 5, "short"},
-		{"shorter than max", "ab", 5, "ab"},
-		{"truncate to minimum", "abcdefghij", 4, "a..."},
-		{"empty string", "", 5, ""},
+		{"no truncation", "hello", "hello"},
+		{"exact length", strings.Repeat("a", titleMaxLen), strings.Repeat("a", titleMaxLen)},
+		{"truncate with ellipsis", strings.Repeat("a", titleMaxLen+5), strings.Repeat("a", titleMaxLen-3) + "..."},
+		{"empty string", "", ""},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			got := truncateString(tc.input, tc.maxLen)
+			got := truncateTitle(tc.input)
 			if got != tc.expected {
-				t.Errorf("truncateString(%q, %d) = %q, want %q",
-					tc.input, tc.maxLen, got, tc.expected)
+				t.Errorf("truncateTitle(%q) = %q, want %q",
+					tc.input, got, tc.expected)
 			}
 		})
 	}
 }
 
 func TestRenderBoxTop(t *testing.T) {
-	result := renderBoxTop(10)
-	if result != "╔════════╗\n" {
-		t.Errorf("renderBoxTop(10) = %q, want %q", result, "╔════════╗\n")
+	result := renderBoxTop()
+	expected := "╔" + strings.Repeat("═", boxWidth-2) + "╗\n"
+	if result != expected {
+		t.Errorf("renderBoxTop() = %q, want %q", result, expected)
 	}
 }
 
 func TestRenderBoxBottom(t *testing.T) {
-	result := renderBoxBottom(10)
-	if result != "╚════════╝\n" {
-		t.Errorf("renderBoxBottom(10) = %q, want %q", result, "╚════════╝\n")
+	result := renderBoxBottom()
+	expected := "╚" + strings.Repeat("═", boxWidth-2) + "╝\n"
+	if result != expected {
+		t.Errorf("renderBoxBottom() = %q, want %q", result, expected)
 	}
 }
 
 func TestRenderBoxSeparator(t *testing.T) {
-	result := renderBoxSeparator(10)
-	if result != "╠════════╣\n" {
-		t.Errorf("renderBoxSeparator(10) = %q, want %q", result, "╠════════╣\n")
+	result := renderBoxSeparator()
+	expected := "╠" + strings.Repeat("═", boxWidth-2) + "╣\n"
+	if result != expected {
+		t.Errorf("renderBoxSeparator() = %q, want %q", result, expected)
 	}
 }
 
