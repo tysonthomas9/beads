@@ -16,7 +16,7 @@ import (
 // TestHandleTerminalWS_NilManagerWithSession tests nil manager with session param returns 503.
 // The nil manager check happens before parameter validation.
 func TestHandleTerminalWS_NilManagerWithSession(t *testing.T) {
-	handler := handleTerminalWS(nil)
+	handler := handleTerminalWS(nil, "")
 
 	req := httptest.NewRequest(http.MethodGet, "/api/terminal/ws?session=test", nil)
 	w := httptest.NewRecorder()
@@ -30,7 +30,7 @@ func TestHandleTerminalWS_NilManagerWithSession(t *testing.T) {
 
 // TestHandleTerminalWS_NilManager tests that nil manager returns 503.
 func TestHandleTerminalWS_NilManager(t *testing.T) {
-	handler := handleTerminalWS(nil)
+	handler := handleTerminalWS(nil, "")
 
 	req := httptest.NewRequest(http.MethodGet, "/api/terminal/ws?session=test", nil)
 	w := httptest.NewRecorder()
@@ -72,7 +72,7 @@ func TestHandleTerminalWS_MissingSessionWithManager(t *testing.T) {
 	}
 	defer manager.Shutdown()
 
-	handler := handleTerminalWS(manager)
+	handler := handleTerminalWS(manager, "")
 
 	// Create request without session parameter
 	req := httptest.NewRequest(http.MethodGet, "/api/terminal/ws", nil)
@@ -109,7 +109,7 @@ func TestHandleTerminalWS_InvalidSessionName(t *testing.T) {
 	}
 	defer manager.Shutdown()
 
-	handler := handleTerminalWS(manager)
+	handler := handleTerminalWS(manager, "")
 
 	tests := []struct {
 		name    string
@@ -162,7 +162,7 @@ func TestHandleTerminalWS_ValidSessionNames(t *testing.T) {
 	}
 	defer manager.Shutdown()
 
-	handler := handleTerminalWS(manager)
+	handler := handleTerminalWS(manager, "")
 
 	tests := []struct {
 		name    string
@@ -213,7 +213,7 @@ func TestHandleTerminalWS_WebSocketUpgrade(t *testing.T) {
 	}
 	defer manager.Shutdown()
 
-	handler := handleTerminalWS(manager)
+	handler := handleTerminalWS(manager, "")
 
 	// Create a test server for WebSocket testing
 	server := httptest.NewServer(handler)

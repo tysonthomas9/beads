@@ -15,7 +15,8 @@ import (
 )
 
 // setupRoutes configures all HTTP routes for the server.
-func setupRoutes(mux *http.ServeMux, pool *daemon.ConnectionPool, hub *SSEHub, getMutationsSince func(since int64) []rpc.MutationEvent, termManager *TerminalManager) {
+// defaultTerminalCmd is the command to run in terminal sessions when not specified via query parameter.
+func setupRoutes(mux *http.ServeMux, pool *daemon.ConnectionPool, hub *SSEHub, getMutationsSince func(since int64) []rpc.MutationEvent, termManager *TerminalManager, defaultTerminalCmd string) {
 	// Health check endpoint for load balancers and monitoring
 	mux.HandleFunc("GET /health", handleHealth(pool))
 
@@ -61,7 +62,7 @@ func setupRoutes(mux *http.ServeMux, pool *daemon.ConnectionPool, hub *SSEHub, g
 
 	// Terminal WebSocket endpoint for real-time terminal relay
 	if termManager != nil {
-		mux.HandleFunc("GET /api/terminal/ws", handleTerminalWS(termManager))
+		mux.HandleFunc("GET /api/terminal/ws", handleTerminalWS(termManager, defaultTerminalCmd))
 	}
 
 	// Static file serving with SPA routing (must be last - catches all paths)
