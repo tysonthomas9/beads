@@ -650,7 +650,7 @@ describe('SwimLane', () => {
       expect(screen.getByText('No blocked or deferred issues')).toBeInTheDocument();
     });
 
-    it('sets headerIcon to hourglass for backlog column', () => {
+    it('renders backlog column without emoji headerIcon', () => {
       const columns: KanbanColumnConfig[] = [
         {
           id: 'backlog',
@@ -664,8 +664,9 @@ describe('SwimLane', () => {
         <SwimLane id="test-lane" title="Test Lane" issues={[]} columns={columns} />
       );
 
-      // The hourglass icon should be rendered in the backlog column header
-      expect(screen.getByText('⏳')).toBeInTheDocument();
+      // Backlog column should render with its label but no emoji icon
+      expect(screen.getByText('Backlog')).toBeInTheDocument();
+      expect(screen.queryByText('⏳')).not.toBeInTheDocument();
     });
   });
 

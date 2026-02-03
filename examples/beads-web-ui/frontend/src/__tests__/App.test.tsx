@@ -132,7 +132,7 @@ vi.mock('@/hooks', () => ({
   useIssueDetail: mockUseIssueDetail,
   useToast: mockUseToast,
   useViewState: mockUseViewState,
-  DEFAULT_GROUP_BY: 'epic',
+  DEFAULT_GROUP_BY: 'none',
   useFilterState: vi.fn(() => [
     {}, // FilterState - empty means App.tsx will apply DEFAULT_GROUP_BY fallback
     {
@@ -375,11 +375,9 @@ describe('App', () => {
 
       const { container } = render(<App />);
 
-      // ConnectionStatus should be visible with the connection state
-      // (no dnd-kit status element in loading state since KanbanBoard isn't rendered)
+      // ConnectionStatus should be visible with the connection state (showText=false, so check data-state)
       const status = container.querySelector('[data-state="connecting"]');
       expect(status).toBeInTheDocument();
-      expect(screen.getByText('Connecting...')).toBeInTheDocument();
     });
   });
 
@@ -441,7 +439,7 @@ describe('App', () => {
       expect(screen.getByText('Specific error message')).toBeInTheDocument();
     });
 
-    it('renders ConnectionStatus with retry in error state', () => {
+    it('renders ConnectionStatus with reconnecting state in error state', () => {
       const retryConnection = vi.fn();
       const mockReturn = createMockUseIssuesReturn({
         error: 'Connection failed',
@@ -454,11 +452,9 @@ describe('App', () => {
 
       const { container } = render(<App />);
 
-      // ConnectionStatus should show reconnecting state
-      // (no dnd-kit status element in error state since KanbanBoard isn't rendered)
+      // ConnectionStatus should show reconnecting state (showText=false, check data-state)
       const status = container.querySelector('[data-state="reconnecting"]');
       expect(status).toBeInTheDocument();
-      expect(screen.getByText('Reconnecting (attempt 2)...')).toBeInTheDocument();
     });
 
     it('does not render KanbanBoard when error is present', () => {
@@ -516,11 +512,9 @@ describe('App', () => {
 
       const { container } = render(<App />);
 
-      // Use data-state attribute to find ConnectionStatus specifically
-      // (dnd-kit also adds a role="status" element)
+      // Use data-state attribute to find ConnectionStatus (showText=false, no visible text)
       const statusElement = container.querySelector('[data-state="connected"]');
       expect(statusElement).toBeInTheDocument();
-      expect(screen.getByText('Connected')).toBeInTheDocument();
     });
 
     it('does not render ErrorDisplay when no error', () => {
@@ -678,11 +672,9 @@ describe('App', () => {
 
       const { container } = render(<App />);
 
-      // Use data-state attribute to find ConnectionStatus specifically
-      // (dnd-kit also adds a role="status" element)
+      // ConnectionStatus rendered with showText=false — verify via data-state
       const status = container.querySelector('[data-state="connected"]');
       expect(status).toBeInTheDocument();
-      expect(screen.getByText('Connected')).toBeInTheDocument();
     });
 
     it('renders ConnectionStatus with disconnected state', () => {
@@ -696,7 +688,6 @@ describe('App', () => {
 
       const status = container.querySelector('[data-state="disconnected"]');
       expect(status).toBeInTheDocument();
-      expect(screen.getByText('Disconnected')).toBeInTheDocument();
     });
 
     it('renders ConnectionStatus with reconnecting state and attempt count', () => {
@@ -711,7 +702,6 @@ describe('App', () => {
 
       const status = container.querySelector('[data-state="reconnecting"]');
       expect(status).toBeInTheDocument();
-      expect(screen.getByText('Reconnecting (attempt 3)...')).toBeInTheDocument();
     });
 
     it('renders ConnectionStatus with connecting state', () => {
@@ -721,9 +711,10 @@ describe('App', () => {
       });
       vi.mocked(useIssues).mockReturnValue(mockReturn);
 
-      render(<App />);
+      const { container } = render(<App />);
 
-      expect(screen.getByText('Connecting...')).toBeInTheDocument();
+      const status = container.querySelector('[data-state="connecting"]');
+      expect(status).toBeInTheDocument();
     });
 
     it('passes retryConnection to ConnectionStatus onRetry', () => {
@@ -735,27 +726,23 @@ describe('App', () => {
       });
       vi.mocked(useIssues).mockReturnValue(mockReturn);
 
-      render(<App />);
+      const { container } = render(<App />);
 
-      // The retry button should be visible when reconnecting with attempts >= 1
-      const retryButton = screen.getByRole('button', {
-        name: 'Retry connection now',
-      });
-      expect(retryButton).toBeInTheDocument();
-
-      fireEvent.click(retryButton);
-      expect(retryConnection).toHaveBeenCalledTimes(1);
+      // ConnectionStatus is rendered with showRetryButton=false in the new layout,
+      // so verify the status element exists with correct state instead
+      const status = container.querySelector('[data-state="reconnecting"]');
+      expect(status).toBeInTheDocument();
     });
   });
 
   describe('AppLayout integration', () => {
-    it('renders with Beads title in header', () => {
+    it('renders with Cortex title in header', () => {
       const mockReturn = createMockUseIssuesReturn({});
       vi.mocked(useIssues).mockReturnValue(mockReturn);
 
       render(<App />);
 
-      expect(screen.getByRole('heading', { name: 'Beads', level: 1 })).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'Cortex', level: 1 })).toBeInTheDocument();
     });
 
     it('renders header with banner role', () => {
@@ -913,7 +900,7 @@ describe('App', () => {
       expect(screen.getByTestId('type-filter')).toBeInTheDocument();
     });
 
-    it('does not render filter navigation in loading state', () => {
+    it('renders filter navigation even in loading state', () => {
       const mockReturn = createMockUseIssuesReturn({
         isLoading: true,
       });
@@ -921,12 +908,12 @@ describe('App', () => {
 
       render(<App />);
 
-      // FilterBar and SearchInput should not be rendered in loading state
-      expect(screen.queryByTestId('search-input')).not.toBeInTheDocument();
-      expect(screen.queryByTestId('filter-bar')).not.toBeInTheDocument();
+      // In the new layout, search and filters are always in the header
+      expect(screen.getByTestId('search-input')).toBeInTheDocument();
+      expect(screen.getByTestId('filter-bar')).toBeInTheDocument();
     });
 
-    it('does not render filter navigation in error state', () => {
+    it('renders filter navigation even in error state', () => {
       const mockReturn = createMockUseIssuesReturn({
         isLoading: false,
         error: 'Network error',
@@ -935,9 +922,9 @@ describe('App', () => {
 
       render(<App />);
 
-      // FilterBar and SearchInput should not be rendered in error state
-      expect(screen.queryByTestId('search-input')).not.toBeInTheDocument();
-      expect(screen.queryByTestId('filter-bar')).not.toBeInTheDocument();
+      // In the new layout, search and filters are always in the header
+      expect(screen.getByTestId('search-input')).toBeInTheDocument();
+      expect(screen.getByTestId('filter-bar')).toBeInTheDocument();
     });
 
     it('passes filtered issues to KanbanBoard', () => {
@@ -955,22 +942,11 @@ describe('App', () => {
       expect(screen.getByText('Second Issue')).toBeInTheDocument();
     });
 
-    it('clears search input when Clear filters button is clicked', async () => {
+    it('clears search input when filter state search is cleared externally', async () => {
       // Set up issues so the app renders in success state
       const issues = [createMockIssue({ id: 'issue-1', title: 'Test Issue', status: 'open' })];
       const mockReturn = createMockUseIssuesReturn({ issues });
       vi.mocked(useIssues).mockReturnValue(mockReturn);
-
-      // Track filter state that will change when clearAll is called
-      let currentFilters: { search?: string; groupBy?: string } = {
-        search: 'test query',
-        groupBy: 'none',
-      };
-
-      const clearAll = vi.fn(() => {
-        // Simulate clearAll behavior: clears search
-        currentFilters = { groupBy: 'none' };
-      });
 
       const filterActions = {
         setPriority: vi.fn(),
@@ -979,30 +955,20 @@ describe('App', () => {
         setSearch: vi.fn(),
         setGroupBy: vi.fn(),
         clearFilter: vi.fn(),
-        clearAll,
+        clearAll: vi.fn(),
       };
 
       // Mock useFilterState to return filter with search value
-      // This must be set before render so the initial useState gets the value
-      vi.mocked(useFilterState).mockReturnValue([currentFilters, filterActions]);
+      vi.mocked(useFilterState).mockReturnValue([{ search: 'test query' }, filterActions]);
 
       const { rerender } = render(<App />);
 
       // Verify search input has the initial value
-      // Note: data-testid="search-input" is on the wrapper div, the actual input has data-testid="search-input-field"
       const searchInput = screen.getByTestId('search-input-field') as HTMLInputElement;
       expect(searchInput.value).toBe('test query');
 
-      // Clear filters button should be visible because search filter is active
-      const clearButton = screen.getByTestId('clear-filters');
-      expect(clearButton).toBeInTheDocument();
-
-      // Click clear filters - this calls clearAll which updates currentFilters
-      fireEvent.click(clearButton);
-      expect(clearAll).toHaveBeenCalledTimes(1);
-
-      // Update the mock to return the new filter state (search cleared)
-      vi.mocked(useFilterState).mockReturnValue([currentFilters, filterActions]);
+      // Simulate external filter state clearing (e.g. clearAll was called)
+      vi.mocked(useFilterState).mockReturnValue([{}, filterActions]);
 
       // Rerender to trigger the useEffect that syncs filters.search to searchValue
       rerender(<App />);

@@ -613,9 +613,9 @@ describe('toQueryString', () => {
     expect(result).toBe('');
   });
 
-  it('omits groupBy when value is epic (default)', () => {
+  it('serializes groupBy when value is epic (no longer default)', () => {
     const result = toQueryString({ groupBy: 'epic' });
-    expect(result).toBe('');
+    expect(result).toBe('groupBy=epic');
   });
 
   it('serializes all groupBy options except none and epic', () => {
@@ -832,8 +832,8 @@ describe('isEmptyFilter', () => {
     expect(isEmptyFilter({ groupBy: undefined })).toBe(true);
   });
 
-  it('returns true when groupBy is epic (default)', () => {
-    expect(isEmptyFilter({ groupBy: 'epic' })).toBe(true);
+  it('returns false when groupBy is epic (no longer default)', () => {
+    expect(isEmptyFilter({ groupBy: 'epic' })).toBe(false);
   });
 
   it('returns false when groupBy is set to a non-default value', () => {
@@ -941,7 +941,7 @@ describe('URL synchronization', () => {
     expect(historyMock.replaceState).toHaveBeenCalledWith(null, '', '/issues?groupBy=assignee');
   });
 
-  it('does not add groupBy=epic to URL (epic is default)', () => {
+  it('adds groupBy=epic to URL (epic is no longer default)', () => {
     const { result } = renderHook(() => useFilterState());
 
     act(() => {
@@ -949,7 +949,7 @@ describe('URL synchronization', () => {
     });
 
     const lastCall = historyMock.replaceState.mock.calls.at(-1);
-    expect(lastCall?.[2]).toBe('/issues');
+    expect(lastCall?.[2]).toBe('/issues?groupBy=epic');
   });
 
   it('initializes groupBy from URL params on mount', () => {

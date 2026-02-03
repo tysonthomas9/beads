@@ -847,7 +847,7 @@ describe('FilterBar', () => {
       const options = select.querySelectorAll('option');
 
       expect(options).toHaveLength(6);
-      expect(options[0]).toHaveTextContent('None');
+      expect(options[0]).toHaveTextContent('All');
       expect(options[1]).toHaveTextContent('Epic');
       expect(options[2]).toHaveTextContent('Assignee');
       expect(options[3]).toHaveTextContent('Priority');
