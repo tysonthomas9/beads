@@ -37,7 +37,7 @@ func tmuxSessionExists(name string) bool {
 // TestTerminalNewManagerTmuxNotFound verifies that NewTerminalManager returns
 // ErrTmuxNotFound when tmux is not in PATH, or succeeds when it is.
 func TestTerminalNewManagerTmuxNotFound(t *testing.T) {
-	_, err := NewTerminalManager()
+	_, err := NewTerminalManager("")
 	if hasTmux() {
 		if err != nil {
 			t.Fatalf("expected NewTerminalManager to succeed when tmux is installed, got: %v", err)
@@ -54,7 +54,7 @@ func TestTerminalNewManagerTmuxNotFound(t *testing.T) {
 func TestTerminalNewManagerSuccess(t *testing.T) {
 	skipIfNoTmux(t)
 
-	mgr, err := NewTerminalManager()
+	mgr, err := NewTerminalManager("")
 	if err != nil {
 		t.Fatalf("NewTerminalManager() error: %v", err)
 	}
@@ -80,7 +80,7 @@ func TestTerminalNewManagerSuccess(t *testing.T) {
 func TestTerminalGetOrCreate(t *testing.T) {
 	skipIfNoTmux(t)
 
-	mgr, err := NewTerminalManager()
+	mgr, err := NewTerminalManager("")
 	if err != nil {
 		t.Fatalf("NewTerminalManager() error: %v", err)
 	}
@@ -116,7 +116,7 @@ func TestTerminalGetOrCreate(t *testing.T) {
 func TestTerminalGetOrCreateDisplacement(t *testing.T) {
 	skipIfNoTmux(t)
 
-	mgr, err := NewTerminalManager()
+	mgr, err := NewTerminalManager("")
 	if err != nil {
 		t.Fatalf("NewTerminalManager() error: %v", err)
 	}
@@ -162,7 +162,7 @@ func TestTerminalGetOrCreateDisplacement(t *testing.T) {
 func TestTerminalResize(t *testing.T) {
 	skipIfNoTmux(t)
 
-	mgr, err := NewTerminalManager()
+	mgr, err := NewTerminalManager("")
 	if err != nil {
 		t.Fatalf("NewTerminalManager() error: %v", err)
 	}
@@ -191,7 +191,7 @@ func TestTerminalResize(t *testing.T) {
 func TestTerminalDetach(t *testing.T) {
 	skipIfNoTmux(t)
 
-	mgr, err := NewTerminalManager()
+	mgr, err := NewTerminalManager("")
 	if err != nil {
 		t.Fatalf("NewTerminalManager() error: %v", err)
 	}
@@ -226,7 +226,7 @@ func TestTerminalDetach(t *testing.T) {
 func TestTerminalShutdown(t *testing.T) {
 	skipIfNoTmux(t)
 
-	mgr, err := NewTerminalManager()
+	mgr, err := NewTerminalManager("")
 	if err != nil {
 		t.Fatalf("NewTerminalManager() error: %v", err)
 	}
@@ -267,7 +267,7 @@ func TestTerminalShutdown(t *testing.T) {
 func TestTerminalResizeNonexistent(t *testing.T) {
 	skipIfNoTmux(t)
 
-	mgr, err := NewTerminalManager()
+	mgr, err := NewTerminalManager("")
 	if err != nil {
 		t.Fatalf("NewTerminalManager() error: %v", err)
 	}
@@ -283,7 +283,7 @@ func TestTerminalResizeNonexistent(t *testing.T) {
 func TestTerminalDetachNonexistent(t *testing.T) {
 	skipIfNoTmux(t)
 
-	mgr, err := NewTerminalManager()
+	mgr, err := NewTerminalManager("")
 	if err != nil {
 		t.Fatalf("NewTerminalManager() error: %v", err)
 	}
@@ -291,5 +291,34 @@ func TestTerminalDetachNonexistent(t *testing.T) {
 	err = mgr.Detach("nonexistent-session")
 	if err == nil {
 		t.Fatal("expected Detach on nonexistent session to return error")
+	}
+}
+
+// TestTerminalDefaultCommand verifies that NewTerminalManager stores the default
+// command and GetOrCreate uses it when the client passes an empty command.
+func TestTerminalDefaultCommand(t *testing.T) {
+	skipIfNoTmux(t)
+
+	mgr, err := NewTerminalManager("bash")
+	if err != nil {
+		t.Fatalf("NewTerminalManager() error: %v", err)
+	}
+	if mgr.defaultCommand != "bash" {
+		t.Errorf("expected defaultCommand=bash, got %q", mgr.defaultCommand)
+	}
+
+	name := "test-" + t.Name()
+	t.Cleanup(func() {
+		mgr.Shutdown()
+		killTmuxSession(t, name)
+	})
+
+	// Call GetOrCreate with empty command - should use default "bash"
+	session, err := mgr.GetOrCreate(name, "", 80, 24)
+	if err != nil {
+		t.Fatalf("GetOrCreate() error: %v", err)
+	}
+	if session.Command != "bash" {
+		t.Errorf("expected session command=bash, got %q", session.Command)
 	}
 }

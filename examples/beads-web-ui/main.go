@@ -171,7 +171,7 @@ func main() {
 
 	// Initialize terminal manager for WebSocket terminal sessions
 	var termMgr *TerminalManager
-	termMgr, err = NewTerminalManager()
+	termMgr, err = NewTerminalManager(*terminalCmd)
 	if err != nil {
 		if errors.Is(err, ErrTmuxNotFound) {
 			log.Printf("Warning: tmux not found, terminal feature disabled")

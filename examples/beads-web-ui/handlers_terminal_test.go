@@ -67,7 +67,7 @@ func TestHandleTerminalWS_NilManager(t *testing.T) {
 func TestHandleTerminalWS_MissingSessionWithManager(t *testing.T) {
 	// Create a real manager - this will fail if tmux is not installed,
 	// so we skip if that's the case
-	manager, err := NewTerminalManager()
+	manager, err := NewTerminalManager("")
 	if err == ErrTmuxNotFound {
 		t.Skip("tmux not installed, skipping test")
 	}
@@ -104,7 +104,7 @@ func TestHandleTerminalWS_MissingSessionWithManager(t *testing.T) {
 
 // TestHandleTerminalWS_InvalidSessionName tests invalid session name validation.
 func TestHandleTerminalWS_InvalidSessionName(t *testing.T) {
-	manager, err := NewTerminalManager()
+	manager, err := NewTerminalManager("")
 	if err == ErrTmuxNotFound {
 		t.Skip("tmux not installed, skipping test")
 	}
@@ -157,7 +157,7 @@ func TestHandleTerminalWS_InvalidSessionName(t *testing.T) {
 
 // TestHandleTerminalWS_ValidSessionNames tests that valid session names pass validation.
 func TestHandleTerminalWS_ValidSessionNames(t *testing.T) {
-	manager, err := NewTerminalManager()
+	manager, err := NewTerminalManager("")
 	if err == ErrTmuxNotFound {
 		t.Skip("tmux not installed, skipping test")
 	}
@@ -208,7 +208,7 @@ func TestHandleTerminalWS_ValidSessionNames(t *testing.T) {
 
 // TestHandleTerminalWS_WebSocketUpgrade tests that WebSocket upgrade succeeds with valid params.
 func TestHandleTerminalWS_WebSocketUpgrade(t *testing.T) {
-	manager, err := NewTerminalManager()
+	manager, err := NewTerminalManager("")
 	if err == ErrTmuxNotFound {
 		t.Skip("tmux not installed, skipping test")
 	}
@@ -728,7 +728,7 @@ func TestWsToPTY_ContextCancelled(t *testing.T) {
 		PTY:  w,
 	}
 
-	manager, err := NewTerminalManager()
+	manager, err := NewTerminalManager("")
 	if err == ErrTmuxNotFound {
 		t.Skip("tmux not installed, skipping test")
 	}
@@ -785,7 +785,7 @@ func TestWsToPTY_WebSocketReadError(t *testing.T) {
 		PTY:  w,
 	}
 
-	manager, err := NewTerminalManager()
+	manager, err := NewTerminalManager("")
 	if err == ErrTmuxNotFound {
 		t.Skip("tmux not installed, skipping test")
 	}
@@ -835,7 +835,7 @@ func TestPtyToWS_And_WsToPTY_Integration(t *testing.T) {
 		PTY:  ptyR, // testPtyToWS reads from ptyR
 	}
 
-	manager, err := NewTerminalManager()
+	manager, err := NewTerminalManager("")
 	if err == ErrTmuxNotFound {
 		t.Skip("tmux not installed, skipping test")
 	}

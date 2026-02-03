@@ -54,24 +54,27 @@ func (s *TerminalSession) Close() error {
 
 // TerminalManager manages tmux session lifecycles.
 type TerminalManager struct {
-	sessions    map[string]*TerminalSession
-	mu          sync.RWMutex
-	tmuxPath    string
-	defaultCols uint16
-	defaultRows uint16
+	sessions       map[string]*TerminalSession
+	mu             sync.RWMutex
+	tmuxPath       string
+	defaultCommand string // default command when client doesn't specify one
+	defaultCols    uint16
+	defaultRows    uint16
 }
 
 // NewTerminalManager creates a manager. Returns ErrTmuxNotFound if tmux is not installed.
-func NewTerminalManager() (*TerminalManager, error) {
+// The defaultCommand parameter specifies what command to run when a client doesn't specify one.
+func NewTerminalManager(defaultCommand string) (*TerminalManager, error) {
 	tmuxPath, err := exec.LookPath("tmux")
 	if err != nil {
 		return nil, ErrTmuxNotFound
 	}
 	return &TerminalManager{
-		sessions:    make(map[string]*TerminalSession),
-		tmuxPath:    tmuxPath,
-		defaultCols: 80,
-		defaultRows: 24,
+		sessions:       make(map[string]*TerminalSession),
+		tmuxPath:       tmuxPath,
+		defaultCommand: defaultCommand,
+		defaultCols:    80,
+		defaultRows:    24,
 	}, nil
 }
 
@@ -108,6 +111,7 @@ func (m *TerminalManager) tmuxAttach(name string) (*exec.Cmd, *os.File, error) {
 
 // GetOrCreate returns a TerminalSession for the named tmux session.
 // If the tmux session doesn't exist, it creates one with the given command.
+// If command is empty, uses the manager's default command.
 // If an active connection exists, it displaces it (closes old PTY, spawns new attach).
 func (m *TerminalManager) GetOrCreate(name, command string, cols, rows uint16) (*TerminalSession, error) {
 	if !validSessionName.MatchString(name) {
@@ -118,6 +122,9 @@ func (m *TerminalManager) GetOrCreate(name, command string, cols, rows uint16) (
 	}
 	if rows == 0 {
 		rows = m.defaultRows
+	}
+	if command == "" {
+		command = m.defaultCommand
 	}
 
 	m.mu.Lock()
