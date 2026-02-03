@@ -6,13 +6,14 @@
  * - Agent Activity Panel (bottom)
  */
 
-import { useAgents, useBlockedIssues } from '@/hooks';
 import type { ViewMode } from '@/components/ViewSwitcher';
+import { useAgents, useBlockedIssues } from '@/hooks';
 import type { Issue } from '@/types';
+
 import { AgentActivityPanel } from './AgentActivityPanel';
 import { ConnectionBanner } from './ConnectionBanner';
-import { ProjectHealthPanel } from './ProjectHealthPanel';
 import styles from './MonitorDashboard.module.css';
+import { ProjectHealthPanel } from './ProjectHealthPanel';
 
 /**
  * Props for the MonitorDashboard component.

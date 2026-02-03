@@ -3,8 +3,9 @@
  * Renders a stack of toasts in a fixed position on the screen.
  */
 
-import { Toast } from './Toast';
 import type { Toast as ToastData } from '@/hooks/useToast';
+
+import { Toast } from './Toast';
 import styles from './Toast.module.css';
 
 /**

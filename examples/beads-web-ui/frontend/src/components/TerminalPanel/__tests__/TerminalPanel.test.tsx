@@ -6,9 +6,11 @@
  * Unit tests for TerminalPanel component.
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, act } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import '@testing-library/jest-dom';
+
+import { TerminalPanel } from '../TerminalPanel';
 
 // Mock xterm and addons before importing the component.
 // Use class syntax so `new Terminal(...)` works correctly.
@@ -91,8 +93,6 @@ afterEach(() => {
   (globalThis as GlobalWithMocks).WebSocket = OriginalWebSocket;
   (globalThis as GlobalWithMocks).ResizeObserver = OriginalResizeObserver;
 });
-
-import { TerminalPanel } from '../TerminalPanel';
 
 describe('TerminalPanel', () => {
   beforeEach(() => {

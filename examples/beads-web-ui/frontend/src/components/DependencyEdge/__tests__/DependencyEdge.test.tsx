@@ -6,14 +6,14 @@
  * Unit tests for DependencyEdge component.
  */
 
-import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom';
-import { ReactFlowProvider } from '@xyflow/react';
-import { Position } from '@xyflow/react';
+import { render, screen } from '@testing-library/react';
+import { ReactFlowProvider, Position } from '@xyflow/react';
+import { describe, it, expect, vi } from 'vitest';
+
+import type { DependencyEdgeData, DependencyType } from '@/types';
 
 import { DependencyEdge } from '../DependencyEdge';
-import type { DependencyEdgeData, DependencyType } from '@/types';
 
 // Mock EdgeLabelRenderer to render children inline (it normally uses a portal)
 vi.mock('@xyflow/react', async () => {

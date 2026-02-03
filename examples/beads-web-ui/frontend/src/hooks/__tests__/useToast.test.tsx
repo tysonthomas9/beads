@@ -6,10 +6,11 @@
  * Unit tests for useToast hook.
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
-import { ToastProvider, useToast } from '../useToast';
 import type { ReactNode } from 'react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+
+import { ToastProvider, useToast } from '../useToast';
 
 // Wrapper component that provides the ToastProvider context
 function wrapper({ children }: { children: ReactNode }) {

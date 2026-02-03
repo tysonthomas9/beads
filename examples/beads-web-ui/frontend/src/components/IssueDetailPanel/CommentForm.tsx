@@ -4,8 +4,10 @@
  */
 
 import { useState, useRef, useCallback, type FormEvent, type KeyboardEvent } from 'react';
-import type { Comment } from '@/types';
+
 import { addComment } from '@/api';
+import type { Comment } from '@/types';
+
 import styles from './CommentForm.module.css';
 
 /**

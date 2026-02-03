@@ -6,12 +6,13 @@
  * Unit tests for SwimLaneBoard localStorage persistence functionality.
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, cleanup } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import '@testing-library/jest-dom';
 
-import { SwimLaneBoard } from '../SwimLaneBoard';
 import type { Issue, Status } from '@/types';
+
+import { SwimLaneBoard } from '../SwimLaneBoard';
 
 /**
  * Create a mock issue for testing.

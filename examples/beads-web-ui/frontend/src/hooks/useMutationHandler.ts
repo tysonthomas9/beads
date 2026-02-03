@@ -3,10 +3,11 @@
  * Processes create, update, delete, status, and other mutation types to keep the UI in sync.
  */
 
-import { useCallback, useEffect, useRef, useState } from 'react';
 import { produce } from 'immer';
-import type { Issue } from '../types/issue';
+import { useCallback, useEffect, useRef, useState } from 'react';
+
 import type { MutationPayload } from '../api/sse';
+import type { Issue } from '../types/issue';
 import {
   MutationCreate,
   MutationUpdate,

@@ -4,7 +4,7 @@
  */
 
 import { useMemo } from 'react';
-import { AgentCard } from '../AgentCard';
+
 import type {
   LoomAgentStatus,
   LoomSyncInfo,
@@ -13,6 +13,8 @@ import type {
   ParsedLoomStatus,
 } from '@/types';
 import { parseLoomStatus } from '@/types';
+
+import { AgentCard } from '../AgentCard';
 import styles from './AgentActivityPanel.module.css';
 
 /**

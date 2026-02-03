@@ -1,10 +1,12 @@
 /**
  * @vitest-environment jsdom
  */
-import { describe, it, expect, vi } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
-import { useFilteredSelection } from './useFilteredSelection';
+import { describe, it, expect, vi } from 'vitest';
+
 import type { Issue, Priority } from '@/types';
+
+import { useFilteredSelection } from './useFilteredSelection';
 
 // Helper to create test issues
 function createIssue(overrides: Partial<Issue> = {}): Issue {

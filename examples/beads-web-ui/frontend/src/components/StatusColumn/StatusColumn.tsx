@@ -6,9 +6,11 @@
 
 import { useDroppable } from '@dnd-kit/core';
 import type { ReactNode } from 'react';
+
 import type { Status } from '@/types';
-import { formatStatusLabel } from './utils';
+
 import styles from './StatusColumn.module.css';
+import { formatStatusLabel } from './utils';
 
 /**
  * Column type for visual variants (different from status value).

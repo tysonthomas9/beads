@@ -6,8 +6,8 @@
  * Unit tests for AppLayout component.
  */
 
-import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
+import { describe, it, expect } from 'vitest';
 import '@testing-library/jest-dom';
 
 import { AppLayout } from '../AppLayout';

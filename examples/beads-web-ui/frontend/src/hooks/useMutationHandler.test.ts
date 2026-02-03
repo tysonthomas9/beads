@@ -1,11 +1,12 @@
 /**
  * @vitest-environment jsdom
  */
-import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+
 import { useMutationHandler } from './useMutationHandler';
-import type { Issue } from '../types/issue';
 import type { MutationPayload } from '../api/sse';
+import type { Issue } from '../types/issue';
 
 /**
  * Helper to create a test issue with required fields.

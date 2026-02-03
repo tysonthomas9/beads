@@ -6,10 +6,10 @@
  * Unit tests for StatusColumn component.
  */
 
-import { describe, it, expect } from 'vitest';
-import { render, screen } from '@testing-library/react';
-import '@testing-library/jest-dom';
 import { DndContext } from '@dnd-kit/core';
+import '@testing-library/jest-dom';
+import { render, screen } from '@testing-library/react';
+import { describe, it, expect } from 'vitest';
 
 import { StatusColumn } from '../StatusColumn';
 import { formatStatusLabel, getStatusColor } from '../utils';

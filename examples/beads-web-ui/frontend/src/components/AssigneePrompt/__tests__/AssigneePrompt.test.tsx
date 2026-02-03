@@ -7,8 +7,9 @@
  * Tests modal behavior for entering assignee name on drag to In Progress.
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, act } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+
 import '@testing-library/jest-dom';
 import { AssigneePrompt } from '../AssigneePrompt';
 

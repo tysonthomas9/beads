@@ -3,8 +3,9 @@
  * Displays a list of comments on an issue with author, timestamp, and text.
  */
 
-import type { Comment } from '@/types';
 import { formatDate } from '@/components/table/columns';
+import type { Comment } from '@/types';
+
 import styles from './CommentsSection.module.css';
 
 /**

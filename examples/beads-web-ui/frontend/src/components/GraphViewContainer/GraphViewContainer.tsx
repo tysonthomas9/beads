@@ -4,10 +4,12 @@
  */
 
 import { useState, useCallback } from 'react';
-import type { Issue } from '@/types';
+
 import { IssueDetailPanel } from '@/components';
 import { GraphView, type GraphViewProps } from '@/components/GraphView';
 import { useIssueDetail } from '@/hooks/useIssueDetail';
+import type { Issue } from '@/types';
+
 import styles from './GraphViewContainer.module.css';
 
 /**

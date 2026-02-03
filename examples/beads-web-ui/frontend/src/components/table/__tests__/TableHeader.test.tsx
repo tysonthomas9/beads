@@ -8,12 +8,12 @@
  * and accessibility attributes.
  */
 
-import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
+import { describe, it, expect, vi } from 'vitest';
 import '@testing-library/jest-dom';
 
-import { TableHeader, SortState, SortDirection } from '../TableHeader';
 import { ColumnDef } from '../columns';
+import { TableHeader, SortState, SortDirection } from '../TableHeader';
 
 // Helper type for test columns
 interface TestItem {

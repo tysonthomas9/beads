@@ -4,8 +4,10 @@
  */
 
 import { useState, useEffect, useRef, useCallback } from 'react';
+
 import { useBlockedIssues } from '@/hooks';
 import type { Priority } from '@/types';
+
 import styles from './BlockedSummary.module.css';
 
 /**

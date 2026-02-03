@@ -10,8 +10,9 @@
 
 import { describe, it, expect } from 'vitest';
 
-import { DEFAULT_COLUMNS } from '../columnConfigs';
 import type { Issue } from '@/types';
+
+import { DEFAULT_COLUMNS } from '../columnConfigs';
 import type { BlockedInfo } from '../KanbanBoard';
 
 /**

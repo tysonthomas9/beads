@@ -6,14 +6,15 @@
  * Unit tests for KanbanBoard component.
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, within, fireEvent } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import '@testing-library/jest-dom';
 
-import { KanbanBoard } from '../KanbanBoard';
-import { DEFAULT_COLUMNS as _DEFAULT_COLUMNS } from '../columnConfigs';
-import type { Issue, Status, IssueType } from '@/types';
 import type { FilterState } from '@/hooks/useFilterState';
+import type { Issue, Status, IssueType } from '@/types';
+
+import { DEFAULT_COLUMNS as _DEFAULT_COLUMNS } from '../columnConfigs';
+import { KanbanBoard } from '../KanbanBoard';
 
 /**
  * Legacy 3-column statuses for backward compatibility tests.

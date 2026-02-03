@@ -4,6 +4,7 @@
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react';
+
 import { getStats } from '@/api/issues';
 import type { Statistics } from '@/types';
 

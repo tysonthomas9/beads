@@ -4,10 +4,10 @@
  * Only included in development builds.
  */
 
-import type { IssueDetails, Priority } from '@/types';
-import type { Status } from '@/types/status';
 import { IssueDetailPanel, ToastContainer } from '@/components';
 import { useToast } from '@/hooks';
+import type { IssueDetails, Priority } from '@/types';
+import type { Status } from '@/types/status';
 
 /**
  * Valid priority values.

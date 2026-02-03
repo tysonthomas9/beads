@@ -6,14 +6,15 @@
  * Unit tests for SwimLane component.
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, within, fireEvent } from '@testing-library/react';
-import '@testing-library/jest-dom';
 import { DndContext } from '@dnd-kit/core';
+import '@testing-library/jest-dom';
+import { render, screen, within, fireEvent } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+
+import type { BlockedInfo, KanbanColumnConfig } from '@/components/KanbanBoard';
+import type { Issue, Status } from '@/types';
 
 import { SwimLane } from '../SwimLane';
-import type { Issue, Status } from '@/types';
-import type { BlockedInfo, KanbanColumnConfig } from '@/components/KanbanBoard';
 
 /**
  * Helper to render SwimLane within a DndContext for droppable tests.

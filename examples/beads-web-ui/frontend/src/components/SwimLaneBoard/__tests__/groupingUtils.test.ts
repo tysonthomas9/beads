@@ -7,8 +7,10 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { groupIssuesByField, sortLanes, type GroupByField, type LaneGroup } from '../groupingUtils';
+
 import type { Issue } from '@/types';
+
+import { groupIssuesByField, sortLanes, type GroupByField, type LaneGroup } from '../groupingUtils';
 
 /**
  * Create a mock issue for testing.

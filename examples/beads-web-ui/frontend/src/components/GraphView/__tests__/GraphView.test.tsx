@@ -6,13 +6,19 @@
  * Unit tests for GraphView component.
  */
 
-import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest';
 import '@testing-library/jest-dom';
+
+import { useAutoLayout } from '@/hooks/useAutoLayout';
+import { useBlockedIssues } from '@/hooks/useBlockedIssues';
+import { useGraphData } from '@/hooks/useGraphData';
+import type { Issue, IssueNode, DependencyEdge, BlockedIssue } from '@/types';
 
 import { GraphView } from '../GraphView';
 import type { GraphViewProps } from '../GraphView';
-import type { Issue, IssueNode, DependencyEdge, BlockedIssue } from '@/types';
+
+// Import mocks after vi.mock calls
 
 // Mock the hooks
 vi.mock('@/hooks/useGraphData', () => ({
@@ -170,11 +176,6 @@ vi.mock('@/components', () => ({
     ) : null
   ),
 }));
-
-// Import mocks after vi.mock calls
-import { useGraphData } from '@/hooks/useGraphData';
-import { useAutoLayout } from '@/hooks/useAutoLayout';
-import { useBlockedIssues } from '@/hooks/useBlockedIssues';
 
 /**
  * Create a minimal test issue with required fields.

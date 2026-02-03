@@ -6,11 +6,13 @@
  * Unit tests for ToastContainer component.
  */
 
-import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
+import { describe, it, expect, vi } from 'vitest';
+
 import '@testing-library/jest-dom';
-import { ToastContainer } from '../ToastContainer';
 import type { Toast } from '@/hooks/useToast';
+
+import { ToastContainer } from '../ToastContainer';
 
 describe('ToastContainer', () => {
   const createToast = (overrides: Partial<Toast> = {}): Toast => ({

@@ -1,10 +1,12 @@
 /**
  * @vitest-environment jsdom
  */
-import { describe, it, expect } from 'vitest';
 import { renderHook } from '@testing-library/react';
-import { useIssueFilter } from './useIssueFilter';
+import { describe, it, expect } from 'vitest';
+
 import type { Issue, Status, Priority, IssueType } from '@/types';
+
+import { useIssueFilter } from './useIssueFilter';
 
 /**
  * Helper to create a minimal valid Issue for testing.

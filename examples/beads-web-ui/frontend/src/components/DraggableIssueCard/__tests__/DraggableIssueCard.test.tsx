@@ -6,14 +6,14 @@
  * Unit tests for DraggableIssueCard component.
  */
 
-import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { DndContext, useDraggable } from '@dnd-kit/core';
 import '@testing-library/jest-dom';
-import { DndContext } from '@dnd-kit/core';
-import { useDraggable } from '@dnd-kit/core';
+import { render, screen, fireEvent } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest';
+
+import type { Issue } from '@/types';
 
 import { DraggableIssueCard } from '../DraggableIssueCard';
-import type { Issue } from '@/types';
 
 // Mock useDraggable hook
 vi.mock('@dnd-kit/core', async () => {

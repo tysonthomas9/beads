@@ -3,9 +3,11 @@
  * Renders edges between issue nodes with visual styles based on dependency type.
  */
 
-import { memo } from 'react';
 import { BaseEdge, EdgeLabelRenderer, getSmoothStepPath, type EdgeProps } from '@xyflow/react';
+import { memo } from 'react';
+
 import type { DependencyEdge as DependencyEdgeType, DependencyType } from '@/types';
+
 import styles from './DependencyEdge.module.css';
 
 /**

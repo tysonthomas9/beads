@@ -4,7 +4,9 @@
  */
 
 import { useEffect, useCallback } from 'react';
+
 import type { LoomTaskInfo } from '@/types';
+
 import styles from './TaskDrawer.module.css';
 
 /**

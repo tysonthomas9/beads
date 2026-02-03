@@ -7,9 +7,10 @@
  * flow into child nodes in a consistent direction.
  */
 
-import { useMemo } from 'react';
 import dagre from '@dagrejs/dagre';
 import { Position } from '@xyflow/react';
+import { useMemo } from 'react';
+
 import type { IssueNode, DependencyEdge } from '@/types';
 
 /**

@@ -6,8 +6,8 @@
  * Unit tests for ConnectionBanner component.
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import '@testing-library/jest-dom';
 
 import { ConnectionBanner } from '../ConnectionBanner';

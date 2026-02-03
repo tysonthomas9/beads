@@ -4,6 +4,7 @@
  */
 
 import { memo } from 'react';
+
 import styles from './StatsHeader.module.css';
 
 /**

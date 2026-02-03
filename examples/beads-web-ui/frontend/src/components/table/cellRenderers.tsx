@@ -4,8 +4,11 @@
  */
 
 import type { ReactNode } from 'react';
-import type { Issue, Priority, Status, IssueType } from '@/types';
+
 import type { BlockedInfo } from '@/components/KanbanBoard';
+import type { Issue, Priority, Status, IssueType } from '@/types';
+
+import { BlockedCell } from './BlockedCell';
 import {
   formatPriority,
   getPriorityClassName,
@@ -14,7 +17,6 @@ import {
   formatIssueType,
   formatDate,
 } from './columns';
-import { BlockedCell } from './BlockedCell';
 
 /**
  * Options for rendering cell content.

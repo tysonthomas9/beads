@@ -4,7 +4,9 @@
  */
 
 import type { ReactNode } from 'react';
+
 import type { Issue, Status } from '@/types';
+
 import type { BlockedInfo } from './KanbanBoard';
 
 /**

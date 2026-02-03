@@ -4,6 +4,7 @@
  */
 
 import type { ViewMode } from '@/components/ViewSwitcher';
+
 import styles from './NavRail.module.css';
 
 export interface NavRailProps {

@@ -1,10 +1,12 @@
 /**
  * @vitest-environment jsdom
  */
-import { describe, it, expect } from 'vitest';
 import { renderHook } from '@testing-library/react';
-import { useBlockedChain, getBlockedChain, computeAllBlockedCounts } from '../useBlockedChain';
+import { describe, it, expect } from 'vitest';
+
 import type { DependencyEdge } from '@/types';
+
+import { useBlockedChain, getBlockedChain, computeAllBlockedCounts } from '../useBlockedChain';
 
 /**
  * Helper to create a mock DependencyEdge for testing.

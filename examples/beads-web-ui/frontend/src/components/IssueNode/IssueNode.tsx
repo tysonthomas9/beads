@@ -3,11 +3,13 @@
  * Displays an issue as a node with connection handles.
  */
 
-import { memo } from 'react';
 import { Handle, Position, type NodeProps } from '@xyflow/react';
-import type { IssueNode as IssueNodeType } from '@/types';
+import { memo } from 'react';
+
 import { BlockedBadge } from '@/components/BlockedBadge';
+import type { IssueNode as IssueNodeType } from '@/types';
 import { formatIssueId } from '@/utils/formatIssueId';
+
 import styles from './IssueNode.module.css';
 
 export interface IssueNodeProps extends NodeProps<IssueNodeType> {

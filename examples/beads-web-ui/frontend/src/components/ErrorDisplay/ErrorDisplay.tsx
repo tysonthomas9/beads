@@ -4,6 +4,7 @@
  */
 
 import type { ReactNode } from 'react';
+
 import styles from './ErrorDisplay.module.css';
 
 /**

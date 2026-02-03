@@ -6,13 +6,14 @@
  * Unit tests for AgentRow component.
  */
 
-import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
+import { describe, it, expect } from 'vitest';
 import '@testing-library/jest-dom';
+
+import type { ParsedLoomStatus } from '@/types';
 
 import { AgentRow } from '../AgentRow';
 import type { AgentRowProps } from '../AgentRow';
-import type { ParsedLoomStatus } from '@/types';
 
 /**
  * Create default props for AgentRow.

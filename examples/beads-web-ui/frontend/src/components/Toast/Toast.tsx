@@ -4,7 +4,9 @@
  */
 
 import { useCallback } from 'react';
+
 import type { ToastType } from '@/hooks/useToast';
+
 import styles from './Toast.module.css';
 
 /**

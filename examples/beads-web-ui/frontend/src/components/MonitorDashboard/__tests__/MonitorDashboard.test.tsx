@@ -2,11 +2,13 @@
  * @vitest-environment jsdom
  */
 
-import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
+import { describe, it, expect, vi } from 'vitest';
+
 import '@testing-library/jest-dom';
-import { MonitorDashboard } from '../MonitorDashboard';
 import type { Priority } from '@/types';
+
+import { MonitorDashboard } from '../MonitorDashboard';
 
 // Mock the hooks to prevent API calls in tests
 const mockSetActiveView = vi.fn();

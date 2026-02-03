@@ -7,7 +7,6 @@
  * where columns can be computed from issue data (status + blocked dependencies + title patterns).
  */
 
-import { useState, useMemo, useCallback } from 'react';
 import {
   DndContext,
   DragOverlay,
@@ -19,15 +18,18 @@ import {
   type DragStartEvent,
   type DragEndEvent,
 } from '@dnd-kit/core';
-import type { Issue, Status } from '@/types';
-import type { FilterState } from '@/hooks/useFilterState';
-import { StatusColumn } from '@/components/StatusColumn';
+import { useState, useMemo, useCallback } from 'react';
+
 import { DraggableIssueCard } from '@/components/DraggableIssueCard';
 import { EmptyColumn } from '@/components/EmptyColumn';
+import { StatusColumn } from '@/components/StatusColumn';
 import { formatStatusLabel } from '@/components/StatusColumn/utils';
-import type { KanbanColumnConfig } from './types';
+import type { FilterState } from '@/hooks/useFilterState';
+import type { Issue, Status } from '@/types';
+
 import { DEFAULT_COLUMNS } from './columnConfigs';
 import styles from './KanbanBoard.module.css';
+import type { KanbanColumnConfig } from './types';
 
 /**
  * Blocked issue info for lookup.

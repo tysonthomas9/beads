@@ -11,8 +11,9 @@ import {
   type ChangeEvent,
   type KeyboardEvent,
 } from 'react';
-import { SearchIcon } from './SearchIcon';
+
 import { ClearIcon } from './ClearIcon';
+import { SearchIcon } from './SearchIcon';
 import styles from './SearchInput.module.css';
 
 /**
