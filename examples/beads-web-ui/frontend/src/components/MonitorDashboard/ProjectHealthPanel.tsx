@@ -5,7 +5,9 @@
  */
 
 import { useMemo } from 'react';
+
 import type { LoomStats, BlockedIssue, Issue } from '@/types';
+
 import styles from './ProjectHealthPanel.module.css';
 
 /**

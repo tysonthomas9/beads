@@ -29,7 +29,7 @@ func (s *DoltStore) AddDependency(ctx context.Context, dep *types.Dependency, ac
 }
 
 // RemoveDependency removes a dependency between two issues
-func (s *DoltStore) RemoveDependency(ctx context.Context, issueID, dependsOnID string, actor string) error {
+func (s *DoltStore) RemoveDependency(ctx context.Context, issueID, dependsOnID string, _ string) error {
 	_, err := s.db.ExecContext(ctx, `
 		DELETE FROM dependencies WHERE issue_id = ? AND depends_on_id = ?
 	`, issueID, dependsOnID)
@@ -395,7 +395,7 @@ func (s *DoltStore) GetDependenciesForIssues(ctx context.Context, issueIDs []str
 }
 
 // GetDependencyTree returns a dependency tree for visualization
-func (s *DoltStore) GetDependencyTree(ctx context.Context, issueID string, maxDepth int, showAllPaths bool, reverse bool) ([]*types.TreeNode, error) {
+func (s *DoltStore) GetDependencyTree(ctx context.Context, issueID string, maxDepth int, _ bool, reverse bool) ([]*types.TreeNode, error) {
 	// Simple implementation - can be optimized with CTE
 	visited := make(map[string]bool)
 	return s.buildDependencyTree(ctx, issueID, 0, maxDepth, reverse, visited)

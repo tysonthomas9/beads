@@ -6,11 +6,13 @@
  * Unit tests for PriorityDropdown component.
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+
 import '@testing-library/jest-dom';
-import { PriorityDropdown } from '../PriorityDropdown';
 import type { Priority } from '@/types';
+
+import { PriorityDropdown } from '../PriorityDropdown';
 
 describe('PriorityDropdown', () => {
   const defaultProps = {

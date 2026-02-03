@@ -16,7 +16,6 @@ import {
   NETWORK_PATTERNS,
   A11Y_ATTRIBUTES,
 } from '../chrome-visual-helpers';
-
 import type { ConnectionStateKey, IssueStatus, PriorityLevel } from '../chrome-visual-helpers';
 
 /**

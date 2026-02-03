@@ -680,10 +680,8 @@ func TestFollowRedirect(t *testing.T) {
 				if resultResolved != targetResolved {
 					t.Errorf("FollowRedirect() = %q, want %q", result, targetDir)
 				}
-			} else {
-				if resultResolved != stubResolved {
-					t.Errorf("FollowRedirect() = %q, want original %q", result, stubDir)
-				}
+			} else if resultResolved != stubResolved {
+				t.Errorf("FollowRedirect() = %q, want original %q", result, stubDir)
 			}
 		})
 	}

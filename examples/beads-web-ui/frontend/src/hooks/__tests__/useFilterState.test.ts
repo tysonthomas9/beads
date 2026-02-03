@@ -1,8 +1,11 @@
 /**
  * @vitest-environment jsdom
  */
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+
+import type { Priority } from '@/types';
+
 import {
   useFilterState,
   toQueryString,
@@ -11,7 +14,6 @@ import {
   type FilterState,
   type GroupByOption,
 } from '../useFilterState';
-import type { Priority } from '@/types';
 
 /**
  * Mock window.location and window.history for URL sync tests.

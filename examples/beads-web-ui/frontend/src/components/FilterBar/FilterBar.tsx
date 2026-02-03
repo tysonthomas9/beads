@@ -5,8 +5,10 @@
  */
 
 import { useState, useCallback, useEffect, useRef } from 'react';
-import type { Priority, IssueType } from '@/types';
+
 import { type FilterState, type FilterActions, isEmptyFilter } from '@/hooks/useFilterState';
+import type { Priority, IssueType } from '@/types';
+
 import styles from './FilterBar.module.css';
 
 /**

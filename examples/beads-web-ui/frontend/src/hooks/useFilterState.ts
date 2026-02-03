@@ -4,8 +4,8 @@
  */
 
 import { useState, useCallback, useEffect, useMemo } from 'react';
-import type { Priority } from '@/types';
-import type { IssueType } from '@/types';
+
+import type { Priority, IssueType } from '@/types';
 
 /**
  * Group by option for swim lane grouping.

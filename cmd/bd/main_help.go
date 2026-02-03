@@ -52,9 +52,7 @@ func colorizeHelpOutput(help string) string {
 
 	// Match section headers in subcommand help (Examples:, Flags:, etc.)
 	sectionHeaderRE := regexp.MustCompile(`(?m)^(Examples|Flags|Usage|Global Flags|Aliases|Available Commands):`)
-	result = sectionHeaderRE.ReplaceAllStringFunc(result, func(match string) string {
-		return ui.RenderAccent(match)
-	})
+	result = sectionHeaderRE.ReplaceAllStringFunc(result, ui.RenderAccent)
 
 	// Match command lines: "  command   Description text"
 	// Commands are indented with 2 spaces, followed by spaces, then description
@@ -110,17 +108,13 @@ func colorizeHelpOutput(help string) string {
 // muteDefaults applies muted styling to default value annotations
 func muteDefaults(text string) string {
 	defaultRE := regexp.MustCompile(`(\(default[^)]*\))`)
-	return defaultRE.ReplaceAllStringFunc(text, func(match string) string {
-		return ui.RenderMuted(match)
-	})
+	return defaultRE.ReplaceAllStringFunc(text, ui.RenderMuted)
 }
 
 // highlightEntryPoints applies accent styling to entry point hints like "(start here)"
 func highlightEntryPoints(text string) string {
 	entryRE := regexp.MustCompile(`(\(start here\))`)
-	return entryRE.ReplaceAllStringFunc(text, func(match string) string {
-		return ui.RenderAccent(match)
-	})
+	return entryRE.ReplaceAllStringFunc(text, ui.RenderAccent)
 }
 
 // colorizeCommandRefs applies command styling to references in text

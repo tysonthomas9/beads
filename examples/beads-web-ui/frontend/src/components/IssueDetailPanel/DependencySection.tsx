@@ -5,7 +5,9 @@
  */
 
 import { useState, useCallback, useRef, useEffect, type KeyboardEvent } from 'react';
+
 import type { IssueWithDependencyMetadata, DependencyType } from '@/types';
+
 import styles from './DependencySection.module.css';
 
 /**

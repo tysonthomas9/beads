@@ -1534,9 +1534,8 @@ func (s *Server) handleCount(req *Request) Response {
 					counts[label]++
 				}
 				continue
-			} else {
-				groupKey = "(no labels)"
 			}
+			groupKey = "(no labels)"
 		default:
 			return Response{
 				Success: false,

@@ -6,11 +6,13 @@
  * DependencySection component tests.
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+
 import '@testing-library/jest-dom';
-import { DependencySection, type DependencySectionProps } from '../DependencySection';
 import type { IssueWithDependencyMetadata } from '@/types';
+
+import { DependencySection, type DependencySectionProps } from '../DependencySection';
 
 // Helper to create test dependencies
 function createDependency(

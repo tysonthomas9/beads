@@ -8,11 +8,14 @@
  * and does not appear for other columns.
  */
 
-import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
+import { describe, it, expect, vi } from 'vitest';
 import '@testing-library/jest-dom';
 
+import { useAgentContext } from '@/hooks';
 import type { Issue, LoomAgentStatus } from '@/types';
+
+import { IssueCard } from '../IssueCard';
 
 // Mock useAgentContext to control agent data
 vi.mock('@/hooks', async (importOriginal) => {
@@ -58,9 +61,6 @@ vi.mock('@/components/AgentCard', () => ({
   getStatusDotColor: vi.fn(() => '#22c55e'),
   getStatusLabel: vi.fn(() => 'Working'),
 }));
-
-import { useAgentContext } from '@/hooks';
-import { IssueCard } from '../IssueCard';
 
 const mockUseAgentContext = vi.mocked(useAgentContext);
 

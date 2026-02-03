@@ -7,9 +7,11 @@
  * IssueNode and DependencyEdge objects.
  */
 
-import { useMemo } from 'react';
 import { MarkerType } from '@xyflow/react';
+import { useMemo } from 'react';
+
 import type { Issue, Dependency, DependencyType, IssueNode, DependencyEdge } from '@/types';
+
 import { computeAllBlockedCounts } from './useBlockedChain';
 
 /**

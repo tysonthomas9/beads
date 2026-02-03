@@ -16,8 +16,8 @@ import (
 
 	// Import SQLite driver
 	sqlite3 "github.com/ncruces/go-sqlite3"
-	_ "github.com/ncruces/go-sqlite3/driver"
-	_ "github.com/ncruces/go-sqlite3/embed"
+	_ "github.com/ncruces/go-sqlite3/driver" // Required for database/sql driver registration
+	_ "github.com/ncruces/go-sqlite3/embed"  // Required for embedded SQLite binary
 	"github.com/tetratelabs/wazero"
 )
 
@@ -263,7 +263,7 @@ func NewReadOnly(ctx context.Context, path string) (*SQLiteStorage, error) {
 }
 
 // NewReadOnlyWithTimeout opens an existing database in read-only mode with configurable timeout.
-func NewReadOnlyWithTimeout(ctx context.Context, path string, busyTimeout time.Duration) (*SQLiteStorage, error) {
+func NewReadOnlyWithTimeout(_ context.Context, path string, busyTimeout time.Duration) (*SQLiteStorage, error) {
 	// Read-only mode doesn't make sense for in-memory databases
 	if path == ":memory:" || (strings.HasPrefix(path, "file:") && strings.Contains(path, "mode=memory")) {
 		return nil, fmt.Errorf("read-only mode not supported for in-memory databases")

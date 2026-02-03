@@ -1,10 +1,12 @@
 /**
  * @vitest-environment jsdom
  */
-import { describe, it, expect } from 'vitest';
 import { renderHook } from '@testing-library/react';
-import { useGraphData } from './useGraphData';
+import { describe, it, expect } from 'vitest';
+
 import type { Issue, Dependency, DependencyType } from '@/types';
+
+import { useGraphData } from './useGraphData';
 
 /**
  * Helper to create a test issue with required fields.

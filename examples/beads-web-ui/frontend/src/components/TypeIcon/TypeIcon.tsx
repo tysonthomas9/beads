@@ -5,6 +5,7 @@
 
 import type { IssueType, KnownIssueType } from '@/types';
 import { isKnownIssueType } from '@/types';
+
 import styles from './TypeIcon.module.css';
 
 /**

@@ -4,11 +4,13 @@
  */
 
 import type { KeyboardEvent, ChangeEvent, MouseEvent } from 'react';
-import type { Issue } from '@/types';
+
 import type { BlockedInfo } from '@/components/KanbanBoard';
+import type { Issue } from '@/types';
+
+import { renderCellContent } from './cellRenderers';
 import type { ColumnDef } from './columns';
 import { getCellValue } from './columns';
-import { renderCellContent } from './cellRenderers';
 
 /**
  * Props for IssueRow component.

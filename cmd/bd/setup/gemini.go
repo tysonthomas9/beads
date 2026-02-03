@@ -40,9 +40,7 @@ func defaultGeminiEnv() (geminiEnv, error) {
 		projectDir: workDir,
 		ensureDir:  EnsureDir,
 		readFile:   os.ReadFile,
-		writeFile: func(path string, data []byte) error {
-			return atomicWriteFile(path, data)
-		},
+		writeFile: atomicWriteFile,
 	}, nil
 }
 

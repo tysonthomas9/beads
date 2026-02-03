@@ -497,7 +497,6 @@ func performIncrementalExport(ctx context.Context, jsonlPath string, dirtyIDs []
 	contentHash, _ := computeJSONLHash(jsonlPath)
 	exportTime := time.Now().Format(time.RFC3339Nano)
 
-	// Only clear dirty flags for the dirtyIDs (which we received as parameter)
 	return &ExportResult{
 		JSONLPath:   jsonlPath,
 		ExportedIDs: dirtyIDs, // Only clear dirty flags for actually dirty issues

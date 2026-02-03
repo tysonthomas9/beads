@@ -6,8 +6,8 @@
  * Unit tests for LoadingSkeleton component.
  */
 
-import { describe, it, expect } from 'vitest';
 import { render } from '@testing-library/react';
+import { describe, it, expect } from 'vitest';
 import '@testing-library/jest-dom';
 
 import { LoadingSkeleton } from '../LoadingSkeleton';

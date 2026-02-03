@@ -4,9 +4,11 @@
  */
 
 import { createContext, useContext, useCallback, type ReactNode } from 'react';
+
+import type { LoomAgentStatus } from '@/types';
+
 import { useAgents } from './useAgents';
 import type { UseAgentsResult } from './useAgents';
-import type { LoomAgentStatus } from '@/types';
 
 /**
  * Context value exposed by AgentProvider.

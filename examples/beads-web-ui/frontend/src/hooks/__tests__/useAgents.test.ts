@@ -1,11 +1,16 @@
 /**
  * @vitest-environment jsdom
  */
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
-import { useAgents } from '../useAgents';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+
+import { fetchAgents, fetchStatus, fetchTasks } from '@/api';
 import type { FetchStatusResult } from '@/api/agents';
 import type { LoomTaskLists } from '@/types';
+
+import { useAgents } from '../useAgents';
+
+// Import the mocked functions for test manipulation
 
 // Mock the agent API functions
 vi.mock('@/api', () => ({
@@ -13,9 +18,6 @@ vi.mock('@/api', () => ({
   fetchStatus: vi.fn(),
   fetchTasks: vi.fn(),
 }));
-
-// Import the mocked functions for test manipulation
-import { fetchAgents, fetchStatus, fetchTasks } from '@/api';
 const mockFetchAgents = vi.mocked(fetchAgents);
 const mockFetchStatus = vi.mocked(fetchStatus);
 const mockFetchTasks = vi.mocked(fetchTasks);

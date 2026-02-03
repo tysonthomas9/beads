@@ -39,7 +39,7 @@ Examples:
   vibecli merge --all              # Merge all worktrees to integration branch
   vibecli sync --all               # Sync all worktrees from integration branch
   vibecli reset falcon --force     # Reset falcon worktree`,
-	Run: func(cmd *cobra.Command, args []string) {
+	Run: func(cmd *cobra.Command, _ []string) {
 		if v, _ := cmd.Flags().GetBool("version"); v {
 			fmt.Printf("vibecli version %s (%s)\n", Version, Build)
 			return

@@ -6,12 +6,13 @@
  * Unit tests for AgentActivityPanel component.
  */
 
-import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
+import { describe, it, expect, vi } from 'vitest';
 import '@testing-library/jest-dom';
 
-import { AgentActivityPanel } from '../AgentActivityPanel';
 import type { LoomAgentStatus, LoomSyncInfo, LoomTaskInfo, LoomConnectionState } from '@/types';
+
+import { AgentActivityPanel } from '../AgentActivityPanel';
 
 /**
  * Create a mock agent status for testing.

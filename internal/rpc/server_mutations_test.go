@@ -830,11 +830,9 @@ func TestHandleDelete_ErrorIssueNotFound(t *testing.T) {
 				t.Errorf("expected 'not found' error, got: %v", errors)
 			}
 		}
-	} else {
+	} else if deleteResp.Error == "" {
 		// Complete failure is also acceptable
-		if deleteResp.Error == "" {
-			t.Error("expected error message")
-		}
+		t.Error("expected error message")
 	}
 }
 
@@ -896,11 +894,9 @@ func TestHandleDelete_ErrorCannotDeleteTemplate(t *testing.T) {
 		} else {
 			t.Error("expected errors in response for template deletion")
 		}
-	} else {
+	} else if deleteResp.Error == "" {
 		// Complete failure with appropriate error is also acceptable
-		if deleteResp.Error == "" {
-			t.Error("expected error message")
-		}
+		t.Error("expected error message")
 	}
 
 	// Verify template still exists

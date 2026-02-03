@@ -4,7 +4,9 @@
  */
 
 import { memo } from 'react';
+
 import type { Statistics } from '@/types';
+
 import { StatBadge } from './StatBadge';
 import styles from './StatsHeader.module.css';
 

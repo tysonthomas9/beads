@@ -6,13 +6,14 @@
  * Unit tests for BlockingEdge component.
  */
 
-import { describe, it, expect } from 'vitest';
-import { render } from '@testing-library/react';
 import '@testing-library/jest-dom';
+import { render } from '@testing-library/react';
 import { ReactFlowProvider, Position } from '@xyflow/react';
+import { describe, it, expect } from 'vitest';
+
+import type { DependencyEdgeData, DependencyType } from '@/types';
 
 import { BlockingEdge } from '../BlockingEdge';
-import type { DependencyEdgeData, DependencyType } from '@/types';
 
 /**
  * Create test props for BlockingEdge component.

@@ -6,13 +6,16 @@
  * Unit tests for App component.
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import '@testing-library/jest-dom';
 
-import App from '../App';
-import type { Issue, Status } from '@/types';
 import type { ConnectionState } from '@/api/sse';
+import { useFilterState, useIssueDetail, useViewState, useAgents, useAgentContext } from '@/hooks';
+import { useIssues } from '@/hooks/useIssues';
+import type { Issue, Status } from '@/types';
+
+import App from '../App';
 
 // Create hoisted mocks that can be shared across mock definitions
 const { mockUseIssues, mockUseIssueDetail, mockUseToast, mockUseAgents, mockUseAgentContext } =
@@ -232,10 +235,6 @@ vi.mock('@/hooks', () => ({
     clearRecentAssignees: vi.fn(),
   })),
 }));
-
-// Import the mocked module
-import { useIssues } from '@/hooks/useIssues';
-import { useFilterState, useIssueDetail, useViewState, useAgents, useAgentContext } from '@/hooks';
 
 // Alias for convenience in tests (prefixed with _ to satisfy linter for unused vars)
 const _useIssuesMock = mockUseIssues;
@@ -2238,6 +2237,591 @@ describe('App', () => {
       // Toggle cycle 3: open
       fireEvent.click(button);
       expect(button).toHaveAttribute('data-active', 'true');
+    });
+  });
+
+  describe('panel close timeout race condition prevention', () => {
+    beforeEach(() => {
+      vi.useFakeTimers();
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it('cancels pending issue panel timeout when new issue is selected', () => {
+      const fetchIssue = vi.fn();
+      const clearIssue = vi.fn();
+      const issues = [
+        createMockIssue({
+          id: 'issue-1',
+          title: 'First Issue',
+          status: 'open',
+        }),
+        createMockIssue({
+          id: 'issue-2',
+          title: 'Second Issue',
+          status: 'open',
+        }),
+      ];
+      const mockReturn = createMockUseIssuesReturn({ issues });
+      vi.mocked(useIssues).mockReturnValue(mockReturn);
+      // Provide issueDetails so the close button is rendered
+      vi.mocked(useIssueDetail).mockReturnValue(
+        createMockUseIssueDetailReturn({
+          fetchIssue,
+          clearIssue,
+          issueDetails: {
+            id: 'issue-1',
+            title: 'First Issue',
+            priority: 2,
+            status: 'open',
+            issue_type: 'task',
+            created_at: '2024-01-01T00:00:00Z',
+            updated_at: '2024-01-01T00:00:00Z',
+          },
+        })
+      );
+
+      const { container } = render(<App />);
+
+      // Open issue panel for first issue (use aria-label to target the issue card button specifically)
+      const firstIssue = screen.getByRole('button', { name: /Issue: First Issue/ });
+      fireEvent.click(firstIssue);
+
+      // Panel should be open
+      const panel = container.querySelector('[data-testid="issue-detail-panel"]');
+      expect(panel).toHaveAttribute('data-state', 'open');
+      expect(fetchIssue).toHaveBeenCalledWith('issue-1');
+
+      // Close the panel (starts 300ms timeout to clear selectedIssueId)
+      const closeButton = screen.getByTestId('header-close-button');
+      fireEvent.click(closeButton);
+
+      // Panel starts closing
+      expect(panel).toHaveAttribute('data-state', 'closed');
+
+      // Before timeout completes (within 300ms), click a different issue
+      vi.advanceTimersByTime(100); // Only 100ms passed
+      const secondIssue = screen.getByRole('button', { name: /Issue: Second Issue/ });
+      fireEvent.click(secondIssue);
+
+      // Panel should immediately reopen for the new issue
+      expect(panel).toHaveAttribute('data-state', 'open');
+      expect(fetchIssue).toHaveBeenCalledWith('issue-2');
+
+      // Advance past original timeout (300ms total = 200ms more)
+      vi.advanceTimersByTime(300);
+
+      // Panel should still be open (timeout was cancelled)
+      expect(panel).toHaveAttribute('data-state', 'open');
+      // clearIssue should NOT have been called (it would clear the new selection)
+      expect(clearIssue).not.toHaveBeenCalled();
+    });
+
+    it('rapidly switching between issues does not blank the panel', () => {
+      const fetchIssue = vi.fn();
+      const clearIssue = vi.fn();
+      const issues = [
+        createMockIssue({ id: 'issue-1', title: 'Issue One', status: 'open' }),
+        createMockIssue({ id: 'issue-2', title: 'Issue Two', status: 'open' }),
+        createMockIssue({ id: 'issue-3', title: 'Issue Three', status: 'open' }),
+      ];
+      const mockReturn = createMockUseIssuesReturn({ issues });
+      vi.mocked(useIssues).mockReturnValue(mockReturn);
+      vi.mocked(useIssueDetail).mockReturnValue(
+        createMockUseIssueDetailReturn({
+          fetchIssue,
+          clearIssue,
+        })
+      );
+
+      const { container } = render(<App />);
+      const panel = container.querySelector('[data-testid="issue-detail-panel"]');
+
+      // Click issue 1
+      fireEvent.click(screen.getByText('Issue One'));
+      expect(panel).toHaveAttribute('data-state', 'open');
+
+      // Immediately click issue 2 (no delay)
+      fireEvent.click(screen.getByText('Issue Two'));
+      expect(panel).toHaveAttribute('data-state', 'open');
+
+      // Immediately click issue 3 (no delay)
+      fireEvent.click(screen.getByText('Issue Three'));
+      expect(panel).toHaveAttribute('data-state', 'open');
+
+      // Wait for any timeouts to complete
+      vi.advanceTimersByTime(500);
+
+      // Panel should still be open showing issue 3
+      expect(panel).toHaveAttribute('data-state', 'open');
+      expect(fetchIssue).toHaveBeenLastCalledWith('issue-3');
+      // clearIssue should never have been called during rapid switching
+      expect(clearIssue).not.toHaveBeenCalled();
+    });
+
+    it('opening agent panel then quickly opening issue panel shows the issue correctly', () => {
+      const fetchIssue = vi.fn();
+      const clearIssue = vi.fn();
+      const issues = [createMockIssue({ id: 'issue-1', title: 'Test Issue', status: 'open' })];
+      const mockReturn = createMockUseIssuesReturn({ issues });
+      vi.mocked(useIssues).mockReturnValue(mockReturn);
+      vi.mocked(useIssueDetail).mockReturnValue(
+        createMockUseIssueDetailReturn({
+          fetchIssue,
+          clearIssue,
+        })
+      );
+
+      // Mock agents for the sidebar
+      vi.mocked(useAgentContext).mockReturnValue({
+        agents: [
+          {
+            name: 'agent-1',
+            status: 'idle',
+            current_task: null,
+            workspace: '/test',
+            started_at: '2024-01-01T00:00:00Z',
+          },
+        ],
+        agentTasks: {},
+        tasks: {
+          needs_planning: 0,
+          ready_to_implement: 0,
+          in_progress: 0,
+          need_review: 0,
+          blocked: 0,
+        },
+        taskLists: {
+          needsPlanning: [],
+          readyToImplement: [],
+          needsReview: [],
+          inProgress: [],
+          blocked: [],
+        },
+        sync: { db_synced: true, db_last_sync: '', git_needs_push: 0, git_needs_pull: 0 },
+        stats: { open: 0, closed: 0, total: 0, completion: 0 },
+        isLoading: false,
+        isConnected: true,
+        connectionState: 'connected',
+        wasEverConnected: true,
+        retryCountdown: 0,
+        error: null,
+        lastUpdated: null,
+        refetch: vi.fn(),
+        retryNow: vi.fn(),
+        getAgentByName: vi.fn(() => undefined),
+      });
+      vi.mocked(useAgents).mockReturnValue({
+        agents: [
+          {
+            name: 'agent-1',
+            status: 'idle',
+            current_task: null,
+            workspace: '/test',
+            started_at: '2024-01-01T00:00:00Z',
+          },
+        ],
+        agentTasks: {},
+        tasks: {
+          needs_planning: 0,
+          ready_to_implement: 0,
+          in_progress: 0,
+          need_review: 0,
+          blocked: 0,
+        },
+        taskLists: {
+          needsPlanning: [],
+          readyToImplement: [],
+          needsReview: [],
+          inProgress: [],
+          blocked: [],
+        },
+        sync: { db_synced: true, db_last_sync: '', git_needs_push: 0, git_needs_pull: 0 },
+        stats: { open: 0, closed: 0, total: 0, completion: 0 },
+        isLoading: false,
+        isConnected: true,
+        connectionState: 'connected',
+        wasEverConnected: true,
+        retryCountdown: 0,
+        error: null,
+        lastUpdated: null,
+        refetch: vi.fn(),
+        retryNow: vi.fn(),
+      });
+
+      const { container } = render(<App />);
+      const issuePanel = container.querySelector('[data-testid="issue-detail-panel"]');
+      const agentPanel = container.querySelector('[data-testid="agent-detail-panel"]');
+
+      // Open agent panel
+      const agentCard = screen.getByText('agent-1');
+      fireEvent.click(agentCard);
+      expect(agentPanel).toHaveAttribute('data-state', 'open');
+      expect(issuePanel).toHaveAttribute('data-state', 'closed');
+
+      // Quickly (within 300ms timeout) open issue panel
+      vi.advanceTimersByTime(100);
+      const issueCard = screen.getByText('Test Issue');
+      fireEvent.click(issueCard);
+
+      // Issue panel should now be open
+      expect(issuePanel).toHaveAttribute('data-state', 'open');
+      // Agent panel should be closed
+      expect(agentPanel).toHaveAttribute('data-state', 'closed');
+      expect(fetchIssue).toHaveBeenCalledWith('issue-1');
+
+      // Wait for all timeouts to complete
+      vi.advanceTimersByTime(500);
+
+      // Issue panel should still be open (agent panel close timeout should not affect it)
+      expect(issuePanel).toHaveAttribute('data-state', 'open');
+    });
+
+    it('opening issue panel then quickly opening agent panel shows the agent correctly', () => {
+      const fetchIssue = vi.fn();
+      const clearIssue = vi.fn();
+      const issues = [createMockIssue({ id: 'issue-1', title: 'Test Issue', status: 'open' })];
+      const mockReturn = createMockUseIssuesReturn({ issues });
+      vi.mocked(useIssues).mockReturnValue(mockReturn);
+      vi.mocked(useIssueDetail).mockReturnValue(
+        createMockUseIssueDetailReturn({
+          fetchIssue,
+          clearIssue,
+        })
+      );
+
+      // Mock agents for the sidebar
+      vi.mocked(useAgentContext).mockReturnValue({
+        agents: [
+          {
+            name: 'agent-1',
+            status: 'idle',
+            current_task: null,
+            workspace: '/test',
+            started_at: '2024-01-01T00:00:00Z',
+          },
+        ],
+        agentTasks: {},
+        tasks: {
+          needs_planning: 0,
+          ready_to_implement: 0,
+          in_progress: 0,
+          need_review: 0,
+          blocked: 0,
+        },
+        taskLists: {
+          needsPlanning: [],
+          readyToImplement: [],
+          needsReview: [],
+          inProgress: [],
+          blocked: [],
+        },
+        sync: { db_synced: true, db_last_sync: '', git_needs_push: 0, git_needs_pull: 0 },
+        stats: { open: 0, closed: 0, total: 0, completion: 0 },
+        isLoading: false,
+        isConnected: true,
+        connectionState: 'connected',
+        wasEverConnected: true,
+        retryCountdown: 0,
+        error: null,
+        lastUpdated: null,
+        refetch: vi.fn(),
+        retryNow: vi.fn(),
+        getAgentByName: vi.fn(() => undefined),
+      });
+      vi.mocked(useAgents).mockReturnValue({
+        agents: [
+          {
+            name: 'agent-1',
+            status: 'idle',
+            current_task: null,
+            workspace: '/test',
+            started_at: '2024-01-01T00:00:00Z',
+          },
+        ],
+        agentTasks: {},
+        tasks: {
+          needs_planning: 0,
+          ready_to_implement: 0,
+          in_progress: 0,
+          need_review: 0,
+          blocked: 0,
+        },
+        taskLists: {
+          needsPlanning: [],
+          readyToImplement: [],
+          needsReview: [],
+          inProgress: [],
+          blocked: [],
+        },
+        sync: { db_synced: true, db_last_sync: '', git_needs_push: 0, git_needs_pull: 0 },
+        stats: { open: 0, closed: 0, total: 0, completion: 0 },
+        isLoading: false,
+        isConnected: true,
+        connectionState: 'connected',
+        wasEverConnected: true,
+        retryCountdown: 0,
+        error: null,
+        lastUpdated: null,
+        refetch: vi.fn(),
+        retryNow: vi.fn(),
+      });
+
+      const { container } = render(<App />);
+      const issuePanel = container.querySelector('[data-testid="issue-detail-panel"]');
+      const agentPanel = container.querySelector('[data-testid="agent-detail-panel"]');
+
+      // Open issue panel
+      const issueCard = screen.getByText('Test Issue');
+      fireEvent.click(issueCard);
+      expect(issuePanel).toHaveAttribute('data-state', 'open');
+      expect(agentPanel).toHaveAttribute('data-state', 'closed');
+
+      // Quickly (within 300ms timeout) open agent panel
+      vi.advanceTimersByTime(100);
+      const agentCard = screen.getByText('agent-1');
+      fireEvent.click(agentCard);
+
+      // Agent panel should now be open
+      expect(agentPanel).toHaveAttribute('data-state', 'open');
+      // Issue panel should be closed
+      expect(issuePanel).toHaveAttribute('data-state', 'closed');
+
+      // Wait for all timeouts to complete
+      vi.advanceTimersByTime(500);
+
+      // Agent panel should still be open (issue panel close timeout should not affect it)
+      expect(agentPanel).toHaveAttribute('data-state', 'open');
+      // clearIssue should have been called after the timeout to clean up
+      // (This is expected since issue panel was properly closed)
+    });
+
+    it('cleans up timeouts on unmount', () => {
+      const fetchIssue = vi.fn();
+      const clearIssue = vi.fn();
+      const issues = [createMockIssue({ id: 'issue-1', title: 'Test Issue', status: 'open' })];
+      const mockReturn = createMockUseIssuesReturn({ issues });
+      vi.mocked(useIssues).mockReturnValue(mockReturn);
+      // Provide issueDetails so the close button is rendered
+      vi.mocked(useIssueDetail).mockReturnValue(
+        createMockUseIssueDetailReturn({
+          fetchIssue,
+          clearIssue,
+          issueDetails: {
+            id: 'issue-1',
+            title: 'Test Issue',
+            priority: 2,
+            status: 'open',
+            issue_type: 'task',
+            created_at: '2024-01-01T00:00:00Z',
+            updated_at: '2024-01-01T00:00:00Z',
+          },
+        })
+      );
+
+      const { container, unmount } = render(<App />);
+      const panel = container.querySelector('[data-testid="issue-detail-panel"]');
+
+      // Open and close the panel (starts timeout) - use aria-label to avoid duplicate text match
+      fireEvent.click(screen.getByRole('button', { name: /Issue: Test Issue/ }));
+      expect(panel).toHaveAttribute('data-state', 'open');
+
+      // Close the panel
+      const closeButton = screen.getByTestId('header-close-button');
+      fireEvent.click(closeButton);
+
+      // Unmount before timeout completes
+      vi.advanceTimersByTime(100);
+      unmount();
+
+      // Advance past the timeout - should not cause any errors
+      // This verifies the cleanup effect clears the timeout
+      expect(() => {
+        vi.advanceTimersByTime(500);
+      }).not.toThrow();
+    });
+
+    it('handles close then reopen within timeout window correctly', () => {
+      const fetchIssue = vi.fn();
+      const clearIssue = vi.fn();
+      const issues = [
+        createMockIssue({
+          id: 'issue-1',
+          title: 'Same Issue',
+          status: 'open',
+        }),
+      ];
+      const mockReturn = createMockUseIssuesReturn({ issues });
+      vi.mocked(useIssues).mockReturnValue(mockReturn);
+      vi.mocked(useIssueDetail).mockReturnValue(
+        createMockUseIssueDetailReturn({
+          fetchIssue,
+          clearIssue,
+          issueDetails: {
+            id: 'issue-1',
+            title: 'Same Issue',
+            priority: 2,
+            status: 'open',
+            issue_type: 'task',
+            created_at: '2024-01-01T00:00:00Z',
+            updated_at: '2024-01-01T00:00:00Z',
+          },
+        })
+      );
+
+      const { container } = render(<App />);
+      const panel = container.querySelector('[data-testid="issue-detail-panel"]');
+
+      // Open issue panel
+      const issueCard = screen.getByRole('button', { name: /Issue: Same Issue/ });
+      fireEvent.click(issueCard);
+      expect(panel).toHaveAttribute('data-state', 'open');
+      expect(fetchIssue).toHaveBeenCalledTimes(1);
+
+      // Close the panel
+      const closeButton = screen.getByTestId('header-close-button');
+      fireEvent.click(closeButton);
+      expect(panel).toHaveAttribute('data-state', 'closed');
+
+      // Within timeout, click the same issue again
+      vi.advanceTimersByTime(150);
+      fireEvent.click(issueCard);
+
+      // Panel should reopen
+      expect(panel).toHaveAttribute('data-state', 'open');
+      // fetchIssue should be called again for the reopened panel
+      expect(fetchIssue).toHaveBeenCalledTimes(2);
+
+      // Wait for original timeout to complete
+      vi.advanceTimersByTime(300);
+
+      // Panel should still be open - the new open cancelled the pending timeout
+      expect(panel).toHaveAttribute('data-state', 'open');
+      // clearIssue should not have been called (would wipe the panel content)
+      expect(clearIssue).not.toHaveBeenCalled();
+    });
+
+    it('agent panel timeout is properly cancelled when clicking another agent', () => {
+      const mockReturn = createMockUseIssuesReturn({});
+      vi.mocked(useIssues).mockReturnValue(mockReturn);
+
+      // Mock agents for the sidebar with two agents
+      vi.mocked(useAgentContext).mockReturnValue({
+        agents: [
+          {
+            name: 'agent-1',
+            status: 'idle',
+            current_task: null,
+            workspace: '/test',
+            started_at: '2024-01-01T00:00:00Z',
+          },
+          {
+            name: 'agent-2',
+            status: 'working',
+            current_task: null,
+            workspace: '/test2',
+            started_at: '2024-01-01T00:00:00Z',
+          },
+        ],
+        agentTasks: {},
+        tasks: {
+          needs_planning: 0,
+          ready_to_implement: 0,
+          in_progress: 0,
+          need_review: 0,
+          blocked: 0,
+        },
+        taskLists: {
+          needsPlanning: [],
+          readyToImplement: [],
+          needsReview: [],
+          inProgress: [],
+          blocked: [],
+        },
+        sync: { db_synced: true, db_last_sync: '', git_needs_push: 0, git_needs_pull: 0 },
+        stats: { open: 0, closed: 0, total: 0, completion: 0 },
+        isLoading: false,
+        isConnected: true,
+        connectionState: 'connected',
+        wasEverConnected: true,
+        retryCountdown: 0,
+        error: null,
+        lastUpdated: null,
+        refetch: vi.fn(),
+        retryNow: vi.fn(),
+        getAgentByName: vi.fn(() => undefined),
+      });
+      vi.mocked(useAgents).mockReturnValue({
+        agents: [
+          {
+            name: 'agent-1',
+            status: 'idle',
+            current_task: null,
+            workspace: '/test',
+            started_at: '2024-01-01T00:00:00Z',
+          },
+          {
+            name: 'agent-2',
+            status: 'working',
+            current_task: null,
+            workspace: '/test2',
+            started_at: '2024-01-01T00:00:00Z',
+          },
+        ],
+        agentTasks: {},
+        tasks: {
+          needs_planning: 0,
+          ready_to_implement: 0,
+          in_progress: 0,
+          need_review: 0,
+          blocked: 0,
+        },
+        taskLists: {
+          needsPlanning: [],
+          readyToImplement: [],
+          needsReview: [],
+          inProgress: [],
+          blocked: [],
+        },
+        sync: { db_synced: true, db_last_sync: '', git_needs_push: 0, git_needs_pull: 0 },
+        stats: { open: 0, closed: 0, total: 0, completion: 0 },
+        isLoading: false,
+        isConnected: true,
+        connectionState: 'connected',
+        wasEverConnected: true,
+        retryCountdown: 0,
+        error: null,
+        lastUpdated: null,
+        refetch: vi.fn(),
+        retryNow: vi.fn(),
+      });
+
+      const { container } = render(<App />);
+      const agentPanel = container.querySelector('[data-testid="agent-detail-panel"]');
+
+      // Open agent panel for first agent
+      fireEvent.click(screen.getByText('agent-1'));
+      expect(agentPanel).toHaveAttribute('data-state', 'open');
+
+      // Close the panel using the close button (aria-label="Close panel")
+      const closeButton = screen.getByRole('button', { name: 'Close panel' });
+      fireEvent.click(closeButton);
+      expect(agentPanel).toHaveAttribute('data-state', 'closed');
+
+      // Within timeout, click the second agent
+      vi.advanceTimersByTime(150);
+      fireEvent.click(screen.getByText('agent-2'));
+
+      // Panel should reopen for agent-2
+      expect(agentPanel).toHaveAttribute('data-state', 'open');
+
+      // Wait for original timeout to complete
+      vi.advanceTimersByTime(300);
+
+      // Panel should still be open - the new agent click cancelled the timeout
+      expect(agentPanel).toHaveAttribute('data-state', 'open');
     });
   });
 });

@@ -900,14 +900,12 @@ func mergeDependencies(base, left, right []Dependency) []Dependency {
 				continue
 			}
 			// Both still have it → include
-		} else {
+		} else if !inLeft && !inRight {
 			// Wasn't in base - must have been added by left or right
-			if !inLeft && !inRight {
-				// Neither has it (shouldn't happen but handle gracefully)
-				continue
-			}
-			// At least one side added it → include
+			// Neither has it (shouldn't happen but handle gracefully)
+			continue
 		}
+		// At least one side added it → include
 
 		if !seen[key] {
 			seen[key] = true

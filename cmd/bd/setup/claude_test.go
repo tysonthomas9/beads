@@ -30,9 +30,7 @@ func newClaudeTestEnv(t *testing.T) (claudeEnv, *bytes.Buffer, *bytes.Buffer) {
 		projectDir: projectDir,
 		ensureDir:  EnsureDir,
 		readFile:   os.ReadFile,
-		writeFile: func(path string, data []byte) error {
-			return atomicWriteFile(path, data)
-		},
+		writeFile: atomicWriteFile,
 	}
 	return env, stdout, stderr
 }

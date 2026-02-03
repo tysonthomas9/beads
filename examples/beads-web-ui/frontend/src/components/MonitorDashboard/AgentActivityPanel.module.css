@@ -178,14 +178,14 @@
 }
 
 /* Tablet adjustments */
-@media (max-width: 1200px) and (min-width: 769px) {
+@media (width <= 1200px) and (width >= 769px) {
   .agentGrid {
     grid-template-columns: repeat(2, 1fr);
   }
 }
 
 /* Mobile adjustments */
-@media (max-width: 768px) {
+@media (width <= 768px) {
   .agentGrid {
     grid-template-columns: 1fr;
   }

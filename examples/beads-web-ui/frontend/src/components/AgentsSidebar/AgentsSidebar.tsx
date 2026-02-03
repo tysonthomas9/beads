@@ -6,11 +6,13 @@
 
 import type { ReactNode } from 'react';
 import { useState, useCallback, useEffect } from 'react';
+
 import { useAgentContext } from '@/hooks';
+import type { LoomTaskInfo } from '@/types';
+
 import { AgentCard } from '../AgentCard';
 import { TaskDrawer } from '../TaskDrawer';
 import type { TaskCategory } from '../TaskDrawer';
-import type { LoomTaskInfo } from '@/types';
 import styles from './AgentsSidebar.module.css';
 
 /**

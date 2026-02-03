@@ -2,13 +2,13 @@
  * Core Issue type and related types.
  */
 
-import type { ISODateString, Priority, Duration } from './common';
-import type { Status } from './status';
-import type { IssueType } from './issueType';
-import type { Dependency, DependencyType } from './dependency';
-import type { Comment } from './comment';
-import type { EntityRef, Validation, BondRef } from './entity';
 import type { AgentState, MolType, WorkType } from './agent';
+import type { Comment } from './comment';
+import type { ISODateString, Priority, Duration } from './common';
+import type { Dependency, DependencyType } from './dependency';
+import type { EntityRef, Validation, BondRef } from './entity';
+import type { IssueType } from './issueType';
+import type { Status } from './status';
 
 /**
  * Core Issue interface.

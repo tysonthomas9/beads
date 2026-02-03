@@ -198,7 +198,7 @@
 }
 
 /* Responsive: stack on smaller viewports */
-@media (max-width: 480px) {
+@media (width <= 480px) {
   .filterBar {
     flex-direction: column;
     align-items: stretch;

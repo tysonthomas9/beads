@@ -8,13 +8,14 @@
  * and cell content rendering.
  */
 
-import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
+import { describe, it, expect, vi } from 'vitest';
 import '@testing-library/jest-dom';
 
-import { IssueRow, IssueRowProps } from '../IssueRow';
-import { DEFAULT_ISSUE_COLUMNS, ColumnDef } from '../columns';
 import type { Issue, Status } from '@/types';
+
+import { DEFAULT_ISSUE_COLUMNS, ColumnDef } from '../columns';
+import { IssueRow, IssueRowProps } from '../IssueRow';
 
 // Helper to create mock issues for testing
 function createMockIssue(overrides: Partial<Issue> = {}): Issue {

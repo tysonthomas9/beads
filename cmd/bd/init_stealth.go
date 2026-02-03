@@ -207,8 +207,9 @@ func promptForkExclude(upstreamURL string, quiet bool) bool {
 	return response == "" || response == "y" || response == "yes"
 }
 
-// setupGlobalGitIgnore configures global gitignore to ignore beads and claude files for a specific project
-// DEPRECATED: This function uses absolute paths which don't work in gitignore (GitHub #704).
+// setupGlobalGitIgnore configures global gitignore to ignore beads and claude files for a specific project.
+//
+// Deprecated: This function uses absolute paths which don't work in gitignore (GitHub #704).
 // Use setupGitExclude instead for new code.
 func setupGlobalGitIgnore(homeDir string, projectPath string, verbose bool) error {
 	// Check if user already has a global gitignore file configured

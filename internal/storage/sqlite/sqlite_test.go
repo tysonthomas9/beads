@@ -1315,10 +1315,8 @@ func TestMultipleStorageDistinctPaths(t *testing.T) {
 }
 
 func TestInMemoryDatabase(t *testing.T) {
-	ctx := context.Background()
-
 	// Test that :memory: database works
-	ctx = context.Background()
+	ctx := context.Background()
 
 	store, err := New(ctx, ":memory:")
 	if err != nil {

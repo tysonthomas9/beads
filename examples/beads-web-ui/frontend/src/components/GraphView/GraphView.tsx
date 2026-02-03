@@ -5,17 +5,19 @@
  * issues as nodes and dependencies as edges in an interactive DAG layout.
  */
 
-import { useState, useMemo, useCallback, useEffect } from 'react';
 import { ReactFlow, Background, MiniMap, Panel, type NodeMouseHandler } from '@xyflow/react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
+
 import '@xyflow/react/dist/style.css';
-import type { Issue, IssueNode as IssueNodeType, DependencyType } from '@/types';
-import type { Status } from '@/types/status';
-import { useGraphData, type UseGraphDataOptions } from '@/hooks/useGraphData';
-import { useAutoLayout, type UseAutoLayoutOptions } from '@/hooks/useAutoLayout';
-import { useBlockedIssues } from '@/hooks/useBlockedIssues';
 import { IssueNode, DependencyEdge, GraphControls, GraphLegend, NodeTooltip } from '@/components';
 import type { DependencyTypeGroup } from '@/components/GraphControls';
 import type { TooltipPosition } from '@/components/NodeTooltip';
+import { useAutoLayout, type UseAutoLayoutOptions } from '@/hooks/useAutoLayout';
+import { useBlockedIssues } from '@/hooks/useBlockedIssues';
+import { useGraphData, type UseGraphDataOptions } from '@/hooks/useGraphData';
+import type { Issue, IssueNode as IssueNodeType, DependencyType } from '@/types';
+import type { Status } from '@/types/status';
+
 import styles from './GraphView.module.css';
 
 const STORAGE_KEY_SHOW_CLOSED = 'graph-show-closed';

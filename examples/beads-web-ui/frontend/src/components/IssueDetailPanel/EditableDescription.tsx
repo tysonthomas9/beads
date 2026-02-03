@@ -4,8 +4,9 @@
  */
 
 import { useState, useRef, useEffect, useCallback, type KeyboardEvent } from 'react';
-import { MarkdownRenderer } from './MarkdownRenderer';
+
 import styles from './EditableDescription.module.css';
+import { MarkdownRenderer } from './MarkdownRenderer';
 
 export interface EditableDescriptionProps {
   /** Current description value */

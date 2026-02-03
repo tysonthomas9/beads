@@ -4,6 +4,7 @@
  */
 
 import { useCallback, useRef } from 'react';
+
 import styles from './ViewSwitcher.module.css';
 
 /**

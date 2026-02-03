@@ -6,18 +6,19 @@
  * Unit tests for useAgentContext hook and AgentProvider.
  */
 
-import { describe, it, expect, vi } from 'vitest';
 import { renderHook } from '@testing-library/react';
-import { AgentProvider, useAgentContext } from '../useAgentContext';
 import type { ReactNode } from 'react';
+import { describe, it, expect, vi } from 'vitest';
+
 import type { LoomAgentStatus } from '@/types';
+
+import { AgentProvider, useAgentContext } from '../useAgentContext';
+import { useAgents } from '../useAgents';
 
 // Mock useAgents so we don't trigger real polling
 vi.mock('../useAgents', () => ({
   useAgents: vi.fn(),
 }));
-
-import { useAgents } from '../useAgents';
 const mockUseAgents = vi.mocked(useAgents);
 
 /**

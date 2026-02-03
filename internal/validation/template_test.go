@@ -167,10 +167,8 @@ Widget displays correctly`,
 					t.Errorf("ValidateTemplate() missing sections = %d, want %d",
 						len(templateErr.Missing), tt.wantMissing)
 				}
-			} else {
-				if err != nil {
-					t.Errorf("ValidateTemplate() unexpected error: %v", err)
-				}
+			} else if err != nil {
+				t.Errorf("ValidateTemplate() unexpected error: %v", err)
 			}
 		})
 	}

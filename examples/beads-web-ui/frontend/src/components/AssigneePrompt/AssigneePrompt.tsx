@@ -5,6 +5,7 @@
  */
 
 import { useState, useEffect, useRef, useCallback } from 'react';
+
 import styles from './AssigneePrompt.module.css';
 
 /**

@@ -25,13 +25,13 @@ func MigrateTombstoneClosedAt(db *sql.DB) error {
 
 	// Idempotency check: see if the new CHECK constraint already exists
 	// The new constraint contains "status = 'tombstone'" which the old one didn't
-	var tableSql string
-	err := db.QueryRow(`SELECT sql FROM sqlite_master WHERE type='table' AND name='issues'`).Scan(&tableSql)
+	var tableSQL string
+	err := db.QueryRow(`SELECT sql FROM sqlite_master WHERE type='table' AND name='issues'`).Scan(&tableSQL)
 	if err != nil {
 		return fmt.Errorf("failed to get issues table schema: %w", err)
 	}
 	// If the schema already has the tombstone clause, migration is already applied
-	if strings.Contains(tableSql, "status = 'tombstone'") || strings.Contains(tableSql, `status = "tombstone"`) {
+	if strings.Contains(tableSQL, "status = 'tombstone'") || strings.Contains(tableSQL, `status = "tombstone"`) {
 		return nil
 	}
 

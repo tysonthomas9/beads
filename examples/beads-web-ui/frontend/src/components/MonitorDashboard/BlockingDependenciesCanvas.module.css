@@ -78,10 +78,7 @@
 /* React Flow overrides */
 .canvas :global(.react-flow) {
   position: absolute !important;
-  top: 0 !important;
-  left: 0 !important;
-  right: 0 !important;
-  bottom: 0 !important;
+  inset: 0 !important;
   width: 100% !important;
   height: 100% !important;
 }
@@ -188,7 +185,7 @@
 }
 
 /* Mobile: smaller legend */
-@media (max-width: 768px) {
+@media (width <= 768px) {
   .legend {
     padding: var(--space-1);
   }

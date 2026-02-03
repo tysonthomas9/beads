@@ -8,13 +8,14 @@
  */
 
 import { useEffect, useRef } from 'react';
-import type { Issue } from '@/types';
+
 import {
   useIssueFilter,
   useSelection,
   type UseIssueFilterOptions,
   type UseSelectionReturn,
 } from '@/hooks';
+import type { Issue } from '@/types';
 
 /**
  * Options for the useFilteredSelection hook.

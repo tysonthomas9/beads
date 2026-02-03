@@ -3,10 +3,11 @@
  * Slide-out panel with an embedded xterm.js terminal connected via WebSocket.
  */
 
-import { useEffect, useRef, useState, useCallback } from 'react';
-import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import { WebLinksAddon } from '@xterm/addon-web-links';
+import { Terminal } from '@xterm/xterm';
+import { useEffect, useRef, useState, useCallback } from 'react';
+
 import '@xterm/xterm/css/xterm.css';
 import styles from './TerminalPanel.module.css';
 

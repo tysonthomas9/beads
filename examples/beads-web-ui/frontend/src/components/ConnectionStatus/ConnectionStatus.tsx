@@ -4,6 +4,7 @@
  */
 
 import type { ConnectionState } from '@/api/sse';
+
 import styles from './ConnectionStatus.module.css';
 
 /**

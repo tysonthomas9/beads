@@ -6,12 +6,17 @@
  * Unit tests for BlockingDependenciesCanvas component.
  */
 
-import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest';
 import '@testing-library/jest-dom';
 
-import { BlockingDependenciesCanvas } from '../BlockingDependenciesCanvas';
+// Import mocks after vi.mock calls
+import { useAutoLayout } from '@/hooks/useAutoLayout';
+import { useBlockedIssues } from '@/hooks/useBlockedIssues';
+import { useGraphData } from '@/hooks/useGraphData';
 import type { Issue, IssueNode, DependencyEdge, BlockedIssue } from '@/types';
+
+import { BlockingDependenciesCanvas } from '../BlockingDependenciesCanvas';
 
 // Mock the hooks
 vi.mock('@/hooks/useGraphData', () => ({
@@ -53,11 +58,6 @@ vi.mock('../BlockingNode', () => ({
 vi.mock('../BlockingEdge', () => ({
   BlockingEdge: vi.fn(() => <div data-testid="blocking-edge" />),
 }));
-
-// Import mocks after vi.mock calls
-import { useGraphData } from '@/hooks/useGraphData';
-import { useAutoLayout } from '@/hooks/useAutoLayout';
-import { useBlockedIssues } from '@/hooks/useBlockedIssues';
 
 /**
  * Create a minimal test issue with required fields.

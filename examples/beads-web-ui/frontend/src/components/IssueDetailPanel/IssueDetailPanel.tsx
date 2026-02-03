@@ -6,6 +6,8 @@
  */
 
 import { useEffect, useRef, useState, useCallback } from 'react';
+
+import { updateIssue, addDependency, removeDependency } from '@/api';
 import type {
   Issue,
   IssueDetails,
@@ -16,17 +18,17 @@ import type {
   Comment,
 } from '@/types';
 import type { Status } from '@/types/status';
-import { updateIssue, addDependency, removeDependency } from '@/api';
 import { getReviewType } from '@/utils/reviewType';
-import { IssueHeader } from './IssueHeader';
+
+import { CommentForm } from './CommentForm';
+import { CommentsSection } from './CommentsSection';
+import { DependencySection } from './DependencySection';
 import { EditableDescription } from './EditableDescription';
+import { IssueHeader } from './IssueHeader';
 import { MarkdownRenderer } from './MarkdownRenderer';
 import { PriorityDropdown } from './PriorityDropdown';
-import { TypeDropdown } from './TypeDropdown';
-import { DependencySection } from './DependencySection';
-import { CommentsSection } from './CommentsSection';
-import { CommentForm } from './CommentForm';
 import { RejectCommentForm } from './RejectCommentForm';
+import { TypeDropdown } from './TypeDropdown';
 import { ErrorToast } from '../ErrorToast';
 import styles from './IssueDetailPanel.module.css';
 

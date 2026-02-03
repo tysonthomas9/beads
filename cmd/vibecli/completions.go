@@ -7,7 +7,7 @@ import (
 )
 
 // worktreeCompletion provides completion for worktree names
-func worktreeCompletion(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+func worktreeCompletion(_ *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 	// Only complete the first argument (worktree name)
 	if len(args) > 0 {
 		return nil, cobra.ShellCompDirectiveNoFileComp
@@ -27,7 +27,7 @@ func worktreeCompletion(cmd *cobra.Command, args []string, toComplete string) ([
 }
 
 // branchCompletion provides completion for git branch names
-func branchCompletion(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+func branchCompletion(_ *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 	branches, err := GetGitBranches()
 	if err != nil {
 		return nil, cobra.ShellCompDirectiveError

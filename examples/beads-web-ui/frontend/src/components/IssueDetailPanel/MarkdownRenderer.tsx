@@ -4,6 +4,7 @@
  */
 
 import Markdown from 'react-markdown';
+
 import styles from './MarkdownRenderer.module.css';
 
 export interface MarkdownRendererProps {

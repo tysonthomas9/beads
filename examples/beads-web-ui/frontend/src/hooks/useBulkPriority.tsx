@@ -4,8 +4,10 @@
  */
 
 import { useState, useCallback, useRef, useEffect } from 'react';
+
 import { updateIssue } from '@/api';
 import type { Priority } from '@/types';
+
 import styles from './useBulkPriority.module.css';
 
 /**

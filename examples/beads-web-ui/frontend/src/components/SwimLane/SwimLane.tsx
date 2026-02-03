@@ -5,12 +5,14 @@
  */
 
 import { useMemo } from 'react';
-import type { Issue } from '@/types';
+
+import { DraggableIssueCard } from '@/components/DraggableIssueCard';
+import { EmptyColumn } from '@/components/EmptyColumn';
 import type { BlockedInfo } from '@/components/KanbanBoard';
 import type { KanbanColumnConfig } from '@/components/KanbanBoard/types';
 import { StatusColumn } from '@/components/StatusColumn';
-import { DraggableIssueCard } from '@/components/DraggableIssueCard';
-import { EmptyColumn } from '@/components/EmptyColumn';
+import type { Issue } from '@/types';
+
 import styles from './SwimLane.module.css';
 
 /**

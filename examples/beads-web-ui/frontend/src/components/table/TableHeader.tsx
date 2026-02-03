@@ -4,6 +4,7 @@
  */
 
 import { KeyboardEvent, useCallback } from 'react';
+
 import type { ColumnDef } from './columns';
 
 /** Sort direction for table columns */

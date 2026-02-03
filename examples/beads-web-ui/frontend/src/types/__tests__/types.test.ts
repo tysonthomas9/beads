@@ -2,9 +2,7 @@
  * Unit tests for type guard functions and type constants.
  */
 
-import { describe, it, expect } from 'vitest';
-
-import { vi } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 
 import {
   // Status exports
@@ -51,7 +49,6 @@ import {
   isSquashedMutation,
   isBurnedMutation,
 } from '../index';
-
 import type { ApiResult, MutationPayload, MutationEvent } from '../index';
 
 describe('Status type guards', () => {

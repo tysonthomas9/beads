@@ -6,20 +6,21 @@
  * Unit tests for BlockedSummary component.
  */
 
-import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest';
 import '@testing-library/jest-dom';
 
-import { BlockedSummary } from '../BlockedSummary';
+import { useBlockedIssues } from '@/hooks';
 import type { BlockedIssue, Priority } from '@/types';
+
+import { BlockedSummary } from '../BlockedSummary';
+
+// Import mock after vi.mock call
 
 // Mock the useBlockedIssues hook
 vi.mock('@/hooks', () => ({
   useBlockedIssues: vi.fn(),
 }));
-
-// Import mock after vi.mock call
-import { useBlockedIssues } from '@/hooks';
 
 /**
  * Create a test blocked issue with required fields.

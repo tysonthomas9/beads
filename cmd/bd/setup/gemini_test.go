@@ -29,9 +29,7 @@ func newGeminiTestEnv(t *testing.T) (geminiEnv, *bytes.Buffer, *bytes.Buffer) {
 		projectDir: projectDir,
 		ensureDir:  EnsureDir,
 		readFile:   os.ReadFile,
-		writeFile: func(path string, data []byte) error {
-			return atomicWriteFile(path, data)
-		},
+		writeFile: atomicWriteFile,
 	}
 	return env, stdout, stderr
 }

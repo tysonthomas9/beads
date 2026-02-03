@@ -37,7 +37,7 @@ func init() {
 	rootCmd.AddCommand(planCmd)
 }
 
-func runPlan(cmd *cobra.Command, args []string) {
+func runPlan(_ *cobra.Command, args []string) {
 	// Resolve worktree path
 	var worktreeName string
 	if len(args) > 0 {

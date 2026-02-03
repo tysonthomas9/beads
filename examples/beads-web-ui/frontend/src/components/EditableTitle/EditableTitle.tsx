@@ -4,6 +4,7 @@
  */
 
 import { useState, useRef, useEffect, useCallback, type KeyboardEvent } from 'react';
+
 import styles from './EditableTitle.module.css';
 
 export interface EditableTitleProps {

@@ -3,10 +3,12 @@
  * Rich node card showing issue details, status badges, and blocking relationships.
  */
 
-import { memo } from 'react';
 import { Handle, Position, type NodeProps } from '@xyflow/react';
+import { memo } from 'react';
+
 import type { IssueNode as IssueNodeType } from '@/types';
 import { formatIssueId } from '@/utils/formatIssueId';
+
 import styles from './BlockingNode.module.css';
 
 /**

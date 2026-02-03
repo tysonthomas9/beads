@@ -6,12 +6,13 @@
  * Unit tests for AgentCard component.
  */
 
-import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
+import { describe, it, expect, vi } from 'vitest';
 import '@testing-library/jest-dom';
 
-import { AgentCard } from './AgentCard';
 import type { LoomAgentStatus } from '@/types';
+
+import { AgentCard } from './AgentCard';
 
 /** Helper to build a minimal agent object. */
 function makeAgent(overrides: Partial<LoomAgentStatus> = {}): LoomAgentStatus {

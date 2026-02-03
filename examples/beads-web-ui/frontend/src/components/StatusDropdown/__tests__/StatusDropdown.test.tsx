@@ -6,13 +6,14 @@
  * Unit tests for StatusDropdown component.
  */
 
-import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
+import { describe, it, expect, vi } from 'vitest';
 import '@testing-library/jest-dom';
 
-import { StatusDropdown } from '../StatusDropdown';
 import type { Status } from '@/types/status';
 import { USER_SELECTABLE_STATUSES } from '@/types/status';
+
+import { StatusDropdown } from '../StatusDropdown';
 
 describe('StatusDropdown', () => {
   describe('rendering', () => {

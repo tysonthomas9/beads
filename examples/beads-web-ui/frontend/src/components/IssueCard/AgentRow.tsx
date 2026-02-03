@@ -4,6 +4,7 @@
  */
 
 import type { ParsedLoomStatus } from '@/types';
+
 import styles from './AgentRow.module.css';
 
 /**

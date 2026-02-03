@@ -5,16 +5,18 @@
  * zoom controls, expand button, and a color-coded legend.
  */
 
-import { useMemo, useCallback } from 'react';
 import { ReactFlow, Controls, type NodeMouseHandler } from '@xyflow/react';
+import { useMemo, useCallback } from 'react';
+
 import '@xyflow/react/dist/style.css';
-import type { Issue, IssueNode as IssueNodeType, DependencyType } from '@/types';
-import { useGraphData, type UseGraphDataOptions } from '@/hooks/useGraphData';
 import { useAutoLayout, type UseAutoLayoutOptions } from '@/hooks/useAutoLayout';
 import { useBlockedIssues } from '@/hooks/useBlockedIssues';
-import { BlockingNode } from './BlockingNode';
-import { BlockingEdge } from './BlockingEdge';
+import { useGraphData, type UseGraphDataOptions } from '@/hooks/useGraphData';
+import type { Issue, IssueNode as IssueNodeType, DependencyType } from '@/types';
+
 import styles from './BlockingDependenciesCanvas.module.css';
+import { BlockingEdge } from './BlockingEdge';
+import { BlockingNode } from './BlockingNode';
 
 /**
  * Blocking dependency types to display.

@@ -5,9 +5,10 @@
 
 import type { Issue, IssueDetails, Priority } from '@/types';
 import type { Status } from '@/types/status';
+
 import { EditableTitle } from '../EditableTitle';
-import { StatusDropdown } from '../StatusDropdown';
 import { formatStatusLabel } from '../StatusColumn/utils';
+import { StatusDropdown } from '../StatusDropdown';
 import styles from './IssueHeader.module.css';
 
 /**

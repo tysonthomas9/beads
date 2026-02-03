@@ -5,6 +5,7 @@
  */
 
 import { useEffect, useCallback } from 'react';
+
 import styles from './ErrorToast.module.css';
 
 /**

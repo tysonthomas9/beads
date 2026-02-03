@@ -7,6 +7,7 @@
  */
 
 import { useState, useCallback, memo } from 'react';
+
 import styles from './BlockedBadge.module.css';
 
 /**

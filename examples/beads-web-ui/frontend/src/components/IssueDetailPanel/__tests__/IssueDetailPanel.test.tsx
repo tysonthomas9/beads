@@ -6,12 +6,13 @@
  * Unit tests for IssueDetailPanel component.
  */
 
-import { describe, it, expect, vi, beforeEach as _beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, within } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach as _beforeEach, afterEach } from 'vitest';
 import '@testing-library/jest-dom';
 
-import { IssueDetailPanel } from '../IssueDetailPanel';
 import type { Issue, IssueDetails, IssueWithDependencyMetadata } from '@/types';
+
+import { IssueDetailPanel } from '../IssueDetailPanel';
 
 // Mock the API module
 vi.mock('@/api', () => ({
