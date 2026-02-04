@@ -16,6 +16,8 @@ const (
 	terminalReadBufSize = 4096
 	resizeMsgMarker     = 0x01
 	resizeMsgLen        = 5
+	maxTerminalCols     = 500
+	maxTerminalRows     = 200
 )
 
 // validTerminalSession matches alphanumeric characters, hyphens, and underscores.
@@ -172,24 +174,22 @@ func wsToPTY(ctx context.Context, conn *websocket.Conn, session *TerminalSession
 			return
 		}
 
-		if msgType != websocket.MessageBinary {
-			continue
-		}
+		// Binary messages may carry the in-band resize protocol.
+		if msgType == websocket.MessageBinary {
+			if len(data) == resizeMsgLen && data[0] == resizeMsgMarker {
+				cols := binary.BigEndian.Uint16(data[1:3])
+				rows := binary.BigEndian.Uint16(data[3:5])
 
-		// Check for resize message
-		if len(data) == resizeMsgLen && data[0] == resizeMsgMarker {
-			cols := binary.BigEndian.Uint16(data[1:3])
-			rows := binary.BigEndian.Uint16(data[3:5])
-
-			if cols > 0 && rows > 0 {
-				if err := manager.Resize(sessionName, cols, rows); err != nil {
-					log.Printf("Failed to resize terminal session %q: %v", sessionName, err)
+				if cols > 0 && rows > 0 && cols <= maxTerminalCols && rows <= maxTerminalRows {
+					if err := manager.Resize(sessionName, cols, rows); err != nil {
+						log.Printf("Failed to resize terminal session %q: %v", sessionName, err)
+					}
 				}
+				continue
 			}
-			continue
 		}
 
-		// Regular data - write to PTY
+		// Text and non-resize binary data - write to PTY
 		if _, err := session.PTY.Write(data); err != nil {
 			// PTY write failed
 			return

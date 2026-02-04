@@ -118,6 +118,8 @@ export function TerminalPanel({ isOpen, onClose }: TerminalPanelProps): JSX.Elem
       cursorBlink: true,
       fontSize: 14,
       fontFamily: 'Menlo, Monaco, "Courier New", monospace',
+      scrollback: 5000,
+      smoothScrollDuration: 120,
       theme: {
         background: '#1e1e1e',
         foreground: '#d4d4d4',

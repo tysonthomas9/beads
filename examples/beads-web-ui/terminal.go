@@ -85,6 +85,7 @@ func (m *TerminalManager) tmuxHasSession(name string) bool {
 }
 
 // tmuxNewSession creates a new detached tmux session with the given name, size, and command.
+// Enables mouse mode so wheel events are forwarded to the application inside tmux.
 func (m *TerminalManager) tmuxNewSession(name, command string, cols, rows uint16) error {
 	args := []string{
 		"new-session", "-d",
@@ -96,7 +97,17 @@ func (m *TerminalManager) tmuxNewSession(name, command string, cols, rows uint16
 		args = append(args, command)
 	}
 	cmd := exec.Command(m.tmuxPath, args...)
-	return cmd.Run()
+	if err := cmd.Run(); err != nil {
+		return err
+	}
+
+	// Enable mouse mode so wheel events reach the application inside tmux
+	mouseCmd := exec.Command(m.tmuxPath, "set-option", "-t", name, "mouse", "on")
+	if err := mouseCmd.Run(); err != nil {
+		log.Printf("Warning: failed to enable mouse mode for session %q: %v", name, err)
+	}
+
+	return nil
 }
 
 // tmuxAttach spawns a tmux attach-session process with a PTY.

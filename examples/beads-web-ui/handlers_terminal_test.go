@@ -468,7 +468,8 @@ func testPtyToWS(ctx context.Context, cancel context.CancelFunc, conn wsConn, se
 	}
 }
 
-// testWsToPTY is a test wrapper for wsToPTY that accepts wsConn interface
+// testWsToPTY is a test wrapper for wsToPTY that accepts wsConn interface.
+// Mirrors the production wsToPTY: accepts both text and binary messages.
 func testWsToPTY(ctx context.Context, conn wsConn, session *TerminalSession, manager *TerminalManager, sessionName string) {
 	for {
 		select {
@@ -483,24 +484,22 @@ func testWsToPTY(ctx context.Context, conn wsConn, session *TerminalSession, man
 			return
 		}
 
-		if msgType != websocket.MessageBinary {
-			continue
-		}
+		// Binary messages may carry the in-band resize protocol.
+		if msgType == websocket.MessageBinary {
+			if len(data) == resizeMsgLen && data[0] == resizeMsgMarker {
+				cols := binary.BigEndian.Uint16(data[1:3])
+				rows := binary.BigEndian.Uint16(data[3:5])
 
-		// Check for resize message
-		if len(data) == resizeMsgLen && data[0] == resizeMsgMarker {
-			cols := binary.BigEndian.Uint16(data[1:3])
-			rows := binary.BigEndian.Uint16(data[3:5])
-
-			if cols > 0 && rows > 0 {
-				if err := manager.Resize(sessionName, cols, rows); err != nil {
-					log.Printf("Failed to resize terminal session %q: %v", sessionName, err)
+				if cols > 0 && rows > 0 && cols <= maxTerminalCols && rows <= maxTerminalRows {
+					if err := manager.Resize(sessionName, cols, rows); err != nil {
+						log.Printf("Failed to resize terminal session %q: %v", sessionName, err)
+					}
 				}
+				continue
 			}
-			continue
 		}
 
-		// Regular data - write to PTY
+		// Text and non-resize binary data - write to PTY
 		if _, err := session.PTY.Write(data); err != nil {
 			// PTY write failed
 			return
@@ -893,4 +892,345 @@ func TestPtyToWS_And_WsToPTY_Integration(t *testing.T) {
 	default:
 		t.Error("context was not cancelled after PTY error")
 	}
+}
+
+// TestWsToPTY_TextMessageForwardedToPTY verifies that text WebSocket messages
+// (as sent by xterm.js onData) are forwarded to the PTY, not silently dropped.
+func TestWsToPTY_TextMessageForwardedToPTY(t *testing.T) {
+	// Create an os.Pipe for the PTY
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("failed to create pipe: %v", err)
+	}
+	defer r.Close()
+	defer w.Close()
+
+	inputData := "hello from xterm"
+
+	// mockWebSocket that returns one text message then an error to stop the loop.
+	callCount := 0
+	mock := &sequenceMockWS{
+		reads: []mockRead{
+			{typ: websocket.MessageText, data: []byte(inputData), err: nil},
+			{typ: 0, data: nil, err: errors.New("done")},
+		},
+	}
+
+	_ = callCount // unused
+
+	session := &TerminalSession{
+		Name: "test-text",
+		PTY:  w, // wsToPTY writes to w; we read from r
+	}
+
+	manager, err := NewTerminalManager("")
+	if err == ErrTmuxNotFound {
+		t.Skip("tmux not installed, skipping test")
+	}
+	if err != nil {
+		t.Fatalf("failed to create terminal manager: %v", err)
+	}
+	defer manager.Shutdown()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	done := make(chan struct{})
+	go func() {
+		testWsToPTY(ctx, mock, session, manager, "test-text")
+		close(done)
+	}()
+
+	// Read what wsToPTY wrote to the PTY pipe
+	buf := make([]byte, 256)
+	n, err := r.Read(buf)
+	if err != nil {
+		t.Fatalf("failed to read from PTY pipe: %v", err)
+	}
+
+	got := string(buf[:n])
+	if got != inputData {
+		t.Errorf("PTY received %q, want %q", got, inputData)
+	}
+
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
+		t.Fatal("testWsToPTY did not exit within timeout")
+	}
+}
+
+// TestWsToPTY_BinaryDataForwardedToPTY verifies that non-resize binary messages
+// are forwarded to the PTY.
+func TestWsToPTY_BinaryDataForwardedToPTY(t *testing.T) {
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("failed to create pipe: %v", err)
+	}
+	defer r.Close()
+	defer w.Close()
+
+	inputData := []byte("binary input data")
+
+	mock := &sequenceMockWS{
+		reads: []mockRead{
+			{typ: websocket.MessageBinary, data: inputData, err: nil},
+			{typ: 0, data: nil, err: errors.New("done")},
+		},
+	}
+
+	session := &TerminalSession{
+		Name: "test-binary",
+		PTY:  w,
+	}
+
+	manager, err := NewTerminalManager("")
+	if err == ErrTmuxNotFound {
+		t.Skip("tmux not installed, skipping test")
+	}
+	if err != nil {
+		t.Fatalf("failed to create terminal manager: %v", err)
+	}
+	defer manager.Shutdown()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	done := make(chan struct{})
+	go func() {
+		testWsToPTY(ctx, mock, session, manager, "test-binary")
+		close(done)
+	}()
+
+	buf := make([]byte, 256)
+	n, err := r.Read(buf)
+	if err != nil {
+		t.Fatalf("failed to read from PTY pipe: %v", err)
+	}
+
+	got := string(buf[:n])
+	if got != string(inputData) {
+		t.Errorf("PTY received %q, want %q", got, string(inputData))
+	}
+
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
+		t.Fatal("testWsToPTY did not exit within timeout")
+	}
+}
+
+// TestWsToPTY_ResizeNotForwardedToPTY verifies that binary resize messages
+// are handled as resize commands and NOT written to the PTY as data.
+func TestWsToPTY_ResizeNotForwardedToPTY(t *testing.T) {
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("failed to create pipe: %v", err)
+	}
+	defer r.Close()
+	defer w.Close()
+
+	resizeMsg := makeResizeMessage(120, 40)
+	followupData := []byte("after-resize")
+
+	mock := &sequenceMockWS{
+		reads: []mockRead{
+			{typ: websocket.MessageBinary, data: resizeMsg, err: nil},
+			{typ: websocket.MessageText, data: followupData, err: nil},
+			{typ: 0, data: nil, err: errors.New("done")},
+		},
+	}
+
+	session := &TerminalSession{
+		Name: "test-resize",
+		PTY:  w,
+	}
+
+	manager, err := NewTerminalManager("")
+	if err == ErrTmuxNotFound {
+		t.Skip("tmux not installed, skipping test")
+	}
+	if err != nil {
+		t.Fatalf("failed to create terminal manager: %v", err)
+	}
+	defer manager.Shutdown()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	done := make(chan struct{})
+	go func() {
+		testWsToPTY(ctx, mock, session, manager, "test-resize")
+		close(done)
+	}()
+
+	// The resize message should be consumed; only the follow-up text should reach the PTY.
+	buf := make([]byte, 256)
+	n, err := r.Read(buf)
+	if err != nil {
+		t.Fatalf("failed to read from PTY pipe: %v", err)
+	}
+
+	got := string(buf[:n])
+	if got != string(followupData) {
+		t.Errorf("PTY received %q, want %q (resize data should not be forwarded)", got, string(followupData))
+	}
+
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
+		t.Fatal("testWsToPTY did not exit within timeout")
+	}
+}
+
+// TestTerminalWebSocket_E2E is an end-to-end test that connects a real WebSocket
+// to the terminal handler, sends text input, and verifies output is received.
+// Uses gorilla/websocket-style net.Conn for deadline control since nhooyr.io/websocket
+// closes connections on context cancellation.
+func TestTerminalWebSocket_E2E(t *testing.T) {
+	manager, err := NewTerminalManager("")
+	if err == ErrTmuxNotFound {
+		t.Skip("tmux not installed, skipping test")
+	}
+	if err != nil {
+		t.Fatalf("failed to create terminal manager: %v", err)
+	}
+	defer manager.Shutdown()
+
+	handler := handleTerminalWS(manager, "")
+	server := httptest.NewServer(handler)
+	defer server.Close()
+
+	wsURL := "ws" + server.URL[4:] + "?session=e2e-test"
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	conn, _, err := websocket.Dial(ctx, wsURL, nil)
+	if err != nil {
+		t.Fatalf("failed to dial WebSocket: %v", err)
+	}
+	defer conn.Close(websocket.StatusNormalClosure, "test done")
+
+	// Send resize (binary) - must succeed
+	resizeMsg := makeResizeMessage(80, 24)
+	if err := conn.Write(ctx, websocket.MessageBinary, resizeMsg); err != nil {
+		t.Fatalf("failed to send resize: %v", err)
+	}
+
+	// Let the shell settle and produce initial output
+	time.Sleep(500 * time.Millisecond)
+
+	// Use a goroutine to collect all output asynchronously
+	outputCh := make(chan string, 100)
+	go func() {
+		for {
+			_, data, err := conn.Read(ctx)
+			if err != nil {
+				return
+			}
+			outputCh <- string(data)
+		}
+	}()
+
+	// Drain initial output
+	drainDone := time.After(1 * time.Second)
+drainLoop:
+	for {
+		select {
+		case <-outputCh:
+			// discard
+		case <-drainDone:
+			break drainLoop
+		}
+	}
+
+	// Send a text command (like xterm.js does)
+	testCmd := "echo E2E_TERMINAL_TEST_OK\n"
+	if err := conn.Write(ctx, websocket.MessageText, []byte(testCmd)); err != nil {
+		t.Fatalf("failed to send text command: %v", err)
+	}
+
+	// Read output and look for our marker
+	found := false
+	deadline := time.After(5 * time.Second)
+textLoop:
+	for {
+		select {
+		case output := <-outputCh:
+			if contains(output, "E2E_TERMINAL_TEST_OK") {
+				found = true
+				break textLoop
+			}
+		case <-deadline:
+			break textLoop
+		}
+	}
+
+	if !found {
+		t.Error("did not receive expected output 'E2E_TERMINAL_TEST_OK' from terminal after sending text message")
+	}
+
+	// Also verify binary data input works
+	binaryCmd := []byte("echo E2E_BINARY_TEST_OK\n")
+	if err := conn.Write(ctx, websocket.MessageBinary, binaryCmd); err != nil {
+		t.Fatalf("failed to send binary command: %v", err)
+	}
+
+	foundBinary := false
+	deadline2 := time.After(5 * time.Second)
+binaryLoop:
+	for {
+		select {
+		case output := <-outputCh:
+			if contains(output, "E2E_BINARY_TEST_OK") {
+				foundBinary = true
+				break binaryLoop
+			}
+		case <-deadline2:
+			break binaryLoop
+		}
+	}
+
+	if !foundBinary {
+		t.Error("did not receive expected output 'E2E_BINARY_TEST_OK' from terminal after sending binary message")
+	}
+}
+
+// contains checks if s contains substr (simple helper to avoid importing strings).
+func contains(s, substr string) bool {
+	for i := 0; i <= len(s)-len(substr); i++ {
+		if s[i:i+len(substr)] == substr {
+			return true
+		}
+	}
+	return false
+}
+
+// mockRead represents a single read result from a mock WebSocket.
+type mockRead struct {
+	typ  websocket.MessageType
+	data []byte
+	err  error
+}
+
+// sequenceMockWS returns a sequence of predetermined read results.
+type sequenceMockWS struct {
+	reads []mockRead
+	idx   int
+	mu    sync.Mutex
+}
+
+func (m *sequenceMockWS) Write(ctx context.Context, typ websocket.MessageType, data []byte) error {
+	return nil
+}
+
+func (m *sequenceMockWS) Read(ctx context.Context) (websocket.MessageType, []byte, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.idx >= len(m.reads) {
+		return 0, nil, errors.New("no more reads")
+	}
+	r := m.reads[m.idx]
+	m.idx++
+	return r.typ, r.data, r.err
 }
