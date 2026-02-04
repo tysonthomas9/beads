@@ -113,7 +113,7 @@ test.describe('SSE Live Updates Integration', () => {
   test('API-created issue appears via SSE without reload', async ({ page }) => {
     // Navigate to Kanban and wait for initial load
     await page.goto('/')
-    await page.waitForLoadState('networkidle')
+    await page.waitForLoadState('domcontentloaded')
 
     // Wait for SSE connection
     const connectionStatus = page.locator('[data-state="connected"]')
@@ -147,7 +147,7 @@ test.describe('SSE Live Updates Integration', () => {
 
     // Navigate to Kanban
     await page.goto('/')
-    await page.waitForLoadState('networkidle')
+    await page.waitForLoadState('domcontentloaded')
 
     // Wait for SSE connection
     const connectionStatus = page.locator('[data-state="connected"]')
@@ -177,7 +177,7 @@ test.describe('SSE Live Updates Integration', () => {
   test('multiple rapid updates via API are reflected in UI', async ({ page }) => {
     // Navigate to Kanban and wait for connection
     await page.goto('/')
-    await page.waitForLoadState('networkidle')
+    await page.waitForLoadState('domcontentloaded')
 
     const connectionStatus = page.locator('[data-state="connected"]')
     await expect(connectionStatus).toBeVisible({ timeout: 10000 })
@@ -214,7 +214,7 @@ test.describe('SSE Live Updates Integration', () => {
 
     // Navigate to Kanban
     await page.goto('/')
-    await page.waitForLoadState('networkidle')
+    await page.waitForLoadState('domcontentloaded')
 
     // Wait for SSE connection
     const connectionStatus = page.locator('[data-state="connected"]')

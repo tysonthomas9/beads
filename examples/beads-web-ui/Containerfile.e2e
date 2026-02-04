@@ -7,24 +7,47 @@
 #   podman build --target loom -t loom:test -f Containerfile.e2e ../..
 
 # Build args for version configuration
-ARG GO_VERSION=1.24
-ARG ALPINE_VERSION=3.19
+ARG GO_VERSION=1.24.0
+ARG ALPINE_VERSION=3.21
 ARG NODE_VERSION=20
+
+# =============================================================================
+# Stage: go-installer
+# Downloads and installs Go from official tarball
+# =============================================================================
+FROM alpine:${ALPINE_VERSION} AS go-installer
+
+ARG GO_VERSION
+ARG TARGETARCH
+
+RUN apk add --no-cache curl ca-certificates
+
+# Download and install Go
+RUN case "${TARGETARCH}" in \
+      "amd64") GOARCH="amd64" ;; \
+      "arm64") GOARCH="arm64" ;; \
+      *) echo "Unsupported arch: ${TARGETARCH}" && exit 1 ;; \
+    esac && \
+    curl -fsSL "https://go.dev/dl/go${GO_VERSION}.linux-${GOARCH}.tar.gz" | tar -xzC /usr/local
+
+ENV PATH="/usr/local/go/bin:${PATH}"
 
 # =============================================================================
 # Stage: base-builder
 # Shared Go compilation environment for daemon and web targets
 # =============================================================================
-FROM golang:${GO_VERSION}-alpine AS base-builder
+FROM go-installer AS base-builder
 
-# Install build dependencies
+# Install build dependencies (including gcc for CGO)
 RUN apk add --no-cache \
     git \
     musl-dev \
+    gcc \
     ca-certificates
 
-# Enable CGO for potential CGO-dependent packages
+# Enable CGO for sqlite3
 ENV CGO_ENABLED=1
+ENV PATH="/usr/local/go/bin:${PATH}"
 
 WORKDIR /build
 
@@ -133,16 +156,15 @@ ENTRYPOINT ["beads-web-ui", "-port", "8080"]
 
 # =============================================================================
 # Stage: loom-builder
-# Builds/installs the loom binary from external module
+# Installs loom from external loomcli module
 # =============================================================================
-FROM golang:${GO_VERSION}-alpine AS loom-builder
+FROM go-installer AS loom-builder
 
-# Install build dependencies
-RUN apk add --no-cache \
-    git \
-    ca-certificates
+RUN apk add --no-cache git ca-certificates
 
 # Install loom from external module
+# CGO not needed for loom
+ENV CGO_ENABLED=0
 RUN go install github.com/tysonthomas9/loomcli/cmd/loom@latest
 
 # =============================================================================
@@ -157,7 +179,7 @@ RUN apk add --no-cache \
     ca-certificates
 
 # Copy the loom binary BEFORE switching to non-root user
-COPY --from=loom-builder /go/bin/loom /usr/local/bin/loom
+COPY --from=loom-builder /root/go/bin/loom /usr/local/bin/loom
 
 # Create non-root user for security
 RUN adduser -D -u 1000 beads

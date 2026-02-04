@@ -16,10 +16,14 @@ networks:
 
 services:
   # beads daemon - creates socket and manages data
+  # Note: Uses pre-built binaries via Containerfile.e2e.simple for disk efficiency
+  # Before building, run from repo root:
+  #   CGO_ENABLED=1 go build -ldflags '-linkmode external -extldflags "-static"' -o examples/beads-web-ui/bd-static ./cmd/bd
+  #   CGO_ENABLED=0 go build -o examples/beads-web-ui/beads-web-ui-static ./examples/beads-web-ui
   daemon:
     build:
-      context: ../..
-      dockerfile: examples/beads-web-ui/Containerfile.e2e
+      context: .
+      dockerfile: Containerfile.e2e.simple
       target: daemon
     volumes:
       - beads-data:/app/.beads
@@ -36,8 +40,8 @@ services:
   # beads-web-ui - serves frontend and API on port 8080
   web:
     build:
-      context: ../..
-      dockerfile: examples/beads-web-ui/Containerfile.e2e
+      context: .
+      dockerfile: Containerfile.e2e.simple
       target: web
     ports:
       - "8080:8080"
@@ -58,27 +62,27 @@ services:
       - e2e-network
     restart: "no"
 
-  # loom server - agent monitoring on port 9000
-  loom:
-    build:
-      context: ../..
-      dockerfile: examples/beads-web-ui/Containerfile.e2e
-      target: loom
-    ports:
-      - "9000:9000"
-    volumes:
-      - beads-data:/app/.beads
-    environment:
-      - LOOM_CORS_ORIGIN=*
-    depends_on:
-      web:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9000/health"]
-      interval: 2s
-      timeout: 5s
-      retries: 30
-      start_period: 10s
-    networks:
-      - e2e-network
-    restart: "no"
+  # loom server - disabled for now (external module issue)
+  # loom:
+  #   build:
+  #     context: ../..
+  #     dockerfile: examples/beads-web-ui/Containerfile.e2e
+  #     target: loom
+  #   ports:
+  #     - "9000:9000"
+  #   volumes:
+  #     - beads-data:/app/.beads
+  #   environment:
+  #     - LOOM_CORS_ORIGIN=*
+  #   depends_on:
+  #     web:
+  #       condition: service_healthy
+  #   healthcheck:
+  #     test: ["CMD", "curl", "-f", "http://localhost:9000/health"]
+  #     interval: 2s
+  #     timeout: 5s
+  #     retries: 30
+  #     start_period: 10s
+  #   networks:
+  #     - e2e-network
+  #   restart: "no"

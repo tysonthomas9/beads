@@ -86,7 +86,7 @@ test.describe('Kanban CRUD Integration', () => {
 
     // Navigate to Kanban board
     await page.goto('/')
-    await page.waitForLoadState('networkidle')
+    await page.waitForLoadState('domcontentloaded')
 
     // Wait for SSE connection
     const connectionStatus = page.locator('[data-state="connected"]')
@@ -111,7 +111,7 @@ test.describe('Kanban CRUD Integration', () => {
 
     // Navigate to Kanban
     await page.goto('/')
-    await page.waitForLoadState('networkidle')
+    await page.waitForLoadState('domcontentloaded')
 
     // Wait for SSE connection
     const connectionStatus = page.locator('[data-state="connected"]')
@@ -139,7 +139,7 @@ test.describe('Kanban CRUD Integration', () => {
 
     // Navigate to Kanban board
     await page.goto('/')
-    await page.waitForLoadState('networkidle')
+    await page.waitForLoadState('domcontentloaded')
 
     // Wait for SSE connection
     const connectionStatus = page.locator('[data-state="connected"]')
