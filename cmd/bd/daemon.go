@@ -15,6 +15,7 @@ import (
 
 	"github.com/steveyegge/beads/cmd/bd/doctor"
 	"github.com/steveyegge/beads/internal/beads"
+	"github.com/steveyegge/beads/internal/config"
 	"github.com/steveyegge/beads/internal/configfile"
 	"github.com/steveyegge/beads/internal/daemon"
 	"github.com/steveyegge/beads/internal/rpc"
@@ -715,7 +716,7 @@ func loadDaemonAutoSettings(cmd *cobra.Command, autoCommit, autoPush, autoPull b
 	unifiedAutoSync := ""
 	if envVal := os.Getenv("BEADS_AUTO_SYNC"); envVal != "" {
 		unifiedAutoSync = envVal
-	} else if configVal, _ := store.GetConfig(ctx, "daemon.auto-sync"); configVal != "" {
+	} else if configVal := config.GetYamlConfig("daemon.auto-sync"); configVal != "" {
 		unifiedAutoSync = configVal
 	}
 
@@ -739,9 +740,9 @@ func loadDaemonAutoSettings(cmd *cobra.Command, autoCommit, autoPush, autoPull b
 			// Use the CLI flag value (already in autoPull)
 		} else if envVal := os.Getenv("BEADS_AUTO_PULL"); envVal != "" {
 			autoPull = envVal == "true" || envVal == "1"
-		} else if configVal, _ := store.GetConfig(ctx, "daemon.auto-pull"); configVal != "" {
+		} else if configVal := config.GetYamlConfig("daemon.auto-pull"); configVal != "" {
 			autoPull = configVal == "true"
-		} else if configVal, _ := store.GetConfig(ctx, "daemon.auto_pull"); configVal != "" {
+		} else if configVal := config.GetYamlConfig("daemon.auto_pull"); configVal != "" {
 			autoPull = configVal == "true"
 		} else if hasSyncBranch {
 			// Default auto-pull to true when sync-branch configured
@@ -760,14 +761,14 @@ func loadDaemonAutoSettings(cmd *cobra.Command, autoCommit, autoPush, autoPull b
 	// Check legacy auto-commit (env var or config)
 	if envVal := os.Getenv("BEADS_AUTO_COMMIT"); envVal != "" {
 		legacyCommit = envVal == "true" || envVal == "1"
-	} else if configVal, _ := store.GetConfig(ctx, "daemon.auto_commit"); configVal != "" {
+	} else if configVal := config.GetYamlConfig("daemon.auto_commit"); configVal != "" {
 		legacyCommit = configVal == "true"
 	}
 
 	// Check legacy auto-push (env var or config)
 	if envVal := os.Getenv("BEADS_AUTO_PUSH"); envVal != "" {
 		legacyPush = envVal == "true" || envVal == "1"
-	} else if configVal, _ := store.GetConfig(ctx, "daemon.auto_push"); configVal != "" {
+	} else if configVal := config.GetYamlConfig("daemon.auto_push"); configVal != "" {
 		legacyPush = configVal == "true"
 	}
 
@@ -784,9 +785,9 @@ func loadDaemonAutoSettings(cmd *cobra.Command, autoCommit, autoPush, autoPull b
 	if !cmd.Flags().Changed("auto-pull") {
 		if envVal := os.Getenv("BEADS_AUTO_PULL"); envVal != "" {
 			autoPull = envVal == "true" || envVal == "1"
-		} else if configVal, _ := store.GetConfig(ctx, "daemon.auto-pull"); configVal != "" {
+		} else if configVal := config.GetYamlConfig("daemon.auto-pull"); configVal != "" {
 			autoPull = configVal == "true"
-		} else if configVal, _ := store.GetConfig(ctx, "daemon.auto_pull"); configVal != "" {
+		} else if configVal := config.GetYamlConfig("daemon.auto_pull"); configVal != "" {
 			autoPull = configVal == "true"
 		} else if hasSyncBranch {
 			// Default auto-pull to true when sync-branch configured
