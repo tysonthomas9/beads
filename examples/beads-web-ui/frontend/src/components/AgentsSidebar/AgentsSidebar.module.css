@@ -198,9 +198,9 @@
 
 .queueGrid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0.35rem 0.75rem;
-  font-size: 0.65rem;
+  grid-template-columns: 1fr;
+  gap: 0.4rem;
+  font-size: 0.7rem;
 }
 
 .queueItem {
