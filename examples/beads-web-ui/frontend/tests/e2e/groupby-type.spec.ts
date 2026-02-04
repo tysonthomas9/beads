@@ -378,13 +378,13 @@ test.describe("groupBy Type Swim Lanes", () => {
       // Verify Bug lane has open, in_progress, closed columns
       const bugLane = page.getByTestId("swim-lane-lane-type-bug")
       await expect(
-        bugLane.locator('section[data-status="open"]')
+        bugLane.locator('section[data-status="ready"]')
       ).toBeVisible()
       await expect(
         bugLane.locator('section[data-status="in_progress"]')
       ).toBeVisible()
       await expect(
-        bugLane.locator('section[data-status="closed"]')
+        bugLane.locator('section[data-status="done"]')
       ).toBeVisible()
     })
 
@@ -394,7 +394,7 @@ test.describe("groupBy Type Swim Lanes", () => {
 
       // bug-1 (status: open) in open column
       const bugLane = page.getByTestId("swim-lane-lane-type-bug")
-      const openColumn = bugLane.locator('section[data-status="open"]')
+      const openColumn = bugLane.locator('section[data-status="ready"]')
       await expect(openColumn.getByText("Critical Login Bug")).toBeVisible()
 
       // bug-2 (status: in_progress) in in_progress column
@@ -412,7 +412,7 @@ test.describe("groupBy Type Swim Lanes", () => {
       await navigateAndWait(page)
 
       const bugLane = page.getByTestId("swim-lane-lane-type-bug")
-      const openColumn = bugLane.locator('section[data-status="open"]')
+      const openColumn = bugLane.locator('section[data-status="ready"]')
       const inProgressColumn = bugLane.locator(
         'section[data-status="in_progress"]'
       )

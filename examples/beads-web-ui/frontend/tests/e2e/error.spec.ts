@@ -73,7 +73,7 @@ test.describe("ErrorDisplay and Retry", () => {
 
     // Error should clear, Kanban should appear
     await expect(errorDisplay).not.toBeVisible()
-    await expect(page.locator('section[data-status="open"]')).toBeVisible()
+    await expect(page.locator('section[data-status="ready"]')).toBeVisible()
   })
 
   test("error display has correct accessibility attributes", async ({ page }) => {

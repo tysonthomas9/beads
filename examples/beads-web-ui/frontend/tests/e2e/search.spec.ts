@@ -104,7 +104,7 @@ test.describe("SearchInput filtering", () => {
     }).toPass({ timeout: 2000 })
 
     // Verify the specific card is visible
-    const openColumn = page.locator('section[data-status="open"]')
+    const openColumn = page.locator('section[data-status="ready"]')
     await expect(openColumn.getByText("Authentication Bug")).toBeVisible()
   })
 
@@ -121,7 +121,7 @@ test.describe("SearchInput filtering", () => {
     }).toPass({ timeout: 2000 })
 
     // Verify the specific card is visible
-    const openColumn = page.locator('section[data-status="open"]')
+    const openColumn = page.locator('section[data-status="ready"]')
     await expect(openColumn.getByText("Dashboard Feature")).toBeVisible()
   })
 
@@ -173,7 +173,7 @@ test.describe("SearchInput filtering", () => {
     }).toPass({ timeout: 2000 })
 
     // Verify all columns show 0 count badges
-    const openColumn = page.locator('section[data-status="open"]')
+    const openColumn = page.locator('section[data-status="ready"]')
     await expect(openColumn.getByLabel("0 issues")).toBeVisible()
   })
 

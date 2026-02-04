@@ -121,7 +121,7 @@ test.describe("ViewSwitcher", () => {
     await expect(kanbanTab).toHaveAttribute("aria-selected", "true")
 
     // Verify Kanban column is visible
-    const openColumn = page.locator('section[data-status="open"]')
+    const openColumn = page.locator('section[data-status="ready"]')
     await expect(openColumn).toBeVisible()
   })
 
@@ -144,7 +144,7 @@ test.describe("ViewSwitcher", () => {
     await expect(issueTable).toBeVisible()
 
     // Verify Kanban column is NOT visible
-    const openColumn = page.locator('section[data-status="open"]')
+    const openColumn = page.locator('section[data-status="ready"]')
     await expect(openColumn).not.toBeVisible()
   })
 
@@ -191,7 +191,7 @@ test.describe("ViewSwitcher", () => {
     await expect(kanbanTab).toHaveAttribute("aria-selected", "true")
 
     // Verify Kanban column is visible
-    const openColumn = page.locator('section[data-status="open"]')
+    const openColumn = page.locator('section[data-status="ready"]')
     await expect(openColumn).toBeVisible()
   })
 
@@ -217,7 +217,7 @@ test.describe("ViewSwitcher", () => {
       // Verify Table view is rendered and Kanban view is hidden
       await expect(page.locator('[data-testid="issue-table"]')).toBeVisible()
       await expect(
-        page.locator('section[data-status="open"]')
+        page.locator('section[data-status="ready"]')
       ).not.toBeVisible()
     })
 
@@ -265,7 +265,7 @@ test.describe("ViewSwitcher", () => {
       await expect(kanbanTab).toHaveAttribute("aria-selected", "true")
 
       // Verify Kanban view is rendered and Graph view is hidden
-      await expect(page.locator('section[data-status="open"]')).toBeVisible()
+      await expect(page.locator('section[data-status="ready"]')).toBeVisible()
       await expect(page.locator('[data-testid="graph-view"]')).not.toBeVisible()
     })
 
@@ -313,7 +313,7 @@ test.describe("ViewSwitcher", () => {
       // Verify Graph view is rendered and Kanban view is hidden
       await expect(page.locator('[data-testid="graph-view"]')).toBeVisible()
       await expect(
-        page.locator('section[data-status="open"]')
+        page.locator('section[data-status="ready"]')
       ).not.toBeVisible()
     })
 
@@ -336,7 +336,7 @@ test.describe("ViewSwitcher", () => {
       await expect(kanbanTab).toHaveAttribute("aria-selected", "true")
 
       // Verify Kanban view is rendered and Graph view is hidden
-      await expect(page.locator('section[data-status="open"]')).toBeVisible()
+      await expect(page.locator('section[data-status="ready"]')).toBeVisible()
       await expect(page.locator('[data-testid="graph-view"]')).not.toBeVisible()
     })
 
@@ -361,7 +361,7 @@ test.describe("ViewSwitcher", () => {
       // Verify Graph view is rendered and Kanban view is hidden
       await expect(page.locator('[data-testid="graph-view"]')).toBeVisible()
       await expect(
-        page.locator('section[data-status="open"]')
+        page.locator('section[data-status="ready"]')
       ).not.toBeVisible()
     })
 
@@ -386,7 +386,7 @@ test.describe("ViewSwitcher", () => {
       // Verify Table view is rendered and Kanban view is hidden
       await expect(page.locator('[data-testid="issue-table"]')).toBeVisible()
       await expect(
-        page.locator('section[data-status="open"]')
+        page.locator('section[data-status="ready"]')
       ).not.toBeVisible()
     })
 
@@ -437,7 +437,7 @@ test.describe("ViewSwitcher", () => {
       // Verify Table view is rendered
       await expect(page.locator('[data-testid="issue-table"]')).toBeVisible()
       await expect(
-        page.locator('section[data-status="open"]')
+        page.locator('section[data-status="ready"]')
       ).not.toBeVisible()
     })
   })
@@ -541,7 +541,7 @@ test.describe("ViewSwitcher URL Sync", () => {
     await expect(issueTable).toBeVisible()
 
     // Verify Kanban view is not rendered
-    const openColumn = page.locator('section[data-status="open"]')
+    const openColumn = page.locator('section[data-status="ready"]')
     await expect(openColumn).not.toBeVisible()
   })
 
@@ -570,7 +570,7 @@ test.describe("ViewSwitcher URL Sync", () => {
 
     // Verify other views are not rendered
     const issueTable = page.getByTestId("issue-table")
-    const openColumn = page.locator('section[data-status="open"]')
+    const openColumn = page.locator('section[data-status="ready"]')
     await expect(issueTable).not.toBeVisible()
     await expect(openColumn).not.toBeVisible()
   })

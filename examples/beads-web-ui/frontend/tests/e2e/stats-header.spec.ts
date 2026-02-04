@@ -469,7 +469,7 @@ test.describe("StatsHeader Integration", () => {
     await expect(statsHeader).toBeVisible()
 
     // Verify Kanban board also renders (StatsHeader doesn't break the page)
-    const openColumn = page.locator('section[data-status="open"]')
+    const openColumn = page.locator('section[data-status="ready"]')
     await expect(openColumn).toBeVisible()
 
     // Verify filter bar renders

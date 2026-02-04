@@ -382,11 +382,11 @@ test.describe("groupBy URL Synchronization", () => {
       await expect(page.getByTestId("swim-lane-board")).not.toBeVisible()
 
       // Verify flat kanban columns exist
-      await expect(page.locator('section[data-status="open"]')).toBeVisible()
+      await expect(page.locator('section[data-status="ready"]')).toBeVisible()
       await expect(
         page.locator('section[data-status="in_progress"]')
       ).toBeVisible()
-      await expect(page.locator('section[data-status="closed"]')).toBeVisible()
+      await expect(page.locator('section[data-status="done"]')).toBeVisible()
     })
   })
 })

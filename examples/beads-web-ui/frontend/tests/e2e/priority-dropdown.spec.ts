@@ -197,7 +197,7 @@ test.describe("PriorityDropdown", () => {
       ])
 
       // Wait for kanban columns
-      const openColumn = page.locator('section[data-status="open"]')
+      const openColumn = page.locator('section[data-status="ready"]')
       await expect(openColumn).toBeVisible()
 
       // Verify issue cards exist with priority indicators
@@ -406,7 +406,7 @@ test.describe("PriorityDropdown", () => {
         page.goto("/"),
       ])
 
-      const openColumn = page.locator('section[data-status="open"]')
+      const openColumn = page.locator('section[data-status="ready"]')
       await expect(openColumn).toBeVisible()
 
       // Initially 2 open issues visible (P0 and P2)
@@ -442,7 +442,7 @@ test.describe("PriorityDropdown", () => {
       await expect(priorityFilter).toHaveValue("2")
 
       // Only P2 issue should be visible in open column
-      const openColumn = page.locator('section[data-status="open"]')
+      const openColumn = page.locator('section[data-status="ready"]')
       await expect(openColumn.locator("article")).toHaveCount(1)
       await expect(openColumn.getByText("Medium Priority Issue")).toBeVisible()
     })

@@ -150,9 +150,9 @@ test.describe("SwimLaneBoard", () => {
       await expect(page.getByTestId("swim-lane-board")).not.toBeVisible()
 
       // Verify flat Kanban columns are visible
-      const openColumn = page.locator('section[data-status="open"]')
+      const openColumn = page.locator('section[data-status="ready"]')
       const inProgressColumn = page.locator('section[data-status="in_progress"]')
-      const closedColumn = page.locator('section[data-status="closed"]')
+      const closedColumn = page.locator('section[data-status="done"]')
 
       await expect(openColumn).toBeVisible()
       await expect(inProgressColumn).toBeVisible()
@@ -437,18 +437,18 @@ test.describe("SwimLaneBoard", () => {
       const epicOneLane = page.getByTestId("swim-lane-lane-epic-epic-1")
 
       await expect(
-        epicOneLane.locator('section[data-status="open"]')
+        epicOneLane.locator('section[data-status="ready"]')
       ).toBeVisible()
       await expect(
         epicOneLane.locator('section[data-status="in_progress"]')
       ).toBeVisible()
       await expect(
-        epicOneLane.locator('section[data-status="closed"]')
+        epicOneLane.locator('section[data-status="done"]')
       ).toBeVisible()
 
       // Verify issues distributed by status within lane
       await expect(
-        epicOneLane.locator('section[data-status="open"] article')
+        epicOneLane.locator('section[data-status="ready"] article')
       ).toHaveCount(1)
       await expect(
         epicOneLane.locator('section[data-status="in_progress"] article')
@@ -565,7 +565,7 @@ test.describe("SwimLaneBoard", () => {
       await expect(epicOneLane).toBeVisible()
 
       // Find the open column and in_progress column within the lane
-      const openColumn = epicOneLane.locator('section[data-status="open"]')
+      const openColumn = epicOneLane.locator('section[data-status="ready"]')
       const inProgressColumn = epicOneLane.locator(
         'section[data-status="in_progress"]'
       )

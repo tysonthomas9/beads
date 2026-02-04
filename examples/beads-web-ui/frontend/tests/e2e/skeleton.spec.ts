@@ -115,9 +115,9 @@ test.describe("Loading Skeleton States", () => {
     await expect(skeletonColumns).toHaveCount(0)
 
     // Real columns should be visible (StatusColumn uses section[data-status])
-    await expect(page.locator('section[data-status="open"]')).toBeVisible()
+    await expect(page.locator('section[data-status="ready"]')).toBeVisible()
     await expect(page.locator('section[data-status="in_progress"]')).toBeVisible()
-    await expect(page.locator('section[data-status="closed"]')).toBeVisible()
+    await expect(page.locator('section[data-status="done"]')).toBeVisible()
   })
 
   test("skeleton has shimmer animation", async ({ page }) => {

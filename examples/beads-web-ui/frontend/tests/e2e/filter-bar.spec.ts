@@ -75,7 +75,7 @@ test.describe("FilterBar", () => {
     await navigateAndWait(page, "/")
 
     // Step 1: Verify initial state - all 4 issues visible
-    const openColumn = page.locator('section[data-status="open"]')
+    const openColumn = page.locator('section[data-status="ready"]')
     const inProgressColumn = page.locator('section[data-status="in_progress"]')
 
     await expect(openColumn).toBeVisible()

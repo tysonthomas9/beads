@@ -369,7 +369,7 @@ test.describe("groupBy Assignee Swim Lanes", () => {
 
       // Get bob's lane (has 2 open issues)
       const bobLane = getAssigneeLane(page, "bob")
-      const openColumn = bobLane.locator('section[data-status="open"]')
+      const openColumn = bobLane.locator('section[data-status="ready"]')
       const inProgressColumn = bobLane.locator(
         'section[data-status="in_progress"]'
       )
@@ -494,7 +494,7 @@ test.describe("groupBy Assignee Swim Lanes", () => {
 
       // Alice lane open column
       const aliceLane = getAssigneeLane(page, "alice")
-      const aliceOpen = aliceLane.locator('section[data-status="open"]')
+      const aliceOpen = aliceLane.locator('section[data-status="ready"]')
 
       // Bob lane in_progress column
       const bobLane = getAssigneeLane(page, "bob")
@@ -615,25 +615,25 @@ test.describe("groupBy Assignee Swim Lanes", () => {
       // Alice has: 1 open, 1 in_progress, 1 closed
       const aliceLane = getAssigneeLane(page, "alice")
       await expect(
-        aliceLane.locator('section[data-status="open"] article')
+        aliceLane.locator('section[data-status="ready"] article')
       ).toHaveCount(1)
       await expect(
         aliceLane.locator('section[data-status="in_progress"] article')
       ).toHaveCount(1)
       await expect(
-        aliceLane.locator('section[data-status="closed"] article')
+        aliceLane.locator('section[data-status="done"] article')
       ).toHaveCount(1)
 
       // Bob has: 2 open, 0 in_progress, 0 closed
       const bobLane = getAssigneeLane(page, "bob")
       await expect(
-        bobLane.locator('section[data-status="open"] article')
+        bobLane.locator('section[data-status="ready"] article')
       ).toHaveCount(2)
       await expect(
         bobLane.locator('section[data-status="in_progress"] article')
       ).toHaveCount(0)
       await expect(
-        bobLane.locator('section[data-status="closed"] article')
+        bobLane.locator('section[data-status="done"] article')
       ).toHaveCount(0)
     })
   })

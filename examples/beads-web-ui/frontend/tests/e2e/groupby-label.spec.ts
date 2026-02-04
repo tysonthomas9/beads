@@ -438,7 +438,7 @@ test.describe("groupBy Label Swim Lanes", () => {
       await navigateAndWait(page)
 
       const frontendLane = page.getByTestId("swim-lane-lane-label-frontend")
-      const openColumn = frontendLane.locator('section[data-status="open"]')
+      const openColumn = frontendLane.locator('section[data-status="ready"]')
       const inProgressColumn = frontendLane.locator(
         'section[data-status="in_progress"]'
       )
@@ -525,7 +525,7 @@ test.describe("groupBy Label Swim Lanes", () => {
       const frontendLane = page.getByTestId("swim-lane-lane-label-frontend")
       const backendLane = page.getByTestId("swim-lane-lane-label-backend")
 
-      const frontendOpen = frontendLane.locator('section[data-status="open"]')
+      const frontendOpen = frontendLane.locator('section[data-status="ready"]')
       const backendInProgress = backendLane.locator(
         'section[data-status="in_progress"]'
       )
@@ -604,13 +604,13 @@ test.describe("groupBy Label Swim Lanes", () => {
 
       const frontendLane = page.getByTestId("swim-lane-lane-label-frontend")
       await expect(
-        frontendLane.locator('section[data-status="open"]')
+        frontendLane.locator('section[data-status="ready"]')
       ).toBeVisible()
       await expect(
         frontendLane.locator('section[data-status="in_progress"]')
       ).toBeVisible()
       await expect(
-        frontendLane.locator('section[data-status="closed"]')
+        frontendLane.locator('section[data-status="done"]')
       ).toBeVisible()
     })
 
@@ -623,13 +623,13 @@ test.describe("groupBy Label Swim Lanes", () => {
       // Frontend lane: 2 open (issue-1, issue-4), 0 in_progress, 1 closed (issue-5)
       const frontendLane = page.getByTestId("swim-lane-lane-label-frontend")
       await expect(
-        frontendLane.locator('section[data-status="open"] article')
+        frontendLane.locator('section[data-status="ready"] article')
       ).toHaveCount(2)
       await expect(
         frontendLane.locator('section[data-status="in_progress"] article')
       ).toHaveCount(0)
       await expect(
-        frontendLane.locator('section[data-status="closed"] article')
+        frontendLane.locator('section[data-status="done"] article')
       ).toHaveCount(1)
     })
   })

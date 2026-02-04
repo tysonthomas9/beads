@@ -407,7 +407,7 @@ test.describe("Show Closed Toggle", () => {
       // Navigate away to Kanban view
       const kanbanTab = page.getByTestId("view-tab-kanban")
       await kanbanTab.click()
-      await expect(page.locator('section[data-status="open"]')).toBeVisible()
+      await expect(page.locator('section[data-status="ready"]')).toBeVisible()
 
       // Navigate back to Graph view
       const graphTab = page.getByTestId("view-tab-graph")

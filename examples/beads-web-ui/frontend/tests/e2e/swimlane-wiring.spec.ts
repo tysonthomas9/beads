@@ -98,7 +98,7 @@ test.describe("Swim Lane Wiring in App.tsx", () => {
       // Verify status columns exist within swim lanes
       const epicOneLane = page.getByTestId("swim-lane-lane-epic-epic-1")
       await expect(
-        epicOneLane.locator('section[data-status="open"]')
+        epicOneLane.locator('section[data-status="ready"]')
       ).toBeVisible()
       await expect(
         epicOneLane.locator('section[data-status="in_progress"]')
@@ -115,9 +115,9 @@ test.describe("Swim Lane Wiring in App.tsx", () => {
       await expect(page.getByTestId("swim-lane-board")).not.toBeVisible()
 
       // Verify flat Kanban columns are visible
-      const openColumn = page.locator('section[data-status="open"]')
+      const openColumn = page.locator('section[data-status="ready"]')
       const inProgressColumn = page.locator('section[data-status="in_progress"]')
-      const closedColumn = page.locator('section[data-status="closed"]')
+      const closedColumn = page.locator('section[data-status="done"]')
 
       await expect(openColumn).toBeVisible()
       await expect(inProgressColumn).toBeVisible()
@@ -145,7 +145,7 @@ test.describe("Swim Lane Wiring in App.tsx", () => {
       await expect(page.getByTestId("swim-lane-board")).not.toBeVisible()
 
       // Verify flat Kanban columns visible
-      await expect(page.locator('section[data-status="open"]')).toBeVisible()
+      await expect(page.locator('section[data-status="ready"]')).toBeVisible()
     })
   })
 
@@ -237,7 +237,7 @@ test.describe("Swim Lane Wiring in App.tsx", () => {
       await expect(epicOneLane).toBeVisible()
 
       // Find open and in_progress columns within the lane
-      const openColumn = epicOneLane.locator('section[data-status="open"]')
+      const openColumn = epicOneLane.locator('section[data-status="ready"]')
       const inProgressColumn = epicOneLane.locator(
         'section[data-status="in_progress"]'
       )
@@ -423,7 +423,7 @@ test.describe("Swim Lane Wiring in App.tsx", () => {
       const epicOneLane = page.getByTestId("swim-lane-lane-epic-epic-1")
 
       // Verify issues in correct status columns within the lane
-      const openColumn = epicOneLane.locator('section[data-status="open"]')
+      const openColumn = epicOneLane.locator('section[data-status="ready"]')
       const inProgressColumn = epicOneLane.locator(
         'section[data-status="in_progress"]'
       )

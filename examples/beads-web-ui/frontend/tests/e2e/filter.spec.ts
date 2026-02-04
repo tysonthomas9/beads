@@ -155,9 +155,9 @@ test.describe("FilterBar - Priority Filter", () => {
     await navigateAndWait(page, "/")
 
     // Wait for the Kanban board to render
-    const openColumn = page.locator('section[data-status="open"]')
+    const openColumn = page.locator('section[data-status="ready"]')
     const inProgressColumn = page.locator('section[data-status="in_progress"]')
-    const closedColumn = page.locator('section[data-status="closed"]')
+    const closedColumn = page.locator('section[data-status="done"]')
 
     await expect(openColumn).toBeVisible()
     await expect(inProgressColumn).toBeVisible()
@@ -201,12 +201,12 @@ test.describe("FilterBar - Priority Filter", () => {
     await navigateAndWait(page, "/")
 
     // Wait for the Kanban board to render
-    const openColumn = page.locator('section[data-status="open"]')
+    const openColumn = page.locator('section[data-status="ready"]')
     await expect(openColumn).toBeVisible()
 
     const openCards = openColumn.locator("article")
     const inProgressCards = page.locator('section[data-status="in_progress"]').locator("article")
-    const closedCards = page.locator('section[data-status="closed"]').locator("article")
+    const closedCards = page.locator('section[data-status="done"]').locator("article")
 
     // Verify initial state (8 issues total)
     await expect(openCards).toHaveCount(6)
@@ -245,7 +245,7 @@ test.describe("FilterBar - Priority Filter", () => {
     await navigateAndWait(page, "/")
 
     // Wait for the Kanban board to render
-    const openColumn = page.locator('section[data-status="open"]')
+    const openColumn = page.locator('section[data-status="ready"]')
     await expect(openColumn).toBeVisible()
 
     // Select P0 (Critical)
@@ -276,7 +276,7 @@ test.describe("FilterBar - Priority Filter (Empty Results)", () => {
     await navigateAndWait(page, "/")
 
     // Wait for the Kanban board to render
-    const openColumn = page.locator('section[data-status="open"]')
+    const openColumn = page.locator('section[data-status="ready"]')
     await expect(openColumn).toBeVisible()
 
     // Verify initial issues are visible before filtering
@@ -292,7 +292,7 @@ test.describe("FilterBar - Priority Filter (Empty Results)", () => {
     // All columns should be empty
     const openCards = openColumn.locator("article")
     const inProgressCards = page.locator('section[data-status="in_progress"]').locator("article")
-    const closedCards = page.locator('section[data-status="closed"]').locator("article")
+    const closedCards = page.locator('section[data-status="done"]').locator("article")
 
     await expect(openCards).toHaveCount(0)
     await expect(inProgressCards).toHaveCount(0)
@@ -308,7 +308,7 @@ test.describe("FilterBar - SearchInput Filter (T106b)", () => {
   test("typing in search filters issues by text", async ({ page }) => {
     await navigateAndWait(page, "/")
 
-    const openColumn = page.locator('section[data-status="open"]')
+    const openColumn = page.locator('section[data-status="ready"]')
     await expect(openColumn).toBeVisible()
 
     // Count initial issues
@@ -331,7 +331,7 @@ test.describe("FilterBar - SearchInput Filter (T106b)", () => {
   test("search is case-insensitive", async ({ page }) => {
     await navigateAndWait(page, "/")
 
-    const openColumn = page.locator('section[data-status="open"]')
+    const openColumn = page.locator('section[data-status="ready"]')
     await expect(openColumn).toBeVisible()
 
     // Type in search with different case
@@ -348,7 +348,7 @@ test.describe("FilterBar - SearchInput Filter (T106b)", () => {
   test("search matches title, description, and notes", async ({ page }) => {
     await navigateAndWait(page, "/")
 
-    const openColumn = page.locator('section[data-status="open"]')
+    const openColumn = page.locator('section[data-status="ready"]')
     await expect(openColumn).toBeVisible()
 
     // Search by description content
@@ -373,7 +373,7 @@ test.describe("FilterBar - SearchInput Filter (T106b)", () => {
   test("clearing search input shows all issues", async ({ page }) => {
     await navigateAndWait(page, "/")
 
-    const openColumn = page.locator('section[data-status="open"]')
+    const openColumn = page.locator('section[data-status="ready"]')
     await expect(openColumn).toBeVisible()
 
     // Get initial counts
@@ -397,7 +397,7 @@ test.describe("FilterBar - SearchInput Filter (T106b)", () => {
   test("escape key clears search", async ({ page }) => {
     await navigateAndWait(page, "/")
 
-    const openColumn = page.locator('section[data-status="open"]')
+    const openColumn = page.locator('section[data-status="ready"]')
     await expect(openColumn).toBeVisible()
 
     // Get initial counts
@@ -461,7 +461,7 @@ test.describe("FilterBar - URL Sync (T106c)", () => {
     await expect(priorityFilter).toHaveValue("1")
 
     // Verify only P1 issues are shown
-    const openColumn = page.locator('section[data-status="open"]')
+    const openColumn = page.locator('section[data-status="ready"]')
     await expect(openColumn.getByText("High Priority Task")).toBeVisible()
     await expect(openColumn.getByText("Critical Bug")).not.toBeVisible()
   })
@@ -497,7 +497,7 @@ test.describe("FilterBar - URL Sync (T106c)", () => {
     await expect(typeFilter).toHaveValue("bug")
 
     // Verify only matching issue is shown
-    const openColumn = page.locator('section[data-status="open"]')
+    const openColumn = page.locator('section[data-status="ready"]')
     await expect(openColumn.getByText("Critical Bug")).toBeVisible()
     await expect(openColumn.locator("article")).toHaveCount(1)
   })
@@ -611,7 +611,7 @@ test.describe("Filter Integration Tests", () => {
   test("combined priority + type + search filters work together", async ({ page }) => {
     await navigateAndWait(page, "/")
 
-    const openColumn = page.locator('section[data-status="open"]')
+    const openColumn = page.locator('section[data-status="ready"]')
     await expect(openColumn).toBeVisible()
 
     // Apply priority filter (P2)
@@ -649,7 +649,7 @@ test.describe("Filter Integration Tests", () => {
     await priorityFilter.selectOption("1")
 
     // Wait for filter to apply in Kanban view
-    const openColumn = page.locator('section[data-status="open"]')
+    const openColumn = page.locator('section[data-status="ready"]')
     await expect(openColumn.getByText("High Priority Task")).toBeVisible()
 
     // Switch to Table view
@@ -697,7 +697,7 @@ test.describe("Filter Integration Tests", () => {
     await expect(typeFilter).toHaveValue("task")
 
     // Verify filtered results are shown
-    const openColumn = page.locator('section[data-status="open"]')
+    const openColumn = page.locator('section[data-status="ready"]')
     await expect(openColumn.getByText("High Priority Task")).toBeVisible()
     // Critical Bug is P0 bug, should not be visible
     await expect(openColumn.getByText("Critical Bug")).not.toBeVisible()

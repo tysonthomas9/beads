@@ -343,13 +343,13 @@ test.describe("groupBy Epic Swim Lanes", () => {
       const epicOneLane = getEpicLane(page, "epic-1")
 
       await expect(
-        epicOneLane.locator('section[data-status="open"]')
+        epicOneLane.locator('section[data-status="ready"]')
       ).toBeVisible()
       await expect(
         epicOneLane.locator('section[data-status="in_progress"]')
       ).toBeVisible()
       await expect(
-        epicOneLane.locator('section[data-status="closed"]')
+        epicOneLane.locator('section[data-status="done"]')
       ).toBeVisible()
     })
 
@@ -360,11 +360,11 @@ test.describe("groupBy Epic Swim Lanes", () => {
 
       // Open column: 1 issue
       await expect(
-        epicOneLane.locator('section[data-status="open"] article')
+        epicOneLane.locator('section[data-status="ready"] article')
       ).toHaveCount(1)
       await expect(
         epicOneLane
-          .locator('section[data-status="open"]')
+          .locator('section[data-status="ready"]')
           .getByText("Feature in Epic One (Open)")
       ).toBeVisible()
 
@@ -380,11 +380,11 @@ test.describe("groupBy Epic Swim Lanes", () => {
 
       // Closed column: 1 issue
       await expect(
-        epicOneLane.locator('section[data-status="closed"] article')
+        epicOneLane.locator('section[data-status="done"] article')
       ).toHaveCount(1)
       await expect(
         epicOneLane
-          .locator('section[data-status="closed"]')
+          .locator('section[data-status="done"]')
           .getByText("Bug in Epic One (Closed)")
       ).toBeVisible()
     })
@@ -424,7 +424,7 @@ test.describe("groupBy Epic Swim Lanes", () => {
       await navigateToEpicView(page)
 
       const epicOneLane = getEpicLane(page, "epic-1")
-      const openColumn = epicOneLane.locator('section[data-status="open"]')
+      const openColumn = epicOneLane.locator('section[data-status="ready"]')
       const inProgressColumn = epicOneLane.locator(
         'section[data-status="in_progress"]'
       )
@@ -549,7 +549,7 @@ test.describe("groupBy Epic Swim Lanes", () => {
 
       // Epic One open column
       const epicOneLane = getEpicLane(page, "epic-1")
-      const epicOneOpen = epicOneLane.locator('section[data-status="open"]')
+      const epicOneOpen = epicOneLane.locator('section[data-status="ready"]')
 
       // Epic Two in_progress column
       const epicTwoLane = getEpicLane(page, "epic-2")

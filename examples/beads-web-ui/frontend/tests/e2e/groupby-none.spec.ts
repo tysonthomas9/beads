@@ -151,7 +151,7 @@ test.describe("groupBy None (Flat View)", () => {
 
       // Flat view renders
       await expect(page.getByTestId("swim-lane-board")).not.toBeVisible()
-      await expect(page.locator('section[data-status="open"]')).toBeVisible()
+      await expect(page.locator('section[data-status="ready"]')).toBeVisible()
 
       // Dropdown shows 'none'
       await expect(page.getByTestId("groupby-filter")).toHaveValue("none")
@@ -196,9 +196,9 @@ test.describe("groupBy None (Flat View)", () => {
       await setupMocks(page)
       await navigateAndWait(page, "/?groupBy=none")
 
-      const openColumn = page.locator('section[data-status="open"]')
+      const openColumn = page.locator('section[data-status="ready"]')
       const inProgressColumn = page.locator('section[data-status="in_progress"]')
-      const closedColumn = page.locator('section[data-status="closed"]')
+      const closedColumn = page.locator('section[data-status="done"]')
 
       // All three status columns visible
       await expect(openColumn).toBeVisible()
@@ -215,9 +215,9 @@ test.describe("groupBy None (Flat View)", () => {
       await setupMocks(page)
       await navigateAndWait(page, "/?groupBy=none")
 
-      const openColumn = page.locator('section[data-status="open"]')
+      const openColumn = page.locator('section[data-status="ready"]')
       const inProgressColumn = page.locator('section[data-status="in_progress"]')
-      const closedColumn = page.locator('section[data-status="closed"]')
+      const closedColumn = page.locator('section[data-status="done"]')
 
       // Open issues
       await expect(openColumn.getByText("Open Issue One")).toBeVisible()
@@ -240,7 +240,7 @@ test.describe("groupBy None (Flat View)", () => {
       await setupMocksWithPatch(page, patchCalls)
       await navigateAndWait(page, "/?groupBy=none")
 
-      const openColumn = page.locator('section[data-status="open"]')
+      const openColumn = page.locator('section[data-status="ready"]')
       const inProgressColumn = page.locator('section[data-status="in_progress"]')
 
       // Initial state
@@ -329,8 +329,8 @@ test.describe("groupBy None (Flat View)", () => {
       await setupMocksWithPatch(page, patchCalls)
       await navigateAndWait(page, "/?groupBy=none")
 
-      const openColumn = page.locator('section[data-status="open"]')
-      const closedColumn = page.locator('section[data-status="closed"]')
+      const openColumn = page.locator('section[data-status="ready"]')
+      const closedColumn = page.locator('section[data-status="done"]')
 
       const card = openColumn
         .locator("article")
@@ -425,7 +425,7 @@ test.describe("groupBy None (Flat View)", () => {
 
       // Verify flat view
       await expect(page.getByTestId("swim-lane-board")).not.toBeVisible()
-      await expect(page.locator('section[data-status="open"]')).toBeVisible()
+      await expect(page.locator('section[data-status="ready"]')).toBeVisible()
 
       // No epic lane headers
       await expect(
@@ -481,7 +481,7 @@ test.describe("groupBy None (Flat View)", () => {
       await expect(page.getByTestId("swim-lane-board")).not.toBeVisible()
 
       // All status columns visible
-      await expect(page.locator('section[data-status="open"]')).toBeVisible()
+      await expect(page.locator('section[data-status="ready"]')).toBeVisible()
     })
   })
 
@@ -604,11 +604,11 @@ test.describe("groupBy None (Flat View)", () => {
       await navigateAndWait(page, "/?groupBy=none")
 
       // Status columns still visible
-      await expect(page.locator('section[data-status="open"]')).toBeVisible()
+      await expect(page.locator('section[data-status="ready"]')).toBeVisible()
       await expect(
         page.locator('section[data-status="in_progress"]')
       ).toBeVisible()
-      await expect(page.locator('section[data-status="closed"]')).toBeVisible()
+      await expect(page.locator('section[data-status="done"]')).toBeVisible()
 
       // No issues
       await expect(page.locator("article")).toHaveCount(0)
@@ -649,9 +649,9 @@ test.describe("groupBy None (Flat View)", () => {
       await setupMocks(page, allOpenIssues)
       await navigateAndWait(page, "/?groupBy=none")
 
-      const openColumn = page.locator('section[data-status="open"]')
+      const openColumn = page.locator('section[data-status="ready"]')
       const inProgressColumn = page.locator('section[data-status="in_progress"]')
-      const closedColumn = page.locator('section[data-status="closed"]')
+      const closedColumn = page.locator('section[data-status="done"]')
 
       // All in open
       await expect(openColumn.locator("article")).toHaveCount(3)

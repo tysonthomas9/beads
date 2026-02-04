@@ -336,13 +336,13 @@ test.describe("groupBy Priority Swim Lanes", () => {
       // Check P0 lane has all three status columns
       const p0Lane = page.getByTestId("swim-lane-lane-priority-0")
       await expect(
-        p0Lane.locator('section[data-status="open"]')
+        p0Lane.locator('section[data-status="ready"]')
       ).toBeVisible()
       await expect(
         p0Lane.locator('section[data-status="in_progress"]')
       ).toBeVisible()
       await expect(
-        p0Lane.locator('section[data-status="closed"]')
+        p0Lane.locator('section[data-status="done"]')
       ).toBeVisible()
     })
 
@@ -355,22 +355,22 @@ test.describe("groupBy Priority Swim Lanes", () => {
       // P0 lane: 1 open, 1 in_progress
       const p0Lane = page.getByTestId("swim-lane-lane-priority-0")
       await expect(
-        p0Lane.locator('section[data-status="open"] article')
+        p0Lane.locator('section[data-status="ready"] article')
       ).toHaveCount(1)
       await expect(
         p0Lane.locator('section[data-status="in_progress"] article')
       ).toHaveCount(1)
       await expect(
-        p0Lane.locator('section[data-status="closed"] article')
+        p0Lane.locator('section[data-status="done"] article')
       ).toHaveCount(0)
 
       // P2 lane: 1 open, 1 closed
       const p2Lane = page.getByTestId("swim-lane-lane-priority-2")
       await expect(
-        p2Lane.locator('section[data-status="open"] article')
+        p2Lane.locator('section[data-status="ready"] article')
       ).toHaveCount(1)
       await expect(
-        p2Lane.locator('section[data-status="closed"] article')
+        p2Lane.locator('section[data-status="done"] article')
       ).toHaveCount(1)
     })
   })
@@ -421,7 +421,7 @@ test.describe("groupBy Priority Swim Lanes", () => {
       await expect(p0Lane).toBeVisible()
 
       // Find open and in_progress columns within P0 lane
-      const openColumn = p0Lane.locator('section[data-status="open"]')
+      const openColumn = p0Lane.locator('section[data-status="ready"]')
       const inProgressColumn = p0Lane.locator(
         'section[data-status="in_progress"]'
       )
@@ -605,7 +605,7 @@ test.describe("groupBy Priority Swim Lanes", () => {
       await expect(page.getByTestId("swim-lane-board")).not.toBeVisible()
 
       // Flat kanban columns should appear
-      await expect(page.locator('section[data-status="open"]')).toBeVisible()
+      await expect(page.locator('section[data-status="ready"]')).toBeVisible()
     })
 
     test("priority filter works with priority groupBy", async ({ page }) => {
