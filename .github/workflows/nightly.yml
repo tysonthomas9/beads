@@ -48,3 +48,46 @@ jobs:
         with:
           file: ./coverage.out
           fail_ci_if_error: false
+
+  e2e-integration:
+    name: E2E Integration Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install podman-compose
+        run: pip3 install podman-compose
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        working-directory: examples/beads-web-ui/frontend
+        run: npm ci
+
+      - name: Install Playwright Browsers
+        working-directory: examples/beads-web-ui/frontend
+        run: npx playwright install chromium --with-deps
+
+      - name: Run E2E integration tests
+        working-directory: examples/beads-web-ui/frontend
+        run: npm run test:e2e:integration
+        env:
+          RUN_INTEGRATION_TESTS: '1'
+
+      - name: Upload test results on failure
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: e2e-integration-report
+          path: |
+            examples/beads-web-ui/frontend/test-results/
+            examples/beads-web-ui/frontend/playwright-report/
+          retention-days: 7
+
+      - name: Cleanup containers on failure
+        if: failure()
+        run: |
+          cd examples/beads-web-ui
+          podman-compose -f compose.e2e.yml down --volumes --remove-orphans 2>/dev/null || true

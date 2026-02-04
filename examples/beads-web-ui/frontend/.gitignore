@@ -20,3 +20,6 @@ npm-debug.log*
 /test-results/
 /playwright-report/
 /playwright/.cache/
+
+# E2E integration test state
+tests/e2e/.e2e-state.json
