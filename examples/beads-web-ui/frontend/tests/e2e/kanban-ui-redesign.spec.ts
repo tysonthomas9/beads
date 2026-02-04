@@ -430,8 +430,8 @@ test.describe("Sidebar Rendering", () => {
   })
 })
 
-test.describe("Backlog Column Card Styling", () => {
-  test("blocked cards in backlog have dimmed appearance", async ({ page }) => {
+test.describe("Backlog and Blocked Column Card Styling", () => {
+  test("blocked cards in blocked column have dimmed appearance", async ({ page }) => {
     const issues = [
       makeIssue({
         id: "bl-1",
@@ -439,18 +439,18 @@ test.describe("Backlog Column Card Styling", () => {
         status: "blocked",
         priority: 2,
       }),
-      makeIssue({ id: "r-1", title: "Ready Task", status: "open" }),
+      makeIssue({ id: "r-1", title: "Open Task", status: "open" }),
     ]
     await setupMocks(page, { issues })
     await navigateToKanban(page)
 
-    const backlogColumn = page.locator('section[data-status="backlog"]')
-    const backlogCard = backlogColumn.locator("article")
-    await expect(backlogCard).toBeVisible()
-    await expect(backlogCard).toHaveAttribute("data-in-backlog", "true")
+    const blockedColumn = page.locator('section[data-status="blocked"]')
+    const blockedCard = blockedColumn.locator("article")
+    await expect(blockedCard).toBeVisible()
+    await expect(blockedCard).toHaveAttribute("data-in-backlog", "true")
 
-    // Backlog cards have opacity 0.7
-    const opacity = await backlogCard.evaluate(
+    // Blocked column cards have opacity 0.7
+    const opacity = await blockedCard.evaluate(
       (el) => window.getComputedStyle(el).opacity
     )
     expect(opacity).toBe("0.7")
@@ -463,7 +463,7 @@ test.describe("Backlog Column Card Styling", () => {
         title: "Deferred Task",
         status: "deferred",
       }),
-      makeIssue({ id: "r-1", title: "Ready Task", status: "open" }),
+      makeIssue({ id: "r-1", title: "Open Task", status: "open" }),
     ]
     await setupMocks(page, { issues })
     await navigateToKanban(page)
@@ -485,7 +485,7 @@ test.describe("Blocked Card Styling", () => {
         title: "Blocked By Others",
         status: "open",
       }),
-      makeIssue({ id: "r-1", title: "Ready Task", status: "open" }),
+      makeIssue({ id: "r-1", title: "Open Task", status: "open" }),
     ]
 
     const blockedData = {
@@ -497,9 +497,9 @@ test.describe("Blocked Card Styling", () => {
     await setupMocks(page, { issues, blockedIssues: [blockedData] })
     await navigateToKanban(page)
 
-    // Blocked card should be in the Backlog column
-    const backlogColumn = page.locator('section[data-status="backlog"]')
-    const blockedCard = backlogColumn.locator('article[data-blocked="true"]')
+    // Blocked card should be in the Blocked column (not Backlog)
+    const blockedColumn = page.locator('section[data-status="blocked"]')
+    const blockedCard = blockedColumn.locator('article[data-blocked="true"]')
     await expect(blockedCard).toBeVisible()
   })
 })

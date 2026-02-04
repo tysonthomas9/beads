@@ -71,8 +71,8 @@ function makeIssue(overrides: Record<string, unknown>) {
   }
 }
 
-test.describe("Backlog column filters", () => {
-  test("status=blocked issues appear in Backlog column", async ({ page }) => {
+test.describe("Blocked column filters", () => {
+  test("status=blocked issues appear in Blocked column", async ({ page }) => {
     const blockedIssue = makeIssue({
       id: "blocked-1",
       title: "Blocked Task",
@@ -82,21 +82,23 @@ test.describe("Backlog column filters", () => {
     await setupMocks(page, { issues: [blockedIssue] })
     await navigateAndWait(page)
 
-    const backlogColumn = page.locator('section[data-status="backlog"]')
-    await expect(backlogColumn).toBeVisible()
+    const blockedColumn = page.locator('section[data-status="blocked"]')
+    await expect(blockedColumn).toBeVisible()
 
-    // Card should be in Backlog
-    await expect(backlogColumn.getByText("Blocked Task")).toBeVisible()
-    await expect(backlogColumn.locator("article")).toHaveCount(1)
-    await expect(backlogColumn.getByLabel("1 issue")).toBeVisible()
+    // Card should be in Blocked column
+    await expect(blockedColumn.getByText("Blocked Task")).toBeVisible()
+    await expect(blockedColumn.locator("article")).toHaveCount(1)
+    await expect(blockedColumn.getByLabel("1 issue")).toBeVisible()
 
     // Card should NOT be in other columns
     const readyColumn = page.locator('section[data-status="ready"]')
+    const backlogColumn = page.locator('section[data-status="backlog"]')
     const inProgressColumn = page.locator('section[data-status="in_progress"]')
     const reviewColumn = page.locator('section[data-status="review"]')
     const doneColumn = page.locator('section[data-status="done"]')
 
     await expect(readyColumn.locator("article")).toHaveCount(0)
+    await expect(backlogColumn.locator("article")).toHaveCount(0)
     await expect(inProgressColumn.locator("article")).toHaveCount(0)
     await expect(reviewColumn.locator("article")).toHaveCount(0)
     await expect(doneColumn.locator("article")).toHaveCount(0)
@@ -134,7 +136,7 @@ test.describe("Backlog column filters", () => {
     ).toHaveCount(0)
   })
 
-  test("dependency-blocked issues appear in Backlog column", async ({
+  test("dependency-blocked issues appear in Blocked column", async ({
     page,
   }) => {
     // An open issue that has dependency blockers
@@ -157,12 +159,12 @@ test.describe("Backlog column filters", () => {
     })
     await navigateAndWait(page)
 
-    const backlogColumn = page.locator('section[data-status="backlog"]')
-    await expect(backlogColumn).toBeVisible()
+    const blockedColumn = page.locator('section[data-status="blocked"]')
+    await expect(blockedColumn).toBeVisible()
 
-    // Card should be in Backlog (not Ready) because it has blockers
-    await expect(backlogColumn.getByText("Dep Blocked Task")).toBeVisible()
-    await expect(backlogColumn.locator("article")).toHaveCount(1)
+    // Card should be in Blocked (not Ready) because it has blockers
+    await expect(blockedColumn.getByText("Dep Blocked Task")).toBeVisible()
+    await expect(blockedColumn.locator("article")).toHaveCount(1)
 
     // Should NOT be in Ready column
     await expect(
@@ -183,12 +185,12 @@ test.describe("Backlog column filters", () => {
     await setupMocks(page, { issues: [blockedIssue] })
     await navigateAndWait(page)
 
-    const backlogColumn = page.locator('section[data-status="backlog"]')
+    const blockedColumn = page.locator('section[data-status="blocked"]')
     const reviewColumn = page.locator('section[data-status="review"]')
 
-    // Should be in Backlog
+    // Should be in Blocked column
     await expect(
-      backlogColumn.getByText("Blocked But Not Review")
+      blockedColumn.getByText("Blocked But Not Review")
     ).toBeVisible()
 
     // Should NOT be in Review
@@ -225,9 +227,10 @@ test.describe("Backlog column filters", () => {
     })
     await navigateAndWait(page)
 
-    // No epic should appear in any column
+    // No epic should appear in any column (except Done for closed epics)
     const readyColumn = page.locator('section[data-status="ready"]')
     const backlogColumn = page.locator('section[data-status="backlog"]')
+    const blockedColumn = page.locator('section[data-status="blocked"]')
     const inProgressColumn = page.locator('section[data-status="in_progress"]')
     const reviewColumn = page.locator('section[data-status="review"]')
     const doneColumn = page.locator('section[data-status="done"]')
@@ -236,6 +239,7 @@ test.describe("Backlog column filters", () => {
 
     await expect(readyColumn.locator("article")).toHaveCount(0)
     await expect(backlogColumn.locator("article")).toHaveCount(0)
+    await expect(blockedColumn.locator("article")).toHaveCount(0)
     await expect(inProgressColumn.locator("article")).toHaveCount(0)
     await expect(reviewColumn.locator("article")).toHaveCount(0)
     await expect(doneColumn.locator("article")).toHaveCount(0)
@@ -243,43 +247,39 @@ test.describe("Backlog column filters", () => {
 })
 
 test.describe("Backlog column header and styling", () => {
-  test("Backlog column shows ⏳ icon and 'Backlog' title", async ({
+  test("Backlog column shows 'Backlog' title", async ({
     page,
   }) => {
-    const blockedIssue = makeIssue({
+    const deferredIssue = makeIssue({
       id: "header-test-1",
       title: "Header Test Issue",
-      status: "blocked",
+      status: "deferred",
     })
 
-    await setupMocks(page, { issues: [blockedIssue] })
+    await setupMocks(page, { issues: [deferredIssue] })
     await navigateAndWait(page)
 
     const backlogColumn = page.locator('section[data-status="backlog"]')
     await expect(backlogColumn).toBeVisible()
 
-    // V1: Column header shows ⏳ icon
-    const headerIcon = backlogColumn.locator('[aria-hidden="true"]').first()
-    await expect(headerIcon).toHaveText("⏳")
-
-    // V1: Column title says "Backlog"
+    // Column title says "Backlog"
     const title = backlogColumn.locator("h2")
     await expect(title).toHaveText("Backlog")
 
-    // V1: Count badge shows correct number
+    // Count badge shows correct number
     await expect(backlogColumn.getByLabel("1 issue")).toBeVisible()
   })
 
   test("Backlog column has data-column-type='backlog' attribute", async ({
     page,
   }) => {
-    const blockedIssue = makeIssue({
+    const deferredIssue = makeIssue({
       id: "attr-test-1",
       title: "Attr Test Issue",
-      status: "blocked",
+      status: "deferred",
     })
 
-    await setupMocks(page, { issues: [blockedIssue] })
+    await setupMocks(page, { issues: [deferredIssue] })
     await navigateAndWait(page)
 
     const backlogColumn = page.locator('section[data-status="backlog"]')
@@ -289,93 +289,93 @@ test.describe("Backlog column header and styling", () => {
   test("Backlog column applies muted background styling", async ({
     page,
   }) => {
-    const blockedIssue = makeIssue({
+    const deferredIssue = makeIssue({
       id: "style-test-1",
       title: "Style Test Issue",
-      status: "blocked",
+      status: "deferred",
     })
 
-    await setupMocks(page, { issues: [blockedIssue] })
+    await setupMocks(page, { issues: [deferredIssue] })
     await navigateAndWait(page)
 
     const backlogColumn = page.locator('section[data-status="backlog"]')
     await expect(backlogColumn).toBeVisible()
 
-    // V2: Column background should use tertiary bg (different from default secondary)
-    const readyColumn = page.locator('section[data-status="ready"]')
-    await expect(readyColumn).toBeVisible()
+    // Column background should use tertiary bg (different from default secondary)
+    const openColumn = page.locator('section[data-status="ready"]')
+    await expect(openColumn).toBeVisible()
 
     const backlogBg = await backlogColumn.evaluate(
       (el) => window.getComputedStyle(el).backgroundColor
     )
-    const readyBg = await readyColumn.evaluate(
+    const openBg = await openColumn.evaluate(
       (el) => window.getComputedStyle(el).backgroundColor
     )
-    // Backlog should have a different (tertiary) background than Ready (secondary)
-    expect(backlogBg).not.toBe(readyBg)
+    // Backlog should have a different (muted) background than Open (normal)
+    expect(backlogBg).not.toBe(openBg)
   })
 
   test("Backlog column title uses secondary text color", async ({ page }) => {
-    const blockedIssue = makeIssue({
+    const deferredIssue = makeIssue({
       id: "title-color-1",
       title: "Title Color Test",
-      status: "blocked",
+      status: "deferred",
     })
 
-    await setupMocks(page, { issues: [blockedIssue] })
+    await setupMocks(page, { issues: [deferredIssue] })
     await navigateAndWait(page)
 
     const backlogColumn = page.locator('section[data-status="backlog"]')
-    const readyColumn = page.locator('section[data-status="ready"]')
+    const openColumn = page.locator('section[data-status="ready"]')
     await expect(backlogColumn).toBeVisible()
-    await expect(readyColumn).toBeVisible()
+    await expect(openColumn).toBeVisible()
 
-    // V2: Backlog title should use secondary color (different from Ready's default)
+    // Backlog title should use secondary color (different from Open's default)
     const backlogTitleColor = await backlogColumn
       .locator("h2")
       .evaluate((el) => window.getComputedStyle(el).color)
-    const readyTitleColor = await readyColumn
+    const openTitleColor = await openColumn
       .locator("h2")
       .evaluate((el) => window.getComputedStyle(el).color)
-    expect(backlogTitleColor).not.toBe(readyTitleColor)
+    expect(backlogTitleColor).not.toBe(openTitleColor)
   })
 
   test("Backlog cards have dimmed opacity and desaturated filter", async ({
     page,
   }) => {
-    const blockedIssue = makeIssue({
+    const deferredIssue = makeIssue({
       id: "card-dim-1",
       title: "Dimmed Card Test",
-      status: "blocked",
+      status: "deferred",
     })
 
-    await setupMocks(page, { issues: [blockedIssue] })
+    await setupMocks(page, { issues: [deferredIssue] })
     await navigateAndWait(page)
 
     const backlogColumn = page.locator('section[data-status="backlog"]')
     const card = backlogColumn.locator("article")
     await expect(card).toBeVisible()
 
-    // V2: Card should have data-in-backlog attribute
+    // Card should have data-in-backlog attribute
     await expect(card).toHaveAttribute("data-in-backlog", "true")
 
-    // V2: Card opacity should be 0.7
+    // Card opacity should be 0.7
     const opacity = await card.evaluate(
       (el) => window.getComputedStyle(el).opacity
     )
     expect(opacity).toBe("0.7")
 
-    // V2: Card should have desaturated filter (saturate(0.5))
+    // Card should have desaturated filter (saturate(0.5))
     const filter = await card.evaluate(
       (el) => window.getComputedStyle(el).filter
     )
     expect(filter).toContain("saturate(0.5)")
   })
 
-  test("Backlog column with all three issue types renders correctly", async ({
+  test("Backlog and Blocked columns with respective issue types render correctly", async ({
     page,
   }) => {
-    // Create one of each type that goes into Backlog
+    // Create one of each type: deferred goes to Backlog, blocked goes to Blocked column
     const statusBlocked = makeIssue({
       id: "all-types-1",
       title: "Explicitly Blocked",
@@ -411,37 +411,38 @@ test.describe("Backlog column header and styling", () => {
     await navigateAndWait(page)
 
     const backlogColumn = page.locator('section[data-status="backlog"]')
+    const blockedColumn = page.locator('section[data-status="blocked"]')
     const readyColumn = page.locator('section[data-status="ready"]')
 
-    // Backlog should have 3 issues (blocked, deferred, dep-blocked)
-    await expect(backlogColumn.locator("article")).toHaveCount(3)
-    await expect(backlogColumn.getByLabel("3 issues")).toBeVisible()
+    // Backlog should have 1 issue (only deferred)
+    await expect(backlogColumn.locator("article")).toHaveCount(1)
+    await expect(backlogColumn.getByLabel("1 issue")).toBeVisible()
+    await expect(backlogColumn.getByText("Deferred Issue")).toBeVisible()
+
+    // Blocked should have 2 issues (status=blocked and dep-blocked)
+    await expect(blockedColumn.locator("article")).toHaveCount(2)
+    await expect(blockedColumn.getByLabel("2 issues")).toBeVisible()
+    await expect(
+      blockedColumn.getByText("Explicitly Blocked")
+    ).toBeVisible()
+    await expect(
+      blockedColumn.getByText("Dependency Blocked")
+    ).toBeVisible()
 
     // Ready should have 1 issue (normal open)
     await expect(readyColumn.locator("article")).toHaveCount(1)
+    await expect(readyColumn.getByText("Normal Ready Issue")).toBeVisible()
 
-    // Verify each issue is in Backlog
-    await expect(
-      backlogColumn.getByText("Explicitly Blocked")
-    ).toBeVisible()
-    await expect(backlogColumn.getByText("Deferred Issue")).toBeVisible()
-    await expect(
-      backlogColumn.getByText("Dependency Blocked")
-    ).toBeVisible()
-
-    // Deferred badge should be visible on the deferred issue
+    // Deferred badge should be visible on the deferred issue in Backlog
     await expect(
       backlogColumn.locator('[aria-label="Deferred"]')
     ).toBeVisible()
-
-    // Normal issue should be in Ready, not Backlog
-    await expect(readyColumn.getByText("Normal Ready Issue")).toBeVisible()
   })
 
   test("empty Backlog column renders with 0 issues badge", async ({
     page,
   }) => {
-    // Only a normal open issue, no blocked/deferred
+    // Only a normal open issue, no deferred issues (Backlog only has deferred)
     const normalIssue = makeIssue({
       id: "empty-backlog-1",
       title: "Normal Issue",
@@ -455,17 +456,13 @@ test.describe("Backlog column header and styling", () => {
     await expect(backlogColumn).toBeVisible()
     await expect(backlogColumn.locator("article")).toHaveCount(0)
     await expect(backlogColumn.getByLabel("0 issues")).toBeVisible()
-
-    // Header icon should still be visible
-    const headerIcon = backlogColumn.locator('[aria-hidden="true"]').first()
-    await expect(headerIcon).toHaveText("⏳")
   })
 
-  test("column order is Ready, Backlog, In Progress, Review, Done", async ({
+  test("column order is Backlog, Open, Blocked, In Progress, Needs Review, Done", async ({
     page,
   }) => {
     const issues = [
-      makeIssue({ id: "order-1", title: "Ready Issue", status: "open" }),
+      makeIssue({ id: "order-1", title: "Open Issue", status: "open" }),
       makeIssue({
         id: "order-2",
         title: "Blocked Issue",
@@ -482,6 +479,7 @@ test.describe("Backlog column header and styling", () => {
         status: "open",
       }),
       makeIssue({ id: "order-5", title: "Done Issue", status: "closed" }),
+      makeIssue({ id: "order-6", title: "Deferred Issue", status: "deferred" }),
     ]
 
     await setupMocks(page, { issues })
@@ -492,8 +490,9 @@ test.describe("Backlog column header and styling", () => {
       els.map((el) => el.getAttribute("data-status"))
     )
     expect(statuses).toEqual([
-      "ready",
       "backlog",
+      "ready",
+      "blocked",
       "in_progress",
       "review",
       "done",
@@ -501,11 +500,11 @@ test.describe("Backlog column header and styling", () => {
   })
 })
 
-test.describe("Backlog column drag-drop", () => {
-  test("drag from Backlog to Done succeeds", async ({ page }) => {
+test.describe("Blocked column drag-drop", () => {
+  test("drag from Blocked to Done succeeds", async ({ page }) => {
     const blockedIssue = makeIssue({
-      id: "backlog-to-done",
-      title: "Backlog To Done Task",
+      id: "blocked-to-done",
+      title: "Blocked To Done Task",
       status: "blocked",
     })
 
@@ -535,13 +534,13 @@ test.describe("Backlog column drag-drop", () => {
 
     await navigateAndWait(page)
 
-    const backlogColumn = page.locator('section[data-status="backlog"]')
+    const blockedColumn = page.locator('section[data-status="blocked"]')
     const doneColumn = page.locator('section[data-status="done"]')
-    await expect(backlogColumn.getByText("Backlog To Done Task")).toBeVisible()
+    await expect(blockedColumn.getByText("Blocked To Done Task")).toBeVisible()
 
     // Get draggable and drop target
     const draggable = page
-      .getByRole("button", { name: "Issue: Backlog To Done Task" })
+      .getByRole("button", { name: "Issue: Blocked To Done Task" })
       .first()
     const dropTarget = doneColumn.locator('[data-droppable-id="done"]')
     await expect(draggable).toBeVisible()
@@ -606,24 +605,24 @@ test.describe("Backlog column drag-drop", () => {
     // Wait for PATCH API call
     await page.waitForResponse(
       (res) =>
-        res.url().includes("/api/issues/backlog-to-done") &&
+        res.url().includes("/api/issues/blocked-to-done") &&
         res.request().method() === "PATCH"
     )
 
     // Verify card moved to Done
-    await expect(doneColumn.getByText("Backlog To Done Task")).toBeVisible()
-    await expect(backlogColumn.locator("article")).toHaveCount(0)
+    await expect(doneColumn.getByText("Blocked To Done Task")).toBeVisible()
+    await expect(blockedColumn.locator("article")).toHaveCount(0)
 
     // Verify API call sent correct status
     expect(patchCalls).toHaveLength(1)
     expect(patchCalls[0].body).toEqual({ status: "closed" })
   })
 
-  test("Backlog column is not a valid drop target", async ({ page }) => {
-    // One issue in Ready, one in Backlog
-    const readyIssue = makeIssue({
-      id: "ready-issue",
-      title: "Ready Issue",
+  test("Blocked column is not a valid drop target", async ({ page }) => {
+    // One issue in Open, one in Blocked
+    const openIssue = makeIssue({
+      id: "open-issue",
+      title: "Open Issue",
       status: "open",
     })
     const blockedIssue = makeIssue({
@@ -634,7 +633,7 @@ test.describe("Backlog column drag-drop", () => {
 
     let patchCalled = false
 
-    await setupMocks(page, { issues: [readyIssue, blockedIssue] })
+    await setupMocks(page, { issues: [openIssue, blockedIssue] })
 
     await page.route("**/api/issues/*", async (route) => {
       if (route.request().method() === "PATCH") {
@@ -642,7 +641,7 @@ test.describe("Backlog column drag-drop", () => {
         await route.fulfill({
           status: 200,
           contentType: "application/json",
-          body: JSON.stringify({ success: true, data: readyIssue }),
+          body: JSON.stringify({ success: true, data: openIssue }),
         })
       } else {
         await route.continue()
@@ -651,27 +650,27 @@ test.describe("Backlog column drag-drop", () => {
 
     await navigateAndWait(page)
 
-    const readyColumn = page.locator('section[data-status="ready"]')
-    const backlogColumn = page.locator('section[data-status="backlog"]')
+    const openColumn = page.locator('section[data-status="ready"]')
+    const blockedColumn = page.locator('section[data-status="blocked"]')
 
-    await expect(readyColumn.getByText("Ready Issue")).toBeVisible()
-    await expect(backlogColumn.getByText("Blocked Issue")).toBeVisible()
+    await expect(openColumn.getByText("Open Issue")).toBeVisible()
+    await expect(blockedColumn.getByText("Blocked Issue")).toBeVisible()
 
-    // Try to drag from Ready to Backlog
+    // Try to drag from Open to Blocked
     const draggable = page
-      .getByRole("button", { name: "Issue: Ready Issue" })
+      .getByRole("button", { name: "Issue: Open Issue" })
       .first()
     await expect(draggable).toBeVisible()
 
     const dragBox = await draggable.boundingBox()
-    const backlogBox = await backlogColumn.boundingBox()
-    if (!dragBox || !backlogBox)
+    const blockedBox = await blockedColumn.boundingBox()
+    if (!dragBox || !blockedBox)
       throw new Error("Could not get bounding boxes")
 
     const startX = dragBox.x + dragBox.width / 2
     const startY = dragBox.y + dragBox.height / 2
-    const endX = backlogBox.x + backlogBox.width / 2
-    const endY = backlogBox.y + backlogBox.height / 2
+    const endX = blockedBox.x + blockedBox.width / 2
+    const endY = blockedBox.y + blockedBox.height / 2
 
     // Perform drag operation
     await draggable.dispatchEvent("pointerdown", {
@@ -723,20 +722,20 @@ test.describe("Backlog column drag-drop", () => {
     // Wait a moment to ensure no PATCH would be sent
     await page.waitForTimeout(500)
 
-    // Backlog should NOT have data-is-over (droppableDisabled: true)
+    // Blocked should NOT have data-is-over (droppableDisabled: true)
     // No PATCH call should have been made
     expect(patchCalled).toBe(false)
 
-    // Card should still be in Ready column
-    await expect(readyColumn.getByText("Ready Issue")).toBeVisible()
-    await expect(readyColumn.locator("article")).toHaveCount(1)
+    // Card should still be in Open column
+    await expect(openColumn.getByText("Open Issue")).toBeVisible()
+    await expect(openColumn.locator("article")).toHaveCount(1)
   })
 
-  test("drag from Backlog to non-Done column is rejected", async ({
+  test("drag from Blocked to non-Done column is rejected", async ({
     page,
   }) => {
     const blockedIssue = makeIssue({
-      id: "backlog-no-ip",
+      id: "blocked-no-ip",
       title: "Cannot Drag To IP",
       status: "blocked",
     })
@@ -760,12 +759,12 @@ test.describe("Backlog column drag-drop", () => {
 
     await navigateAndWait(page)
 
-    const backlogColumn = page.locator('section[data-status="backlog"]')
+    const blockedColumn = page.locator('section[data-status="blocked"]')
     const inProgressColumn = page.locator('section[data-status="in_progress"]')
 
-    await expect(backlogColumn.getByText("Cannot Drag To IP")).toBeVisible()
+    await expect(blockedColumn.getByText("Cannot Drag To IP")).toBeVisible()
 
-    // Try to drag from Backlog to In Progress
+    // Try to drag from Blocked to In Progress
     const draggable = page
       .getByRole("button", { name: "Issue: Cannot Drag To IP" })
       .first()
@@ -837,8 +836,8 @@ test.describe("Backlog column drag-drop", () => {
     // No PATCH call should have been made
     expect(patchCalled).toBe(false)
 
-    // Card should still be in Backlog
-    await expect(backlogColumn.getByText("Cannot Drag To IP")).toBeVisible()
-    await expect(backlogColumn.locator("article")).toHaveCount(1)
+    // Card should still be in Blocked
+    await expect(blockedColumn.getByText("Cannot Drag To IP")).toBeVisible()
+    await expect(blockedColumn.locator("article")).toHaveCount(1)
   })
 })
