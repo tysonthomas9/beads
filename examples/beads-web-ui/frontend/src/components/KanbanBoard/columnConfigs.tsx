@@ -1,9 +1,10 @@
 /**
- * Default column configurations for the 5-column kanban layout.
+ * Default column configurations for the 6-column kanban layout.
  *
- * Columns:
+ * Columns (in display order):
+ * - Backlog: Deferred issues not yet ready for work
  * - Open: Open issues with no blockers (can be started immediately)
- * - Backlog: Issues not yet actionable (blocked by deps, blocked status, or deferred)
+ * - Blocked: Issues blocked by dependencies or explicit 'blocked' status
  * - In Progress: Issues actively being worked on
  * - Needs Review: Issues needing human attention (review, [Need Review])
  * - Done: Closed issues
@@ -36,6 +37,17 @@ const needsReviewByTitle = (title: string): boolean => title.includes('[Need Rev
 
 export const DEFAULT_COLUMNS: KanbanColumnConfig[] = [
   {
+    id: 'backlog',
+    label: 'Backlog',
+    filter: (issue) =>
+      issue.issue_type !== 'epic' &&
+      issue.status === 'deferred' &&
+      !needsReviewByTitle(issue.title),
+    droppableDisabled: true, // Cannot drop TO backlog (auto-calculated)
+    allowedDropTargets: ['done'], // Can only drag FROM backlog to Done
+    style: 'muted',
+  },
+  {
     id: 'ready',
     label: 'Open',
     headerIcon: ClockIcon,
@@ -49,18 +61,17 @@ export const DEFAULT_COLUMNS: KanbanColumnConfig[] = [
     style: 'normal',
   },
   {
-    id: 'backlog',
-    label: 'Backlog',
+    id: 'blocked',
+    label: 'Blocked',
     filter: (issue, blockedInfo) =>
       issue.issue_type !== 'epic' &&
       (((issue.status === 'open' || issue.status === undefined) &&
         !!blockedInfo &&
         blockedInfo.blockedByCount > 0) ||
-        issue.status === 'blocked' ||
-        issue.status === 'deferred') &&
+        issue.status === 'blocked') &&
       !needsReviewByTitle(issue.title),
-    droppableDisabled: true, // Cannot drop TO backlog (auto-calculated)
-    allowedDropTargets: ['done'], // Can only drag FROM backlog to Done
+    droppableDisabled: true, // Cannot drop TO blocked (auto-calculated)
+    allowedDropTargets: ['done'], // Can only drag FROM blocked to Done
     style: 'muted',
   },
   {

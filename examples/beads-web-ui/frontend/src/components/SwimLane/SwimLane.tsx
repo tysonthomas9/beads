@@ -138,8 +138,10 @@ export function SwimLane({
                 ? styles.highlightedColumn
                 : undefined;
 
-          // Determine column type for backlog column
+          // Determine column type for backlog/blocked columns
           const isBacklogColumn = col.id === 'backlog';
+          const isBlockedColumn = col.id === 'blocked';
+          const isMutedColumn = isBacklogColumn || isBlockedColumn;
           const columnType = isBacklogColumn ? ('backlog' as const) : undefined;
 
           // Build props conditionally to satisfy exactOptionalPropertyTypes
@@ -168,7 +170,7 @@ export function SwimLane({
                       blockedByCount: blockedInfo.blockedByCount,
                       blockedBy: blockedInfo.blockedBy,
                     }),
-                    ...(isBacklogColumn && { isBacklog: true }),
+                    ...(isMutedColumn && { isBacklog: true }),
                     ...(onApprove !== undefined && { onApprove }),
                     ...(onReject !== undefined && { onReject }),
                   };
