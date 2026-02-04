@@ -52,3 +52,11 @@ sync-branch: "beads-sync"
 # - linear.api-key
 # - github.org
 # - github.repo
+
+# Daemon auto-sync settings
+# Note: These may require CLI flags (--auto-commit --auto-push --auto-pull) to take effect
+# Use BEADS_AUTO_SYNC=true env var or start daemon with: bd daemon start --auto-commit --auto-push --auto-pull
+daemon.auto-sync: true
+daemon.auto-commit: true
+daemon.auto-push: true
+daemon.auto-pull: true
