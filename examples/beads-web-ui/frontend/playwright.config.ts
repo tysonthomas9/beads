@@ -53,6 +53,19 @@ export default defineConfig({
       globalTeardown: "./tests/e2e/integration/global-teardown.ts",
       timeout: 60000,
     },
+    {
+      name: "api",
+      testDir: "./tests/e2e/api",
+      testMatch: "**/*.api.spec.ts",
+      // Skip API tests unless RUN_INTEGRATION_TESTS is set (shares Podman stack with integration tests)
+      testIgnore: isIntegration ? undefined : "**/*.api.spec.ts",
+      use: {
+        baseURL: "http://localhost:8080",
+      },
+      globalSetup: "./tests/e2e/global-setup.ts",
+      globalTeardown: "./tests/e2e/integration/global-teardown.ts",
+      timeout: 60000,
+    },
   ],
 
   // Integration tests use Podman Compose stack, no dev server needed
