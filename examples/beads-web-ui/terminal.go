@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"regexp"
 	"sync"
+	"sync/atomic"
 
 	"github.com/creack/pty"
 )
@@ -20,7 +21,8 @@ var validSessionName = regexp.MustCompile(`^[a-zA-Z0-9_-]+$`)
 
 // TerminalSession represents a single active PTY connection to a tmux session.
 type TerminalSession struct {
-	Name    string   // tmux session name (e.g., "lead")
+	ConnID  string   // unique connection ID (e.g., "talk-to-lead:1")
+	Name    string   // tmux session name (e.g., "talk-to-lead")
 	Command string   // command running in the session
 	PTY     *os.File // PTY master fd from creack/pty
 	cmd     *exec.Cmd
@@ -53,18 +55,24 @@ func (s *TerminalSession) Close() error {
 }
 
 // TerminalManager manages tmux session lifecycles.
+// Multiple WebSocket connections can attach to the same tmux session simultaneously,
+// each tracked by a unique connection ID.
 type TerminalManager struct {
-	sessions       map[string]*TerminalSession
+	sessions       map[string]*TerminalSession // keyed by connection ID
 	mu             sync.RWMutex
 	tmuxPath       string
+	sessionPrefix  string // prepended to tmux session names for isolation between server instances
 	defaultCommand string // default command when client doesn't specify one
 	defaultCols    uint16
 	defaultRows    uint16
+	connCounter    atomic.Uint64
 }
 
 // NewTerminalManager creates a manager. Returns ErrTmuxNotFound if tmux is not installed.
 // The defaultCommand parameter specifies what command to run when a client doesn't specify one.
-func NewTerminalManager(defaultCommand string) (*TerminalManager, error) {
+// The sessionPrefix is prepended to tmux session names (e.g., port number) to isolate
+// sessions when multiple server instances share the same tmux server.
+func NewTerminalManager(defaultCommand, sessionPrefix string) (*TerminalManager, error) {
 	tmuxPath, err := exec.LookPath("tmux")
 	if err != nil {
 		return nil, ErrTmuxNotFound
@@ -72,10 +80,19 @@ func NewTerminalManager(defaultCommand string) (*TerminalManager, error) {
 	return &TerminalManager{
 		sessions:       make(map[string]*TerminalSession),
 		tmuxPath:       tmuxPath,
+		sessionPrefix:  sessionPrefix,
 		defaultCommand: defaultCommand,
 		defaultCols:    80,
 		defaultRows:    24,
 	}, nil
+}
+
+// tmuxName returns the internal tmux session name with the prefix applied.
+func (m *TerminalManager) tmuxName(name string) string {
+	if m.sessionPrefix == "" {
+		return name
+	}
+	return m.sessionPrefix + "-" + name
 }
 
 // tmuxHasSession checks whether a tmux session with the given name exists.
@@ -120,11 +137,11 @@ func (m *TerminalManager) tmuxAttach(name string) (*exec.Cmd, *os.File, error) {
 	return cmd, ptmx, nil
 }
 
-// GetOrCreate returns a TerminalSession for the named tmux session.
+// Attach creates a new PTY connection to a tmux session.
 // If the tmux session doesn't exist, it creates one with the given command.
 // If command is empty, uses the manager's default command.
-// If an active connection exists, it displaces it (closes old PTY, spawns new attach).
-func (m *TerminalManager) GetOrCreate(name, command string, cols, rows uint16) (*TerminalSession, error) {
+// Multiple connections can attach to the same tmux session simultaneously.
+func (m *TerminalManager) Attach(name, command string, cols, rows uint16) (*TerminalSession, error) {
 	if !validSessionName.MatchString(name) {
 		return nil, fmt.Errorf("invalid session name %q: must match [a-zA-Z0-9_-]+", name)
 	}
@@ -138,24 +155,25 @@ func (m *TerminalManager) GetOrCreate(name, command string, cols, rows uint16) (
 		command = m.defaultCommand
 	}
 
+	// Apply prefix to get the actual tmux session name.
+	internalName := m.tmuxName(name)
+
+	// Generate unique connection ID using internal name for debuggability.
+	connNum := m.connCounter.Add(1)
+	connID := fmt.Sprintf("%s:%d", internalName, connNum)
+
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	// Displace existing connection if any.
-	if old, ok := m.sessions[name]; ok {
-		old.Close()
-		delete(m.sessions, name)
-	}
-
 	// Create tmux session if it doesn't exist.
-	if !m.tmuxHasSession(name) {
-		if err := m.tmuxNewSession(name, command, cols, rows); err != nil {
+	if !m.tmuxHasSession(internalName) {
+		if err := m.tmuxNewSession(internalName, command, cols, rows); err != nil {
 			return nil, fmt.Errorf("tmux new-session: %w", err)
 		}
 	}
 
 	// Attach with a fresh PTY.
-	cmd, ptmx, err := m.tmuxAttach(name)
+	cmd, ptmx, err := m.tmuxAttach(internalName)
 	if err != nil {
 		return nil, err
 	}
@@ -168,30 +186,31 @@ func (m *TerminalManager) GetOrCreate(name, command string, cols, rows uint16) (
 	}
 
 	session := &TerminalSession{
-		Name:    name,
+		ConnID:  connID,
+		Name:    internalName,
 		Command: command,
 		PTY:     ptmx,
 		cmd:     cmd,
 	}
-	m.sessions[name] = session
+	m.sessions[connID] = session
 	return session, nil
 }
 
-// Resize changes the PTY and tmux window dimensions for a session.
-func (m *TerminalManager) Resize(name string, cols, rows uint16) error {
+// Resize changes the PTY and tmux window dimensions for a connection.
+func (m *TerminalManager) Resize(connID string, cols, rows uint16) error {
 	m.mu.RLock()
-	session, ok := m.sessions[name]
+	session, ok := m.sessions[connID]
 	m.mu.RUnlock()
 
 	if !ok {
-		return fmt.Errorf("session %q not found", name)
+		return fmt.Errorf("connection %q not found", connID)
 	}
 
 	session.mu.Lock()
 	defer session.mu.Unlock()
 
 	if session.closed {
-		return fmt.Errorf("session %q is closed", name)
+		return fmt.Errorf("connection %q is closed", connID)
 	}
 
 	if err := pty.Setsize(session.PTY, &pty.Winsize{Cols: cols, Rows: rows}); err != nil {
@@ -199,7 +218,7 @@ func (m *TerminalManager) Resize(name string, cols, rows uint16) error {
 	}
 
 	// Also tell tmux to resize the window so content reflows properly.
-	cmd := exec.Command(m.tmuxPath, "resize-window", "-t", name, "-x", fmt.Sprintf("%d", cols), "-y", fmt.Sprintf("%d", rows))
+	cmd := exec.Command(m.tmuxPath, "resize-window", "-t", session.Name, "-x", fmt.Sprintf("%d", cols), "-y", fmt.Sprintf("%d", rows))
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("tmux resize-window: %w", err)
 	}
@@ -207,17 +226,17 @@ func (m *TerminalManager) Resize(name string, cols, rows uint16) error {
 	return nil
 }
 
-// Detach closes the PTY connection to a session without killing the tmux session.
-func (m *TerminalManager) Detach(name string) error {
+// Detach closes a specific PTY connection without killing the tmux session.
+func (m *TerminalManager) Detach(connID string) error {
 	m.mu.Lock()
-	session, ok := m.sessions[name]
+	session, ok := m.sessions[connID]
 	if ok {
-		delete(m.sessions, name)
+		delete(m.sessions, connID)
 	}
 	m.mu.Unlock()
 
 	if !ok {
-		return fmt.Errorf("session %q not found", name)
+		return fmt.Errorf("connection %q not found", connID)
 	}
 
 	return session.Close()
@@ -234,17 +253,22 @@ func (m *TerminalManager) Shutdown() error {
 	m.mu.Unlock()
 
 	// Close all PTYs first.
-	for name, session := range sessions {
+	for connID, session := range sessions {
 		if err := session.Close(); err != nil {
-			log.Printf("Warning: error closing session %q: %v", name, err)
+			log.Printf("Warning: error closing connection %q: %v", connID, err)
 		}
 	}
 
-	// Kill tmux sessions.
-	for name := range sessions {
-		cmd := exec.Command(m.tmuxPath, "kill-session", "-t", name)
+	// Kill tmux sessions (deduplicate by session name).
+	killed := make(map[string]bool)
+	for _, session := range sessions {
+		if killed[session.Name] {
+			continue
+		}
+		killed[session.Name] = true
+		cmd := exec.Command(m.tmuxPath, "kill-session", "-t", session.Name)
 		if err := cmd.Run(); err != nil {
-			log.Printf("Warning: error killing tmux session %q: %v", name, err)
+			log.Printf("Warning: error killing tmux session %q: %v", session.Name, err)
 		}
 	}
 

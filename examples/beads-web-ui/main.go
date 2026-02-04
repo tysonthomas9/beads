@@ -18,6 +18,9 @@ import (
 	"syscall"
 	"time"
 
+	"golang.org/x/net/http2"
+	"golang.org/x/net/http2/h2c"
+
 	"github.com/steveyegge/beads/examples/beads-web-ui/daemon"
 	"github.com/steveyegge/beads/internal/rpc"
 )
@@ -171,7 +174,7 @@ func main() {
 
 	// Initialize terminal manager for WebSocket terminal sessions
 	var termMgr *TerminalManager
-	termMgr, err = NewTerminalManager(*terminalCmd)
+	termMgr, err = NewTerminalManager(*terminalCmd, fmt.Sprintf("%d", actualPort))
 	if err != nil {
 		if errors.Is(err, ErrTmuxNotFound) {
 			log.Printf("Warning: tmux not found, terminal feature disabled")
@@ -191,7 +194,7 @@ func main() {
 	// Wrap with CORS middleware if enabled
 	corsMiddleware := NewCORSMiddleware(corsConfig)
 	securityMiddleware := NewSecurityHeadersMiddleware()
-	handler := securityMiddleware(corsMiddleware(mux))
+	handler := h2c.NewHandler(securityMiddleware(corsMiddleware(mux)), &http2.Server{})
 
 	// Create a shutdown context that all request contexts will derive from.
 	// When cancelled, in-flight handlers' r.Context().Done() fires, causing
@@ -203,7 +206,7 @@ func main() {
 		Addr:         fmt.Sprintf(":%d", actualPort),
 		Handler:      handler,
 		ReadTimeout:  15 * time.Second,
-		WriteTimeout: 15 * time.Second,
+		WriteTimeout: 0, // Disabled: HTTP/2 streams (SSE, WebSocket) are long-lived; h2c handles flow control
 		IdleTimeout:  60 * time.Second,
 		BaseContext: func(_ net.Listener) context.Context {
 			return shutdownCtx

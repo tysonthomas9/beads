@@ -67,7 +67,7 @@ func TestHandleTerminalWS_NilManager(t *testing.T) {
 func TestHandleTerminalWS_MissingSessionWithManager(t *testing.T) {
 	// Create a real manager - this will fail if tmux is not installed,
 	// so we skip if that's the case
-	manager, err := NewTerminalManager("")
+	manager, err := NewTerminalManager("", "")
 	if err == ErrTmuxNotFound {
 		t.Skip("tmux not installed, skipping test")
 	}
@@ -104,7 +104,7 @@ func TestHandleTerminalWS_MissingSessionWithManager(t *testing.T) {
 
 // TestHandleTerminalWS_InvalidSessionName tests invalid session name validation.
 func TestHandleTerminalWS_InvalidSessionName(t *testing.T) {
-	manager, err := NewTerminalManager("")
+	manager, err := NewTerminalManager("", "")
 	if err == ErrTmuxNotFound {
 		t.Skip("tmux not installed, skipping test")
 	}
@@ -157,7 +157,7 @@ func TestHandleTerminalWS_InvalidSessionName(t *testing.T) {
 
 // TestHandleTerminalWS_ValidSessionNames tests that valid session names pass validation.
 func TestHandleTerminalWS_ValidSessionNames(t *testing.T) {
-	manager, err := NewTerminalManager("")
+	manager, err := NewTerminalManager("", "")
 	if err == ErrTmuxNotFound {
 		t.Skip("tmux not installed, skipping test")
 	}
@@ -208,7 +208,7 @@ func TestHandleTerminalWS_ValidSessionNames(t *testing.T) {
 
 // TestHandleTerminalWS_WebSocketUpgrade tests that WebSocket upgrade succeeds with valid params.
 func TestHandleTerminalWS_WebSocketUpgrade(t *testing.T) {
-	manager, err := NewTerminalManager("")
+	manager, err := NewTerminalManager("", "")
 	if err == ErrTmuxNotFound {
 		t.Skip("tmux not installed, skipping test")
 	}
@@ -470,7 +470,7 @@ func testPtyToWS(ctx context.Context, cancel context.CancelFunc, conn wsConn, se
 
 // testWsToPTY is a test wrapper for wsToPTY that accepts wsConn interface.
 // Mirrors the production wsToPTY: accepts both text and binary messages.
-func testWsToPTY(ctx context.Context, conn wsConn, session *TerminalSession, manager *TerminalManager, sessionName string) {
+func testWsToPTY(ctx context.Context, conn wsConn, session *TerminalSession, manager *TerminalManager, connID string) {
 	for {
 		select {
 		case <-ctx.Done():
@@ -491,8 +491,8 @@ func testWsToPTY(ctx context.Context, conn wsConn, session *TerminalSession, man
 				rows := binary.BigEndian.Uint16(data[3:5])
 
 				if cols > 0 && rows > 0 && cols <= maxTerminalCols && rows <= maxTerminalRows {
-					if err := manager.Resize(sessionName, cols, rows); err != nil {
-						log.Printf("Failed to resize terminal session %q: %v", sessionName, err)
+					if err := manager.Resize(connID, cols, rows); err != nil {
+						log.Printf("Failed to resize terminal connection %q: %v", connID, err)
 					}
 				}
 				continue
@@ -727,7 +727,7 @@ func TestWsToPTY_ContextCancelled(t *testing.T) {
 		PTY:  w,
 	}
 
-	manager, err := NewTerminalManager("")
+	manager, err := NewTerminalManager("", "")
 	if err == ErrTmuxNotFound {
 		t.Skip("tmux not installed, skipping test")
 	}
@@ -784,7 +784,7 @@ func TestWsToPTY_WebSocketReadError(t *testing.T) {
 		PTY:  w,
 	}
 
-	manager, err := NewTerminalManager("")
+	manager, err := NewTerminalManager("", "")
 	if err == ErrTmuxNotFound {
 		t.Skip("tmux not installed, skipping test")
 	}
@@ -834,7 +834,7 @@ func TestPtyToWS_And_WsToPTY_Integration(t *testing.T) {
 		PTY:  ptyR, // testPtyToWS reads from ptyR
 	}
 
-	manager, err := NewTerminalManager("")
+	manager, err := NewTerminalManager("", "")
 	if err == ErrTmuxNotFound {
 		t.Skip("tmux not installed, skipping test")
 	}
@@ -923,7 +923,7 @@ func TestWsToPTY_TextMessageForwardedToPTY(t *testing.T) {
 		PTY:  w, // wsToPTY writes to w; we read from r
 	}
 
-	manager, err := NewTerminalManager("")
+	manager, err := NewTerminalManager("", "")
 	if err == ErrTmuxNotFound {
 		t.Skip("tmux not installed, skipping test")
 	}
@@ -984,7 +984,7 @@ func TestWsToPTY_BinaryDataForwardedToPTY(t *testing.T) {
 		PTY:  w,
 	}
 
-	manager, err := NewTerminalManager("")
+	manager, err := NewTerminalManager("", "")
 	if err == ErrTmuxNotFound {
 		t.Skip("tmux not installed, skipping test")
 	}
@@ -1046,7 +1046,7 @@ func TestWsToPTY_ResizeNotForwardedToPTY(t *testing.T) {
 		PTY:  w,
 	}
 
-	manager, err := NewTerminalManager("")
+	manager, err := NewTerminalManager("", "")
 	if err == ErrTmuxNotFound {
 		t.Skip("tmux not installed, skipping test")
 	}
@@ -1088,7 +1088,7 @@ func TestWsToPTY_ResizeNotForwardedToPTY(t *testing.T) {
 // Uses gorilla/websocket-style net.Conn for deadline control since nhooyr.io/websocket
 // closes connections on context cancellation.
 func TestTerminalWebSocket_E2E(t *testing.T) {
-	manager, err := NewTerminalManager("")
+	manager, err := NewTerminalManager("", "")
 	if err == ErrTmuxNotFound {
 		t.Skip("tmux not installed, skipping test")
 	}

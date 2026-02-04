@@ -91,14 +91,15 @@ func handleTerminalWS(manager *TerminalManager, defaultCmd string) http.HandlerF
 			conn.Close(closeStatus, closeReason)
 		}()
 
-		// Get or create terminal session with default 80x24 size
+		// Attach to terminal session with default 80x24 size
 		// (frontend sends resize immediately after connect)
-		termSession, err := manager.GetOrCreate(session, command, 80, 24)
+		termSession, err := manager.Attach(session, command, 80, 24)
 		if err != nil {
-			log.Printf("Failed to get/create terminal session %q: %v", session, err)
+			log.Printf("Failed to attach terminal session %q: %v", session, err)
 			closeReason = err.Error()
 			return
 		}
+		connID := termSession.ConnID
 
 		// Create context for coordinating goroutines
 		ctx, cancel := context.WithCancel(r.Context())
@@ -114,12 +115,12 @@ func handleTerminalWS(manager *TerminalManager, defaultCmd string) http.HandlerF
 		}()
 
 		// Run WebSocket -> PTY relay (blocks until WebSocket closes)
-		wsToPTY(ctx, conn, termSession, manager, session)
+		wsToPTY(ctx, conn, termSession, manager, connID)
 
-		// WebSocket closed - detach session first to close PTY and unblock ptyToWS
+		// WebSocket closed - detach connection to close PTY and unblock ptyToWS
 		// (Detach closes the PTY, causing the Read in ptyToWS to return an error)
-		if err := manager.Detach(session); err != nil {
-			log.Printf("Failed to detach terminal session %q: %v", session, err)
+		if err := manager.Detach(connID); err != nil {
+			log.Printf("Failed to detach terminal connection %q: %v", connID, err)
 		}
 
 		// Now wait for PTY reader to finish (should be immediate after Detach)
@@ -160,7 +161,7 @@ func ptyToWS(ctx context.Context, cancel context.CancelFunc, conn *websocket.Con
 
 // wsToPTY reads from the WebSocket and writes to the PTY.
 // Handles the in-band resize protocol.
-func wsToPTY(ctx context.Context, conn *websocket.Conn, session *TerminalSession, manager *TerminalManager, sessionName string) {
+func wsToPTY(ctx context.Context, conn *websocket.Conn, session *TerminalSession, manager *TerminalManager, connID string) {
 	for {
 		select {
 		case <-ctx.Done():
@@ -181,8 +182,8 @@ func wsToPTY(ctx context.Context, conn *websocket.Conn, session *TerminalSession
 				rows := binary.BigEndian.Uint16(data[3:5])
 
 				if cols > 0 && rows > 0 && cols <= maxTerminalCols && rows <= maxTerminalRows {
-					if err := manager.Resize(sessionName, cols, rows); err != nil {
-						log.Printf("Failed to resize terminal session %q: %v", sessionName, err)
+					if err := manager.Resize(connID, cols, rows); err != nil {
+						log.Printf("Failed to resize terminal session %q: %v", connID, err)
 					}
 				}
 				continue
