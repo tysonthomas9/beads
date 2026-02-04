@@ -3,9 +3,9 @@
  */
 
 /**
- * Unit tests for columnConfigs – verifies the Backlog/Review column
- * filter logic after renaming Pending → Backlog and expanding its filter
- * to include status=blocked and status=deferred issues.
+ * Unit tests for columnConfigs – verifies the Backlog/Blocked/Review column
+ * filter logic. Backlog only contains deferred issues, Blocked contains
+ * dependency-blocked and status=blocked issues.
  */
 
 import { describe, it, expect } from 'vitest';
@@ -58,32 +58,14 @@ describe('columnConfigs', () => {
   });
 
   // ---------------------------------------------------------------
-  // 2-5. Backlog filter
+  // 2-5. Backlog filter (only deferred status)
   // ---------------------------------------------------------------
   describe('Backlog filter', () => {
     const backlog = getColumn('backlog');
 
-    it('matches open issues blocked by dependencies (blockedByCount > 0)', () => {
-      const issue = createMockIssue({ status: 'open' });
-      expect(backlog.filter(issue, blocked)).toBe(true);
-    });
-
-    it('matches issues with status=blocked', () => {
-      const issue = createMockIssue({ status: 'blocked' });
-      expect(backlog.filter(issue, notBlocked)).toBe(true);
-    });
-
     it('matches issues with status=deferred', () => {
       const issue = createMockIssue({ status: 'deferred' });
       expect(backlog.filter(issue, notBlocked)).toBe(true);
-    });
-
-    it('rejects [Need Review] titled issues even if blocked', () => {
-      const issue = createMockIssue({
-        title: '[Need Review] Fix login flow',
-        status: 'open',
-      });
-      expect(backlog.filter(issue, blocked)).toBe(false);
     });
 
     it('rejects [Need Review] titled issues even if deferred', () => {
@@ -94,14 +76,77 @@ describe('columnConfigs', () => {
       expect(backlog.filter(issue, notBlocked)).toBe(false);
     });
 
+    it('rejects open issues blocked by dependencies (now in Blocked column)', () => {
+      const issue = createMockIssue({ status: 'open' });
+      expect(backlog.filter(issue, blocked)).toBe(false);
+    });
+
+    it('rejects issues with status=blocked (now in Blocked column)', () => {
+      const issue = createMockIssue({ status: 'blocked' });
+      expect(backlog.filter(issue, notBlocked)).toBe(false);
+    });
+
     it('rejects open issues with no blockers', () => {
       const issue = createMockIssue({ status: 'open' });
       expect(backlog.filter(issue, notBlocked)).toBe(false);
     });
+  });
+
+  // ---------------------------------------------------------------
+  // Blocked filter (dependency-blocked + status=blocked)
+  // ---------------------------------------------------------------
+  describe('Blocked filter', () => {
+    const blockedCol = getColumn('blocked');
+
+    it('matches open issues blocked by dependencies (blockedByCount > 0)', () => {
+      const issue = createMockIssue({ status: 'open' });
+      expect(blockedCol.filter(issue, blocked)).toBe(true);
+    });
+
+    it('matches issues with undefined status blocked by dependencies', () => {
+      const issue = createMockIssue({ status: undefined });
+      expect(blockedCol.filter(issue, blocked)).toBe(true);
+    });
+
+    it('matches issues with status=blocked', () => {
+      const issue = createMockIssue({ status: 'blocked' });
+      expect(blockedCol.filter(issue, notBlocked)).toBe(true);
+    });
+
+    it('rejects [Need Review] titled issues even if blocked by dependencies', () => {
+      const issue = createMockIssue({
+        title: '[Need Review] Fix login flow',
+        status: 'open',
+      });
+      expect(blockedCol.filter(issue, blocked)).toBe(false);
+    });
+
+    it('rejects [Need Review] titled issues even if status=blocked', () => {
+      const issue = createMockIssue({
+        title: '[Need Review] Blocked task',
+        status: 'blocked',
+      });
+      expect(blockedCol.filter(issue, notBlocked)).toBe(false);
+    });
+
+    it('rejects open issues with no blockers', () => {
+      const issue = createMockIssue({ status: 'open' });
+      expect(blockedCol.filter(issue, notBlocked)).toBe(false);
+    });
 
     it('rejects open issues when blockedInfo is undefined', () => {
       const issue = createMockIssue({ status: 'open' });
-      expect(backlog.filter(issue, undefined)).toBe(false);
+      expect(blockedCol.filter(issue, undefined)).toBe(false);
+    });
+
+    it('rejects deferred issues (those go to Backlog)', () => {
+      const issue = createMockIssue({ status: 'deferred' });
+      expect(blockedCol.filter(issue, notBlocked)).toBe(false);
+    });
+
+    it('rejects deferred issues even when they have blockers (deferred goes to Backlog)', () => {
+      const issue = createMockIssue({ status: 'deferred' });
+      expect(blockedCol.filter(issue, blocked)).toBe(false);
     });
   });
 
@@ -174,9 +219,14 @@ describe('columnConfigs', () => {
       expect(backlog.style).toBe('muted');
     });
 
-    it('all non-backlog columns have style "normal"', () => {
-      const nonBacklog = DEFAULT_COLUMNS.filter((c) => c.id !== 'backlog');
-      for (const col of nonBacklog) {
+    it('blocked column has style "muted"', () => {
+      const blockedCol = getColumn('blocked');
+      expect(blockedCol.style).toBe('muted');
+    });
+
+    it('all non-backlog/blocked columns have style "normal"', () => {
+      const actionable = DEFAULT_COLUMNS.filter((c) => c.id !== 'backlog' && c.id !== 'blocked');
+      for (const col of actionable) {
         expect(col.style).toBe('normal');
       }
     });
@@ -191,19 +241,24 @@ describe('columnConfigs', () => {
       expect(getColumn('ready').filter(issue, notBlocked)).toBe(false);
     });
 
-    it('excludes epics from Backlog (open + blocked)', () => {
-      const issue = createMockIssue({ issue_type: 'epic', status: 'open' });
-      expect(getColumn('backlog').filter(issue, blocked)).toBe(false);
-    });
-
-    it('excludes epics from Backlog (blocked status)', () => {
-      const issue = createMockIssue({ issue_type: 'epic', status: 'blocked' });
-      expect(getColumn('backlog').filter(issue, notBlocked)).toBe(false);
-    });
-
     it('excludes epics from Backlog (deferred status)', () => {
       const issue = createMockIssue({ issue_type: 'epic', status: 'deferred' });
       expect(getColumn('backlog').filter(issue, notBlocked)).toBe(false);
+    });
+
+    it('excludes epics from Backlog even with blockers', () => {
+      const issue = createMockIssue({ issue_type: 'epic', status: 'deferred' });
+      expect(getColumn('backlog').filter(issue, blocked)).toBe(false);
+    });
+
+    it('excludes epics from Blocked (open + blocked by deps)', () => {
+      const issue = createMockIssue({ issue_type: 'epic', status: 'open' });
+      expect(getColumn('blocked').filter(issue, blocked)).toBe(false);
+    });
+
+    it('excludes epics from Blocked (blocked status)', () => {
+      const issue = createMockIssue({ issue_type: 'epic', status: 'blocked' });
+      expect(getColumn('blocked').filter(issue, notBlocked)).toBe(false);
     });
 
     it('excludes epics from In Progress', () => {
@@ -237,6 +292,27 @@ describe('columnConfigs', () => {
     it('still includes undefined issue_type in Ready (regression)', () => {
       const issue = createMockIssue({ issue_type: undefined, status: 'open' });
       expect(getColumn('ready').filter(issue, notBlocked)).toBe(true);
+    });
+  });
+
+  // ---------------------------------------------------------------
+  // Blocked column identity
+  // ---------------------------------------------------------------
+  describe('Blocked column identity', () => {
+    it('has id "blocked" at index 2', () => {
+      expect(DEFAULT_COLUMNS[2].id).toBe('blocked');
+    });
+
+    it('has label "Blocked" at index 2', () => {
+      expect(DEFAULT_COLUMNS[2].label).toBe('Blocked');
+    });
+
+    it('has droppableDisabled set to true', () => {
+      expect(getColumn('blocked').droppableDisabled).toBe(true);
+    });
+
+    it('only allows drops to done', () => {
+      expect(getColumn('blocked').allowedDropTargets).toEqual(['done']);
     });
   });
 });

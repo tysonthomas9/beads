@@ -259,7 +259,9 @@ export function KanbanBoard({
 
           // Determine column type for special columns
           const isBacklogColumn = col.id === 'backlog';
+          const isBlockedColumn = col.id === 'blocked';
           const isReviewColumn = col.id === 'review';
+          const isMutedColumn = isBacklogColumn || isBlockedColumn;
           const columnType = isBacklogColumn
             ? ('backlog' as const)
             : isReviewColumn
@@ -296,7 +298,7 @@ export function KanbanBoard({
                         blockedByCount: blockedInfo.blockedByCount,
                         blockedBy: blockedInfo.blockedBy,
                       })}
-                      {...(isBacklogColumn && { isBacklog: true })}
+                      {...(isMutedColumn && { isBacklog: true })}
                       {...(onApprove !== undefined && { onApprove })}
                       {...(onReject !== undefined && { onReject })}
                     />
@@ -311,7 +313,7 @@ export function KanbanBoard({
         {activeIssue &&
           (() => {
             const blockedInfo = blockedIssues?.get(activeIssue.id);
-            const isBacklogCard = sourceColumnId === 'backlog';
+            const isMutedCard = sourceColumnId === 'backlog' || sourceColumnId === 'blocked';
             return (
               <DraggableIssueCard
                 issue={activeIssue}
@@ -320,7 +322,7 @@ export function KanbanBoard({
                   blockedByCount: blockedInfo.blockedByCount,
                   blockedBy: blockedInfo.blockedBy,
                 })}
-                {...(isBacklogCard && { isBacklog: true })}
+                {...(isMutedCard && { isBacklog: true })}
               />
             );
           })()}
