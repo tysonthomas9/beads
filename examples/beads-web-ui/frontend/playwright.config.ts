@@ -39,22 +39,29 @@ export default defineConfig({
       name: "chromium",
       use: { ...devices["Desktop Chrome"] },
       // Exclude integration tests from regular runs
-      testIgnore: isIntegration ? undefined : "**/*-integration.spec.ts",
+      testIgnore: isIntegration ? undefined : "**/*.integration.spec.ts",
     },
     {
       name: "integration",
-      use: { ...devices["Desktop Chrome"] },
-      // Only run integration tests when enabled
-      testMatch: "**/*-integration.spec.ts",
-      // Integration tests hit the actual backend
+      testDir: "./tests/e2e/integration",
+      testMatch: "**/*.integration.spec.ts",
+      use: {
+        ...devices["Desktop Chrome"],
+        baseURL: "http://localhost:8080",
+      },
+      globalSetup: "./tests/e2e/global-setup.ts",
+      globalTeardown: "./tests/e2e/integration/global-teardown.ts",
       timeout: 60000,
     },
   ],
 
-  webServer: {
-    command: "npm run dev",
-    url: "http://localhost:3000",
-    reuseExistingServer: !isCI,
-    timeout: 60000,
-  },
+  // Integration tests use Podman Compose stack, no dev server needed
+  webServer: isIntegration
+    ? undefined
+    : {
+        command: "npm run dev",
+        url: "http://localhost:3000",
+        reuseExistingServer: !isCI,
+        timeout: 60000,
+      },
 })
