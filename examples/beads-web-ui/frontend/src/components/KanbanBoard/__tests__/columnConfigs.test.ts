@@ -48,12 +48,12 @@ describe('columnConfigs', () => {
   // 1. Backlog column identity
   // ---------------------------------------------------------------
   describe('Backlog column identity', () => {
-    it('has id "backlog" at index 1', () => {
-      expect(DEFAULT_COLUMNS[1].id).toBe('backlog');
+    it('has id "backlog" at index 0', () => {
+      expect(DEFAULT_COLUMNS[0].id).toBe('backlog');
     });
 
-    it('has label "Backlog" at index 1', () => {
-      expect(DEFAULT_COLUMNS[1].label).toBe('Backlog');
+    it('has label "Backlog" at index 0', () => {
+      expect(DEFAULT_COLUMNS[0].label).toBe('Backlog');
     });
   });
 
@@ -151,9 +151,19 @@ describe('columnConfigs', () => {
   });
 
   // ---------------------------------------------------------------
-  // 6-8. Review filter
+  // 6-8. Needs Review column (id: 'review', label: 'Needs Review')
   // ---------------------------------------------------------------
-  describe('Review filter', () => {
+  describe('Needs Review column identity', () => {
+    it('has id "review" at index 4', () => {
+      expect(DEFAULT_COLUMNS[4].id).toBe('review');
+    });
+
+    it('has label "Needs Review" at index 4', () => {
+      expect(DEFAULT_COLUMNS[4].label).toBe('Needs Review');
+    });
+  });
+
+  describe('Needs Review filter', () => {
     const review = getColumn('review');
 
     it('does NOT match status=blocked issues', () => {
@@ -176,24 +186,34 @@ describe('columnConfigs', () => {
   });
 
   // ---------------------------------------------------------------
-  // 9. Ready column still works
+  // 9. Open column (id: 'ready', label: 'Open')
   // ---------------------------------------------------------------
-  describe('Ready filter', () => {
-    const ready = getColumn('ready');
+  describe('Open column identity', () => {
+    it('has id "ready" at index 1', () => {
+      expect(DEFAULT_COLUMNS[1].id).toBe('ready');
+    });
+
+    it('has label "Open" at index 1', () => {
+      expect(DEFAULT_COLUMNS[1].label).toBe('Open');
+    });
+  });
+
+  describe('Open filter', () => {
+    const open = getColumn('ready');
 
     it('matches open issues with no blockers and no [Need Review]', () => {
       const issue = createMockIssue({ status: 'open' });
-      expect(ready.filter(issue, notBlocked)).toBe(true);
+      expect(open.filter(issue, notBlocked)).toBe(true);
     });
 
     it('matches issues with undefined status (treated as open)', () => {
       const issue = createMockIssue({ status: undefined });
-      expect(ready.filter(issue, notBlocked)).toBe(true);
+      expect(open.filter(issue, notBlocked)).toBe(true);
     });
 
     it('rejects open issues that have blockers', () => {
       const issue = createMockIssue({ status: 'open' });
-      expect(ready.filter(issue, blocked)).toBe(false);
+      expect(open.filter(issue, blocked)).toBe(false);
     });
 
     it('rejects [Need Review] titled issues', () => {
@@ -201,7 +221,7 @@ describe('columnConfigs', () => {
         title: '[Need Review] Refactor API',
         status: 'open',
       });
-      expect(ready.filter(issue, notBlocked)).toBe(false);
+      expect(open.filter(issue, notBlocked)).toBe(false);
     });
   });
 
@@ -209,7 +229,7 @@ describe('columnConfigs', () => {
   // Column style configuration
   // ---------------------------------------------------------------
   describe('Column style configuration', () => {
-    it('review column has style "normal" (not highlighted)', () => {
+    it('Needs Review column has style "normal" (not highlighted)', () => {
       const review = getColumn('review');
       expect(review.style).toBe('normal');
     });
@@ -236,7 +256,7 @@ describe('columnConfigs', () => {
   // Epic exclusion from kanban columns
   // ---------------------------------------------------------------
   describe('Epic exclusion from kanban columns', () => {
-    it('excludes epics from Ready', () => {
+    it('excludes epics from Open', () => {
       const issue = createMockIssue({ issue_type: 'epic', status: 'open' });
       expect(getColumn('ready').filter(issue, notBlocked)).toBe(false);
     });
@@ -266,12 +286,12 @@ describe('columnConfigs', () => {
       expect(getColumn('in_progress').filter(issue, notBlocked)).toBe(false);
     });
 
-    it('excludes epics from Review (status)', () => {
+    it('excludes epics from Needs Review (status)', () => {
       const issue = createMockIssue({ issue_type: 'epic', status: 'review' });
       expect(getColumn('review').filter(issue, notBlocked)).toBe(false);
     });
 
-    it('excludes epics from Review (title)', () => {
+    it('excludes epics from Needs Review (title)', () => {
       const issue = createMockIssue({
         issue_type: 'epic',
         title: '[Need Review] Epic cleanup',
@@ -284,12 +304,12 @@ describe('columnConfigs', () => {
       expect(getColumn('done').filter(issue, notBlocked)).toBe(true);
     });
 
-    it('still includes non-epic tasks in Ready (regression)', () => {
+    it('still includes non-epic tasks in Open (regression)', () => {
       const issue = createMockIssue({ issue_type: 'task', status: 'open' });
       expect(getColumn('ready').filter(issue, notBlocked)).toBe(true);
     });
 
-    it('still includes undefined issue_type in Ready (regression)', () => {
+    it('still includes undefined issue_type in Open (regression)', () => {
       const issue = createMockIssue({ issue_type: undefined, status: 'open' });
       expect(getColumn('ready').filter(issue, notBlocked)).toBe(true);
     });
