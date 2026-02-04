@@ -22,9 +22,10 @@ func (s *SQLiteStorage) GetReadyWork(ctx context.Context, filter types.WorkFilte
 	}
 	args := []interface{}{}
 
-	// Default to open OR in_progress if not specified
+	// Default to open OR in_progress OR review if not specified
+	// Review status is included so that issues in review appear in the Kanban board
 	if filter.Status == "" {
-		whereClauses = append(whereClauses, "i.status IN ('open', 'in_progress')")
+		whereClauses = append(whereClauses, "i.status IN ('open', 'in_progress', 'review')")
 	} else {
 		whereClauses = append(whereClauses, "i.status = ?")
 		args = append(args, filter.Status)
@@ -792,7 +793,7 @@ func (s *SQLiteStorage) GetNewlyUnblockedByClose(ctx context.Context, closedIssu
 	// Find issues that:
 	// 1. Had a 'blocks' dependency on the closed issue
 	// 2. Are now NOT in blocked_issues_cache (unblocked)
-	// 3. Have status open or in_progress
+	// 3. Have status open, in_progress, or review (consistent with GetReadyWork)
 	// 4. Are not pinned
 	query := `
 		SELECT i.id, i.content_hash, i.title, i.description, i.design, i.acceptance_criteria, i.notes,
@@ -807,7 +808,7 @@ func (s *SQLiteStorage) GetNewlyUnblockedByClose(ctx context.Context, closedIssu
 		JOIN dependencies d ON i.id = d.issue_id
 		WHERE d.depends_on_id = ?
 		  AND d.type = 'blocks'
-		  AND i.status IN ('open', 'in_progress')
+		  AND i.status IN ('open', 'in_progress', 'review')
 		  AND i.pinned = 0
 		  AND NOT EXISTS (
 		      SELECT 1 FROM blocked_issues_cache WHERE issue_id = i.id

@@ -610,6 +610,79 @@ func TestGetReadyWorkIncludesInProgress(t *testing.T) {
 	}
 }
 
+// TestGetReadyWorkIncludesReview tests that issues with status=review are included
+// in GetReadyWork so they appear in the Kanban board's Review column (bd-nb5f)
+func TestGetReadyWorkIncludesReview(t *testing.T) {
+	store, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	ctx := context.Background()
+
+	// Create issues:
+	// issue1: open, no dependencies → READY
+	// issue2: review, no dependencies → READY (bd-nb5f)
+	// issue3: review, depends on open issue → BLOCKED
+	// issue4: closed, no dependencies → NOT READY (closed)
+
+	issue1 := &types.Issue{Title: "Open Ready", Status: types.StatusOpen, Priority: 1, IssueType: types.TypeTask}
+	issue2 := &types.Issue{Title: "In Review Ready", Status: types.StatusOpen, Priority: 2, IssueType: types.TypeTask}
+	issue3 := &types.Issue{Title: "In Review Blocked", Status: types.StatusOpen, Priority: 1, IssueType: types.TypeTask}
+	issue4 := &types.Issue{Title: "Blocker", Status: types.StatusOpen, Priority: 1, IssueType: types.TypeTask}
+	issue5 := &types.Issue{Title: "Closed", Status: types.StatusClosed, Priority: 1, IssueType: types.TypeTask}
+
+	store.CreateIssue(ctx, issue1, "test-user")
+	store.CreateIssue(ctx, issue2, "test-user")
+	store.UpdateIssue(ctx, issue2.ID, map[string]interface{}{"status": types.StatusReview}, "test-user")
+	store.CreateIssue(ctx, issue3, "test-user")
+	store.UpdateIssue(ctx, issue3.ID, map[string]interface{}{"status": types.StatusReview}, "test-user")
+	store.CreateIssue(ctx, issue4, "test-user")
+	store.CreateIssue(ctx, issue5, "test-user")
+	store.CloseIssue(ctx, issue5.ID, "Done", "test-user", "")
+
+	// Add dependency: issue3 blocks on issue4
+	store.AddDependency(ctx, &types.Dependency{IssueID: issue3.ID, DependsOnID: issue4.ID, Type: types.DepBlocks}, "test-user")
+
+	// Get ready work (default filter - no status specified)
+	ready, err := store.GetReadyWork(ctx, types.WorkFilter{})
+	if err != nil {
+		t.Fatalf("GetReadyWork failed: %v", err)
+	}
+
+	// Should have 3 ready issues:
+	// - issue1 (open, no blockers)
+	// - issue2 (review, no blockers) ← this is the key test case for bd-nb5f
+	// - issue4 (open blocker, but itself has no blockers so it's ready to work on)
+	if len(ready) != 3 {
+		t.Logf("Ready issues:")
+		for _, r := range ready {
+			t.Logf("  - %s: %s (status: %s)", r.ID, r.Title, r.Status)
+		}
+		t.Fatalf("Expected 3 ready issues, got %d", len(ready))
+	}
+
+	// Verify ready issues
+	readyIDs := make(map[string]bool)
+	for _, issue := range ready {
+		readyIDs[issue.ID] = true
+	}
+
+	if !readyIDs[issue1.ID] {
+		t.Errorf("Expected %s (open, no blockers) to be ready", issue1.ID)
+	}
+	if !readyIDs[issue2.ID] {
+		t.Errorf("Expected %s (review, no blockers) to be ready - this is bd-nb5f!", issue2.ID)
+	}
+	if !readyIDs[issue4.ID] {
+		t.Errorf("Expected %s (open blocker, but itself unblocked) to be ready", issue4.ID)
+	}
+	if readyIDs[issue3.ID] {
+		t.Errorf("Expected %s (review, blocked) to NOT be ready", issue3.ID)
+	}
+	if readyIDs[issue5.ID] {
+		t.Errorf("Expected %s (closed) to NOT be ready", issue5.ID)
+	}
+}
+
 func TestExplainQueryPlanReadyWork(t *testing.T) {
 	store, cleanup := setupTestDB(t)
 	defer cleanup()
