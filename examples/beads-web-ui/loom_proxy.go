@@ -26,14 +26,24 @@ func newLoomProxy() http.Handler {
 		return nil
 	}
 
-	// SECURITY: Only allow proxying to localhost to prevent SSRF.
+	// Parse allowed hosts from env (comma-separated)
+	allowedHosts := strings.Split(os.Getenv("LOOM_PROXY_ALLOWED_HOSTS"), ",")
+	allowedHostsMap := make(map[string]bool)
+	for _, h := range allowedHosts {
+		h = strings.TrimSpace(h)
+		if h != "" {
+			allowedHostsMap[h] = true
+		}
+	}
+
+	// SECURITY: Only allow proxying to localhost OR explicitly allowed hosts.
 	if target.Scheme != "http" && target.Scheme != "https" {
 		log.Printf("loom proxy disabled: invalid scheme %q (only http/https allowed)", target.Scheme)
 		return nil
 	}
 	host := target.Hostname()
-	if host != "localhost" && host != "127.0.0.1" && host != "::1" {
-		log.Printf("loom proxy disabled: host %q not allowed (only localhost)", host)
+	if host != "localhost" && host != "127.0.0.1" && host != "::1" && !allowedHostsMap[host] {
+		log.Printf("loom proxy disabled: host %q not allowed", host)
 		return nil
 	}
 

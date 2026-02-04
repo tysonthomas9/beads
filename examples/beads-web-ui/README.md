@@ -172,7 +172,9 @@ See [CLAUDE.md](CLAUDE.md) for detailed testing guidance.
 | Environment Variable | Default | Description |
 |---------------------|---------|-------------|
 | `BEADS_WEBUI_PORT` | 8080 | HTTP server port |
-| `VITE_LOOM_SERVER_URL` | `http://localhost:9000` | Loom server URL for agent monitoring |
+| `LOOM_SERVER_URL` | `http://localhost:9000` | Backend loom server URL for proxy |
+| `LOOM_PROXY_ALLOWED_HOSTS` | (empty) | Comma-separated list of non-localhost hosts to allow proxying to |
+| `VITE_LOOM_SERVER_URL` | `http://localhost:9000` | Frontend loom server URL for agent monitoring |
 
 Command-line flags:
 

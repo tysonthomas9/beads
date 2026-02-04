@@ -49,8 +49,12 @@ services:
       - beads-data:/app/.beads
     environment:
       - BEADS_SOCKET=/app/.beads/bd.sock
+      - LOOM_SERVER_URL=http://loom:9000
+      - LOOM_PROXY_ALLOWED_HOSTS=loom
     depends_on:
       daemon:
+        condition: service_healthy
+      loom:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
@@ -62,27 +66,27 @@ services:
       - e2e-network
     restart: "no"
 
-  # loom server - disabled for now (external module issue)
-  # loom:
-  #   build:
-  #     context: ../..
-  #     dockerfile: examples/beads-web-ui/Containerfile.e2e
-  #     target: loom
-  #   ports:
-  #     - "9000:9000"
-  #   volumes:
-  #     - beads-data:/app/.beads
-  #   environment:
-  #     - LOOM_CORS_ORIGIN=*
-  #   depends_on:
-  #     web:
-  #       condition: service_healthy
-  #   healthcheck:
-  #     test: ["CMD", "curl", "-f", "http://localhost:9000/health"]
-  #     interval: 2s
-  #     timeout: 5s
-  #     retries: 30
-  #     start_period: 10s
-  #   networks:
-  #     - e2e-network
-  #   restart: "no"
+  # loom server - agent monitoring service
+  loom:
+    build:
+      context: ../..
+      dockerfile: examples/beads-web-ui/Containerfile.e2e
+      target: loom
+    ports:
+      - "9000:9000"
+    volumes:
+      - beads-data:/app/.beads
+    environment:
+      - LOOM_CORS_ORIGIN=*
+    depends_on:
+      daemon:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/health"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+      start_period: 10s
+    networks:
+      - e2e-network
+    restart: "no"
