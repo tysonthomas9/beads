@@ -12,7 +12,7 @@ import styles from './TaskDrawer.module.css';
 /**
  * Category type for work queue items.
  */
-export type TaskCategory = 'plan' | 'impl' | 'review' | 'inProgress' | 'blocked';
+export type TaskCategory = 'plan' | 'impl' | 'review' | 'inProgress' | 'blocked' | 'done';
 
 /**
  * Props for the TaskDrawer component.
