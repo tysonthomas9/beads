@@ -15,6 +15,10 @@ A React + Go web interface for the Beads issue tracking system. Provides Kanban,
 | Issue Detail Panel | Side panel with full issue details, comments, dependencies |
 | Bulk Operations | Close or update priority for multiple issues at once |
 
+## How It Works
+
+See [docs/WEB_UI.md](../../docs/WEB_UI.md) for a high-level architecture and data-flow overview.
+
 ## Prerequisites
 
 - **Go** 1.24 or later

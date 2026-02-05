@@ -56,7 +56,7 @@ func main() {
 	poolSize := flag.Int("pool-size", defaultPoolSize, "Connection pool size")
 	corsEnabled := flag.Bool("cors", false, "Enable CORS for development")
 	corsOrigin := flag.String("cors-origin", "", "CORS allowed origins (comma-separated, default: http://localhost:3000)")
-	terminalCmd := flag.String("terminal-cmd", "claude", "Command to run in terminal sessions (env: BEADS_TERMINAL_CMD)")
+	terminalCmd := flag.String("terminal-cmd", "loom lead", "Command to run in terminal sessions (env: BEADS_TERMINAL_CMD)")
 	flag.Parse()
 
 	// Check environment variables for port override
