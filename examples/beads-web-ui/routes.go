@@ -29,6 +29,9 @@ func setupRoutes(mux *http.ServeMux, pool *daemon.ConnectionPool, hub *SSEHub, g
 	// SSE hub metrics endpoint
 	mux.HandleFunc("GET /api/metrics", handleMetrics(hub))
 
+	// Daemon status endpoint - exposes daemon configuration (auto-commit, auto-push, etc.)
+	mux.HandleFunc("GET /api/daemon/status", handleDaemonStatus(pool))
+
 	// Issue endpoints
 	mux.HandleFunc("GET /api/issues/{id}", handleGetIssue(pool))
 	mux.HandleFunc("GET /api/issues", handleListIssues(pool))
@@ -287,6 +290,74 @@ func handleStatsWithPool(pool statsConnectionGetter) http.HandlerFunc {
 			Data:    &stats,
 		}); err != nil {
 			log.Printf("Failed to encode stats response: %v", err)
+		}
+	}
+}
+
+// DaemonStatusResponse wraps the daemon status for JSON response.
+type DaemonStatusResponse struct {
+	Success bool                `json:"success"`
+	Data    *rpc.StatusResponse `json:"data,omitempty"`
+	Error   string              `json:"error,omitempty"`
+}
+
+// handleDaemonStatus returns the daemon's runtime configuration.
+// This includes auto-commit, auto-push, auto-pull, local-mode, sync-interval, and daemon-mode.
+func handleDaemonStatus(pool *daemon.ConnectionPool) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+
+		if pool == nil {
+			w.WriteHeader(http.StatusServiceUnavailable)
+			if err := json.NewEncoder(w).Encode(DaemonStatusResponse{
+				Success: false,
+				Error:   "connection pool not initialized",
+			}); err != nil {
+				log.Printf("Failed to encode daemon status response: %v", err)
+			}
+			return
+		}
+
+		// Acquire connection with timeout
+		ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
+		defer cancel()
+
+		client, err := pool.Get(ctx)
+		if err != nil {
+			status := http.StatusServiceUnavailable
+			if errors.Is(err, context.DeadlineExceeded) {
+				status = http.StatusGatewayTimeout
+			}
+			w.WriteHeader(status)
+			if err := json.NewEncoder(w).Encode(DaemonStatusResponse{
+				Success: false,
+				Error:   err.Error(),
+			}); err != nil {
+				log.Printf("Failed to encode daemon status response: %v", err)
+			}
+			return
+		}
+		defer pool.Put(client)
+
+		// Get daemon status
+		daemonStatus, err := client.Status()
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			if err := json.NewEncoder(w).Encode(DaemonStatusResponse{
+				Success: false,
+				Error:   fmt.Sprintf("rpc error: %v", err),
+			}); err != nil {
+				log.Printf("Failed to encode daemon status response: %v", err)
+			}
+			return
+		}
+
+		w.WriteHeader(http.StatusOK)
+		if err := json.NewEncoder(w).Encode(DaemonStatusResponse{
+			Success: true,
+			Data:    daemonStatus,
+		}); err != nil {
+			log.Printf("Failed to encode daemon status response: %v", err)
 		}
 	}
 }
