@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1.4
 # Multi-target Containerfile for E2E testing
 # Build context should be repository root (../../ from this file)
 #
@@ -53,7 +54,8 @@ WORKDIR /build
 
 # Copy go.mod and go.sum first for better layer caching
 COPY go.mod go.sum ./
-RUN go mod download
+RUN --mount=type=cache,target=/go/pkg/mod \
+    go mod download
 
 # Copy the entire source tree
 COPY . .
@@ -64,7 +66,9 @@ COPY . .
 # =============================================================================
 FROM base-builder AS daemon-builder
 
-RUN go build -o /bd ./cmd/bd
+RUN --mount=type=cache,target=/go/pkg/mod \
+    --mount=type=cache,target=/root/.cache/go-build \
+    go build -o /bd ./cmd/bd
 
 # =============================================================================
 # Stage: daemon
@@ -109,13 +113,16 @@ FROM base-builder AS web-builder
 ARG NODE_VERSION
 RUN apk add --no-cache nodejs npm
 
-# Build frontend
+# Build frontend with npm cache
 WORKDIR /build/examples/beads-web-ui/frontend
-RUN npm ci && npm run build
+RUN --mount=type=cache,target=/root/.npm \
+    npm ci && npm run build
 
-# Build beads-web-ui binary (embeds frontend)
+# Build beads-web-ui binary (embeds frontend) with go caches
 WORKDIR /build/examples/beads-web-ui
-RUN go build -o /beads-web-ui .
+RUN --mount=type=cache,target=/go/pkg/mod \
+    --mount=type=cache,target=/root/.cache/go-build \
+    go build -o /beads-web-ui .
 
 # =============================================================================
 # Stage: web
@@ -165,7 +172,9 @@ RUN apk add --no-cache git ca-certificates
 # Install loom from external module
 # CGO not needed for loom
 ENV CGO_ENABLED=0
-RUN go install github.com/tysonthomas9/loomcli/cmd/loom@latest
+RUN --mount=type=cache,target=/go/pkg/mod \
+    --mount=type=cache,target=/root/.cache/go-build \
+    go install github.com/tysonthomas9/loomcli/cmd/loom@latest
 
 # =============================================================================
 # Stage: loom
