@@ -38,11 +38,47 @@ type IssuesResponse struct {
 	Code    string          `json:"code,omitempty"`
 }
 
+// ReadyIssueWithParent extends Issue with parent info for /api/ready.
+// This enables epic swimlane grouping in the Kanban view.
+type ReadyIssueWithParent struct {
+	*types.Issue
+	Parent      *string `json:"parent,omitempty"`       // Parent issue ID (null for root-level issues)
+	ParentTitle *string `json:"parent_title,omitempty"` // Parent issue title for display
+}
+
 // ReadyResponse wraps the ready issues data for JSON response.
 type ReadyResponse struct {
-	Success bool           `json:"success"`
-	Data    []*types.Issue `json:"data,omitempty"`
-	Error   string         `json:"error,omitempty"`
+	Success bool                    `json:"success"`
+	Data    []*ReadyIssueWithParent `json:"data,omitempty"`
+	Error   string                  `json:"error,omitempty"`
+}
+
+// readyClient is an internal interface for testing ready issue operations.
+// The production code uses *rpc.Client which implements this interface.
+type readyClient interface {
+	Ready(args *rpc.ReadyArgs) (*rpc.Response, error)
+	GetParentIDs(args *rpc.GetParentIDsArgs) (*rpc.GetParentIDsResponse, error)
+}
+
+// readyConnectionGetter is an internal interface for testing ready handler pool operations.
+type readyConnectionGetter interface {
+	Get(ctx context.Context) (readyClient, error)
+	Put(client readyClient)
+}
+
+// readyPoolAdapter wraps *daemon.ConnectionPool to implement readyConnectionGetter.
+type readyPoolAdapter struct {
+	pool *daemon.ConnectionPool
+}
+
+func (p *readyPoolAdapter) Get(ctx context.Context) (readyClient, error) {
+	return p.pool.Get(ctx)
+}
+
+func (p *readyPoolAdapter) Put(client readyClient) {
+	if c, ok := client.(*rpc.Client); ok {
+		p.pool.Put(c)
+	}
 }
 
 // CloseRequest represents the JSON body for the close endpoint.
@@ -334,6 +370,14 @@ func handleListIssues(pool *daemon.ConnectionPool) http.HandlerFunc {
 
 // handleReady returns issues ready to work on (open/in_progress with no blockers).
 func handleReady(pool *daemon.ConnectionPool) http.HandlerFunc {
+	if pool == nil {
+		return handleReadyWithPool(nil)
+	}
+	return handleReadyWithPool(&readyPoolAdapter{pool: pool})
+}
+
+// handleReadyWithPool is the internal implementation that accepts an interface for testing.
+func handleReadyWithPool(pool readyConnectionGetter) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 
@@ -419,10 +463,49 @@ func handleReady(pool *daemon.ConnectionPool) http.HandlerFunc {
 			return
 		}
 
+		// If no issues, return empty response
+		if len(issues) == 0 {
+			w.WriteHeader(http.StatusOK)
+			if err := json.NewEncoder(w).Encode(ReadyResponse{
+				Success: true,
+				Data:    []*ReadyIssueWithParent{},
+			}); err != nil {
+				log.Printf("Failed to encode ready response: %v", err)
+			}
+			return
+		}
+
+		// Extract issue IDs for parent lookup
+		issueIDs := make([]string, len(issues))
+		for i, issue := range issues {
+			issueIDs[i] = issue.ID
+		}
+
+		// Get parent info for all issues
+		parentResp, err := client.GetParentIDs(&rpc.GetParentIDsArgs{IssueIDs: issueIDs})
+		if err != nil {
+			// Non-fatal: log and continue without parent info
+			log.Printf("Failed to get parent IDs for ready issues: %v", err)
+			parentResp = &rpc.GetParentIDsResponse{Parents: make(map[string]*rpc.ParentInfo)}
+		}
+
+		// Build response with parent info
+		issuesWithParent := make([]*ReadyIssueWithParent, len(issues))
+		for i, issue := range issues {
+			iwp := &ReadyIssueWithParent{
+				Issue: issue,
+			}
+			if parentInfo, ok := parentResp.Parents[issue.ID]; ok {
+				iwp.Parent = &parentInfo.ParentID
+				iwp.ParentTitle = &parentInfo.ParentTitle
+			}
+			issuesWithParent[i] = iwp
+		}
+
 		w.WriteHeader(http.StatusOK)
 		if err := json.NewEncoder(w).Encode(ReadyResponse{
 			Success: true,
-			Data:    issues,
+			Data:    issuesWithParent,
 		}); err != nil {
 			log.Printf("Failed to encode ready response: %v", err)
 		}
